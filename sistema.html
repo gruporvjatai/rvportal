@@ -642,6 +642,19 @@
 
 
       <script>
+
+        // ====== VERIFICAÇÃO DE LOGIN ======
+const userSessao = localStorage.getItem('rv_user');
+if (!userSessao) {
+    // Se não tem usuário logado, chuta de volta pro login
+    window.location.replace('index.html');
+} else {
+    // Se estiver logado, podemos pegar os dados dele
+    const dadosUsuario = JSON.parse(userSessao);
+    console.log("Usuário logado:", dadosUsuario.nome);
+}
+// ==================================
+        
       const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co'; 
       const supabaseKey = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
       const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -2191,6 +2204,12 @@ function reprintSale(id) {
     
     renderInvoice(saleObj, false); 
     setTimeout(() => window.print(), 500);
+}
+
+
+        function fazerLogout() {
+    localStorage.removeItem('rv_user');
+    window.location.replace('index.html');
 }
         
     </script>
