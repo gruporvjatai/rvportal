@@ -1,7 +1,7 @@
 {
-  "name": "RV Blocos",
-  "short_name": "RV Blocos",
-  "start_url": "/rvblocos/mobile.html",
+  "name": "RV Portal",
+  "short_name": "RV Portal",
+  "start_url": "/rvportal/mobile.html",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
