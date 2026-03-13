@@ -677,131 +677,142 @@
     </div>
   
 
+<script>
+        // ====== 1. VERIFICAÇÃO DE LOGIN GLOBAL ======
+        let dadosUsuario = null;
+        const userSessao = localStorage.getItem('rv_user');
 
-      <script>
-
-        // ====== VERIFICAÇÃO DE LOGIN ======
-const userSessao = localStorage.getItem('rv_user');
-if (!userSessao) {
-    // Se não tem usuário logado, chuta de volta pro login
-    window.location.replace('index.html');
-} else {
-    // Se estiver logado, podemos pegar os dados dele
-    const dadosUsuario = JSON.parse(userSessao);
-    console.log("Usuário logado:", dadosUsuario.nome);
-}
-// ==================================
-        
-      /*const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co'; 
-      const supabaseKey = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
-      const sb = window.supabase.createClient(supabaseUrl, supabaseKey);*/
-
-
-let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], custoMaterialB10: 0 };
-let CART = [];
-let CURRENT_QUOTE_ID = null; 
-
-window.onload = function() { showLoading(true); loadData(); };
-
-// --- NAVEGAÇÃO E UTILIDADES --- 
-function navigate(viewId) {
-    document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
-    const target = document.getElementById('view-' + viewId);
-    if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-emerald-700', 'text-white', 'shadow-lg'));
-    const activeBtn = document.getElementById('nav-' + viewId);
-    if(activeBtn) activeBtn.classList.add('bg-emerald-700', 'text-white', 'shadow-lg');
-    
-    if(viewId === 'dash') renderDashboard();
-    if(viewId === 'pos') renderPOSProducts();
-    if(viewId === 'quotes') renderQuotesList();
-    if(viewId === 'expedition') renderExpedition();
-    if(viewId === 'fin') renderFinance();
-    if(viewId === 'clients') renderClients();
-    if(viewId === 'prod') renderProducts();
-    if(viewId === 'production') renderProductionSelect();
-    if(viewId === 'logs') renderLogs();
-    if(viewId === 'users') renderUsers();
-    lucide.createIcons();
-}
-
-function formatMoney(val) { return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-function formatDate(d) { try { return d ? new Date(d).toLocaleDateString('pt-BR') : '-'; } catch(e) { return '-'; } }
-function showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; }
-function showToast(msg, isError) { 
-    const t=document.getElementById('toast'); 
-    t.textContent=msg; 
-    t.className=`fixed top-5 right-5 px-6 py-3 rounded-lg shadow-xl text-white font-medium z-50 ${isError?'bg-red-600':'bg-slate-800'}`; 
-    t.style.display='block'; 
-    setTimeout(()=>t.style.display='none',3000); 
-}
-
-// --- BANCO DE DADOS: SUPABASE ---
-
-async function loadData() {
-    try {
-        const [resProd, resCli, resLog, resDesp, resOrc, resConf] = await Promise.all([
-            sb.from('produtos').select('*'),
-            sb.from('clientes').select('*'),
-            sb.from('logs').select('*'),
-            sb.from('despesas').select('*'),
-            sb.from('orcamentos').select('*'),
-            sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
-        ]);
-
-        if (resProd.error) throw resProd.error;
-
-        STATE.products = (resProd.data || []).map(p => ({
-            id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
-            stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
-            available: Number(p.estoque_fisico) - Number(p.estoque_comprometido)
-        }));
-
-        STATE.clients = (resCli.data || []).map(c => ({
-            id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco
-        }));
-
-        STATE.logs = (resLog.data || []).map(l => ({
-            uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
-            date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
-            clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
-            deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
-            discount: Number(l.desconto), finStatus: l.status_financeiro, dueDate: l.vencimento,
-            paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
-        }));
-
-        STATE.expenses = (resDesp.data || []).map(e => ({
-            id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
-            cost: Number(e.custo), date: e.data, note: e.observacao
-        }));
-
-        const quotesMap = {};
-        (resOrc.data || []).forEach(row => {
-            const qId = String(row.id);
-            if(!quotesMap[qId]) {
-                quotesMap[qId] = { id: qId, date: row.data, clientName: row.cliente_nome, items: [], total: 0, status: row.status, discount: Number(row.desconto), discountType: row.tipo_desconto, paymentMethod: row.forma_pagamento, deliveryAddress: row.endereco_entrega };
-            }
-            quotesMap[qId].items.push({ name: row.item_nome, qty: Number(row.quantidade), price: Number(row.preco_unitario), total: Number(row.total_item) });
-            quotesMap[qId].total += Number(row.total_item);
-        });
-        STATE.quotes = Object.values(quotesMap).map(q => { q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); return q; });
-
-        STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
-
-      // Só busca os usuários e mostra o botão se for Admin
-        if (dadosUsuario.nivel === 'admin') {
-            document.getElementById('nav-users').classList.remove('hidden');
-            const resUsers = await sb.from('usuarios').select('*');
-            STATE.users = resUsers.data || [];
+        if (!userSessao) {
+            // Se não tem usuário logado, chuta de volta pro login
+            window.location.replace('index.html');
+        } else {
+            // Se estiver logado, salva os dados na variável global
+            dadosUsuario = JSON.parse(userSessao);
         }
 
-        onDataLoaded();
-    } catch (err) {
-        showLoading(false);
-        showToast("Erro ao conectar no banco: " + err.message, true);
-        console.error(err);
-    }
-}
+        // ====== 2. CONEXÃO COM O SUPABASE ======
+        const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co'; 
+        const supabaseKey = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
+        const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
+        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], custoMaterialB10: 0 };
+        let CART = [];
+        let CURRENT_QUOTE_ID = null; 
+
+        // ====== 4. INICIALIZAÇÃO ======
+        window.onload = function() { 
+            // Só tenta carregar os dados se o usuário estiver validado
+            if (dadosUsuario) {
+                showLoading(true); 
+                loadData(); 
+            }
+        };
+
+        // --- NAVEGAÇÃO E UTILIDADES --- 
+        function navigate(viewId) {
+            document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
+            const target = document.getElementById('view-' + viewId);
+            if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-emerald-700', 'text-white', 'shadow-lg'));
+            const activeBtn = document.getElementById('nav-' + viewId);
+            if(activeBtn) activeBtn.classList.add('bg-emerald-700', 'text-white', 'shadow-lg');
+            
+            if(viewId === 'dash') renderDashboard();
+            if(viewId === 'pos') renderPOSProducts();
+            if(viewId === 'quotes') renderQuotesList();
+            if(viewId === 'expedition') renderExpedition();
+            if(viewId === 'fin') renderFinance();
+            if(viewId === 'clients') renderClients();
+            if(viewId === 'prod') renderProducts();
+            if(viewId === 'production') renderProductionSelect();
+            if(viewId === 'logs') renderLogs();
+            if(viewId === 'users') renderUsers(); // <- RENDERIZA ABA USUÁRIOS
+            lucide.createIcons();
+        }
+
+        function formatMoney(val) { return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+        function formatDate(d) { try { return d ? new Date(d).toLocaleDateString('pt-BR') : '-'; } catch(e) { return '-'; } }
+        function showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; }
+        function showToast(msg, isError) { 
+            const t=document.getElementById('toast'); 
+            t.textContent=msg; 
+            t.className=`fixed top-5 right-5 px-6 py-3 rounded-lg shadow-xl text-white font-medium z-50 ${isError?'bg-red-600':'bg-slate-800'}`; 
+            t.style.display='block'; 
+            setTimeout(()=>t.style.display='none',3000); 
+        }
+
+        // ====== 5. FUNÇÃO DE CARREGAMENTO DO BANCO DE DADOS ======
+        async function loadData() {
+            try {
+                const [resProd, resCli, resLog, resDesp, resOrc, resConf] = await Promise.all([
+                    sb.from('produtos').select('*'),
+                    sb.from('clientes').select('*'),
+                    sb.from('logs').select('*'),
+                    sb.from('despesas').select('*'),
+                    sb.from('orcamentos').select('*'),
+                    sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
+                ]);
+
+                if (resProd.error) throw resProd.error;
+
+                STATE.products = (resProd.data || []).map(p => ({
+                    id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
+                    stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
+                    available: Number(p.estoque_fisico) - Number(p.estoque_comprometido)
+                }));
+
+                STATE.clients = (resCli.data || []).map(c => ({
+                    id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco
+                }));
+
+                STATE.logs = (resLog.data || []).map(l => ({
+                    uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
+                    date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
+                    clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
+                    deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
+                    discount: Number(l.desconto), finStatus: l.status_financeiro, dueDate: l.vencimento,
+                    paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
+                }));
+
+                STATE.expenses = (resDesp.data || []).map(e => ({
+                    id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
+                    cost: Number(e.custo), date: e.data, note: e.observacao
+                }));
+
+                const quotesMap = {};
+                (resOrc.data || []).forEach(row => {
+                    const qId = String(row.id);
+                    if(!quotesMap[qId]) {
+                        quotesMap[qId] = { id: qId, date: row.data, clientName: row.cliente_nome, items: [], total: 0, status: row.status, discount: Number(row.desconto), discountType: row.tipo_desconto, paymentMethod: row.forma_pagamento, deliveryAddress: row.endereco_entrega };
+                    }
+                    quotesMap[qId].items.push({ name: row.item_nome, qty: Number(row.quantidade), price: Number(row.preco_unitario), total: Number(row.total_item) });
+                    quotesMap[qId].total += Number(row.total_item);
+                });
+                STATE.quotes = Object.values(quotesMap).map(q => { q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); return q; });
+
+                STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
+
+                // ========================================================
+                // LÓGICA DE USUÁRIOS E PERMISSÕES DE ADMIN
+                // ========================================================
+                if (dadosUsuario.nivel === 'admin') {
+                    // Se for admin, mostra o botão no menu e baixa a lista de usuários
+                    const navUsersBtn = document.getElementById('nav-users');
+                    if (navUsersBtn) navUsersBtn.classList.remove('hidden');
+                    
+                    const resUsers = await sb.from('usuarios').select('*');
+                    STATE.users = resUsers.data || [];
+                }
+                // ========================================================
+
+                onDataLoaded();
+            } catch (err) {
+                showLoading(false);
+                showToast("Erro ao conectar no banco: " + err.message, true);
+                console.error(err);
+            }
+        }
 
 function onDataLoaded() {
     updateClientSelects();
