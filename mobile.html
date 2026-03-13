@@ -7,14 +7,15 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="shortcut icon" type="image/png" href="logo.png">
   <link rel="apple-touch-icon" href="logo.png">
 
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="application-name" content="RV Blocos">
-  <meta name="apple-mobile-web-app-title" content="RV Blocos">
+  <meta name="application-name" content="RV Portal">
+  <meta name="apple-mobile-web-app-title" content="RV Portal">
   <meta name="theme-color" content="#0f172a"> <link rel="manifest" href="manifest.json">
   
   <style>
@@ -134,8 +135,8 @@
         <img src="https://lh3.googleusercontent.com/d/1SIoZ2JlalfMnGDZTXBk7ZYuPgwxX3odF" class="max-w-full max-h-full object-contain">
       </div>
       <div>
-        <h1 class="font-black text-lg italic text-white leading-none tracking-tighter">RV BLOCOS</h1>
-        <p class="text-[10px] font-black text-rv-orange uppercase tracking-widest mt-1">E ESTRUTURAS</p>
+        <h1 class="font-black text-lg italic text-white leading-none tracking-tighter">RV PORTAL</h1>
+        <p class="text-[10px] font-black text-rv-orange uppercase tracking-widest mt-1">MADEIRAS</p>
       </div>
     </div>
     <div id="main-loader" class="hidden"><div class="loader"></div></div>
@@ -598,7 +599,7 @@
                 <table width="100%" style="border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 20px;">
                     <tr>
                         <td valign="middle">
-                            <h2 style="font-size: 20px; font-weight: 800; color: #ea580c; text-transform: uppercase; margin: 0;">RV BLOCOS E ESTRUTURAS</h2>
+                            <h2 style="font-size: 20px; font-weight: 800; color: #ea580c; text-transform: uppercase; margin: 0;">RV PORTAL MADEIRAS</h2>
                             <div style="font-size: 11px; color: #475569; margin-top: 5px;">CNPJ: 46.889.791/0001-53 </div>
                             <div style="font-size: 11px; color: #475569; margin-top: 5px;">Endereço: Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
                         </td>
@@ -622,7 +623,7 @@
                         <td width="48%" valign="top">
                             <div style="border: 1px solid #000; border-radius: 6px; font-size: 11px;">
                                 <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                                <div style="padding: 10px; line-height: 1.5;"><strong>Forma:</strong> ${sale.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV Blocos</div>
+                                <div style="padding: 10px; line-height: 1.5;"><strong>Forma:</strong> ${sale.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV Portal</div>
                             </div>
                         </td>
                     </tr>
@@ -689,7 +690,7 @@
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 navigator.share({
                     files: [file],
-                    title: `Orçamento RV Blocos #${id}`,
+                    title: `Orçamento RV Portal #${id}`,
                     text: `Segue o orçamento #${id} em anexo.`
                 }).catch(err => console.log('Compartilhamento cancelado.', err));
             } else {
@@ -736,7 +737,7 @@
       <div class="invoice-full">
             <div class="header-section">
                 <div class="company-details">
-                    <h2 class="company-title">RV BLOCOS E ESTRUTURAS</h2>
+                    <h2 class="company-title">RV PORTAL MADEIRAS</h2>
                     <div class="company-info">CNPJ: 46.889.791/0001-53 </div>
                     <div class="company-info">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861 </div>
                 </div>
@@ -753,7 +754,7 @@
               </div>
               <div class="info-col">
                   <div class="col-header">Pagamento</div>
-                  <div class="col-content"><strong>Forma:</strong> ${sale.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV Blocos</div>
+                  <div class="col-content"><strong>Forma:</strong> ${sale.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV Portal</div>
               </div>
           </div>
           <table class="full-table">
