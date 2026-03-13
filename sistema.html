@@ -146,7 +146,9 @@
         <button onclick="navigate('clients')" id="nav-clients" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="users"></i> <span class="font-medium text-sm">Clientes</span></button>
         <button onclick="navigate('prod')" id="nav-prod" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="package"></i> <span class="font-medium text-sm">Produtos</span></button>
         <button onclick="navigate('production')" id="nav-production" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="hammer"></i> <span class="font-medium text-sm">Produção</span></button>
-      </nav>
+        <button onclick="navigate('users')" id="nav-users" class="nav-btn w-full hidden flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="shield"></i> <span class="font-medium text-sm">Usuários (Admin)</span></button>
+       </nav>
+      <div class="p-3 border-t border-slate-800"> <button onclick="fazerLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-900/30 transition-all"><i data-lucide="log-out"></i> <span class="font-medium text-sm">Sair</span></button> </div>
     </div>
 
     <main class="flex-1 md:ml-64 p-4 md:p-6 overflow-y-auto h-screen no-print bg-slate-100">
@@ -467,6 +469,41 @@
     </div>
 </div>
 
+      <div id="view-users" class="hidden-section">
+          <div class="flex justify-between items-center mb-4">
+              <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2"><i data-lucide="shield" class="text-emerald-600"></i> Gerenciar Usuários</h2>
+              <button onclick="openUserForm()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><i data-lucide="plus"></i> Novo Usuário</button>
+          </div>
+          <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+              <table class="w-full text-sm text-left">
+                  <thead class="bg-slate-50 text-slate-700"><tr><th class="p-4">Nome</th><th class="p-4">Usuário (Login)</th><th class="p-4">Nível</th><th class="p-4 text-center">Status</th><th class="p-4 text-center">Ações</th></tr></thead>
+                  <tbody id="users-list" class="divide-y"></tbody>
+              </table>
+          </div>
+      </div>
+
+      <div id="user-form-container" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <form onsubmit="saveUser(event)" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+            <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2"><i data-lucide="user-plus" class="text-emerald-600"></i> Dados do Usuário</h3>
+            <input type="hidden" id="usr-id">
+            <div class="space-y-4">
+                <div><label class="block text-xs font-bold text-slate-500 uppercase">Nome Completo</label><input type="text" id="usr-name" required class="w-full p-2 border rounded outline-none focus:border-emerald-600"></div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase">Login (Curto)</label><input type="text" id="usr-login" required class="w-full p-2 border rounded outline-none focus:border-emerald-600"></div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase">Senha (Numérica)</label><input type="number" id="usr-pass" required class="w-full p-2 border rounded outline-none focus:border-emerald-600"></div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase">Nível de Acesso</label>
+                    <select id="usr-role" class="w-full p-2 border rounded outline-none focus:border-emerald-600">
+                        <option value="vendedor">Vendedor (PDV e Entregas)</option>
+                        <option value="admin">Administrador (Acesso Total)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-6">
+                <button type="button" onclick="document.getElementById('user-form-container').classList.add('hidden')" class="flex-1 p-3 bg-slate-200 text-slate-700 rounded-lg font-bold hover:bg-slate-300">Cancelar</button>
+                <button type="submit" class="flex-1 p-3 bg-indigo-700 text-white rounded-lg font-bold hover:bg-indigo-800 shadow-md">Salvar</button>
+            </div>
+        </form>
+    </div>
+
     </main>
 
     <div id="print-area" class="print-only"></div>
@@ -655,12 +692,12 @@ if (!userSessao) {
 }
 // ==================================
         
-      const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co'; 
+      /*const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co'; 
       const supabaseKey = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
-      const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+      const sb = window.supabase.createClient(supabaseUrl, supabaseKey);*/
 
 
-let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], custoMaterialB10: 0 };
+let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], custoMaterialB10: 0 };
 let CART = [];
 let CURRENT_QUOTE_ID = null; 
 
@@ -684,6 +721,7 @@ function navigate(viewId) {
     if(viewId === 'prod') renderProducts();
     if(viewId === 'production') renderProductionSelect();
     if(viewId === 'logs') renderLogs();
+    if(viewId === 'users') renderUsers();
     lucide.createIcons();
 }
 
@@ -749,6 +787,13 @@ async function loadData() {
         STATE.quotes = Object.values(quotesMap).map(q => { q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); return q; });
 
         STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
+
+      // Só busca os usuários e mostra o botão se for Admin
+        if (dadosUsuario.nivel === 'admin') {
+            document.getElementById('nav-users').classList.remove('hidden');
+            const resUsers = await sb.from('usuarios').select('*');
+            STATE.users = resUsers.data || [];
+        }
 
         onDataLoaded();
     } catch (err) {
@@ -2210,6 +2255,78 @@ function reprintSale(id) {
         function fazerLogout() {
     localStorage.removeItem('rv_user');
     window.location.replace('index.html');
+}
+
+        /////////////////////////////////////usuarios ///////////////////////////////////
+
+        // --- CRUD USUÁRIOS (SÓ ADMIN) ---
+function renderUsers() {
+    const list = document.getElementById('users-list');
+    if(!list) return;
+    list.innerHTML = (STATE.users||[]).map(u => `
+        <tr class="hover:bg-slate-50 ${!u.ativo ? 'opacity-50' : ''}">
+            <td class="p-4 font-bold text-slate-700">${u.nome}</td>
+            <td class="p-4 text-emerald-600 font-bold">${u.login}</td>
+            <td class="p-4"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${u.nivel_acesso === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}">${u.nivel_acesso}</span></td>
+            <td class="p-4 text-center"><span class="text-xs font-bold ${u.ativo ? 'text-green-600' : 'text-red-500'}">${u.ativo ? 'Ativo' : 'Bloqueado'}</span></td>
+            <td class="p-4 text-center flex justify-center gap-3">
+                <button onclick="openUserForm('${u.id}')" class="text-indigo-700 hover:text-indigo-900"><i data-lucide="edit-3" width="16"></i></button>
+                <button onclick="toggleUserStatus('${u.id}', ${u.ativo})" class="${u.ativo ? 'text-orange-500' : 'text-green-600'}" title="Bloquear/Desbloquear"><i data-lucide="${u.ativo ? 'ban' : 'check-circle'}" width="16"></i></button>
+            </td>
+        </tr>`).join('');
+    lucide.createIcons();
+}
+
+function openUserForm(id) { 
+    document.getElementById('user-form-container').classList.remove('hidden'); 
+    if(id) { 
+        const u = STATE.users.find(x => String(x.id) === String(id)); 
+        document.getElementById('usr-id').value = u.id; 
+        document.getElementById('usr-name').value = u.nome; 
+        document.getElementById('usr-login').value = u.login; 
+        document.getElementById('usr-pass').value = u.senha; 
+        document.getElementById('usr-role').value = u.nivel_acesso; 
+    } else { 
+        document.getElementById('usr-id').value = ''; 
+        document.getElementById('usr-name').value = ''; 
+        document.getElementById('usr-login').value = ''; 
+        document.getElementById('usr-pass').value = ''; 
+        document.getElementById('usr-role').value = 'vendedor'; 
+    } 
+}
+
+async function saveUser(e) {
+    e.preventDefault();
+    if(dadosUsuario.nivel !== 'admin') return showToast("Acesso negado!", true);
+    showLoading(true);
+    
+    const isNew = !document.getElementById('usr-id').value;
+    const payload = {
+        nome: document.getElementById('usr-name').value,
+        login: document.getElementById('usr-login').value.toLowerCase().trim(),
+        senha: document.getElementById('usr-pass').value,
+        nivel_acesso: document.getElementById('usr-role').value
+    };
+    if(!isNew) payload.id = document.getElementById('usr-id').value;
+
+    const { error } = await sb.from('usuarios').upsert(payload);
+    if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+    
+    document.getElementById('user-form-container').classList.add('hidden');
+    showToast("Usuário salvo com sucesso!");
+    loadData();
+}
+
+async function toggleUserStatus(id, currentStatus) {
+    if(dadosUsuario.nivel !== 'admin') return;
+    if(String(id) === String(dadosUsuario.id)) return showToast("Você não pode bloquear a si mesmo!", true);
+    showLoading(true);
+    
+    const { error } = await sb.from('usuarios').update({ ativo: !currentStatus }).eq('id', id);
+    if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+    
+    showToast(currentStatus ? "Usuário Bloqueado" : "Usuário Desbloqueado");
+    loadData();
 }
         
     </script>
