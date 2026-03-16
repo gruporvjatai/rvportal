@@ -535,43 +535,34 @@
     <div id="print-area" class="print-only"></div>
 
     <div id="modal-delivery" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-[fadeIn_0.2s]">
-            <div class="bg-slate-900 p-4 flex justify-between items-center">
-                <h3 class="text-white font-bold flex items-center gap-2"><i data-lucide="truck"></i> Registrar Entrega</h3>
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-[fadeIn_0.2s] max-h-[90vh] flex flex-col">
+            <div class="bg-slate-900 p-4 flex justify-between items-center shrink-0">
+                <h3 class="text-white font-bold flex items-center gap-2"><i data-lucide="truck"></i> Registrar Entrega - Pedido <span id="del-order-id-title"></span></h3>
                 <button onclick="closeDeliveryModal()" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
             </div>
-            <div class="p-6 space-y-4">
-                <div class="bg-slate-50 p-3 rounded border">
-                    <p class="text-xs text-slate-500 uppercase font-bold">Produto</p>
-                    <p id="del-prod-name" class="font-bold text-slate-800 text-lg">Nome do Produto</p>
-                    <p id="del-client-name" class="text-sm text-slate-600">Cliente</p>
-                </div>
-                
-                <div class="grid grid-cols-3 gap-2 text-center">
-                    <div class="p-2 bg-slate-100 rounded">
-                        <span class="text-xs text-slate-500 block">Pedido</span>
-                        <span id="del-qty-total" class="font-bold text-slate-800 text-xl">1000</span>
-                    </div>
-                    <div class="p-2 bg-green-50 rounded border border-green-100">
-                        <span class="text-xs text-green-600 block">Já Entregue</span>
-                        <span id="del-qty-done" class="font-bold text-green-700 text-xl">200</span>
-                    </div>
-                    <div class="p-2 bg-emerald-50 rounded border border-emerald-100">
-                        <span class="text-xs text-emerald-600 block">Falta</span>
-                        <span id="del-qty-remain" class="font-bold text-emerald-700 text-xl">800</span>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">Quantidade nesta viagem:</label>
-                    <input type="number" id="del-qty-input" class="w-full p-3 border-2 border-slate-300 rounded-lg text-xl font-bold text-center focus:border-emerald-600 focus:outline-none" placeholder="0">
-                </div>
-                
-                <input type="hidden" id="del-log-id">
-                <input type="hidden" id="del-log-prod">
-                
-                <div class="flex gap-2 pt-2">
-                    <button onclick="confirmDelivery()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold shadow-lg shadow-green-200">Confirmar Entrega</button>
+            <div class="p-4 bg-slate-50 border-b shrink-0">
+                <p class="text-xs text-slate-500 uppercase font-bold">Cliente</p>
+                <p id="del-order-client" class="font-bold text-slate-800 text-lg">Nome do Cliente</p>
+            </div>
+            <div class="p-0 overflow-y-auto flex-1">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-100 text-slate-500 sticky top-0">
+                        <tr>
+                            <th class="p-3">Produto</th>
+                            <th class="p-3 text-center">Total</th>
+                            <th class="p-3 text-center text-green-600">Entregue</th>
+                            <th class="p-3 text-center text-emerald-600">Falta</th>
+                            <th class="p-3 text-center w-32">Nesta Viagem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="del-order-items-list" class="divide-y"></tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t bg-white shrink-0">
+                <input type="hidden" id="del-order-id">
+                <div class="flex gap-2">
+                    <button onclick="closeDeliveryModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-lg font-bold transition">Cancelar</button>
+                    <button onclick="confirmOrderDelivery()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold shadow-lg shadow-green-200 transition">Confirmar Entrega</button>
                 </div>
             </div>
         </div>
@@ -1039,116 +1030,94 @@ async function deleteQuote(id) {
     loadData();
 }
 
-async function confirmDelivery() {
-    const id = document.getElementById('del-log-id').value;
-    const productNameStr = document.getElementById('del-log-prod').value;
-    const qty = parseFloat(document.getElementById('del-qty-input').value);
+async function confirmOrderDelivery() {
+    const orderId = document.getElementById('del-order-id').value;
+    const inputs = document.querySelectorAll('[id^="del-input-"]');
 
-    if (qty <= 0 || isNaN(qty)) {
-        showToast("Quantidade inválida.", true);
-        return;
+    let updates = [];
+    let stockUpdates = [];
+    let newLogs = [];
+    const timestamp = new Date().toISOString();
+    let maxId = getNextId(STATE.logs);
+
+    for (let input of inputs) {
+        const uid = input.getAttribute('data-uid');
+        const prodName = input.getAttribute('data-prod');
+        const qty = parseFloat(input.value) || 0;
+        const remain = parseFloat(input.getAttribute('data-remain')) || 0;
+
+        if (qty > 0) {
+            if (qty > remain) return showToast(`Quantidade de ${prodName} excede o saldo pendente!`, true);
+
+            const origLog = STATE.logs.find(l => l.uid === uid);
+            if (!origLog) continue;
+
+            const currentDelivered = Number(origLog.deliveredQty) || 0;
+            const totalQty = Number(origLog.quantity) || 0;
+            const newDelivered = currentDelivered + qty;
+            const newStatus = newDelivered >= totalQty ? 'ENTREGUE' : 'PARCIAL';
+
+            // Guarda update da venda
+            updates.push({ uid: uid, qtd_entregue: newDelivered, status_entrega: newStatus });
+
+            // Guarda update de estoque
+            const prodFound = STATE.products.find(p => String(p.name).trim() === String(prodName).trim());
+            if(prodFound) stockUpdates.push({ id: prodFound.id, qty: qty });
+
+            // Cria log de entrega
+            newLogs.push({
+                id: maxId.toString(), tipo: 'entrega', produto_nome: prodName, quantidade: qty,
+                data: timestamp, observacao: 'Ref Venda #' + orderId, valor_total: 0,
+                cliente_nome: origLog.clientName, forma_pagamento: '', status: 'ATIVO',
+                status_entrega: 'ENTREGUE', qtd_entregue: qty, desconto: 0, status_financeiro: '',
+                vencimento: timestamp, valor_pago: 0, endereco_entrega: ''
+            });
+            maxId++;
+        }
     }
 
+    if (updates.length === 0) return showToast("Nenhuma quantidade informada para entrega.", true);
     showLoading(true);
 
-    let origLog = null;
-    for (let i = 0; i < STATE.logs.length; i++) {
-        if (String(STATE.logs[i].id) === String(id) && 
-            STATE.logs[i].type === 'venda' && 
-            String(STATE.logs[i].productName).trim() === String(productNameStr).trim()) {
-            origLog = STATE.logs[i];
-            break;
+    try {
+        // 1. Atualiza as Vendas Originais
+        for (let u of updates) {
+            const { error } = await sb.from('logs').update({ qtd_entregue: u.qtd_entregue, status_entrega: u.status_entrega }).eq('uid', u.uid);
+            if(error) throw error;
         }
-    }
 
-    if (!origLog) {
-        showLoading(false);
-        showToast("Pedido ou produto não encontrado na base de dados.", true);
-        return;
-    }
-
-    const prodName = origLog.productName;
-    const totalQty = Number(origLog.quantity) || 0;
-    const clientName = origLog.clientName || '';
-    const currentDelivered = Number(origLog.deliveredQty) || 0;
-
-    let newDelivered = currentDelivered + Number(qty);
-    let newStatus = '';
-    
-    if (newDelivered >= totalQty) {
-        newStatus = 'ENTREGUE';
-    } else {
-        newStatus = 'PARCIAL';
-    }
-
-    const { error: errUpdateLog } = await sb.from('logs')
-        .update({ qtd_entregue: newDelivered, status_entrega: newStatus })
-        .eq('uid', origLog.uid); 
-        
-    if (errUpdateLog) {
-        showLoading(false);
-        return showToast("Erro ao atualizar venda: " + errUpdateLog.message, true);
-    }
-
-    let prodFound = null;
-    for (let p = 0; p < STATE.products.length; p++) {
-        if (String(STATE.products[p].name).trim() === String(prodName).trim()) {
-            prodFound = STATE.products[p];
-            break;
+        // 2. Agrupa e Deduz o Estoque
+        let aggStock = {};
+        for(let su of stockUpdates) {
+            if(!aggStock[su.id]) aggStock[su.id] = 0;
+            aggStock[su.id] += su.qty;
         }
-    }
 
-    if (prodFound) {
-        let physical = Number(prodFound.stock) || 0;
-        let committed = Number(prodFound.committed) || 0;
-        
-        await sb.from('produtos')
-            .update({ 
-                estoque_fisico: Math.max(0, physical - qty),
-                estoque_comprometido: Math.max(0, committed - qty)
-            })
-            .eq('id', prodFound.id);
-    }
-
-    let maxId = 999;
-    for (let i = 0; i < STATE.logs.length; i++) {
-        const val = parseInt(STATE.logs[i].id);
-        if (!isNaN(val) && val > maxId) {
-            maxId = val;
+        for (let prodId of Object.keys(aggStock)) {
+            const prod = STATE.products.find(p => String(p.id) === String(prodId));
+            if(prod) {
+                let physical = Number(prod.stock) || 0;
+                let committed = Number(prod.committed) || 0;
+                const qtyToDeduct = aggStock[prodId];
+                const { error } = await sb.from('produtos').update({
+                    estoque_fisico: Math.max(0, physical - qtyToDeduct),
+                    estoque_comprometido: Math.max(0, committed - qtyToDeduct)
+                }).eq('id', prod.id);
+                if(error) throw error;
+            }
         }
-    }
-    const newId = (maxId + 1).toString();
-    const timestamp = new Date().toISOString();
 
-    const newLogEntry = {
-        id: newId,
-        tipo: 'entrega',
-        produto_nome: prodName,
-        quantidade: qty,
-        data: timestamp,
-        observacao: 'Ref Venda #' + id,
-        valor_total: 0,
-        cliente_nome: clientName,
-        forma_pagamento: '',
-        status: 'ATIVO',
-        status_entrega: 'ENTREGUE',
-        qtd_entregue: qty,
-        desconto: 0,
-        status_financeiro: '',
-        vencimento: timestamp,
-        valor_pago: 0,
-        endereco_entrega: ''
-    };
+        // 3. Insere os Logs de Entrega
+        const { error: errInsert } = await sb.from('logs').insert(newLogs);
+        if(errInsert) throw errInsert;
 
-    const { error: errInsert } = await sb.from('logs').insert([newLogEntry]);
-    
-    if (errInsert) {
+    } catch (err) {
         showLoading(false);
-        return showToast("Erro ao registrar entrega: " + errInsert.message, true);
+        return showToast("Erro: " + err.message, true);
     }
 
     closeDeliveryModal();
-    showToast("Entrega Registrada!");
+    showToast("Entrega Registrada com Sucesso!");
     await loadData();
 }
 
@@ -1603,30 +1572,89 @@ function loadQuoteToCart(id) {
 function renderExpedition() {
     const tbody = document.getElementById('expedition-list');
     if(!tbody) return;
-    const items = (STATE.logs || []).filter(l => l.type === 'venda' && l.status !== 'CANCELADO' && l.deliveryStatus !== 'ENTREGUE');
-    if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">Nenhuma entrega pendente.</td></tr>';
+
+    // Filtra todas as vendas ativas
+    const pendingLogs = (STATE.logs || []).filter(l => l.type === 'venda' && l.status !== 'CANCELADO');
+
+    // Agrupa os itens por Pedido (ID)
+    const ordersMap = {};
+    pendingLogs.forEach(l => {
+        if(!ordersMap[l.id]) {
+            ordersMap[l.id] = {
+                id: l.id,
+                date: l.date,
+                clientName: l.clientName,
+                items: [],
+                totalQty: 0,
+                deliveredQty: 0
+            };
+        }
+        ordersMap[l.id].items.push(l);
+        ordersMap[l.id].totalQty += Number(l.quantity) || 0;
+        ordersMap[l.id].deliveredQty += Number(l.deliveredQty) || 0;
+    });
+
+    // Filtra apenas os pedidos que ainda não foram 100% entregues
+    const pendingOrders = Object.values(ordersMap).filter(o => o.deliveredQty < o.totalQty).sort((a,b) => b.id - a.id);
+
+    if (pendingOrders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold">Nenhum pedido pendente de entrega.</td></tr>';
     } else {
-        tbody.innerHTML = items.map(i => {
-            const delivered = i.deliveredQty || 0;
-            const total = i.quantity;
-            const remain = total - delivered;
-            const percent = Math.min(100, (delivered / total) * 100);
-            const safeName = encodeURIComponent(i.productName); 
-            
+        tbody.innerHTML = pendingOrders.map(o => {
+            const percent = Math.min(100, (o.deliveredQty / o.totalQty) * 100);
+            const remain = o.totalQty - o.deliveredQty;
+
+            // Status geral do pedido
+            let status = o.deliveredQty > 0 ? 'PARCIAL' : 'PENDENTE';
+
+            // Resumo de itens para mostrar na tabela (Ex: Cimento (x50), Areia (x2))
+            const itemsSummary = o.items.map(i => `${i.productName} (x${i.quantity})`).join(', ');
+
             return `<tr class="hover:bg-slate-50 border-b">
                 <td class="p-4 text-center flex gap-2 justify-center">
-                <button onclick="openDeliveryModal('${i.id}', '${safeName}')" class="bg-slate-800 text-white p-2 rounded hover:bg-slate-700 shadow-md"><i data-lucide="truck" width="18"></i></button>
-                <button onclick="printOrder('${i.id}', '${safeName}')" class="bg-white text-slate-600 border border-slate-200 p-2 rounded hover:text-emerald-600 shadow-sm"><i data-lucide="printer" width="18"></i></button>
+                    <button onclick="openOrderDeliveryModal('${o.id}')" class="bg-slate-800 text-white p-2 rounded hover:bg-slate-700 shadow-md" title="Registrar Entrega"><i data-lucide="truck" width="18"></i></button>
+                    <button onclick="printFullOrder('${o.id}')" class="bg-white text-slate-600 border border-slate-200 p-2 rounded hover:text-emerald-600 shadow-sm" title="Imprimir Romaneio Completo"><i data-lucide="printer" width="18"></i></button>
                 </td>
-                <td class="p-4"><div class="font-bold text-slate-700 text-sm">#${i.id}</div><div class="text-xs text-slate-400">${formatDate(i.date)}</div></td>
-                <td class="p-4 font-bold text-slate-700 truncate max-w-[150px]">${i.clientName}</td>
-                <td class="p-4 text-sm">${i.productName}</td>
-                <td class="p-4"><div class="flex justify-between text-xs mb-1 font-bold"><span>${delivered}/${total}</span><span class="text-emerald-700">Falta: ${remain}</span></div><div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden"><div class="bg-green-500 h-2 rounded-full" style="width: ${percent}%"></div></div></td>
-                <td class="p-4 text-center"><span class="px-2 py-1 rounded text-[10px] font-bold ${i.deliveryStatus === 'PARCIAL' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}">${i.deliveryStatus}</span></td>
+                <td class="p-4"><div class="font-black text-slate-700 text-sm">#${o.id}</div><div class="text-[10px] text-slate-400">${formatDate(o.date)}</div></td>
+                <td class="p-4 font-bold text-slate-700 truncate max-w-[150px]">${o.clientName}</td>
+                <td class="p-4 text-xs text-slate-500 truncate max-w-[250px]" title="${itemsSummary}">${itemsSummary}</td>
+                <td class="p-4">
+                    <div class="flex justify-between text-[10px] mb-1 font-bold uppercase"><span>Entregue: ${o.deliveredQty}/${o.totalQty}</span><span class="text-emerald-700">Falta: ${remain}</span></div>
+                    <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden"><div class="bg-green-500 h-1.5 rounded-full" style="width: ${percent}%"></div></div>
+                </td>
+                <td class="p-4 text-center"><span class="px-2 py-1 rounded text-[10px] font-bold ${status === 'PARCIAL' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}">${status}</span></td>
             </tr>`;
         }).join('');
     }
+
+    // Histórico de expedição continua sendo renderizado pela função abaixo (não alteramos o histórico pois ele mostra a viagem exata de cada produto).
+    // ... manter o restante do renderExpedition para o histórico igual estava ...
+    const histBody = document.getElementById('expedition-history-list');
+    if(histBody) {
+        let histLogs = (STATE.logs || []).filter(l => l.type === 'entrega' && l.status !== 'CANCELADO');
+        const nameFilter = document.getElementById('exp-hist-name')?.value.toLowerCase() || '';
+        const startDate = document.getElementById('exp-hist-start')?.value;
+        const endDate = document.getElementById('exp-hist-end')?.value;
+
+        if (nameFilter) histLogs = histLogs.filter(l => (l.clientName && l.clientName.toLowerCase().includes(nameFilter)) || (l.productName && l.productName.toLowerCase().includes(nameFilter)));
+        if (startDate) histLogs = histLogs.filter(l => new Date(l.date) >= new Date(startDate));
+        if (endDate) { let endD = new Date(endDate); endD.setHours(23,59,59); histLogs = histLogs.filter(l => new Date(l.date) <= endD); }
+
+        histLogs.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+        if (histLogs.length === 0) { histBody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Nenhum registro encontrado.</td></tr>'; } 
+        else {
+            histBody.innerHTML = histLogs.map(l => `<tr class="hover:bg-slate-50 border-b">
+                <td class="p-4 text-xs text-slate-500">${formatDate(l.date)}</td>
+                <td class="p-4 text-xs font-bold text-slate-700">${l.note || '-'}</td>
+                <td class="p-4 font-medium text-slate-700 truncate max-w-[200px]">${l.clientName || '-'}</td>
+                <td class="p-4 text-sm">${l.productName}</td>
+                <td class="p-4 text-center font-bold text-green-600">+ ${l.quantity}</td>
+            </tr>`).join('');
+        }
+    }
+    lucide.createIcons();
+}
 
     const histBody = document.getElementById('expedition-history-list');
     if(histBody) {
@@ -1664,26 +1692,33 @@ function renderExpedition() {
     lucide.createIcons();
 }
 
-function openDeliveryModal(id, encodedProdName) {
-    const productName = decodeURIComponent(encodedProdName);
-    const item = STATE.logs.find(l => String(l.id) === String(id) && l.productName === productName);
-    if(!item) return;
-    
-    document.getElementById('del-log-id').value = id;
-    document.getElementById('del-log-prod').value = productName; 
-    document.getElementById('del-prod-name').innerText = item.productName;
-    document.getElementById('del-client-name').innerText = item.clientName;
-    
-    const delivered = item.deliveredQty || 0;
-    const remain = item.quantity - delivered;
-    
-    document.getElementById('del-qty-total').innerText = item.quantity;
-    document.getElementById('del-qty-done').innerText = delivered;
-    document.getElementById('del-qty-remain').innerText = remain;
-    
-    const input = document.getElementById('del-qty-input');
-    input.value = remain;
-    input.max = remain;
+function openOrderDeliveryModal(orderId) {
+    const items = STATE.logs.filter(l => String(l.id) === String(orderId) && l.type === 'venda' && l.status !== 'CANCELADO');
+    if(items.length === 0) return;
+
+    document.getElementById('del-order-id').value = orderId;
+    document.getElementById('del-order-id-title').innerText = `#${orderId}`;
+    document.getElementById('del-order-client').innerText = items[0].clientName;
+
+    const listBody = document.getElementById('del-order-items-list');
+    listBody.innerHTML = items.map(item => {
+        const total = Number(item.quantity) || 0;
+        const delivered = Number(item.deliveredQty) || 0;
+        const remain = total - delivered;
+
+        if(remain <= 0) return ''; // Esconde itens que já foram 100% entregues
+
+        return `<tr>
+            <td class="p-3 text-sm font-bold text-slate-700">${item.productName}</td>
+            <td class="p-3 text-center text-sm font-bold bg-slate-50">${total}</td>
+            <td class="p-3 text-center text-sm text-green-600 font-bold">${delivered}</td>
+            <td class="p-3 text-center text-sm text-emerald-600 font-bold bg-emerald-50">${remain}</td>
+            <td class="p-2 text-center">
+                <input type="number" id="del-input-${item.uid}" data-uid="${item.uid}" data-remain="${remain}" data-prod="${item.productName}" class="w-full p-2 border border-slate-300 rounded text-center font-bold focus:border-emerald-600 outline-none text-lg" placeholder="0" value="${remain}" max="${remain}" min="0">
+            </td>
+        </tr>`;
+    }).join('');
+
     document.getElementById('modal-delivery').classList.remove('hidden');
 }
 
@@ -2121,26 +2156,36 @@ function renderInvoice(sale, isQuote) {
     </div>`;
 }
 
-function printOrder(id, encodedProdName) {
-    const productName = decodeURIComponent(encodedProdName);
-    const item = STATE.logs.find(l => String(l.id) === String(id) && l.productName === productName);
-    if(!item) return showToast("Pedido não encontrado", true);
+function printFullOrder(orderId) {
+    const items = STATE.logs.filter(l => String(l.id) === String(orderId) && l.type === 'venda' && l.status !== 'CANCELADO');
+    if(items.length === 0) return showToast("Pedido não encontrado", true);
 
-    const cli = STATE.clients.find(c => c.name === item.clientName) || { name: item.clientName, doc: '-', phone: '-', address: '-' };
-    const delivered = item.deliveredQty || 0;
-    const remain = item.quantity - delivered;
-    
+    const cli = STATE.clients.find(c => c.name === items[0].clientName) || { name: items[0].clientName, doc: '-', phone: '-', address: '-' };
+
     const company = {
         name: "RV PORTAL MADEIRAS",
-        cnpj: "30.942.123/0001-02",
+        cnpj: "46.889.791/0001-53",
         phone: "(64) 3636-4861",
         address: "Jataí - GO",
         logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
     };
     
-    const addressToShow = item.deliveryAddress 
-    ? `<span style="background-color: #ecfdf5; padding: 2px 5px; font-weight: bold; color: #047857; border: 1px dashed #059669;">ENTREGA: ${item.deliveryAddress}</span>` 
+    const addressToShow = items[0].deliveryAddress 
+    ? `<span style="background-color: #ecfdf5; padding: 2px 5px; font-weight: bold; color: #047857; border: 1px dashed #059669;">ENTREGA: ${items[0].deliveryAddress}</span>` 
     : (cli.address || '-');
+
+    // Gera as linhas com TODOS os itens do pedido
+    const rowsHtml = items.map(item => {
+        const delivered = Number(item.deliveredQty) || 0;
+        const remain = Number(item.quantity) - delivered;
+        return `
+        <tr>
+            <td style="border: 1px solid #000; padding: 10px; font-weight: bold;">${item.productName}</td>
+            <td style="border: 1px solid #000; padding: 10px; text-align: center;">${item.quantity}</td>
+            <td style="border: 1px solid #000; padding: 10px; text-align: center;">${delivered}</td>
+            <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; background-color: #f0fdf4;">${remain}</td>
+        </tr>`;
+    }).join('');
     
     const el = document.getElementById('print-area');
     el.innerHTML = `
@@ -2158,7 +2203,7 @@ function printOrder(id, encodedProdName) {
             <div class="info-box-orig" style="width: 180px; padding: 10px; background-color: #f9f9f9; text-align: right;">
                 <h3 style="margin: 0; font-size: 14px; font-weight: bold;">ROMANEIO DE ENTREGA</h3>
                 <p style="margin: 5px 0; font-size: 12px;">Emissão: ${new Date().toLocaleDateString()}</p>
-                <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">PEDIDO Nº ${item.id}</p>
+                <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">PEDIDO Nº ${items[0].id}</p>
             </div>
         </div>
 
@@ -2181,7 +2226,7 @@ function printOrder(id, encodedProdName) {
             </table>
         </div>
 
-        <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO</div>
+        <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO PENDENTES</div>
         <table class="items-table-orig" style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #000;">
             <thead>
                 <tr style="background-color: #f1f5f9;">
@@ -2192,19 +2237,14 @@ function printOrder(id, encodedProdName) {
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td style="border: 1px solid #000; padding: 10px; font-weight: bold;">${item.productName}</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;">${item.quantity}</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center;">${delivered}</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; background-color: #f0fdf4;">${remain}</td>
-                </tr>
+                ${rowsHtml}
             </tbody>
         </table>
 
         <div style="border: 2px dashed #94a3b8; padding: 20px; margin: 20px 0; background-color: #fff;">
-            <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 12px; text-transform: uppercase;">Registro de Saída Atual (Preenchimento Manual)</p><br>
+            <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 12px; text-transform: uppercase;">Registro de Saída Atual (Preenchimento Manual pelo Motorista)</p><br>
             <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
-                <span style="font-size: 14px; font-weight: bold;">QUANTIDADE:</span>
+                <span style="font-size: 14px; font-weight: bold;">QUANTIDADE ENTREGUE:</span>
                 <div style="flex: 1; border-bottom: 2px solid #000; height: 1px;"></div>
             </div>
         </div>
@@ -2223,7 +2263,6 @@ function printOrder(id, encodedProdName) {
     
     setTimeout(() => window.print(), 500);
 }
-
 function printQuote(id) { const q = STATE.quotes.find(x => x.id == id); renderInvoice(q, true); setTimeout(() => window.print(), 500); }
 
 function printExpeditionHistory() {
