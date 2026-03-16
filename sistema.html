@@ -267,8 +267,25 @@
          </div>
       </div>
 
-      <div id="view-quotes" class="hidden-section">
-          <h2 class="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i data-lucide="folder-open" class="text-indigo-600"></i> Orçamentos & CRM</h2>
+     <div id="view-quotes" class="hidden-section">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+              <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2"><i data-lucide="folder-open" class="text-indigo-600"></i> Orçamentos & CRM</h2>
+              
+              <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                  <div class="relative w-full md:w-64">
+                      <i data-lucide="search" class="absolute left-2 top-2.5 text-slate-400 w-4 h-4"></i>
+                      <input type="text" id="quote-search" placeholder="Buscar cliente..." class="w-full pl-8 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-600 outline-none shadow-sm" onkeyup="renderQuotesList()">
+                  </div>
+                  <select id="quote-status-filter" class="w-full md:w-auto p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-600 outline-none shadow-sm font-medium text-slate-600" onchange="renderQuotesList()">
+                      <option value="">Todos os Status</option>
+                      <option value="ABERTO">Abertos</option>
+                      <option value="EM NEGOCIAÇÃO">Em Negociação</option>
+                      <option value="APROVADO">Aprovados</option>
+                      <option value="PERDIDO">Perdidos</option>
+                  </select>
+              </div>
+          </div>
+
           <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
               <div class="overflow-x-auto">
                   <table class="w-full text-sm text-left">
@@ -1465,9 +1482,28 @@ async function updateQuoteStatus(id, newStatus) {
 function renderQuotesList() {
     const list = document.getElementById('quotes-list');
     if(!list) return;
-    if(!(STATE.quotes||[]).length) { list.innerHTML='<tr><td colspan="5" class="p-8 text-slate-400 text-center">Nenhum orçamento salvo.</td></tr>'; return; }
+
+    // Pega os valores dos filtros
+    const term = document.getElementById('quote-search')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('quote-status-filter')?.value || '';
+
+    // Filtra a lista principal
+    let filteredQuotes = STATE.quotes.slice().reverse();
+
+    if (term) {
+        filteredQuotes = filteredQuotes.filter(q => q.clientName && q.clientName.toLowerCase().includes(term));
+    }
     
-    list.innerHTML = STATE.quotes.slice().reverse().map(q => {
+    if (statusFilter) {
+        filteredQuotes = filteredQuotes.filter(q => q.status === statusFilter);
+    }
+
+    if(!filteredQuotes.length) { 
+        list.innerHTML='<tr><td colspan="5" class="p-8 text-slate-400 text-center">Nenhum orçamento encontrado.</td></tr>'; 
+        return; 
+    }
+    
+    list.innerHTML = filteredQuotes.map(q => {
         const valorLiquido = q.total - (q.discount || 0);
         
         // Pega os dados do cliente para o WhatsApp
