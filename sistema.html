@@ -1505,6 +1505,24 @@ function renderQuotesList() {
             }
         }
 
+      async function updateQuoteStatus(id, newStatus) {
+    showLoading(true);
+    const { error } = await sb.from('orcamentos').update({ status: newStatus }).eq('id', id);
+    
+    if (error) { 
+        showLoading(false); 
+        return showToast("Erro ao atualizar status: " + error.message, true); 
+    }
+    
+    // Atualiza na memória para não precisar baixar tudo do banco de novo
+    const quote = STATE.quotes.find(q => String(q.id) === String(id));
+    if (quote) quote.status = newStatus;
+    
+    showLoading(false);
+    showToast("Status CRM atualizado!");
+    renderQuotesList(); // Re-renderiza para atualizar as cores
+}
+
         // Define a cor do Status
         let corStatus = "text-slate-600";
         if (q.status === 'APROVADO') corStatus = "text-emerald-700 font-bold bg-emerald-50";
