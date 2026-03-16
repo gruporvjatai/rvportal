@@ -2086,8 +2086,8 @@ function renderInvoice(sale, isQuote) {
         <div class="header-section">
             <div class="logo-area"><img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 80px;" /></div>
             <div class="company-details">
-                <h2 class="company-title">RV PORTAL PORTAL</h2>
-                <div class="company-info">CNPJ: 46.889.791/0001-53 </div>
+                <h2 class="company-title">RV PORTAL MADEIRAS</h2>
+                <div class="company-info">CNPJ: 30.942.123/0001-02 </div>
                 <div class="company-info">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861 </div>
             </div>
             <div class="doc-meta">
@@ -2129,7 +2129,7 @@ function printFullOrder(orderId) {
 
     const company = {
         name: "RV PORTAL MADEIRAS",
-        cnpj: "46.889.791/0001-53",
+        cnpj: "30.942.123/0001-02",
         phone: "(64) 3636-4861",
         address: "Jataí - GO",
         logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
@@ -2139,16 +2139,15 @@ function printFullOrder(orderId) {
     ? `<span style="background-color: #ecfdf5; padding: 2px 5px; font-weight: bold; color: #047857; border: 1px dashed #059669;">ENTREGA: ${items[0].deliveryAddress}</span>` 
     : (cli.address || '-');
 
-    // Gera as linhas com TODOS os itens do pedido
+    // Gera as linhas com os itens (mostrando só a Qtd Vendida e o campo de Check)
     const rowsHtml = items.map(item => {
-        const delivered = Number(item.deliveredQty) || 0;
-        const remain = Number(item.quantity) - delivered;
         return `
         <tr>
             <td style="border: 1px solid #000; padding: 10px; font-weight: bold;">${item.productName}</td>
-            <td style="border: 1px solid #000; padding: 10px; text-align: center;">${item.quantity}</td>
-            <td style="border: 1px solid #000; padding: 10px; text-align: center;">${delivered}</td>
-            <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; background-color: #f0fdf4;">${remain}</td>
+            <td style="border: 1px solid #000; padding: 10px; text-align: center; font-size: 14px; font-weight: bold;">${item.quantity}</td>
+            <td style="border: 1px solid #000; padding: 10px; text-align: center; width: 80px;">
+                <div style="width: 18px; height: 18px; border: 2px solid #334155; border-radius: 3px; margin: 0 auto;"></div>
+            </td>
         </tr>`;
     }).join('');
     
@@ -2191,28 +2190,19 @@ function printFullOrder(orderId) {
             </table>
         </div>
 
-        <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO PENDENTES</div>
+        <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO</div>
         <table class="items-table-orig" style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #000;">
             <thead>
                 <tr style="background-color: #f1f5f9;">
                     <th style="border: 1px solid #000; padding: 8px; text-align: left;">Produto</th>
-                    <th style="border: 1px solid #000; padding: 8px; text-align: center;">Qtd. Total</th>
-                    <th style="border: 1px solid #000; padding: 8px; text-align: center;">Já Entregue</th>
-                    <th style="border: 1px solid #000; padding: 8px; text-align: center; background-color: #ecfdf5;">Saldo Pendente</th>
+                    <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 120px;">Qtd. Vendida</th>
+                    <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 80px;">Check</th>
                 </tr>
             </thead>
             <tbody>
                 ${rowsHtml}
             </tbody>
         </table>
-
-        <div style="border: 2px dashed #94a3b8; padding: 20px; margin: 20px 0; background-color: #fff;">
-            <p style="margin: 0 0 10px 0; font-weight: bold; font-size: 12px; text-transform: uppercase;">Registro de Saída Atual (Preenchimento Manual pelo Motorista)</p><br>
-            <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
-                <span style="font-size: 14px; font-weight: bold;">QUANTIDADE ENTREGUE:</span>
-                <div style="flex: 1; border-bottom: 2px solid #000; height: 1px;"></div>
-            </div>
-        </div>
 
         <div style="display: flex; justify-content: space-between; margin-top: 60px;">
             <div style="width: 45%; text-align: center;">
@@ -2228,7 +2218,6 @@ function printFullOrder(orderId) {
     
     setTimeout(() => window.print(), 500);
 }
-
 function printQuote(id) { const q = STATE.quotes.find(x => x.id == id); renderInvoice(q, true); setTimeout(() => window.print(), 500); }
 
 function printExpeditionHistory() {
