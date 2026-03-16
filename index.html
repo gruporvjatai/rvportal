@@ -21,6 +21,13 @@
     <meta name="theme-color" content="#0f172a"> 
     <link rel="manifest" href="manifest.json">
 
+    <script>
+        // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
+        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800) {
+          window.location.replace("mobile.html");
+        }
+    </script>
+
     <!-- ///////////////////////////////////////////////////////////////////////////// -->
     
     <style>
