@@ -8,9 +8,6 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    
-    
-    <!-- /////////////////////////////// LOGO  E INSTAÇÃO WEB ////////////////////////////////// -->
     <script>
         // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800) {
@@ -30,9 +27,6 @@
     <meta name="theme-color" content="#0f172a"> 
     <link rel="manifest" href="manifest.json">
 
-    <!-- ///////////////////////////////////////////////////////////////////////////// -->
-
-    
     <style>
       body { background-color: #f1f5f9; font-family: 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
 
@@ -1450,6 +1444,24 @@ function renderRecentHistory() {
     lucide.createIcons();
 }
 
+async function updateQuoteStatus(id, newStatus) {
+    showLoading(true);
+    const { error } = await sb.from('orcamentos').update({ status: newStatus }).eq('id', id);
+    
+    if (error) { 
+        showLoading(false); 
+        return showToast("Erro ao atualizar status: " + error.message, true); 
+    }
+    
+    // Atualiza na memória para não precisar baixar tudo do banco de novo
+    const quote = STATE.quotes.find(q => String(q.id) === String(id));
+    if (quote) quote.status = newStatus;
+    
+    showLoading(false);
+    showToast("Status CRM atualizado!");
+    renderQuotesList(); // Re-renderiza para atualizar as cores
+}
+
 function renderQuotesList() {
     const list = document.getElementById('quotes-list');
     if(!list) return;
@@ -1473,24 +1485,6 @@ function renderQuotesList() {
                 btnZapClass = "text-green-500 hover:text-green-700 bg-green-50 border-green-200 hover:bg-green-100";
             }
         }
-
-      async function updateQuoteStatus(id, newStatus) {
-    showLoading(true);
-    const { error } = await sb.from('orcamentos').update({ status: newStatus }).eq('id', id);
-    
-    if (error) { 
-        showLoading(false); 
-        return showToast("Erro ao atualizar status: " + error.message, true); 
-    }
-    
-    // Atualiza na memória para não precisar baixar tudo do banco de novo
-    const quote = STATE.quotes.find(q => String(q.id) === String(id));
-    if (quote) quote.status = newStatus;
-    
-    showLoading(false);
-    showToast("Status CRM atualizado!");
-    renderQuotesList(); // Re-renderiza para atualizar as cores
-}
 
         // Define a cor do Status
         let corStatus = "text-slate-600";
@@ -1626,35 +1620,6 @@ function renderExpedition() {
             </tr>`;
         }).join('');
     }
-
-    // Histórico de expedição continua sendo renderizado pela função abaixo (não alteramos o histórico pois ele mostra a viagem exata de cada produto).
-    // ... manter o restante do renderExpedition para o histórico igual estava ...
-    const histBody = document.getElementById('expedition-history-list');
-    if(histBody) {
-        let histLogs = (STATE.logs || []).filter(l => l.type === 'entrega' && l.status !== 'CANCELADO');
-        const nameFilter = document.getElementById('exp-hist-name')?.value.toLowerCase() || '';
-        const startDate = document.getElementById('exp-hist-start')?.value;
-        const endDate = document.getElementById('exp-hist-end')?.value;
-
-        if (nameFilter) histLogs = histLogs.filter(l => (l.clientName && l.clientName.toLowerCase().includes(nameFilter)) || (l.productName && l.productName.toLowerCase().includes(nameFilter)));
-        if (startDate) histLogs = histLogs.filter(l => new Date(l.date) >= new Date(startDate));
-        if (endDate) { let endD = new Date(endDate); endD.setHours(23,59,59); histLogs = histLogs.filter(l => new Date(l.date) <= endD); }
-
-        histLogs.sort((a,b) => new Date(b.date) - new Date(a.date));
-
-        if (histLogs.length === 0) { histBody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Nenhum registro encontrado.</td></tr>'; } 
-        else {
-            histBody.innerHTML = histLogs.map(l => `<tr class="hover:bg-slate-50 border-b">
-                <td class="p-4 text-xs text-slate-500">${formatDate(l.date)}</td>
-                <td class="p-4 text-xs font-bold text-slate-700">${l.note || '-'}</td>
-                <td class="p-4 font-medium text-slate-700 truncate max-w-[200px]">${l.clientName || '-'}</td>
-                <td class="p-4 text-sm">${l.productName}</td>
-                <td class="p-4 text-center font-bold text-green-600">+ ${l.quantity}</td>
-            </tr>`).join('');
-        }
-    }
-    lucide.createIcons();
-}
 
     const histBody = document.getElementById('expedition-history-list');
     if(histBody) {
@@ -2263,6 +2228,7 @@ function printFullOrder(orderId) {
     
     setTimeout(() => window.print(), 500);
 }
+
 function printQuote(id) { const q = STATE.quotes.find(x => x.id == id); renderInvoice(q, true); setTimeout(() => window.print(), 500); }
 
 function printExpeditionHistory() {
@@ -2396,14 +2362,14 @@ function reprintSale(id) {
 }
 
 
-        function fazerLogout() {
+function fazerLogout() {
     localStorage.removeItem('rv_user');
     window.location.replace('index.html');
 }
 
-        /////////////////////////////////////usuarios ///////////////////////////////////
+// /////////////////////////////////////usuarios ///////////////////////////////////
 
-        // --- CRUD USUÁRIOS (SÓ ADMIN) ---
+// --- CRUD USUÁRIOS (SÓ ADMIN) ---
 function renderUsers() {
     const list = document.getElementById('users-list');
     if(!list) return;
