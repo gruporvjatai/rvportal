@@ -273,8 +273,25 @@
          </div>
       </div>
 
-      <div id="view-quotes" class="hidden-section"><h2 class="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i data-lucide="folder-open"></i> Orçamentos Salvos</h2><div id="quotes-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[70vh] overflow-y-auto"></div></div>
-
+      <div id="view-quotes" class="hidden-section">
+          <h2 class="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2"><i data-lucide="folder-open" class="text-indigo-600"></i> Orçamentos & CRM</h2>
+          <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+              <div class="overflow-x-auto">
+                  <table class="w-full text-sm text-left">
+                      <thead class="bg-slate-50 text-slate-700">
+                          <tr>
+                              <th class="p-4 w-32">Orçamento</th>
+                              <th class="p-4">Cliente / Info</th>
+                              <th class="p-4">Valor</th>
+                              <th class="p-4 text-center">Status CRM</th>
+                              <th class="p-4 text-center">Ações</th>
+                          </tr>
+                      </thead>
+                      <tbody id="quotes-list" class="divide-y"></tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
       <div id="view-fin" class="hidden-section">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-slate-800">Financeiro & Caixa</h2>
@@ -1467,21 +1484,71 @@ function renderRecentHistory() {
 function renderQuotesList() {
     const list = document.getElementById('quotes-list');
     if(!list) return;
-    if(!(STATE.quotes||[]).length) { list.innerHTML='<p class="text-slate-400 col-span-3 text-center">Nenhum orçamento salvo.</p>'; return; }
-    list.innerHTML = STATE.quotes.slice().reverse().map(q=> {
-    const valorLiquido = q.total - (q.discount || 0);
-    return `<div class="p-4 border rounded-xl hover:shadow-md transition bg-white flex flex-col justify-between">
-        <div>
-            <div class="flex justify-between font-bold text-slate-800 text-lg"><span>${q.clientName}</span><span>${formatMoney(valorLiquido)}</span></div>
-            <div class="flex justify-between items-center mt-1"><span class="text-xs font-bold text-indigo-700 bg-indigo-100 px-2 rounded">#${q.id}</span><span class="text-xs text-slate-400"><i data-lucide="calendar" width="12" class="inline"></i> ${formatDate(q.date)}</span></div>
-            <p class="text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded border border-slate-100 truncate">${q.itemsText || '...'}</p>
-        </div>
-        <div class="grid grid-cols-2 gap-2 mt-4">
-            <button onclick="loadQuoteToCart('${q.id}')" class="py-2 bg-indigo-100 text-indigo-700 text-xs font-bold rounded flex items-center justify-center gap-1"><i data-lucide="edit" width="14"></i> Editar/Faturar</button>
-            <button onclick="printQuote('${q.id}')" class="py-2 bg-slate-800 text-white text-xs font-bold rounded flex justify-center gap-2 items-center"><i data-lucide="printer" width="14"></i> Imprimir</button>
-            <button onclick='deleteQuote("${q.id}")' class="col-span-2 py-2 text-red-500 text-xs font-bold rounded border border-red-100 flex items-center justify-center gap-1"><i data-lucide="trash-2" width="14"></i> Excluir</button>
-        </div>
-    </div>`;
+    if(!(STATE.quotes||[]).length) { list.innerHTML='<tr><td colspan="5" class="p-8 text-slate-400 text-center">Nenhum orçamento salvo.</td></tr>'; return; }
+    
+    list.innerHTML = STATE.quotes.slice().reverse().map(q => {
+        const valorLiquido = q.total - (q.discount || 0);
+        
+        // Pega os dados do cliente para o WhatsApp
+        const cli = STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
+        let zapLink = "#";
+        let btnZapClass = "text-slate-300 cursor-not-allowed";
+        
+        if (cli && cli.phone) {
+            // Limpa o telefone deixando só números
+            let num = cli.phone.replace(/\D/g, '');
+            if (num.length >= 10) {
+                if (!num.startsWith('55')) num = '55' + num;
+                const msg = encodeURIComponent(`Olá ${cli.name}, aqui é da RV Portal. Segue o Orçamento #${q.id} no valor de ${formatMoney(valorLiquido)}. Podemos fechar?`);
+                zapLink = `https://wa.me/${num}?text=${msg}`;
+                btnZapClass = "text-green-500 hover:text-green-700 bg-green-50 border-green-200 hover:bg-green-100";
+            }
+        }
+
+        // Define a cor do Status
+        let corStatus = "text-slate-600";
+        if (q.status === 'APROVADO') corStatus = "text-emerald-700 font-bold bg-emerald-50";
+        else if (q.status === 'PERDIDO') corStatus = "text-red-700 font-bold bg-red-50";
+        else if (q.status === 'EM NEGOCIAÇÃO') corStatus = "text-indigo-700 font-bold bg-indigo-50";
+
+        return `
+        <tr class="hover:bg-slate-50 transition">
+            <td class="p-4">
+                <div class="font-black text-slate-700">#${q.id}</div>
+                <div class="text-[10px] text-slate-400"><i data-lucide="calendar" width="10" class="inline"></i> ${formatDate(q.date)}</div>
+            </td>
+            <td class="p-4">
+                <div class="font-bold text-slate-800">${q.clientName}</div>
+                <div class="text-xs text-slate-500 truncate max-w-[200px]" title="${q.itemsText}">${q.itemsText || '...'}</div>
+            </td>
+            <td class="p-4 font-bold text-slate-800 text-base">
+                ${formatMoney(valorLiquido)}
+            </td>
+            <td class="p-4 text-center">
+                <select onchange="updateQuoteStatus('${q.id}', this.value)" class="p-2 border rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 ${corStatus}">
+                    <option value="ABERTO" ${q.status === 'ABERTO' ? 'selected' : ''}>Aberto</option>
+                    <option value="EM NEGOCIAÇÃO" ${q.status === 'EM NEGOCIAÇÃO' ? 'selected' : ''}>Em Negociação</option>
+                    <option value="APROVADO" ${q.status === 'APROVADO' ? 'selected' : ''}>Aprovado</option>
+                    <option value="PERDIDO" ${q.status === 'PERDIDO' ? 'selected' : ''}>Perdido</option>
+                </select>
+            </td>
+            <td class="p-4">
+                <div class="flex items-center justify-center gap-2">
+                    <a href="${zapLink}" ${zapLink !== "#" ? 'target="_blank"' : ''} class="p-2 border rounded-lg flex items-center justify-center transition-all ${btnZapClass}" title="Enviar por WhatsApp">
+                        <i data-lucide="message-circle" width="16"></i>
+                    </a>
+                    <button onclick="loadQuoteToCart('${q.id}')" class="p-2 border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg" title="Editar / Faturar">
+                        <i data-lucide="edit-3" width="16"></i>
+                    </button>
+                    <button onclick="printQuote('${q.id}')" class="p-2 border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg" title="Imprimir">
+                        <i data-lucide="printer" width="16"></i>
+                    </button>
+                    <button onclick='deleteQuote("${q.id}")' class="p-2 border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg" title="Excluir">
+                        <i data-lucide="trash-2" width="16"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
     }).join('');
     lucide.createIcons();
 }
