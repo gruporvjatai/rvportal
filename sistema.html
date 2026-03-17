@@ -171,11 +171,19 @@
       <div id="view-pos" class="hidden-section">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-100px)]">
             <div class="lg:col-span-2 flex flex-col gap-4 h-full">
-                <div class="bg-white rounded-xl shadow-sm border p-4 flex gap-4"><div class="relative flex-1"><i data-lucide="search" class="absolute left-3 top-2.5 text-slate-400 w-5 h-5"></i><input type="text" id="pos-search" placeholder="Buscar produto..." class="w-full p-2 border rounded pl-10 outline-none focus:ring-2 focus:ring-emerald-600" onkeyup="renderPOSProducts()"></div></div>
-                <div id="pos-products-grid" class="bg-white rounded-xl shadow-sm border p-4 flex flex-col gap-2 overflow-y-auto flex-1 content-start"></div>
+                <div class="bg-white rounded-xl shadow-sm border p-6 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-700 text-lg flex gap-2 items-center"><i data-lucide="package-plus"></i> Inserir Itens na Venda</h3>
+                    <button onclick="openPosProductModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition"><i data-lucide="search"></i> Buscar e Adicionar Produtos</button>
+                </div>
                 
-                <div class="bg-white p-4 rounded-xl border flex flex-col h-64 shadow-sm">
-                    <h3 class="font-bold text-slate-700 mb-2 flex gap-2 items-center text-sm uppercase border-b pb-2"><i data-lucide="history" class="w-4 h-4"></i> Vendas Efetuadas</h3>
+                <div class="bg-white p-4 rounded-xl border flex flex-col flex-1 shadow-sm overflow-hidden">
+                    <h3 class="font-bold text-slate-700 mb-4 flex gap-2 items-center text-sm uppercase border-b pb-2"><i data-lucide="history" class="w-4 h-4"></i> Vendas Efetuadas</h3>
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="pos-hist-search" placeholder="Buscar venda, nome ou ID..." class="w-full p-2 border rounded text-sm outline-none focus:border-emerald-600" onkeyup="renderRecentHistory()">
+                        <input type="date" id="pos-hist-start" class="p-2 border rounded text-sm outline-none focus:border-emerald-600" onchange="renderRecentHistory()">
+                        <input type="date" id="pos-hist-end" class="p-2 border rounded text-sm outline-none focus:border-emerald-600" onchange="renderRecentHistory()">
+                        <button onclick="document.getElementById('pos-hist-search').value=''; document.getElementById('pos-hist-start').value=''; document.getElementById('pos-hist-end').value=''; renderRecentHistory()" class="p-2 bg-slate-200 hover:bg-slate-300 rounded text-xs"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
                     <div class="overflow-y-auto flex-1">
                         <table class="w-full text-sm text-left">
                             <tbody id="pos-recent-history" class="divide-y"></tbody>
@@ -183,6 +191,7 @@
                     </div>
                 </div>
             </div>
+            
             <div class="bg-white p-0 rounded-xl border shadow-lg flex flex-col h-full overflow-hidden border-t-4 border-t-slate-800">
                 <div class="p-4 bg-slate-50 border-b flex justify-between items-center"><div class="font-bold text-slate-700 flex gap-2 items-center"><i data-lucide="shopping-cart"></i> ITENS <span id="edit-mode-indicator" class="hidden text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded ml-2">EDITANDO</span></div><button onclick="clearCart()" class="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 px-2 py-1 rounded bg-white">LIMPAR</button></div>
                 <div id="pos-cart-items" class="flex-1 space-y-2 overflow-y-auto p-4 bg-white"></div>
@@ -424,6 +433,14 @@
               <h2 class="text-2xl font-bold text-slate-800">Produtos</h2>
               <button onclick="openProductForm()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><i data-lucide="plus"></i> Novo Produto</button>
           </div>
+          
+          <div class="flex gap-2 mb-4 bg-white p-4 rounded-xl shadow-sm border">
+              <input type="text" id="prod-search" placeholder="Buscar produto por nome..." class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderProducts()">
+              <select id="prod-category" class="w-1/3 p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
+                  <option value="">Todas as Categorias</option>
+              </select>
+          </div>
+
           <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
               <table class="w-full text-sm text-left">
                   <thead class="bg-slate-50 text-slate-700"><tr><th class="p-4">Produto</th><th class="p-4">Preço (R$)</th><th class="p-4">Estoque</th><th class="p-4 text-center">Editar</th></tr></thead>
@@ -544,6 +561,27 @@
     </main>
 
     <div id="print-area" class="print-only"></div>
+
+    <div id="pos-product-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="package-search" class="text-emerald-600"></i> Selecionar Produto</h3>
+                <button onclick="closePosProductModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-4 border-b">
+                <div class="relative w-full">
+                    <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-5 h-5"></i>
+                    <input type="text" id="pos-modal-search" placeholder="Digite o nome do produto..." class="w-full pl-10 p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600" onkeyup="renderPosProductModal()">
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 bg-slate-100/50">
+                <div id="pos-modal-grid" class="flex flex-col gap-2"></div>
+            </div>
+            <div class="p-4 border-t bg-slate-50 rounded-b-2xl">
+                <button onclick="closePosProductModal()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition">Concluído</button>
+            </div>
+        </div>
+    </div>
 
     <div id="modal-delivery" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-[fadeIn_0.2s] max-h-[90vh] flex flex-col">
@@ -747,7 +785,7 @@
             if(activeBtn) activeBtn.classList.add('bg-emerald-700', 'text-white', 'shadow-lg');
             
             if(viewId === 'dash') renderDashboard();
-            if(viewId === 'pos') renderPOSProducts();
+            if(viewId === 'pos') renderRecentHistory(); // Alterado para chamar a renderização da tabela de histórico em vez da grid de produtos
             if(viewId === 'quotes') renderQuotesList();
             if(viewId === 'expedition') renderExpedition();
             if(viewId === 'fin') renderFinance();
@@ -1358,36 +1396,60 @@ function toggleCustomAddress() {
     }
 }
 
-function renderPOSProducts() {
-    const term = document.getElementById('pos-search').value.toLowerCase();
-    const grid = document.getElementById('pos-products-grid');
+// Alteração 2: Funções do Novo Modal do PDV
+function openPosProductModal() {
+    document.getElementById('pos-product-modal').classList.remove('hidden');
+    document.getElementById('pos-modal-search').value = '';
+    renderPosProductModal();
+}
+
+function closePosProductModal() {
+    document.getElementById('pos-product-modal').classList.add('hidden');
+}
+
+function renderPosProductModal() {
+    const term = document.getElementById('pos-modal-search').value.toLowerCase();
+    const grid = document.getElementById('pos-modal-grid');
     if(!grid) return;
 
     const sortedProducts = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
 
-    // A MÁGICA 2: Transformado a div do botão de grid para LISTA (flex row)
     grid.innerHTML = sortedProducts.filter(p=>p.name.toLowerCase().includes(term)).map(p => {
-        return `<button onclick="addToCart('${p.id}')" class="p-3 border rounded-lg text-left hover:shadow-md transition flex items-center justify-between bg-white hover:border-emerald-500 group relative overflow-hidden w-full">
-            <div class="flex flex-col w-3/4">
-                <h4 class="font-bold text-sm text-slate-700 truncate">${p.name}</h4>
-                <span class="text-[10px] px-2 py-0.5 rounded mt-1 w-max ${p.available<=0?'bg-red-100 text-red-600':'bg-slate-100 text-slate-500'} font-bold">Disp: ${p.available}</span>
+        return `
+        <div class="p-4 border border-slate-200 rounded-xl hover:shadow-md bg-white flex items-center justify-between group transition">
+            <div class="flex flex-col w-1/2">
+                <h4 class="font-black text-sm text-slate-800 truncate" title="${p.name}">${p.name}</h4>
+                <span class="text-[10px] px-2 py-0.5 rounded mt-1 w-max ${p.available<=0?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700'} font-bold">Disp: ${p.available}</span>
             </div>
-            <div class="flex flex-col items-end w-1/4">
+            <div class="flex items-center gap-3 w-1/2 justify-end">
                 <span class="text-emerald-700 font-bold">${formatMoney(p.price)}</span>
-                <span class="text-[10px] text-slate-400 mt-1 uppercase">Adicionar</span>
+                <input type="number" id="qty-modal-${p.id}" value="1" min="0.1" step="0.1" class="w-20 p-2 border rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50">
+                <button onclick="addModalToCart('${p.id}')" class="bg-slate-100 text-slate-700 hover:bg-emerald-600 hover:text-white p-2.5 rounded-lg transition" title="Adicionar">
+                    <i data-lucide="plus" width="18"></i>
+                </button>
             </div>
-        </button>`;
+        </div>`;
     }).join('');
-    
-    renderRecentHistory();
+    lucide.createIcons();
 }
 
-function addToCart(id) {
+function addModalToCart(id) {
     const p = STATE.products.find(x=>x.id==id);
-    const existing = CART.find(x=>x.prodId==id);
-    if(existing) { existing.qty++; existing.total = existing.qty * existing.price; }
-    else { CART.push({prodId:p.id, name:p.name, price:p.price, qty:1, total:p.price}); }
-    renderCart();
+    const qtyInput = document.getElementById(`qty-modal-${id}`);
+    const qty = parseFloat(qtyInput.value) || 1;
+    
+    if(p) {
+        const existing = CART.find(x=>x.prodId==id);
+        if(existing) { 
+            existing.qty += qty; 
+            existing.total = existing.qty * existing.price; 
+        } else { 
+            CART.push({prodId:p.id, name:p.name, price:p.price, qty:qty, total:p.price * qty}); 
+        }
+        renderCart();
+        qtyInput.value = "1";
+        showToast(p.name + " adicionado ao carrinho!");
+    }
 }
 
 function updateCartItem(idx, field, value) {
@@ -1434,27 +1496,53 @@ function clearCart() {
     renderCart(); 
 }
 
+// Alteração 3: Histórico de Vendas Expandido (com Filtros)
 function renderRecentHistory() { 
     const salesMap = {};
     (STATE.logs||[]).filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
         if(!salesMap[l.id]) {
-            salesMap[l.id] = { id: l.id, date: l.date, client: l.clientName, valorFinal: 0 };
+            salesMap[l.id] = { id: l.id, date: l.date, client: l.clientName, itemsText: '', valorFinal: 0 };
         }
         salesMap[l.id].valorFinal += l.totalValue; 
+        salesMap[l.id].itemsText += l.productName + " ";
     });
     
-    const recentSales = Object.values(salesMap).sort((a,b) => b.id - a.id).slice(0, 10); 
+    let recentSales = Object.values(salesMap).sort((a,b) => b.id - a.id); 
+    
+    const term = document.getElementById('pos-hist-search')?.value.toLowerCase() || '';
+    const startDate = document.getElementById('pos-hist-start')?.value;
+    const endDate = document.getElementById('pos-hist-end')?.value;
+
+    if(term) {
+        recentSales = recentSales.filter(r => (r.client && r.client.toLowerCase().includes(term)) || (r.itemsText.toLowerCase().includes(term)) || String(r.id).includes(term));
+    }
+    if(startDate) {
+        recentSales = recentSales.filter(r => new Date(r.date) >= new Date(startDate));
+    }
+    if(endDate) {
+        let endD = new Date(endDate);
+        endD.setHours(23,59,59);
+        recentSales = recentSales.filter(r => new Date(r.date) <= endD);
+    }
+
+    recentSales = recentSales.slice(0, 50); // Aumentado o limite visual para 50 registros por causa do espaço expandido
+    
     const histBody = document.getElementById('pos-recent-history');
     if(!histBody) return;
     
+    if(recentSales.length === 0) {
+        histBody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">Nenhuma venda encontrada.</td></tr>';
+        return;
+    }
+
     histBody.innerHTML = recentSales.map(r => {
         return `
         <tr class="border-b last:border-0 hover:bg-slate-50 transition">
-            <td class="p-2 text-slate-500 text-xs font-bold">#${r.id}</td>
-            <td class="p-2 truncate text-xs font-bold text-slate-700" style="max-width:90px">${r.client}</td>
-            <td class="p-2 text-right text-xs text-green-700 font-bold">${formatMoney(r.valorFinal)}</td>
-            <td class="p-2 text-center">
-                <button onclick="reprintSale('${r.id}')" class="text-slate-600 hover:text-emerald-600"><i data-lucide="printer" width="14"></i></button>
+            <td class="p-3 text-slate-500 text-xs font-bold">#${r.id} <br><span class="text-[10px] font-normal">${formatDate(r.date)}</span></td>
+            <td class="p-3 truncate text-xs font-bold text-slate-700" style="max-width:120px">${r.client}</td>
+            <td class="p-3 text-right text-sm text-green-700 font-bold">${formatMoney(r.valorFinal)}</td>
+            <td class="p-3 text-center">
+                <button onclick="reprintSale('${r.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border border-slate-200 p-2 rounded shadow-sm"><i data-lucide="printer" width="14"></i></button>
             </td>
         </tr>`;
     }).join(''); 
@@ -1479,6 +1567,7 @@ async function updateQuoteStatus(id, newStatus) {
     renderQuotesList(); // Re-renderiza para atualizar as cores
 }
 
+// Alteração 4: Cores de Fundo na Lista de Orçamentos
 function renderQuotesList() {
     const list = document.getElementById('quotes-list');
     if(!list) return;
@@ -1518,18 +1607,29 @@ function renderQuotesList() {
                 if (!num.startsWith('55')) num = '55' + num;
                 const msg = encodeURIComponent(`Olá ${cli.name}, aqui é da RV Portal. Segue o Orçamento #${q.id} no valor de ${formatMoney(valorLiquido)}. Podemos fechar?`);
                 zapLink = `https://wa.me/${num}?text=${msg}`;
-                btnZapClass = "text-green-500 hover:text-green-700 bg-green-50 border-green-200 hover:bg-green-100";
+                btnZapClass = "text-green-500 hover:text-green-700 bg-white border-green-200 hover:bg-green-50";
             }
         }
 
-        // Define a cor do Status
-        let corStatus = "text-slate-600";
-        if (q.status === 'APROVADO') corStatus = "text-emerald-700 font-bold bg-emerald-50";
-        else if (q.status === 'PERDIDO') corStatus = "text-red-700 font-bold bg-red-50";
-        else if (q.status === 'EM NEGOCIAÇÃO') corStatus = "text-indigo-700 font-bold bg-indigo-50";
+        // Define a cor de fundo da Linha e do texto baseado no Status
+        let bgStatusClass = "";
+        let corStatus = "text-slate-600 bg-white";
+        
+        if (q.status === 'APROVADO') { 
+            corStatus = "text-emerald-700 font-bold bg-emerald-50 border-emerald-200"; 
+            bgStatusClass = "bg-emerald-50/40"; 
+        }
+        else if (q.status === 'PERDIDO') { 
+            corStatus = "text-red-700 font-bold bg-red-50 border-red-200"; 
+            bgStatusClass = "bg-red-50/40"; 
+        }
+        else if (q.status === 'EM NEGOCIAÇÃO') { 
+            corStatus = "text-indigo-700 font-bold bg-indigo-50 border-indigo-200"; 
+            bgStatusClass = "bg-indigo-50/40"; 
+        }
 
         return `
-        <tr class="hover:bg-slate-50 transition">
+        <tr class="transition ${bgStatusClass ? bgStatusClass : 'hover:bg-slate-50'} border-b">
             <td class="p-4">
                 <div class="font-black text-slate-700">#${q.id}</div>
                 <div class="text-[10px] text-slate-400"><i data-lucide="calendar" width="10" class="inline"></i> ${formatDate(q.date)}</div>
@@ -1554,13 +1654,13 @@ function renderQuotesList() {
                     <a href="${zapLink}" ${zapLink !== "#" ? 'target="_blank"' : ''} class="p-2 border rounded-lg flex items-center justify-center transition-all ${btnZapClass}" title="Enviar por WhatsApp">
                         <i data-lucide="message-circle" width="16"></i>
                     </a>
-                    <button onclick="loadQuoteToCart('${q.id}')" class="p-2 border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg" title="Editar / Faturar">
+                    <button onclick="loadQuoteToCart('${q.id}')" class="p-2 border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 rounded-lg shadow-sm" title="Editar / Faturar">
                         <i data-lucide="edit-3" width="16"></i>
                     </button>
-                    <button onclick="printQuote('${q.id}')" class="p-2 border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg" title="Imprimir">
+                    <button onclick="printQuote('${q.id}')" class="p-2 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-sm" title="Imprimir">
                         <i data-lucide="printer" width="16"></i>
                     </button>
-                    <button onclick='deleteQuote("${q.id}")' class="p-2 border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg" title="Excluir">
+                    <button onclick='deleteQuote("${q.id}")' class="p-2 border border-red-200 bg-white text-red-500 hover:bg-red-50 rounded-lg shadow-sm" title="Excluir">
                         <i data-lucide="trash-2" width="16"></i>
                     </button>
                 </div>
@@ -1725,10 +1825,38 @@ function openOrderDeliveryModal(orderId) {
 
 function closeDeliveryModal() { document.getElementById('modal-delivery').classList.add('hidden'); }
 
+// Alteração 1: Filtro de Produtos com Categorias Dinâmicas
 function renderProducts() {
     const list = document.getElementById('prod-list');
     if(!list) return;
-    list.innerHTML = (STATE.products||[]).map(p=>`<tr class="hover:bg-slate-50"><td class="p-4">${p.name}<br><span class="text-xs text-slate-400">${p.category}</span></td><td class="p-4">${formatMoney(p.price)}</td><td class="p-4 font-bold"><div class="flex flex-col"><span class="text-xs text-slate-400">Disp: ${p.available}</span><span>Físico: ${p.stock}</span></div></td><td class="p-4 text-center"><button onclick="openProductForm('${p.id}')" class="text-indigo-700"><i data-lucide="edit-3" width="16"></i></button></td></tr>`).join('');
+
+    const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
+    const catFilter = document.getElementById('prod-category')?.value || '';
+
+    // Popula o select de categorias dinamicamente caso ainda esteja vazio
+    const catSelect = document.getElementById('prod-category');
+    if (catSelect && catSelect.options.length <= 1) {
+        const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
+        categoriasUnicas.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            catSelect.appendChild(option);
+        });
+    }
+
+    let filtered = STATE.products.slice();
+    
+    // Aplica filtros de pesquisa e categoria
+    if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
+    if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Nenhum produto encontrado com estes filtros.</td></tr>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(p=>`<tr class="hover:bg-slate-50"><td class="p-4 font-bold text-slate-700">${p.name}<br><span class="text-[10px] text-slate-400 uppercase font-bold bg-slate-100 px-1 py-0.5 rounded">${p.category || 'Geral'}</span></td><td class="p-4 font-medium">${formatMoney(p.price)}</td><td class="p-4 font-bold"><div class="flex flex-col"><span class="text-xs text-slate-500">Disp: ${p.available}</span><span class="text-[10px] text-slate-400">Físico: ${p.stock}</span></div></td><td class="p-4 text-center"><button onclick="openProductForm('${p.id}')" class="text-indigo-600 hover:text-indigo-800"><i data-lucide="edit-3" width="16"></i></button></td></tr>`).join('');
     lucide.createIcons(); 
 }
 
@@ -1738,11 +1866,13 @@ function openProductForm(id) {
         const p=STATE.products.find(x=>x.id==id); 
         document.getElementById('prd-id').value=p.id; 
         document.getElementById('prd-name').value=p.name; 
+        document.getElementById('prd-cat').value=p.category || ''; 
         document.getElementById('prd-price').value=p.price; 
         document.getElementById('prd-stock').value=p.stock; 
     } else { 
         document.getElementById('prd-id').value=''; 
         document.getElementById('prd-name').value=''; 
+        document.getElementById('prd-cat').value=''; 
         document.getElementById('prd-price').value=''; 
         document.getElementById('prd-stock').value=''; 
     } 
@@ -1787,7 +1917,7 @@ function renderFinance() {
     const salesArr = Object.values(salesMap);
 
     const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
-                    salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+                   salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
     
     const expenses = STATE.expenses.reduce((a, b) => a + Number(b.cost), 0);
     
