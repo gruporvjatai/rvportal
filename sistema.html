@@ -171,6 +171,7 @@
       <div id="view-pos" class="hidden-section">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-100px)]">
             <div class="lg:col-span-2 flex flex-col gap-4 h-full">
+                
                 <div class="bg-white rounded-xl shadow-sm border p-6 flex justify-between items-center">
                     <h3 class="font-bold text-slate-700 text-lg flex gap-2 items-center"><i data-lucide="package-plus"></i> Inserir Itens na Venda</h3>
                     <button onclick="openPosProductModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition"><i data-lucide="search"></i> Buscar e Adicionar Produtos</button>
@@ -209,7 +210,16 @@
                         <div id="pos-custom-address-container" class="hidden transition-all duration-300">
                             <textarea id="pos-custom-address" rows="2" placeholder="Digite o endereço completo da obra / ponto de referência..." class="w-full p-2 border rounded-lg text-xs bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 outline-none resize-none shadow-inner"></textarea>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+
+                        <div class="flex items-center gap-2 mt-1">
+                            <input type="checkbox" id="pos-custom-obs-check" class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-600" onchange="toggleCustomObs()">
+                            <label for="pos-custom-obs-check" class="text-xs font-bold text-slate-600 cursor-pointer select-none">Adicionar Observações</label>
+                        </div>
+                        <div id="pos-custom-obs-container" class="hidden transition-all duration-300">
+                            <textarea id="pos-custom-obs" rows="2" placeholder="Digite as observações gerais para a impressão..." class="w-full p-2 border rounded-lg text-xs bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 outline-none resize-none shadow-inner"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 mt-2">
                             <select id="pos-payment" class="w-full p-2 border rounded text-sm bg-white"><option>Dinheiro</option><option>PIX</option><option>Cartão Crédito</option><option>Cartão Débito</option><option>Boleto 5 dias</option><option>Boleto 10 dias</option><option>Boleto 15 dias</option><option>PIX 7 dias</option></select>
                             <div class="flex rounded border bg-white overflow-hidden"><select id="pos-discount-type" class="bg-slate-100 text-xs px-1 border-r font-bold focus:outline-none" onchange="renderCart()"><option value="%">%</option><option value="$">R$</option></select><input type="number" id="pos-discount" value="0" class="w-full p-2 text-sm focus:outline-none" placeholder="Desc." onchange="renderCart()"></div>
                         </div>
@@ -315,7 +325,7 @@
       <div id="view-fin" class="hidden-section">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-slate-800">Financeiro & Caixa</h2>
-            <button onclick="document.getElementById('modal-expense').classList.remove('hidden')" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg transition-all flex items-center gap-2"><i data-lucide="minus-circle" class="w-5 h-5"></i> Lançar Saída</button>
+            <button onclick="document.getElementById('exp-id').value=''; document.getElementById('modal-expense').classList.remove('hidden')" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg transition-all flex items-center gap-2"><i data-lucide="minus-circle" class="w-5 h-5"></i> Lançar Saída</button>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -324,7 +334,7 @@
                 <h3 id="fin-income" class="text-3xl font-bold text-green-600 mt-2">R$ 0,00</h3>
             </div>
             <div class="bg-red-50 p-6 rounded-xl border border-red-100 shadow-sm">
-                <p class="text-red-800 text-sm font-bold uppercase">Saídas (Despesas)</p>
+                <p class="text-red-800 text-sm font-bold uppercase">Saídas (Despesas Pagas)</p>
                 <h3 id="fin-expenses" class="text-3xl font-bold text-red-600 mt-2">R$ 0,00</h3>
             </div>
             <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100 shadow-sm">
@@ -402,6 +412,7 @@
                                     <th class="pb-2 text-center">Qtd</th>
                                     <th class="pb-2">Valor (R$)</th>
                                     <th class="pb-2">Obs</th>
+                                    <th class="pb-2 text-right">Ação</th>
                                 </tr>
                             </thead>
                             <tbody id="fin-expense-history-list" class="divide-y"></tbody>
@@ -691,7 +702,7 @@
                 <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
             </div>
             <div class="p-6 space-y-4 overflow-y-auto">
-                 <div>
+                 <input type="hidden" id="exp-id"> <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Descrição do Gasto (Item)</label>
                     <select id="exp-item" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
                         <option value="Cimento">Cimento</option>
@@ -737,7 +748,7 @@
             </div>
             <div class="p-5 border-t bg-slate-50 flex gap-3">
                 <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
-                <button onclick="saveExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Salvar</button>
+                <button onclick="saveExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Salvar Pendente</button>
             </div>
         </div>
     </div>
@@ -768,14 +779,12 @@
 
         // ====== 4. INICIALIZAÇÃO ======
         window.onload = function() { 
-            // Só tenta carregar os dados se o usuário estiver validado
             if (dadosUsuario) {
                 showLoading(true); 
                 loadData(); 
             }
         };
 
-        // --- NAVEGAÇÃO E UTILIDADES --- 
         function navigate(viewId) {
             document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
             const target = document.getElementById('view-' + viewId);
@@ -785,7 +794,7 @@
             if(activeBtn) activeBtn.classList.add('bg-emerald-700', 'text-white', 'shadow-lg');
             
             if(viewId === 'dash') renderDashboard();
-            if(viewId === 'pos') renderRecentHistory(); // Alterado para chamar a renderização da tabela de histórico em vez da grid de produtos
+            if(viewId === 'pos') renderRecentHistory(); 
             if(viewId === 'quotes') renderQuotesList();
             if(viewId === 'expedition') renderExpedition();
             if(viewId === 'fin') renderFinance();
@@ -793,7 +802,7 @@
             if(viewId === 'prod') renderProducts();
             if(viewId === 'production') renderProductionSelect();
             if(viewId === 'logs') renderLogs();
-            if(viewId === 'users') renderUsers(); // <- RENDERIZA ABA USUÁRIOS
+            if(viewId === 'users') renderUsers(); 
             lucide.createIcons();
         }
 
@@ -841,16 +850,22 @@
                     paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
                 }));
 
+                // LENDO AS DESPESAS - MAPEANDO O STATUS DA NOVA COLUNA DO BANCO
                 STATE.expenses = (resDesp.data || []).map(e => ({
                     id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
-                    cost: Number(e.custo), date: e.data, note: e.observacao
+                    cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
                 }));
 
                 const quotesMap = {};
                 (resOrc.data || []).forEach(row => {
                     const qId = String(row.id);
                     if(!quotesMap[qId]) {
-                        quotesMap[qId] = { id: qId, date: row.data, clientName: row.cliente_nome, items: [], total: 0, status: row.status, discount: Number(row.desconto), discountType: row.tipo_desconto, paymentMethod: row.forma_pagamento, deliveryAddress: row.endereco_entrega };
+                        quotesMap[qId] = { 
+                            id: qId, date: row.data, clientName: row.cliente_nome, items: [], total: 0, 
+                            status: row.status, discount: Number(row.desconto), discountType: row.tipo_desconto, 
+                            paymentMethod: row.forma_pagamento, deliveryAddress: row.endereco_entrega,
+                            observacao: row.observacao // LENDO A NOVA COLUNA DE OBSERVAÇÃO
+                        };
                     }
                     quotesMap[qId].items.push({ name: row.item_nome, qty: Number(row.quantidade), price: Number(row.preco_unitario), total: Number(row.total_item) });
                     quotesMap[qId].total += Number(row.total_item);
@@ -859,18 +874,12 @@
 
                 STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
 
-                // ========================================================
-                // LÓGICA DE USUÁRIOS E PERMISSÕES DE ADMIN
-                // ========================================================
                 if (dadosUsuario.nivel === 'admin') {
-                    // Se for admin, mostra o botão no menu e baixa a lista de usuários
                     const navUsersBtn = document.getElementById('nav-users');
                     if (navUsersBtn) navUsersBtn.classList.remove('hidden');
-                    
                     const resUsers = await sb.from('usuarios').select('*');
                     STATE.users = resUsers.data || [];
                 }
-                // ========================================================
 
                 onDataLoaded();
             } catch (err) {
@@ -906,11 +915,8 @@ async function saveClient(e) {
     const newId = isNew ? getNextId(STATE.clients) : document.getElementById('cli-id').value;
 
     const payload = {
-        id: newId,
-        nome: document.getElementById('cli-name').value,
-        telefone: document.getElementById('cli-phone').value,
-        documento: document.getElementById('cli-doc').value,
-        endereco: document.getElementById('cli-addr').value
+        id: newId, nome: document.getElementById('cli-name').value, telefone: document.getElementById('cli-phone').value,
+        documento: document.getElementById('cli-doc').value, endereco: document.getElementById('cli-addr').value
     };
 
     const { error } = await sb.from('clientes').upsert(payload);
@@ -937,11 +943,8 @@ async function saveProduct(e) {
     const newId = isNew ? getNextId(STATE.products) : document.getElementById('prd-id').value;
 
     const payload = {
-        id: newId,
-        nome: document.getElementById('prd-name').value,
-        categoria: document.getElementById('prd-cat').value,
-        preco: parseFloat(document.getElementById('prd-price').value),
-        estoque_fisico: parseFloat(document.getElementById('prd-stock').value),
+        id: newId, nome: document.getElementById('prd-name').value, categoria: document.getElementById('prd-cat').value,
+        preco: parseFloat(document.getElementById('prd-price').value), estoque_fisico: parseFloat(document.getElementById('prd-stock').value),
         estoque_comprometido: isNew ? 0 : STATE.products.find(p=>p.id==newId).committed
     };
 
@@ -962,8 +965,13 @@ async function finalizeSale(isProntaEntrega = false) {
     const selectedClient = STATE.clients.find(c => String(c.id) === String(cliId));
     const clientName = selectedClient ? selectedClient.name : 'Consumidor Final';
     const payment = document.getElementById('pos-payment').value;
+    
     const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
     const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
+
+    // LÓGICA DE OBSERVAÇÕES
+    const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
+    const customObs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
     
     let dueDate = new Date();
     if (payment.toLowerCase().includes("5")) dueDate.setDate(dueDate.getDate() + 5);
@@ -978,7 +986,6 @@ async function finalizeSale(isProntaEntrega = false) {
 
     let logsToInsert = [];
 
-    // 1. ATUALIZAR O ESTOQUE
     for(let item of CART) {
         const prod = STATE.products.find(p => p.id == item.prodId);
         if(prod) {
@@ -996,7 +1003,7 @@ async function finalizeSale(isProntaEntrega = false) {
             if (errProd) {
                 console.error("Erro BD Estoque:", errProd);
                 showLoading(false);
-                return showToast("Erro ao baixar o estoque do produto: " + prod.name, true);
+                return showToast("Erro ao baixar estoque do produto: " + prod.name, true);
             }
         }
 
@@ -1005,7 +1012,8 @@ async function finalizeSale(isProntaEntrega = false) {
 
         logsToInsert.push({
             id: newSaleId, tipo: 'venda', produto_nome: item.name, quantidade: item.qty,
-            data: timestamp, observacao: isProntaEntrega ? 'Pronta Entrega PDV' : 'Venda PDV', 
+            data: timestamp, 
+            observacao: customObs ? customObs : (isProntaEntrega ? 'Pronta Entrega PDV' : 'Venda PDV'), 
             valor_total: (item.total * fator),
             cliente_nome: clientName, forma_pagamento: payment, status: 'ATIVO',
             status_entrega: statusEntrega, qtd_entregue: qtdEntregue, desconto: totals.disc,
@@ -1046,10 +1054,15 @@ async function saveQuote() {
     const totals = calculateTotal();
     const cliId = document.getElementById('pos-client').value;
     const clientName = STATE.clients.find(c=>c.id==cliId)?.name||"Consumidor Final";
+    
     const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
     const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
-    const date = new Date().toISOString();
     
+    // LÓGICA DE OBSERVAÇÕES
+    const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
+    const obs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
+
+    const date = new Date().toISOString();
     const budgetId = CURRENT_QUOTE_ID || getNextId(STATE.quotes);
 
     if(CURRENT_QUOTE_ID) await sb.from('orcamentos').delete().eq('id', CURRENT_QUOTE_ID);
@@ -1058,7 +1071,8 @@ async function saveQuote() {
         id: budgetId, data: date, cliente_nome: clientName, item_nome: item.name,
         quantidade: item.qty, preco_unitario: item.price, total_item: item.total,
         status: 'ABERTO', desconto: totals.disc, tipo_desconto: document.getElementById('pos-discount-type').value,
-        forma_pagamento: document.getElementById('pos-payment').value, endereco_entrega: deliveryAddr
+        forma_pagamento: document.getElementById('pos-payment').value, endereco_entrega: deliveryAddr,
+        observacao: obs // ENVIANDO A OBSERVAÇÃO PARA O BANCO
     }));
 
     const { error } = await sb.from('orcamentos').insert(quotesToInsert);
@@ -1106,14 +1120,11 @@ async function confirmOrderDelivery() {
             const newDelivered = currentDelivered + qty;
             const newStatus = newDelivered >= totalQty ? 'ENTREGUE' : 'PARCIAL';
 
-            // Guarda update da venda
             updates.push({ uid: uid, qtd_entregue: newDelivered, status_entrega: newStatus });
 
-            // Guarda update de estoque
             const prodFound = STATE.products.find(p => String(p.name).trim() === String(prodName).trim());
             if(prodFound) stockUpdates.push({ id: prodFound.id, qty: qty });
 
-            // Cria log de entrega
             newLogs.push({
                 id: maxId.toString(), tipo: 'entrega', produto_nome: prodName, quantidade: qty,
                 data: timestamp, observacao: 'Ref Venda #' + orderId, valor_total: 0,
@@ -1129,13 +1140,11 @@ async function confirmOrderDelivery() {
     showLoading(true);
 
     try {
-        // 1. Atualiza as Vendas Originais
         for (let u of updates) {
             const { error } = await sb.from('logs').update({ qtd_entregue: u.qtd_entregue, status_entrega: u.status_entrega }).eq('uid', u.uid);
             if(error) throw error;
         }
 
-        // 2. Agrupa e Deduz o Estoque
         let aggStock = {};
         for(let su of stockUpdates) {
             if(!aggStock[su.id]) aggStock[su.id] = 0;
@@ -1156,7 +1165,6 @@ async function confirmOrderDelivery() {
             }
         }
 
-        // 3. Insere os Logs de Entrega
         const { error: errInsert } = await sb.from('logs').insert(newLogs);
         if(errInsert) throw errInsert;
 
@@ -1207,7 +1215,11 @@ async function saveReceivableEdit() {
     loadData();
 }
 
+// NOVA LÓGICA DE LANÇAMENTO E EDIÇÃO DE DESPESAS (FICA PENDENTE ATÉ BAIXAR)
 async function saveExpense() {
+    const idVal = document.getElementById('exp-id').value;
+    const isNew = !idVal;
+    
     const item = document.getElementById('exp-item').value;
     const qty = document.getElementById('exp-qty').value;
     const unit = document.getElementById('exp-unit').value;
@@ -1218,26 +1230,65 @@ async function saveExpense() {
     if(!item || !cost) return showToast("Preencha item e custo", true);
     showLoading(true);
 
-    const newId = getNextId(STATE.logs); 
+    const expenseId = isNew ? getNextId(STATE.expenses) : idVal; 
 
-    await sb.from('despesas').insert([{
-        id: newId, item: item, quantidade: Number(qty) || 0, unidade: unit,
-        custo: Number(cost), data: date, observacao: note
-    }]);
+    const payload = {
+        id: expenseId, item: item, quantidade: Number(qty) || 0, unidade: unit,
+        custo: Number(cost), data: date, observacao: note, status: 'PENDENTE'
+    };
 
-    await sb.from('logs').insert([{
-        id: newId, tipo: 'despesa', produto_nome: item, quantidade: Number(qty) || 0,
-        data: date, observacao: note, valor_total: Number(cost), status: 'ATIVO',
-        status_financeiro: 'PAGO', valor_pago: Number(cost)
-    }]);
+    const { error } = await sb.from('despesas').upsert(payload);
+    if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
 
-    document.getElementById('exp-item').value = ""; document.getElementById('exp-qty').value = "";
-    document.getElementById('exp-cost').value = ""; document.getElementById('exp-note').value = "";
+    document.getElementById('exp-id').value = "";
+    document.getElementById('exp-qty').value = "";
+    document.getElementById('exp-cost').value = ""; 
+    document.getElementById('exp-note').value = "";
     document.getElementById('modal-expense').classList.add('hidden');
     
-    showToast("Despesa Salva!");
+    showToast(isNew ? "Despesa Lançada (Pendente)!" : "Despesa Atualizada!");
     loadData();
 }
+
+// NOVA LÓGICA DE BAIXA DE DESPESAS (ONDE O DINHEIRO SAI DE FATO)
+async function payExpense(id) {
+    if(!confirm("Confirmar a baixa desta despesa? O valor sairá do caixa agora.")) return;
+    showLoading(true);
+    
+    const exp = STATE.expenses.find(e => String(e.id) === String(id));
+    if(!exp) { showLoading(false); return showToast("Erro: Despesa não encontrada", true); }
+    
+    // 1. Atualiza a tabela despesas para PAGO
+    const { error: err1 } = await sb.from('despesas').update({ status: 'PAGO' }).eq('id', id);
+    if(err1) { showLoading(false); return showToast("Erro ao baixar: " + err1.message, true); }
+    
+    // 2. Insere no LOGS para contabilizar no caixa
+    const newLogId = getNextId(STATE.logs);
+    const { error: err2 } = await sb.from('logs').insert([{
+        id: newLogId, tipo: 'despesa', produto_nome: exp.item, quantidade: exp.quantity,
+        data: new Date().toISOString(), observacao: exp.note, valor_total: exp.cost, status: 'ATIVO',
+        status_financeiro: 'PAGO', valor_pago: exp.cost
+    }]);
+    
+    if(err2) { showLoading(false); return showToast("Erro ao gerar log de caixa: " + err2.message, true); }
+    
+    showToast("Despesa baixada com sucesso!");
+    loadData();
+}
+
+function openEditExpense(id) {
+    const exp = STATE.expenses.find(e => String(e.id) === String(id));
+    if(!exp) return;
+    document.getElementById('exp-id').value = exp.id;
+    document.getElementById('exp-item').value = exp.item;
+    document.getElementById('exp-qty').value = exp.quantity;
+    document.getElementById('exp-unit').value = exp.unit;
+    document.getElementById('exp-cost').value = exp.cost;
+    try { document.getElementById('exp-date').value = exp.date.split('T')[0]; } catch(e){}
+    document.getElementById('exp-note').value = exp.note;
+    document.getElementById('modal-expense').classList.remove('hidden');
+}
+
 
 async function saveProduction(e) {
     e.preventDefault();
@@ -1264,14 +1315,11 @@ async function saveProduction(e) {
 
 async function cancelLogItem(uid) {
     if (!uid || uid === 'undefined' || uid === 'null') {
-        return showToast("Erro: Esse registro não possui UID. Foi criado antes do ajuste no banco.", true);
+        return showToast("Erro: Esse registro não possui UID.", true);
     }
 
     const logItem = STATE.logs.find(l => String(l.uid) === String(uid));
-    
-    if (!logItem) {
-        return showToast("Erro: Registro não encontrado na memória.", true);
-    }
+    if (!logItem) return showToast("Erro: Registro não encontrado na memória.", true);
 
     if (!confirm("Atenção! Estornar esse registro devolverá as quantidades ao estoque e cancelará movimentações. Confirma?")) return;
     showLoading(true);
@@ -1325,7 +1373,6 @@ async function cancelLogItem(uid) {
             let match = logNote.match(/#(\d+)/);
             if (match && match[1]) {
                 let origId = match[1];
-                
                 for (let i = 0; i < STATE.logs.length; i++) {
                     if (String(STATE.logs[i].id) === String(origId) && STATE.logs[i].type === 'venda' && String(STATE.logs[i].productName).trim() === logProdName) {
                         let currentDelivered = Number(STATE.logs[i].deliveredQty) || 0;
@@ -1351,9 +1398,6 @@ async function cancelLogItem(uid) {
                     }
                 }
             }
-        }
-        else if (logType === 'despesa') {
-            await sb.from('despesas').delete().eq('id', logItem.id);
         }
     } catch(err) {
         console.error(err);
@@ -1396,16 +1440,27 @@ function toggleCustomAddress() {
     }
 }
 
-// Alteração 2: Funções do Novo Modal do PDV
+// NOVO: Toggle para campo de observações
+function toggleCustomObs() {
+    const check = document.getElementById('pos-custom-obs-check').checked;
+    const container = document.getElementById('pos-custom-obs-container');
+    const input = document.getElementById('pos-custom-obs');
+    if(check) {
+        container.classList.remove('hidden');
+        input.focus();
+    } else {
+        container.classList.add('hidden');
+        input.value = '';
+    }
+}
+
 function openPosProductModal() {
     document.getElementById('pos-product-modal').classList.remove('hidden');
     document.getElementById('pos-modal-search').value = '';
     renderPosProductModal();
 }
 
-function closePosProductModal() {
-    document.getElementById('pos-product-modal').classList.add('hidden');
-}
+function closePosProductModal() { document.getElementById('pos-product-modal').classList.add('hidden'); }
 
 function renderPosProductModal() {
     const term = document.getElementById('pos-modal-search').value.toLowerCase();
@@ -1492,11 +1547,15 @@ function clearCart() {
     document.getElementById('pos-custom-address-check').checked = false;
     document.getElementById('pos-custom-address-container').classList.add('hidden');
     document.getElementById('pos-custom-address').value = '';
+
+    // Limpa a observação também
+    document.getElementById('pos-custom-obs-check').checked = false;
+    document.getElementById('pos-custom-obs-container').classList.add('hidden');
+    document.getElementById('pos-custom-obs').value = '';
     
     renderCart(); 
 }
 
-// Alteração 3: Histórico de Vendas Expandido (com Filtros)
 function renderRecentHistory() { 
     const salesMap = {};
     (STATE.logs||[]).filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
@@ -1525,7 +1584,7 @@ function renderRecentHistory() {
         recentSales = recentSales.filter(r => new Date(r.date) <= endD);
     }
 
-    recentSales = recentSales.slice(0, 50); // Aumentado o limite visual para 50 registros por causa do espaço expandido
+    recentSales = recentSales.slice(0, 50); 
     
     const histBody = document.getElementById('pos-recent-history');
     if(!histBody) return;
@@ -1553,39 +1612,27 @@ async function updateQuoteStatus(id, newStatus) {
     showLoading(true);
     const { error } = await sb.from('orcamentos').update({ status: newStatus }).eq('id', id);
     
-    if (error) { 
-        showLoading(false); 
-        return showToast("Erro ao atualizar status: " + error.message, true); 
-    }
+    if (error) { showLoading(false); return showToast("Erro ao atualizar status: " + error.message, true); }
     
-    // Atualiza na memória para não precisar baixar tudo do banco de novo
     const quote = STATE.quotes.find(q => String(q.id) === String(id));
     if (quote) quote.status = newStatus;
     
     showLoading(false);
     showToast("Status CRM atualizado!");
-    renderQuotesList(); // Re-renderiza para atualizar as cores
+    renderQuotesList(); 
 }
 
-// Alteração 4: Cores de Fundo na Lista de Orçamentos
 function renderQuotesList() {
     const list = document.getElementById('quotes-list');
     if(!list) return;
 
-    // Pega os valores dos filtros
     const term = document.getElementById('quote-search')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('quote-status-filter')?.value || '';
 
-    // Filtra a lista principal
     let filteredQuotes = STATE.quotes.slice().reverse();
 
-    if (term) {
-        filteredQuotes = filteredQuotes.filter(q => q.clientName && q.clientName.toLowerCase().includes(term));
-    }
-    
-    if (statusFilter) {
-        filteredQuotes = filteredQuotes.filter(q => q.status === statusFilter);
-    }
+    if (term) filteredQuotes = filteredQuotes.filter(q => q.clientName && q.clientName.toLowerCase().includes(term));
+    if (statusFilter) filteredQuotes = filteredQuotes.filter(q => q.status === statusFilter);
 
     if(!filteredQuotes.length) { 
         list.innerHTML='<tr><td colspan="5" class="p-8 text-slate-400 text-center">Nenhum orçamento encontrado.</td></tr>'; 
@@ -1595,13 +1642,11 @@ function renderQuotesList() {
     list.innerHTML = filteredQuotes.map(q => {
         const valorLiquido = q.total - (q.discount || 0);
         
-        // Pega os dados do cliente para o WhatsApp
         const cli = STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
         let zapLink = "#";
         let btnZapClass = "text-slate-300 cursor-not-allowed";
         
         if (cli && cli.phone) {
-            // Limpa o telefone deixando só números
             let num = cli.phone.replace(/\D/g, '');
             if (num.length >= 10) {
                 if (!num.startsWith('55')) num = '55' + num;
@@ -1611,22 +1656,12 @@ function renderQuotesList() {
             }
         }
 
-        // Define a cor de fundo da Linha e do texto baseado no Status
         let bgStatusClass = "";
         let corStatus = "text-slate-600 bg-white";
         
-        if (q.status === 'APROVADO') { 
-            corStatus = "text-emerald-700 font-bold bg-emerald-50 border-emerald-200"; 
-            bgStatusClass = "bg-emerald-50/40"; 
-        }
-        else if (q.status === 'PERDIDO') { 
-            corStatus = "text-red-700 font-bold bg-red-50 border-red-200"; 
-            bgStatusClass = "bg-red-50/40"; 
-        }
-        else if (q.status === 'EM NEGOCIAÇÃO') { 
-            corStatus = "text-indigo-700 font-bold bg-indigo-50 border-indigo-200"; 
-            bgStatusClass = "bg-indigo-50/40"; 
-        }
+        if (q.status === 'APROVADO') { corStatus = "text-emerald-700 font-bold bg-emerald-50 border-emerald-200"; bgStatusClass = "bg-emerald-50/40"; }
+        else if (q.status === 'PERDIDO') { corStatus = "text-red-700 font-bold bg-red-50 border-red-200"; bgStatusClass = "bg-red-50/40"; }
+        else if (q.status === 'EM NEGOCIAÇÃO') { corStatus = "text-indigo-700 font-bold bg-indigo-50 border-indigo-200"; bgStatusClass = "bg-indigo-50/40"; }
 
         return `
         <tr class="transition ${bgStatusClass ? bgStatusClass : 'hover:bg-slate-50'} border-b">
@@ -1694,6 +1729,17 @@ function loadQuoteToCart(id) {
         document.getElementById('pos-custom-address').value = '';
     }
 
+    // CARREGAR A OBSERVAÇÃO
+    if(q.observacao) {
+        document.getElementById('pos-custom-obs-check').checked = true;
+        document.getElementById('pos-custom-obs-container').classList.remove('hidden');
+        document.getElementById('pos-custom-obs').value = q.observacao;
+    } else {
+        document.getElementById('pos-custom-obs-check').checked = false;
+        document.getElementById('pos-custom-obs-container').classList.add('hidden');
+        document.getElementById('pos-custom-obs').value = '';
+    }
+
     navigate('pos');
     renderCart();
     showToast(`Editando Orçamento #${q.id}`);
@@ -1703,28 +1749,18 @@ function renderExpedition() {
     const tbody = document.getElementById('expedition-list');
     if(!tbody) return;
 
-    // Filtra todas as vendas ativas
     const pendingLogs = (STATE.logs || []).filter(l => l.type === 'venda' && l.status !== 'CANCELADO');
 
-    // Agrupa os itens por Pedido (ID)
     const ordersMap = {};
     pendingLogs.forEach(l => {
         if(!ordersMap[l.id]) {
-            ordersMap[l.id] = {
-                id: l.id,
-                date: l.date,
-                clientName: l.clientName,
-                items: [],
-                totalQty: 0,
-                deliveredQty: 0
-            };
+            ordersMap[l.id] = { id: l.id, date: l.date, clientName: l.clientName, items: [], totalQty: 0, deliveredQty: 0 };
         }
         ordersMap[l.id].items.push(l);
         ordersMap[l.id].totalQty += Number(l.quantity) || 0;
         ordersMap[l.id].deliveredQty += Number(l.deliveredQty) || 0;
     });
 
-    // Filtra apenas os pedidos que ainda não foram 100% entregues
     const pendingOrders = Object.values(ordersMap).filter(o => o.deliveredQty < o.totalQty).sort((a,b) => b.id - a.id);
 
     if (pendingOrders.length === 0) {
@@ -1733,11 +1769,7 @@ function renderExpedition() {
         tbody.innerHTML = pendingOrders.map(o => {
             const percent = Math.min(100, (o.deliveredQty / o.totalQty) * 100);
             const remain = o.totalQty - o.deliveredQty;
-
-            // Status geral do pedido
             let status = o.deliveredQty > 0 ? 'PARCIAL' : 'PENDENTE';
-
-            // Resumo de itens para mostrar na tabela (Ex: Cimento (x50), Areia (x2))
             const itemsSummary = o.items.map(i => `${i.productName} (x${i.quantity})`).join(', ');
 
             return `<tr class="hover:bg-slate-50 border-b">
@@ -1807,7 +1839,7 @@ function openOrderDeliveryModal(orderId) {
         const delivered = Number(item.deliveredQty) || 0;
         const remain = total - delivered;
 
-        if(remain <= 0) return ''; // Esconde itens que já foram 100% entregues
+        if(remain <= 0) return ''; 
 
         return `<tr>
             <td class="p-3 text-sm font-bold text-slate-700">${item.productName}</td>
@@ -1825,7 +1857,6 @@ function openOrderDeliveryModal(orderId) {
 
 function closeDeliveryModal() { document.getElementById('modal-delivery').classList.add('hidden'); }
 
-// Alteração 1: Filtro de Produtos com Categorias Dinâmicas
 function renderProducts() {
     const list = document.getElementById('prod-list');
     if(!list) return;
@@ -1833,7 +1864,6 @@ function renderProducts() {
     const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
     const catFilter = document.getElementById('prod-category')?.value || '';
 
-    // Popula o select de categorias dinamicamente caso ainda esteja vazio
     const catSelect = document.getElementById('prod-category');
     if (catSelect && catSelect.options.length <= 1) {
         const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
@@ -1847,7 +1877,6 @@ function renderProducts() {
 
     let filtered = STATE.products.slice();
     
-    // Aplica filtros de pesquisa e categoria
     if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
     if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
 
@@ -1919,7 +1948,8 @@ function renderFinance() {
     const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
                    salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
     
-    const expenses = STATE.expenses.reduce((a, b) => a + Number(b.cost), 0);
+    // O SALDO AGORA SÓ DESCONTA DESPESAS PAGAS
+    const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
     
     document.getElementById('fin-income').innerText = formatMoney(income);
     document.getElementById('fin-expenses').innerText = formatMoney(expenses);
@@ -1995,13 +2025,25 @@ function renderFinance() {
         filteredExp = filteredExp.filter(e => new Date(e.date) <= endD);
     }
 
+    // LISTA DE DESPESAS ATUALIZADA COM BOTOES DE EDITAR/BAIXAR
     document.getElementById('fin-expense-history-list').innerHTML = filteredExp.map(e => `
-        <tr class="hover:bg-slate-50">
+        <tr class="hover:bg-slate-50 ${e.status !== 'PAGO' ? 'bg-orange-50' : ''}">
             <td class="p-3 text-slate-500">${formatDate(e.date)}</td>
             <td class="p-3 font-medium">${e.item}</td>
             <td class="p-3 text-center text-slate-500 text-xs">${e.quantity} ${e.unit}</td>
             <td class="p-3 font-bold text-red-500">- ${formatMoney(e.cost)}</td>
             <td class="p-3 text-slate-400 text-xs italic">${e.note || '-'}</td>
+            <td class="p-3 text-right">
+                ${e.status !== 'PAGO' ? `
+                    <div class="flex items-center justify-end gap-2">
+                        <span class="text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded">PENDENTE</span>
+                        <button onclick="openEditExpense('${e.id}')" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 p-1.5 rounded" title="Editar"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                        <button onclick="payExpense('${e.id}')" class="bg-green-600 text-white hover:bg-green-700 p-1.5 rounded shadow flex items-center gap-1" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-4 h-4"></i> Baixar</button>
+                    </div>
+                ` : `
+                    <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1 rounded"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
+                `}
+            </td>
         </tr>
     `).join('');
     
@@ -2157,7 +2199,8 @@ function renderProductionDash() {
             
             if (exp.date) {
                 try {
-                    if (String(exp.date).trim().substring(0, 7) === mesSelecionado) {
+                    // CÁLCULO DE CUSTO MÉDIO SÓ LEVA EM CONTA DESPESAS PAGAS
+                    if (String(exp.date).trim().substring(0, 7) === mesSelecionado && exp.status === 'PAGO') {
                         let valorDespesa = Number(exp.cost);
                         if (!isNaN(valorDespesa)) {
                             despesasTotais += valorDespesa; 
@@ -2197,7 +2240,7 @@ function renderProductionDash() {
                             <div class="text-[10px] text-slate-400 mt-2 uppercase font-bold">Baseado em B10</div>
                         </div>
                         <div>
-                            <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-2" title="Rateio de todas as despesas do mês">Custo Rateado</div>
+                            <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-2" title="Rateio das despesas PAGAS do mês">Custo Rateado</div>
                             <div class="text-2xl font-black text-red-500">${formatMoney(custoMedioLiquido)}</div>
                             <div class="text-[10px] text-slate-400 mt-2 uppercase font-bold">Rateio Mensal</div>
                         </div>
@@ -2247,6 +2290,11 @@ function renderInvoice(sale, isQuote) {
         ? `<div style="padding: 4px; background-color: #fef3c7; border-left: 3px solid #059669; margin-top: 5px;"><strong>ENTREGA:</strong><br>${sale.deliveryAddress}</div>` 
         : cli.address;
 
+    // APLICANDO A OBSERVAÇÃO AQUI NA IMPRESSÃO
+    const obsText = sale.observacao && sale.observacao !== 'Venda PDV' && sale.observacao !== 'Pronta Entrega PDV' 
+                    ? sale.observacao 
+                    : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+
     el.innerHTML = `
     <div class="invoice-full">
         <div class="header-section">
@@ -2277,7 +2325,7 @@ function renderInvoice(sale, isQuote) {
             <tbody>${itemsHtml}</tbody>
         </table>
         <div class="footer-section">
-            <div class="notes-area"><div class="notes-title">Observações:</div><div class="notes-text">Válido por 7 dias. Verifique os produtos no ato da entrega.</div></div>
+            <div class="notes-area"><div class="notes-title">Observações:</div><div class="notes-text">${obsText}</div></div>
             <div class="totals-area">
                 <div class="total-row"><span>Subtotal:</span><span>${formatMoney(subtotal)}</span></div>
                 ${discount > 0 ? `<div class="total-row" style="color:red"><span>Desconto:</span><span>- ${formatMoney(discount)}</span></div>` : ''}
@@ -2305,7 +2353,6 @@ function printFullOrder(orderId) {
     ? `<span style="background-color: #ecfdf5; padding: 2px 5px; font-weight: bold; color: #047857; border: 1px dashed #059669;">ENTREGA: ${items[0].deliveryAddress}</span>` 
     : (cli.address || '-');
 
-    // Gera as linhas com os itens (mostrando só a Qtd Vendida e o campo de Check)
     const rowsHtml = items.map(item => {
         return `
         <tr>
@@ -2354,6 +2401,7 @@ function printFullOrder(orderId) {
                     <td colspan="3">${cli.phone || '-'}</td>
                 </tr>
             </table>
+            ${items[0].note && items[0].note !== 'Venda PDV' && items[0].note !== 'Pronta Entrega PDV' ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px;"><strong>OBSERVAÇÕES:</strong> ${items[0].note}</div>` : ''}
         </div>
 
         <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO</div>
@@ -2384,6 +2432,7 @@ function printFullOrder(orderId) {
     
     setTimeout(() => window.print(), 500);
 }
+
 function printQuote(id) { const q = STATE.quotes.find(x => x.id == id); renderInvoice(q, true); setTimeout(() => window.print(), 500); }
 
 function printExpeditionHistory() {
@@ -2501,6 +2550,7 @@ function reprintSale(id) {
         paymentMethod: items[0].paymentMethod, 
         discount: totalDiscount,
         deliveryAddress: items[0].deliveryAddress,
+        observacao: items[0].note && items[0].note !== 'Venda PDV' && items[0].note !== 'Pronta Entrega PDV' ? items[0].note : '',
         items: items.map(i => {
             const grossItemTotal = i.totalValue * fator; 
             return { 
@@ -2522,9 +2572,6 @@ function fazerLogout() {
     window.location.replace('index.html');
 }
 
-// /////////////////////////////////////usuarios ///////////////////////////////////
-
-// --- CRUD USUÁRIOS (SÓ ADMIN) ---
 function renderUsers() {
     const list = document.getElementById('users-list');
     if(!list) return;
