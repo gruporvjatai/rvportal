@@ -2643,34 +2643,36 @@ async function toggleUserStatus(id, currentStatus) {
 
 
   // NOVA FUNÇÃO: Gera PDF com HTML2PDF para baixar
-        // NOVA FUNÇÃO: O Truque do Mágico para o PDF não sair em branco
+// NOVA FUNÇÃO: O Truque do Mágico definitivo (À prova de falhas)
 function downloadQuotePDF(id) {
     const q = STATE.quotes.find(x => x.id == id);
     if(!q) return;
 
-    // 1. Levantamos a "cortina" preta do loading (ela tem z-index: 50)
-    showLoading(true);
+    // 1. ESCURECE A TELA DE LOADING E JOGA ELA PRA FRENTE DE TUDO
+    const loadingEl = document.getElementById('loading');
+    // Força o fundo escuro (slate-900 quase opaco) e um z-index colossal (9999)
+    loadingEl.className = "fixed inset-0 bg-slate-900/95 z-[9999] flex items-center justify-center";
+    loadingEl.style.display = 'flex';
 
     // 2. Usamos a sua função nativa de impressão para gerar o HTML do PDF
-    // Ela vai jogar o layout perfeito dentro do <div id="print-area">
     renderInvoice(q, true);
 
-    // 3. Criamos um contêiner real na tela para o html2pdf enxergar
+    // 3. Criamos o contêiner visível para o html2canvas, mas ATRÁS do Loading
     const tempDiv = document.createElement('div');
     tempDiv.id = "pdf-ninja-container";
     
-    // Posicionamos no topo esquerdo, visível, mas ATRÁS do Loading
+    // Posicionamos na raiz do documento
     tempDiv.style.position = 'absolute';
     tempDiv.style.top = '0';
     tempDiv.style.left = '0';
-    tempDiv.style.width = '210mm'; // Largura de uma folha A4
+    tempDiv.style.width = '800px'; 
     tempDiv.style.backgroundColor = '#ffffff';
-    tempDiv.style.zIndex = '40'; // O Loading tem z-index 50, então esconde isso aqui
+    tempDiv.style.zIndex = '9998'; // Está atrás do Loading (que é 9999), mas na frente do sistema!
     
-    // Clonamos o que a sua função renderInvoice gerou
+    // Clonamos o que a sua função renderInvoice gerou no #print-area
     tempDiv.innerHTML = document.getElementById('print-area').innerHTML;
 
-    // 4. Injetamos o CSS do @media print para forçar o estilo na tela
+    // 4. Injetamos o CSS do @media print para forçar o estilo
     const style = document.createElement('style');
     style.innerHTML = `
         #pdf-ninja-container { font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; }
@@ -2704,28 +2706,37 @@ function downloadQuotePDF(id) {
     tempDiv.prepend(style);
     document.body.appendChild(tempDiv);
 
-    // 5. O SEGREDO: Damos 600ms para o navegador "pintar" o DOM com calma e carregar a marca d'água
+    // 5. Gera o PDF aguardando um pouquinho para carregar a marca d'água
     setTimeout(() => {
         const opt = {
             margin:       10, 
             filename:     `Orcamento_${q.id}_RVPORTAL.pdf`,
             image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { scale: 2, useCORS: true }, 
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true,
+                scrollY: 0, // <--- ISSO AQUI EVITA QUE A PÁGINA SAIA EM BRANCO DEVIDO AO SCROLL!
+                windowWidth: 800 // <--- Força a visão da câmera do html2canvas para 800px
+            }, 
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
         html2pdf().set(opt).from(tempDiv).save().then(() => {
-            // Sucesso! Apagamos o div temporário e baixamos a cortina do Loading
+            // Limpa a bagunça
             document.body.removeChild(tempDiv);
-            document.getElementById('print-area').innerHTML = ''; // Limpa a sujeira
-            showLoading(false); 
+            document.getElementById('print-area').innerHTML = ''; 
+            
+            // Volta o loader ao estado original (clarinho e oculto)
+            loadingEl.style.display = 'none';
+            loadingEl.className = "hidden fixed inset-0 bg-black/30 z-50 flex items-center justify-center";
         }).catch(err => {
             console.error("Erro PDF:", err);
-            document.body.removeChild(tempDiv);
-            showLoading(false);
+            if(document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
+            loadingEl.style.display = 'none';
+            loadingEl.className = "hidden fixed inset-0 bg-black/30 z-50 flex items-center justify-center";
             showToast("Erro ao gerar PDF", true);
         });
-    }, 600); // 600 milissegundos é o tempo exato para não dar página em branco
+    }, 800); 
 }
         
     </script>
