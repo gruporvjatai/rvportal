@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <script>
         // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
@@ -831,20 +832,17 @@
             return { data: allRecords };
         }
 
+        // ATUALIZAÇÃO: Carregando tudo através do 'logs' e dividindo em memória
         async function loadData() {
             try {
-                // Agora usamos o fetchAllRecords para as tabelas que podem passar de 1000 itens
-                const [resProd, resCli, resLog, resDesp, resOrc, resConf] = await Promise.all([
+                // Removemos o orcamentos daqui
+                const [resProd, resCli, resLog, resDesp, resConf] = await Promise.all([
                     fetchAllRecords('produtos'),
                     fetchAllRecords('clientes'),
                     fetchAllRecords('logs'),
                     fetchAllRecords('despesas'),
-                    fetchAllRecords('orcamentos'),
                     sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
                 ]);
-
-                // Como criamos a própria resposta de dados, não precisamos checar resProd.error aqui
-                // O mapeamento continua exatamente igual!
 
                 STATE.products = (resProd.data || []).map(p => ({
                     id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
@@ -856,43 +854,50 @@
                     id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco
                 }));
 
-                STATE.logs = (resLog.data || []).map(l => ({
-                    uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
-                    date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
-                    clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
-                    deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
-                    discount: Number(l.desconto), finStatus: l.status_financeiro, dueDate: l.vencimento,
-                    paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
-                }));
+                // ==========================================
+                // MAGIA: DIVIDINDO LOGS E ORÇAMENTOS
+                STATE.logs = [];
+                const quotesMap = {};
+                
+                (resLog.data || []).forEach(l => {
+                    if (l.tipo === 'orcamento') {
+                        const qId = String(l.id);
+                        if(!quotesMap[qId]) {
+                            quotesMap[qId] = { 
+                                id: qId, date: l.data, clientName: l.cliente_nome, items: [], total: 0, 
+                                status: l.status || 'ABERTO', discount: Number(l.desconto), discountType: l.status_financeiro || '$', 
+                                paymentMethod: l.forma_pagamento, deliveryAddress: l.endereco_entrega, observacao: l.observacao
+                            };
+                        }
+                        const unitPrice = Number(l.quantidade) > 0 ? Number(l.valor_total) / Number(l.quantidade) : 0;
+                        quotesMap[qId].items.push({ name: l.produto_nome, qty: Number(l.quantidade), price: unitPrice, total: Number(l.valor_total) });
+                        quotesMap[qId].total += Number(l.valor_total);
+                    } else {
+                        STATE.logs.push({
+                            uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
+                            date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
+                            clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
+                            deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
+                            discount: Number(l.desconto), finStatus: l.status_financeiro, dueDate: l.vencimento,
+                            paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
+                        });
+                    }
+                });
+                
+                STATE.quotes = Object.values(quotesMap).map(q => { q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); return q; });
+                // ==========================================
 
-                // LENDO AS DESPESAS
                 STATE.expenses = (resDesp.data || []).map(e => ({
                     id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
                     cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
                 }));
-
-                const quotesMap = {};
-                (resOrc.data || []).forEach(row => {
-                    const qId = String(row.id);
-                    if(!quotesMap[qId]) {
-                        quotesMap[qId] = { 
-                            id: qId, date: row.data, clientName: row.cliente_nome, items: [], total: 0, 
-                            status: row.status, discount: Number(row.desconto), discountType: row.tipo_desconto, 
-                            paymentMethod: row.forma_pagamento, deliveryAddress: row.endereco_entrega,
-                            observacao: row.observacao
-                        };
-                    }
-                    quotesMap[qId].items.push({ name: row.item_nome, qty: Number(row.quantidade), price: Number(row.preco_unitario), total: Number(row.total_item) });
-                    quotesMap[qId].total += Number(row.total_item);
-                });
-                STATE.quotes = Object.values(quotesMap).map(q => { q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); return q; });
 
                 STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
 
                 if (dadosUsuario.nivel === 'admin') {
                     const navUsersBtn = document.getElementById('nav-users');
                     if (navUsersBtn) navUsersBtn.classList.remove('hidden');
-                    const resUsers = await fetchAllRecords('usuarios'); // Proteção caso passe de 1000 usuários também
+                    const resUsers = await fetchAllRecords('usuarios');
                     STATE.users = resUsers.data || [];
                 }
 
@@ -904,6 +909,7 @@
             }
         }
 
+  
 function onDataLoaded() {
     updateClientSelects();
     if(!document.querySelector('.active-section')) {
@@ -915,11 +921,13 @@ function onDataLoaded() {
     showLoading(false);
 }
 
-function getNextId(array) {
-    let max = 0;
-    array.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
-    return max + 1;
-}
+// ATUALIZAÇÃO: Agora busca o maior ID considerando Logs E Orçamentos juntos
+        function getNextId(array1, array2 = []) {
+            let max = 0;
+            array1.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
+            array2.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
+            return max + 1;
+        }
 
 // --- FUNÇÕES CRUD ---
 
@@ -995,7 +1003,8 @@ async function finalizeSale(isProntaEntrega = false) {
     else if (payment.toLowerCase().includes("boleto") || payment.toLowerCase().includes("prazo")) dueDate.setDate(dueDate.getDate() + 30);
     
     const timestamp = new Date().toISOString();
-    const newSaleId = getNextId(STATE.logs);
+    // HERANÇA DE ID: Pega o ID do orçamento se ele existir, ou gera o próximo livre!
+    const newSaleId = CURRENT_QUOTE_ID ? CURRENT_QUOTE_ID : getNextId(STATE.logs, STATE.quotes);
     const subtotalBruto = CART.reduce((acc, i) => acc + i.total, 0);
     const fator = subtotalBruto > 0 ? (totals.total / subtotalBruto) : 1;
 
@@ -1014,13 +1023,13 @@ async function finalizeSale(isProntaEntrega = false) {
                 updatePayload = { estoque_comprometido: committed + Number(item.qty) };
             }
 
-            const { error: errProd } = await sb.from('produtos').update(updatePayload).eq('id', prod.id);
-            if (errProd) {
-                console.error("Erro BD Estoque:", errProd);
-                showLoading(false);
-                return showToast("Erro ao baixar estoque do produto: " + prod.name, true);
-            }
-        }
+            const { error: errLogs } = await sb.from('logs').insert(logsToInsert);
+                if(errLogs) { showLoading(false); return showToast("Erro ao registrar os logs.", true); }
+            
+                if(CURRENT_QUOTE_ID) {
+                    // Agora apagamos do Logs filtrando por orçamento
+                    await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
+                }
 
         const statusEntrega = isProntaEntrega ? 'ENTREGUE' : 'PENDENTE';
         const qtdEntregue = isProntaEntrega ? item.qty : 0;
@@ -1062,51 +1071,53 @@ async function finalizeSale(isProntaEntrega = false) {
     if (isProntaEntrega) { navigate('pos'); } else { navigate('expedition'); }
 }
 
-async function saveQuote() {
-    if(!CART.length) return showToast("Vazio!", true);
-    showLoading(true);
+// ATUALIZAÇÃO: Gravando o orçamento na tabela LOGS
+        async function saveQuote() {
+            if(!CART.length) return showToast("Vazio!", true);
+            showLoading(true);
 
-    const totals = calculateTotal();
-    const cliId = document.getElementById('pos-client').value;
-    const clientName = STATE.clients.find(c=>c.id==cliId)?.name||"Consumidor Final";
-    
-    const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
-    const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
-    
-    // LÓGICA DE OBSERVAÇÕES
-    const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
-    const obs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
+            const totals = calculateTotal();
+            const cliId = document.getElementById('pos-client').value;
+            const clientName = STATE.clients.find(c=>c.id==cliId)?.name||"Consumidor Final";
+            
+            const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
+            const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
+            
+            const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
+            const obs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
 
-    const date = new Date().toISOString();
-    const budgetId = CURRENT_QUOTE_ID || getNextId(STATE.quotes);
+            const date = new Date().toISOString();
+            const budgetId = CURRENT_QUOTE_ID || getNextId(STATE.logs, STATE.quotes);
 
-    if(CURRENT_QUOTE_ID) await sb.from('orcamentos').delete().eq('id', CURRENT_QUOTE_ID);
+            // Deleta o registro antigo no LOGS (se estiver editando)
+            if(CURRENT_QUOTE_ID) await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
 
-    let quotesToInsert = CART.map(item => ({
-        id: budgetId, data: date, cliente_nome: clientName, item_nome: item.name,
-        quantidade: item.qty, preco_unitario: item.price, total_item: item.total,
-        status: 'ABERTO', desconto: totals.disc, tipo_desconto: document.getElementById('pos-discount-type').value,
-        forma_pagamento: document.getElementById('pos-payment').value, endereco_entrega: deliveryAddr,
-        observacao: obs // ENVIANDO A OBSERVAÇÃO PARA O BANCO
-    }));
+            let quotesToInsert = CART.map(item => ({
+                id: budgetId, tipo: 'orcamento', produto_nome: item.name, quantidade: item.qty,
+                data: date, observacao: obs, valor_total: item.total, cliente_nome: clientName, 
+                forma_pagamento: document.getElementById('pos-payment').value, status: 'ABERTO', 
+                desconto: totals.disc, status_financeiro: document.getElementById('pos-discount-type').value, 
+                endereco_entrega: deliveryAddr, status_entrega: '', qtd_entregue: 0, vencimento: date, valor_pago: 0
+            }));
 
-    const { error } = await sb.from('orcamentos').insert(quotesToInsert);
-    if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+            const { error } = await sb.from('logs').insert(quotesToInsert);
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
 
-    clearCart();
-    showToast("Orçamento Salvo!");
-    await loadData();
-    navigate('quotes');
-}
+            clearCart();
+            showToast("Orçamento Salvo!");
+            await loadData();
+            navigate('quotes');
+        }
 
-async function deleteQuote(id) {
-    if(!confirm("Excluir orçamento?")) return;
-    showLoading(true);
-    const { error } = await sb.from('orcamentos').delete().eq('id', id);
-    if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
-    showToast("Excluído!");
-    loadData();
-}
+// ATUALIZAÇÃO: Deleta do LOGS
+        async function deleteQuote(id) {
+            if(!confirm("Excluir orçamento?")) return;
+            showLoading(true);
+            const { error } = await sb.from('logs').delete().eq('id', id).eq('tipo', 'orcamento');
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+            showToast("Excluído!");
+            loadData();
+        }
 
 async function confirmOrderDelivery() {
     const orderId = document.getElementById('del-order-id').value;
@@ -1538,28 +1549,35 @@ function updateCartItem(idx, field, value) {
 }
 
 function renderCart() {
-    const box = document.getElementById('pos-cart-items');
-    document.getElementById('edit-mode-indicator').style.display = CURRENT_QUOTE_ID ? 'inline-block' : 'none';
-    if(!CART.length) { 
-        box.innerHTML='<p class="text-center text-slate-400 mt-10 text-sm">Vazio</p>'; 
-        document.getElementById('pos-total-display').innerText=formatMoney(0); 
-        document.getElementById('cart-count').innerText='0'; 
-        return; 
-    }
-    const totals = calculateTotal();
-    box.innerHTML = CART.map((i,idx) => `
-        <div class="bg-slate-50 p-3 rounded border border-slate-200 mb-2">
-            <div class="flex justify-between items-start mb-2"><span class="text-sm font-bold text-slate-700">${i.name}</span><button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" width="16"></i></button></div>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-                <div><label class="text-slate-500">Qtd</label><input type="number" value="${i.qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-full p-1 border rounded text-center"></div>
-                <div><label class="text-slate-500">Valor</label><input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-full p-1 border rounded text-center"></div>
-            </div>
-            <div class="text-right font-bold text-slate-700 mt-1 border-t pt-1 border-slate-200">Total: ${formatMoney(i.total)}</div>
-        </div>`).join('');
-    document.getElementById('pos-total-display').innerText = formatMoney(totals.total);
-    document.getElementById('cart-count').innerText = CART.length;
-    lucide.createIcons();
-}
+            const box = document.getElementById('pos-cart-items');
+            document.getElementById('edit-mode-indicator').style.display = CURRENT_QUOTE_ID ? 'inline-block' : 'none';
+            if(!CART.length) { 
+                box.innerHTML='<p class="text-center text-slate-400 mt-10 text-sm">Vazio</p>'; 
+                document.getElementById('pos-total-display').innerText=formatMoney(0); 
+                document.getElementById('cart-count').innerText='0'; 
+                return; 
+            }
+            const totals = calculateTotal();
+            
+            // CARD SUPER COMPACTO PARA O PDV
+            box.innerHTML = CART.map((i,idx) => `
+                <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[11px] font-bold text-slate-700 leading-tight truncate" title="${i.name}">${i.name}</div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <input type="number" value="${i.qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Qtd">
+                        <span class="text-slate-400 text-xs font-bold">x</span>
+                        <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Valor Unitário">
+                    </div>
+                    <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(i.total)}</div>
+                    <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
+                </div>`).join('');
+                
+            document.getElementById('pos-total-display').innerText = formatMoney(totals.total);
+            document.getElementById('cart-count').innerText = CART.length;
+            lucide.createIcons();
+        }
 
 function clearCart() { 
     CART=[]; 
@@ -1634,19 +1652,17 @@ function renderRecentHistory() {
     lucide.createIcons();
 }
 
-async function updateQuoteStatus(id, newStatus) {
-    showLoading(true);
-    const { error } = await sb.from('orcamentos').update({ status: newStatus }).eq('id', id);
-    
-    if (error) { showLoading(false); return showToast("Erro ao atualizar status: " + error.message, true); }
-    
-    const quote = STATE.quotes.find(q => String(q.id) === String(id));
-    if (quote) quote.status = newStatus;
-    
-    showLoading(false);
-    showToast("Status CRM atualizado!");
-    renderQuotesList(); 
-}
+// ATUALIZAÇÃO: Status do CRM atualiza no LOGS
+        async function updateQuoteStatus(id, newStatus) {
+            showLoading(true);
+            const { error } = await sb.from('logs').update({ status: newStatus }).eq('id', id).eq('tipo', 'orcamento');
+            if (error) { showLoading(false); return showToast("Erro ao atualizar status: " + error.message, true); }
+            const quote = STATE.quotes.find(q => String(q.id) === String(id));
+            if (quote) quote.status = newStatus;
+            showLoading(false);
+            showToast("Status CRM atualizado!");
+            renderQuotesList(); 
+        }
 
 function renderQuotesList() {
     const list = document.getElementById('quotes-list');
@@ -1717,6 +1733,9 @@ function renderQuotesList() {
                     </a>
                     <button onclick="loadQuoteToCart('${q.id}')" class="p-2 border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 rounded-lg shadow-sm" title="Editar / Faturar">
                         <i data-lucide="edit-3" width="16"></i>
+                    </button>
+                    <button onclick="downloadQuotePDF('${q.id}')" class="p-2 border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm" title="Baixar PDF">
+                        <i data-lucide="download" width="16"></i>
                     </button>
                     <button onclick="printQuote('${q.id}')" class="p-2 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-sm" title="Imprimir">
                         <i data-lucide="printer" width="16"></i>
@@ -2620,6 +2639,106 @@ async function toggleUserStatus(id, currentStatus) {
     showToast(currentStatus ? "Usuário Bloqueado" : "Usuário Desbloqueado");
     loadData();
 }
+
+
+
+  // NOVA FUNÇÃO: Gera PDF com HTML2PDF para baixar
+        function downloadQuotePDF(id) {
+            const q = STATE.quotes.find(x => x.id == id);
+            if(!q) return;
+
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            document.body.appendChild(tempDiv);
+
+            const clientName = q.clientName || 'Consumidor Final';
+            const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+
+            let subtotal = 0;
+            const itemsHtml = q.items.map(i => {
+                const itemTotal = i.qty * i.price;
+                subtotal += itemTotal;
+                return `<tr><td style="border-bottom: 1px solid #ccc; padding: 6px;">${i.name}</td><td align="center" style="border-bottom: 1px solid #ccc; padding: 6px;">${i.qty}</td><td align="right" style="border-bottom: 1px solid #ccc; padding: 6px;">${formatMoney(i.price)}</td><td align="right" style="border-bottom: 1px solid #ccc; padding: 6px;">${formatMoney(itemTotal)}</td></tr>`;
+            }).join('');
+
+            const discount = Number(q.discount) || 0;
+            const finalTotal = subtotal - discount;
+            const addressToShow = q.deliveryAddress ? `<strong>ENTREGA:</strong><br>${q.deliveryAddress}` : (cli.address || '-');
+            const obsText = q.observacao ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+
+            tempDiv.innerHTML = `
+            <div style="font-family: Arial, sans-serif; padding: 30px; color: #1e293b; width: 800px; background: white;">
+                <table style="width: 100%; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                    <tr>
+                        <td style="width: 120px;"><img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 80px;" /></td>
+                        <td>
+                            <h2 style="margin: 0; color: #059669; font-weight: 800;">RV PORTAL MADEIRAS</h2>
+                            <div style="font-size: 12px; color: #475569;">CNPJ: 30.942.123/0001-02</div>
+                            <div style="font-size: 12px; color: #475569;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                        </td>
+                        <td style="text-align: right;">
+                            <h2 style="margin: 0; font-weight: 900;">ORÇAMENTO</h2>
+                            <div><strong>Nº:</strong> ${q.id}</div>
+                            <div><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
+                        </td>
+                    </tr>
+                </table>
+                <table style="width: 100%; margin-bottom: 20px; font-size: 14px;">
+                    <tr>
+                        <td style="border: 1px solid #000; padding: 10px; width: 50%; border-radius: 6px;">
+                            <div style="font-size: 11px; color: #64748b; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">Dados do Cliente</div>
+                            <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
+                        </td>
+                        <td style="border: 1px solid #000; padding: 10px; width: 50%; border-radius: 6px;">
+                            <div style="font-size: 11px; color: #64748b; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">Pagamento</div>
+                            <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
+                        </td>
+                    </tr>
+                </table>
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;">
+                    <thead>
+                        <tr style="background-color: #0f172a; color: white;">
+                            <th style="padding: 8px; text-align: left;">Descrição</th>
+                            <th style="padding: 8px; text-align: center;">Qtd</th>
+                            <th style="padding: 8px; text-align: right;">Unit.</th>
+                            <th style="padding: 8px; text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <table style="width: 100%; font-size: 14px; margin-top: 10px;">
+                    <tr>
+                        <td style="width: 60%; vertical-align: top; padding-right: 20px;">
+                            <div style="border: 1px dashed #cbd5e1; padding: 10px; border-radius: 6px;">
+                                <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
+                                <div style="font-size: 12px;">${obsText}</div>
+                            </div>
+                        </td>
+                        <td style="width: 40%; text-align: right; vertical-align: bottom;">
+                            <div style="padding: 5px 0;">Subtotal: ${formatMoney(subtotal)}</div>
+                            ${discount > 0 ? `<div style="padding: 5px 0; color: red;">Desconto: - ${formatMoney(discount)}</div>` : ''}
+                            <div style="padding: 10px; font-size: 16px; font-weight: bold; border-top: 2px solid #0f172a; margin-top: 5px; background-color: #f1f5f9;">
+                                TOTAL A PAGAR: ${formatMoney(finalTotal)}
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>`;
+
+            const opt = {
+                margin:       10,
+                filename:     `Orcamento_${q.id}_RVPORTAL.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            showToast("Gerando PDF...");
+            html2pdf().set(opt).from(tempDiv).save().then(() => {
+                document.body.removeChild(tempDiv);
+            });
+        }
         
     </script>
   </body>
