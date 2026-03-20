@@ -635,16 +635,30 @@
             <div class="space-y-3">
                 <input type="text" id="prd-name" required placeholder="Nome do Produto" class="w-full p-2 border rounded">
                 <input type="text" id="prd-cat" placeholder="Categoria" class="w-full p-2 border rounded">
-                <input type="number" id="prd-price" required step="0.01" placeholder="Preço" class="w-full p-2 border rounded">
-                <input type="number" id="prd-stock" required placeholder="Estoque Físico Inicial" class="w-full p-2 border rounded">
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase">Preço de Venda (R$)</label>
+                        <input type="number" id="prd-price" required step="0.01" placeholder="Ex: 150.00" class="w-full p-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase">Custo de Compra (R$)</label>
+                        <input type="number" id="prd-cost" step="0.01" placeholder="Ex: 80.00" class="w-full p-2 border rounded">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Estoque Físico</label>
+                    <input type="number" id="prd-stock" required placeholder="Quantidade Inicial" class="w-full p-2 border rounded">
+                </div>
             </div>
             <div class="flex gap-2 mt-6">
-                <button type="button" onclick="document.getElementById('prod-form-container').classList.add('hidden')" class="flex-1 p-2 bg-slate-200 rounded font-bold">Cancelar</button>
-                <button type="submit" class="flex-1 p-2 bg-indigo-700 text-white rounded font-bold">Salvar</button>
+                <button type="button" onclick="document.getElementById('prod-form-container').classList.add('hidden')" class="flex-1 p-2 bg-slate-200 rounded font-bold hover:bg-slate-300">Cancelar</button>
+                <button type="submit" class="flex-1 p-2 bg-indigo-700 text-white rounded font-bold hover:bg-indigo-800">Salvar</button>
             </div>
         </form>
     </div>
-
+    
     <div id="modal-receivable-edit" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-slate-50">
@@ -846,6 +860,7 @@
 
                 STATE.products = (resProd.data || []).map(p => ({
                     id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
+                    cost: Number(p.custo) || 0, // <--- ESTA É A LINHA NOVA
                     stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
                     available: Number(p.estoque_fisico) - Number(p.estoque_comprometido)
                 }));
@@ -966,10 +981,12 @@ async function saveProduct(e) {
     const newId = isNew ? getNextId(STATE.products) : document.getElementById('prd-id').value;
 
     const payload = {
-        id: newId, nome: document.getElementById('prd-name').value, categoria: document.getElementById('prd-cat').value,
-        preco: parseFloat(document.getElementById('prd-price').value), estoque_fisico: parseFloat(document.getElementById('prd-stock').value),
-        estoque_comprometido: isNew ? 0 : STATE.products.find(p=>p.id==newId).committed
-    };
+    id: newId, nome: document.getElementById('prd-name').value, categoria: document.getElementById('prd-cat').value,
+    preco: parseFloat(document.getElementById('prd-price').value), 
+    custo: parseFloat(document.getElementById('prd-cost').value) || 0, // <--- ESTA É A LINHA NOVA
+    estoque_fisico: parseFloat(document.getElementById('prd-stock').value),
+    estoque_comprometido: isNew ? 0 : STATE.products.find(p=>p.id==newId).committed
+};
 
     const { error } = await sb.from('produtos').upsert(payload);
     if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
@@ -2007,12 +2024,14 @@ function openProductForm(id) {
         document.getElementById('prd-name').value=p.name; 
         document.getElementById('prd-cat').value=p.category || ''; 
         document.getElementById('prd-price').value=p.price; 
+        document.getElementById('prd-cost').value=p.cost || ''; // <--- Lendo o custo
         document.getElementById('prd-stock').value=p.stock; 
     } else { 
         document.getElementById('prd-id').value=''; 
         document.getElementById('prd-name').value=''; 
         document.getElementById('prd-cat').value=''; 
         document.getElementById('prd-price').value=''; 
+        document.getElementById('prd-cost').value=''; // <--- Limpando o custo
         document.getElementById('prd-stock').value=''; 
     } 
 }
