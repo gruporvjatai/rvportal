@@ -48,25 +48,36 @@
       .btn-action { transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: bold; border-radius: 8px; }
       .btn-action:active { transform: scale(0.98); }
 
-      /* IMPRESSÃO */
+     /* IMPRESSÃO */
       @media print {
         @page { size: A4; margin: 10mm; }
         body { background: white; margin: 0; padding: 0; font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .no-print { display: none !important; }
         .print-only { display: block !important; }
         
-        .invoice-full { 
-            border: 1px solid #000; 
+        /* APLICADO NAS DUAS TELAS DE IMPRESSÃO */
+        .invoice-full, .invoice-box-orig { 
             position: relative; 
             z-index: 1;
-            min-height: 27.5cm; 
-            background-color: transparent;
+            background-color: transparent !important;
         }
 
-        .invoice-full::before {
+        .invoice-full {
+            border: 1px solid #000; 
+            min-height: 27.5cm; 
+        }
+
+        .invoice-box-orig { 
+            width: 100%; 
+            border: 1px solid #000; 
+            margin: 0 auto; 
+        }
+
+        /* CONFIGURAÇÃO DA MARCA D'ÁGUA UNIFICADA */
+        .invoice-full::before, .invoice-box-orig::before {
             content: "";
             position: absolute;
-            top: 57%; 
+            top: 50%; /* Centralizado na página */
             left: 50%;
             transform: translate(-50%, -50%);
             width: 450px; 
@@ -77,13 +88,13 @@
             background-repeat: no-repeat;
             opacity: 0.1;
             z-index: -1; 
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
+
         .header-section { display: flex; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
         .logo-area { width: 120px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #e2e8f0; padding-right: 15px; margin-right: 15px; }
         .company-details { flex: 1; }
-        /* Alterado para Esmeralda na impressão */
         .company-title { font-size: 20px; font-weight: 800; color: #059669; text-transform: uppercase; margin: 0; }
         .company-info { font-size: 11px; color: #475569; line-height: 1.4; margin-top: 5px; }
         .doc-meta { width: 180px; text-align: right; margin-right: 20px;}
@@ -114,7 +125,6 @@
         .sign-line { border-top: 1px solid #000; margin-bottom: 5px; }
         .sign-label { font-size: 10px; font-weight: bold; text-transform: uppercase; }
 
-        .invoice-box-orig { width: 100%; border: 1px solid #000; margin: 0 auto; }
         .header-orig { display: flex; border-bottom: 1px solid #000; }
         .logo-box-orig { width: 100px; padding: 5px; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center; }
         .company-box-orig { flex: 1; padding: 5px; font-size: 11px; border-right: 1px solid #000; }
