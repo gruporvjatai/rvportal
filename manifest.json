@@ -1,7 +1,7 @@
 {
   "name": "RV Portal Madeiras",
   "short_name": "RV Portal",
-  "start_url": "/rvportal/index.html",
+  "start_url": "/rvportal/sistema.html",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
