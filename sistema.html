@@ -800,18 +800,51 @@
         }
 
         // ====== 5. FUNÇÃO DE CARREGAMENTO DO BANCO DE DADOS ======
+        
+        // Nova função que burla o limite de 1000 linhas do Supabase puxando por partes
+        async function fetchAllRecords(table) {
+            let allRecords = [];
+            let from = 0;
+            const step = 1000;
+            let keepFetching = true;
+
+            while (keepFetching) {
+                const { data, error } = await sb.from(table).select('*').range(from, from + step - 1);
+                if (error) {
+                    console.error("Erro ao buscar " + table, error);
+                    throw error;
+                }
+                
+                if (data && data.length > 0) {
+                    allRecords.push(...data);
+                    
+                    // Se veio menos de 1000, significa que chegou no fim da tabela
+                    if (data.length < step) {
+                        keepFetching = false;
+                    } else {
+                        from += step;
+                    }
+                } else {
+                    keepFetching = false;
+                }
+            }
+            return { data: allRecords };
+        }
+
         async function loadData() {
             try {
+                // Agora usamos o fetchAllRecords para as tabelas que podem passar de 1000 itens
                 const [resProd, resCli, resLog, resDesp, resOrc, resConf] = await Promise.all([
-                    sb.from('produtos').select('*'),
-                    sb.from('clientes').select('*'),
-                    sb.from('logs').select('*'),
-                    sb.from('despesas').select('*'),
-                    sb.from('orcamentos').select('*'),
+                    fetchAllRecords('produtos'),
+                    fetchAllRecords('clientes'),
+                    fetchAllRecords('logs'),
+                    fetchAllRecords('despesas'),
+                    fetchAllRecords('orcamentos'),
                     sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
                 ]);
 
-                if (resProd.error) throw resProd.error;
+                // Como criamos a própria resposta de dados, não precisamos checar resProd.error aqui
+                // O mapeamento continua exatamente igual!
 
                 STATE.products = (resProd.data || []).map(p => ({
                     id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
@@ -832,7 +865,7 @@
                     paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
                 }));
 
-                // LENDO AS DESPESAS - MAPEANDO O STATUS DA NOVA COLUNA DO BANCO
+                // LENDO AS DESPESAS
                 STATE.expenses = (resDesp.data || []).map(e => ({
                     id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
                     cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
@@ -846,7 +879,7 @@
                             id: qId, date: row.data, clientName: row.cliente_nome, items: [], total: 0, 
                             status: row.status, discount: Number(row.desconto), discountType: row.tipo_desconto, 
                             paymentMethod: row.forma_pagamento, deliveryAddress: row.endereco_entrega,
-                            observacao: row.observacao // LENDO A NOVA COLUNA DE OBSERVAÇÃO
+                            observacao: row.observacao
                         };
                     }
                     quotesMap[qId].items.push({ name: row.item_nome, qty: Number(row.quantidade), price: Number(row.preco_unitario), total: Number(row.total_item) });
@@ -859,7 +892,7 @@
                 if (dadosUsuario.nivel === 'admin') {
                     const navUsersBtn = document.getElementById('nav-users');
                     if (navUsersBtn) navUsersBtn.classList.remove('hidden');
-                    const resUsers = await sb.from('usuarios').select('*');
+                    const resUsers = await fetchAllRecords('usuarios'); // Proteção caso passe de 1000 usuários também
                     STATE.users = resUsers.data || [];
                 }
 
