@@ -73,11 +73,11 @@
             margin: 0 auto; 
         }
 
-        /* CONFIGURAÇÃO DA MARCA D'ÁGUA UNIFICADA */
+        /* CONFIGURAÇÃO DA MARCA D'ÁGUA */
         .invoice-full::before, .invoice-box-orig::before {
             content: "";
-            position: absolute;
-            top: 50%; /* Centralizado na página */
+            position: fixed; /* O SEGREDO ESTÁ AQUI: muda de absolute para fixed */
+            top: 50%; 
             left: 50%;
             transform: translate(-50%, -50%);
             width: 450px; 
