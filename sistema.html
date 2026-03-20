@@ -2643,14 +2643,10 @@ async function toggleUserStatus(id, currentStatus) {
 
 
   // NOVA FUNÇÃO: Gera PDF com HTML2PDF para baixar
+        // NOVA FUNÇÃO: Gera PDF com HTML2PDF para baixar usando layout da impressão
         function downloadQuotePDF(id) {
             const q = STATE.quotes.find(x => x.id == id);
             if(!q) return;
-
-            const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            document.body.appendChild(tempDiv);
 
             const clientName = q.clientName || 'Consumidor Final';
             const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
@@ -2659,84 +2655,120 @@ async function toggleUserStatus(id, currentStatus) {
             const itemsHtml = q.items.map(i => {
                 const itemTotal = i.qty * i.price;
                 subtotal += itemTotal;
-                return `<tr><td style="border-bottom: 1px solid #ccc; padding: 6px;">${i.name}</td><td align="center" style="border-bottom: 1px solid #ccc; padding: 6px;">${i.qty}</td><td align="right" style="border-bottom: 1px solid #ccc; padding: 6px;">${formatMoney(i.price)}</td><td align="right" style="border-bottom: 1px solid #ccc; padding: 6px;">${formatMoney(itemTotal)}</td></tr>`;
+                return `<tr><td>${i.name}</td><td align="center">${i.qty}</td><td align="right">${formatMoney(i.price)}</td><td align="right">${formatMoney(itemTotal)}</td></tr>`;
             }).join('');
 
             const discount = Number(q.discount) || 0;
             const finalTotal = subtotal - discount;
-            const addressToShow = q.deliveryAddress ? `<strong>ENTREGA:</strong><br>${q.deliveryAddress}` : (cli.address || '-');
-            const obsText = q.observacao ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+            const addressToShow = q.deliveryAddress 
+                ? `<div style="padding: 4px; background-color: #fef3c7; border-left: 3px solid #059669; margin-top: 5px;"><strong>ENTREGA:</strong><br>${q.deliveryAddress}</div>` 
+                : (cli.address || '');
+
+            const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV'
+                            ? q.observacao 
+                            : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+
+            const tempDiv = document.createElement('div');
+            // O segredo para não sair branco: deixar "na tela" para o renderizador, 
+            // mas com opacidade quase 0 e z-index negativo para o usuário não ver a tela piscar.
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.top = '0';
+            tempDiv.style.left = '0';
+            tempDiv.style.width = '800px'; 
+            tempDiv.style.zIndex = '-9999';
+            tempDiv.style.opacity = '0.001'; 
+            tempDiv.style.pointerEvents = 'none';
+            tempDiv.style.backgroundColor = '#ffffff';
 
             tempDiv.innerHTML = `
-            <div style="font-family: Arial, sans-serif; padding: 30px; color: #1e293b; width: 800px; background: white;">
-                <table style="width: 100%; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                    <tr>
-                        <td style="width: 120px;"><img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 80px;" /></td>
-                        <td>
-                            <h2 style="margin: 0; color: #059669; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                            <div style="font-size: 12px; color: #475569;">CNPJ: 30.942.123/0001-02</div>
-                            <div style="font-size: 12px; color: #475569;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                        </td>
-                        <td style="text-align: right;">
-                            <h2 style="margin: 0; font-weight: 900;">ORÇAMENTO</h2>
-                            <div><strong>Nº:</strong> ${q.id}</div>
-                            <div><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
-                        </td>
-                    </tr>
-                </table>
-                <table style="width: 100%; margin-bottom: 20px; font-size: 14px;">
-                    <tr>
-                        <td style="border: 1px solid #000; padding: 10px; width: 50%; border-radius: 6px;">
-                            <div style="font-size: 11px; color: #64748b; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">Dados do Cliente</div>
-                            <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
-                        </td>
-                        <td style="border: 1px solid #000; padding: 10px; width: 50%; border-radius: 6px;">
-                            <div style="font-size: 11px; color: #64748b; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">Pagamento</div>
-                            <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
-                        </td>
-                    </tr>
-                </table>
-                <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;">
-                    <thead>
-                        <tr style="background-color: #0f172a; color: white;">
-                            <th style="padding: 8px; text-align: left;">Descrição</th>
-                            <th style="padding: 8px; text-align: center;">Qtd</th>
-                            <th style="padding: 8px; text-align: right;">Unit.</th>
-                            <th style="padding: 8px; text-align: right;">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>${itemsHtml}</tbody>
-                </table>
-                <table style="width: 100%; font-size: 14px; margin-top: 10px;">
-                    <tr>
-                        <td style="width: 60%; vertical-align: top; padding-right: 20px;">
-                            <div style="border: 1px dashed #cbd5e1; padding: 10px; border-radius: 6px;">
-                                <div style="font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                                <div style="font-size: 12px;">${obsText}</div>
-                            </div>
-                        </td>
-                        <td style="width: 40%; text-align: right; vertical-align: bottom;">
-                            <div style="padding: 5px 0;">Subtotal: ${formatMoney(subtotal)}</div>
-                            ${discount > 0 ? `<div style="padding: 5px 0; color: red;">Desconto: - ${formatMoney(discount)}</div>` : ''}
-                            <div style="padding: 10px; font-size: 16px; font-weight: bold; border-top: 2px solid #0f172a; margin-top: 5px; background-color: #f1f5f9;">
-                                TOTAL A PAGAR: ${formatMoney(finalTotal)}
-                            </div>
-                        </td>
-                    </tr>
-                </table>
-            </div>`;
+                <style>
+                    .pdf-invoice-full { border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1; background-color: white; color: #1e293b; font-family: 'Helvetica', 'Arial', sans-serif; box-sizing: border-box; }
+                    .pdf-invoice-full::before {
+                        content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                        width: 450px; height: 450px; background-image: url('https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png');
+                        background-size: contain; background-position: center; background-repeat: no-repeat;
+                        opacity: 0.1; z-index: -1;
+                    }
+                    .pdf-header-section { display: flex; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; padding: 15px 15px 0 15px; }
+                    .pdf-logo-area { width: 120px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #e2e8f0; padding-right: 15px; margin-right: 15px; }
+                    .pdf-company-details { flex: 1; }
+                    .pdf-company-title { font-size: 20px; font-weight: 800; color: #059669; text-transform: uppercase; margin: 0; }
+                    .pdf-company-info { font-size: 11px; color: #475569; line-height: 1.4; margin-top: 5px; }
+                    .pdf-doc-meta { width: 180px; text-align: right; }
+                    .pdf-doc-title { font-size: 16px; font-weight: 900; color: #0f172a; text-transform: uppercase; margin-bottom: 5px; }
+                    .pdf-meta-row { font-size: 11px; margin-bottom: 2px; }
+                    .pdf-info-grid { display: flex; gap: 20px; margin-bottom: 20px; padding: 0 15px; }
+                    .pdf-info-col { flex: 1; border: 1px solid #000; border-radius: 6px; overflow: hidden; }
+                    .pdf-col-header { background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000; }
+                    .pdf-col-content { padding: 10px; font-size: 11px; line-height: 1.5; }
+                    .pdf-full-table { width: calc(100% - 30px); margin: 0 15px 20px 15px; border-collapse: collapse; font-size: 11px; }
+                    .pdf-full-table th { background-color: #0f172a; color: white; padding: 8px; text-align: left; font-weight: bold; text-transform: uppercase; font-size: 10px; }
+                    .pdf-full-table td { border-bottom: 1px solid #000; padding: 8px; vertical-align: middle; }
+                    .pdf-full-table tr:nth-child(even) { background-color: #f8fafc; }
+                    .pdf-footer-section { display: flex; gap: 30px; margin-top: 10px; padding: 0 15px 15px 15px; }
+                    .pdf-notes-area { flex: 1; border: 1px dashed #cbd5e1; padding: 10px; border-radius: 6px; }
+                    .pdf-notes-title { font-size: 10px; font-weight: bold; margin-bottom: 5px; color: #64748b; }
+                    .pdf-notes-text { font-size: 10px; color: #334155; }
+                    .pdf-totals-area { width: 250px; }
+                    .pdf-total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; border-bottom: 1px solid #e2e8f0; }
+                    .pdf-total-row.final { border-bottom: none; border-top: 2px solid #0f172a; font-size: 14px; font-weight: 900; margin-top: 5px; padding-top: 10px; background-color: #f1f5f9; padding: 10px; }
+                </style>
+                <div class="pdf-invoice-full">
+                    <div class="pdf-header-section">
+                        <div class="pdf-logo-area"><img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px;" /></div>
+                        <div class="pdf-company-details">
+                            <h2 class="pdf-company-title">RV PORTAL MADEIRAS</h2>
+                            <div class="pdf-company-info">CNPJ: 30.942.123/0001-02 </div>
+                            <div class="pdf-company-info">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861 </div>
+                        </div>
+                        <div class="pdf-doc-meta">
+                            <div class="pdf-doc-title">ORÇAMENTO</div>
+                            <div class="pdf-meta-row"><strong>Nº:</strong> ${q.id}</div>
+                            <div class="pdf-meta-row"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
+                        </div>
+                    </div>
+                    <div class="pdf-info-grid">
+                        <div class="pdf-info-col">
+                            <div class="pdf-col-header">Dados do Cliente</div>
+                            <div class="pdf-col-content"><strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}</div>
+                        </div>
+                        <div class="pdf-info-col">
+                            <div class="pdf-col-header">Pagamento</div>
+                            <div class="pdf-col-content"><strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL</div>
+                        </div>
+                    </div>
+                    <table class="pdf-full-table">
+                        <thead><tr><th>Descrição</th><th align="center">Qtd</th><th align="right">Unit.</th><th align="right">Total</th></tr></thead>
+                        <tbody>${itemsHtml}</tbody>
+                    </table>
+                    <div class="pdf-footer-section">
+                        <div class="pdf-notes-area"><div class="pdf-notes-title">Observações:</div><div class="pdf-notes-text">${obsText}</div></div>
+                        <div class="pdf-totals-area">
+                            <div class="pdf-total-row"><span>Subtotal:</span><span>${formatMoney(subtotal)}</span></div>
+                            ${discount > 0 ? `<div class="pdf-total-row" style="color:red"><span>Desconto:</span><span>- ${formatMoney(discount)}</span></div>` : ''}
+                            <div class="pdf-total-row final"><span>TOTAL A PAGAR:</span><span>${formatMoney(finalTotal)}</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(tempDiv);
 
             const opt = {
                 margin:       10,
                 filename:     `Orcamento_${q.id}_RVPORTAL.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false }, // useCORS garante que a logo carregue sem dar tela branca
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
             showToast("Gerando PDF...");
             html2pdf().set(opt).from(tempDiv).save().then(() => {
                 document.body.removeChild(tempDiv);
+            }).catch(err => {
+                console.error("Erro PDF:", err);
+                document.body.removeChild(tempDiv);
+                showToast("Erro ao gerar PDF", true);
             });
         }
         
