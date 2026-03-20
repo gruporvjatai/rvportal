@@ -992,7 +992,6 @@ async function finalizeSale(isProntaEntrega = false) {
     const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
     const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
 
-    // LÓGICA DE OBSERVAÇÕES
     const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
     const customObs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
     
@@ -1003,13 +1002,13 @@ async function finalizeSale(isProntaEntrega = false) {
     else if (payment.toLowerCase().includes("boleto") || payment.toLowerCase().includes("prazo")) dueDate.setDate(dueDate.getDate() + 30);
     
     const timestamp = new Date().toISOString();
-    // HERANÇA DE ID: Pega o ID do orçamento se ele existir, ou gera o próximo livre!
     const newSaleId = CURRENT_QUOTE_ID ? CURRENT_QUOTE_ID : getNextId(STATE.logs, STATE.quotes);
     const subtotalBruto = CART.reduce((acc, i) => acc + i.total, 0);
     const fator = subtotalBruto > 0 ? (totals.total / subtotalBruto) : 1;
 
     let logsToInsert = [];
 
+    // 1. Loop apenas para montar o Array e atualizar os Produtos
     for(let item of CART) {
         const prod = STATE.products.find(p => p.id == item.prodId);
         if(prod) {
@@ -1023,13 +1022,10 @@ async function finalizeSale(isProntaEntrega = false) {
                 updatePayload = { estoque_comprometido: committed + Number(item.qty) };
             }
 
-            const { error: errLogs } = await sb.from('logs').insert(logsToInsert);
-                if(errLogs) { showLoading(false); return showToast("Erro ao registrar os logs.", true); }
-            
-                if(CURRENT_QUOTE_ID) {
-                    // Agora apagamos do Logs filtrando por orçamento
-                    await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
-                }
+            // CORREÇÃO: Atualiza a tabela PRODUTOS
+            const { error: errProd } = await sb.from('produtos').update(updatePayload).eq('id', prod.id);
+            if(errProd) { showLoading(false); return showToast("Erro ao atualizar o estoque do produto.", true); }
+        }
 
         const statusEntrega = isProntaEntrega ? 'ENTREGUE' : 'PENDENTE';
         const qtdEntregue = isProntaEntrega ? item.qty : 0;
@@ -1057,10 +1053,14 @@ async function finalizeSale(isProntaEntrega = false) {
         }
     }
 
-    const { error: errLogs } = await sb.from('logs').insert(logsToInsert);
-    if(errLogs) { showLoading(false); return showToast("Erro ao registrar os logs.", true); }
+    // 2. Insere TUDO no banco de uma vez só (fora do loop)
+    const { error: errLogsFinal } = await sb.from('logs').insert(logsToInsert);
+    if(errLogsFinal) { showLoading(false); return showToast("Erro ao registrar os logs da venda.", true); }
 
+    // 3. Deleta o orçamento uma única vez (fora do loop)
     if(CURRENT_QUOTE_ID) {
+        await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
+        // Caso o orçamento fique também na tabela "orcamentos" antiga, mantenha a linha abaixo, caso contrário, pode remover:
         await sb.from('orcamentos').delete().eq('id', CURRENT_QUOTE_ID);
     }
 
