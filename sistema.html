@@ -2770,16 +2770,16 @@ function downloadQuotePDF(id) {
     // Atraso intencional de 500ms para a Logo e Marca D'água baixarem antes de gerar o PDF
     setTimeout(() => {
         const opt = {
-            margin:       10, 
-            filename:     `Orcamento_${q.id}_RVPORTAL.pdf`,
-            image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                letterRendering: true 
-            },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+        margin:       10, 
+        filename:     `RV PORTAL - ${clientName} - #${q.id}.pdf`, // <--- O NOME É ALTERADO EXATAMENTE AQUI!
+        image:        { type: 'jpeg', quality: 1 },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            letterRendering: true 
+        },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
 
         html2pdf().set(opt).from(htmlString).save().then(() => {
             showLoading(false);
