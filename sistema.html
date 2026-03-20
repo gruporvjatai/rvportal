@@ -8,12 +8,12 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!--<script>
+    <script>
         // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800) {
           window.location.replace("mobile.html");
         }
-    </script>-->
+    </script>
     
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="shortcut icon" type="image/png" href="logo.png">
@@ -209,8 +209,12 @@
                 <div class="bg-slate-50 p-4 border-t space-y-3 shadow-inner">
                     <div class="space-y-2">
                         <div class="flex gap-2">
-                            <select id="pos-client" class="w-full p-2 border rounded text-sm bg-white focus:border-emerald-600"></select>
-                            <button onclick="navigate('clients')" class="p-2 bg-slate-200 rounded hover:bg-slate-300"><i data-lucide="plus"></i></button>
+                            <input type="hidden" id="pos-client" value="">
+                            <button id="pos-client-btn" onclick="openPosClientModal()" class="w-full p-2 border rounded text-sm bg-white focus:border-emerald-600 text-left flex justify-between items-center text-slate-600 font-bold">
+                                <span>Consumidor Final</span>
+                                <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                            </button>
+                            <button onclick="navigate('clients')" class="p-2 bg-slate-200 rounded hover:bg-slate-300" title="Cadastrar Novo Cliente"><i data-lucide="user-plus"></i></button>
                         </div>
                         
                         <div class="flex items-center gap-2 mt-1">
@@ -442,6 +446,13 @@
               <h2 class="text-2xl font-bold text-slate-800">Clientes</h2>
               <button onclick="openClientForm()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><i data-lucide="plus"></i> Novo Cliente</button>
           </div>
+          <div class="mb-4 bg-white p-4 rounded-xl shadow-sm border">
+              <div class="relative w-full">
+                  <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-400 w-5 h-5"></i>
+                  <input type="text" id="cli-search" placeholder="Buscar cliente por nome, telefone ou documento..." class="w-full pl-10 p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderClients()">
+              </div>
+          </div>
+
           <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
               <table class="w-full text-sm text-left">
                   <thead class="bg-slate-50 text-slate-700"><tr><th class="p-4">Nome</th><th class="p-4">Telefone</th><th class="p-4">Documento</th><th class="p-4 text-center">Ações</th></tr></thead>
@@ -539,6 +550,28 @@
             </div>
             <div class="p-4 border-t bg-slate-50 rounded-b-2xl">
                 <button onclick="closePosProductModal()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition">Concluído</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pos-client-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-emerald-600"></i> Selecionar Cliente</h3>
+                <button onclick="closePosClientModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-4 border-b">
+                <div class="relative w-full">
+                    <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-5 h-5"></i>
+                    <input type="text" id="pos-client-modal-search" placeholder="Buscar cliente por nome, telefone ou documento..." class="w-full pl-10 p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600" onkeyup="renderPosClientModal()">
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 bg-slate-100/50">
+                <div id="pos-client-modal-grid" class="flex flex-col gap-2"></div>
+            </div>
+            <div class="p-4 border-t bg-slate-50 rounded-b-2xl flex flex-col gap-2">
+                <button onclick="selectPosClient('', 'Consumidor Final')" class="w-full py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">Remover Cliente (Consumidor Final)</button>
+                <button onclick="closePosClientModal()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1372,9 +1405,7 @@ async function cancelLogItem(uid) {
 // =========================================================
 
 function updateClientSelects() {
-    const opts = '<option value="">Consumidor Final</option>' + (STATE.clients || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    const clientSelect = document.getElementById('pos-client');
-    if(clientSelect) clientSelect.innerHTML = opts;
+    // Agora usando o Modal, não é mais necessário popular a tag <select>
 }
 
 function calculateTotal() {
@@ -1501,6 +1532,10 @@ function clearCart() {
     CART=[]; 
     CURRENT_QUOTE_ID=null; 
     document.getElementById('pos-discount').value=0; 
+    
+    // RESET CLIENT PARA CONSUMIDOR FINAL
+    document.getElementById('pos-client').value = '';
+    document.getElementById('pos-client-btn').querySelector('span').innerText = 'Consumidor Final';
     
     document.getElementById('pos-custom-address-check').checked = false;
     document.getElementById('pos-custom-address-container').classList.add('hidden');
@@ -1669,9 +1704,15 @@ function loadQuoteToCart(id) {
     CART = JSON.parse(JSON.stringify(q.items));
     CURRENT_QUOTE_ID = q.id; 
     
-    const clientSelect = document.getElementById('pos-client');
+    const clientSelectBtn = document.getElementById('pos-client-btn').querySelector('span');
     const clientObj = STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
-    if(clientObj) clientSelect.value = clientObj.id;
+    if(clientObj) {
+        document.getElementById('pos-client').value = clientObj.id;
+        clientSelectBtn.innerText = clientObj.name;
+    } else {
+        document.getElementById('pos-client').value = '';
+        clientSelectBtn.innerText = q.clientName || 'Consumidor Final';
+    }
     
     document.getElementById('pos-payment').value = q.paymentMethod || 'Dinheiro';
     document.getElementById('pos-discount-type').value = q.discountType || '$';
@@ -1815,6 +1856,65 @@ function openOrderDeliveryModal(orderId) {
 
 function closeDeliveryModal() { document.getElementById('modal-delivery').classList.add('hidden'); }
 
+// --- FUNÇÕES DE MODAL DE CLIENTE NO PDV ---
+function openPosClientModal() {
+    document.getElementById('pos-client-modal').classList.remove('hidden');
+    document.getElementById('pos-client-modal-search').value = '';
+    renderPosClientModal();
+}
+
+function closePosClientModal() {
+    document.getElementById('pos-client-modal').classList.add('hidden');
+}
+
+function renderPosClientModal() {
+    const term = document.getElementById('pos-client-modal-search').value.toLowerCase();
+    const grid = document.getElementById('pos-client-modal-grid');
+    if(!grid) return;
+
+    const sortedClients = (STATE.clients||[]).slice().sort((a, b) => a.name.localeCompare(b.name));
+
+    let filtered = sortedClients;
+    if (term) {
+        filtered = filtered.filter(c => 
+            c.name.toLowerCase().includes(term) || 
+            (c.doc && c.doc.includes(term)) || 
+            (c.phone && c.phone.includes(term))
+        );
+    }
+
+    // Fatia para não travar o DOM com 2000+ resultados simultâneos
+    const sliced = filtered.slice(0, 100);
+
+    grid.innerHTML = sliced.map(c => {
+        return `
+        <div class="p-4 border border-slate-200 rounded-xl hover:shadow-md bg-white flex items-center justify-between group transition cursor-pointer" onclick="selectPosClient('${c.id}', '${c.name.replace(/'/g, "\\'")}')">
+            <div class="flex flex-col w-3/4">
+                <h4 class="font-black text-sm text-slate-800 truncate" title="${c.name}">${c.name}</h4>
+                <span class="text-[10px] text-slate-500 font-bold mt-1">Doc: ${c.doc || '-'} | Tel: ${c.phone || '-'}</span>
+            </div>
+            <div class="flex items-center gap-3 w-1/4 justify-end">
+                <button class="bg-slate-100 text-slate-700 group-hover:bg-emerald-600 group-hover:text-white p-2.5 rounded-lg transition" title="Selecionar">
+                    <i data-lucide="check" width="18"></i>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+    lucide.createIcons();
+}
+
+function selectPosClient(id, name) {
+    document.getElementById('pos-client').value = id;
+    document.getElementById('pos-client-btn').querySelector('span').innerText = name;
+    closePosClientModal();
+    if(name !== 'Consumidor Final') {
+        showToast("Cliente selecionado: " + name);
+    } else {
+        showToast("Alterado para Consumidor Final");
+    }
+}
+// ------------------------------------------
+
 function renderProducts() {
     const list = document.getElementById('prod-list');
     if(!list) return;
@@ -1868,7 +1968,27 @@ function openProductForm(id) {
 function renderClients() {
     const list = document.getElementById('clients-list');
     if(!list) return;
-    list.innerHTML = (STATE.clients||[]).map(c=>`<tr class="hover:bg-slate-50"><td class="p-4 font-medium">${c.name}</td><td class="p-4">${c.phone}</td><td class="p-4">${c.doc}</td><td class="p-4 text-center flex justify-center gap-3"><button onclick="openClientForm('${c.id}')" class="text-indigo-700 hover:text-indigo-800"><i data-lucide="edit-3" width="16"></i></button><button onclick="deleteClient('${c.id}')" class="text-red-600 hover:text-red-800"><i data-lucide="trash-2" width="16"></i></button></td></tr>`).join('');
+    
+    const term = document.getElementById('cli-search')?.value.toLowerCase() || '';
+    let filtered = STATE.clients || [];
+
+    if (term) {
+        filtered = filtered.filter(c => 
+            c.name.toLowerCase().includes(term) || 
+            (c.phone && c.phone.toLowerCase().includes(term)) || 
+            (c.doc && c.doc.toLowerCase().includes(term))
+        );
+    }
+
+    // Limitamos para evitar congelamento da tela com os 2000 clientes. A barra de pesquisa ajuda a achar rapidinho.
+    const sliced = filtered.slice(0, 150);
+
+    if (sliced.length === 0) {
+        list.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Nenhum cliente encontrado.</td></tr>';
+        return;
+    }
+
+    list.innerHTML = sliced.map(c=>`<tr class="hover:bg-slate-50"><td class="p-4 font-medium">${c.name}</td><td class="p-4">${c.phone}</td><td class="p-4">${c.doc}</td><td class="p-4 text-center flex justify-center gap-3"><button onclick="openClientForm('${c.id}')" class="text-indigo-700 hover:text-indigo-800"><i data-lucide="edit-3" width="16"></i></button><button onclick="deleteClient('${c.id}')" class="text-red-600 hover:text-red-800"><i data-lucide="trash-2" width="16"></i></button></td></tr>`).join('');
     lucide.createIcons();
 }
 
@@ -2170,7 +2290,7 @@ function printFullOrder(orderId) {
 
     const company = {
         name: "RV PORTAL MADEIRAS",
-        cnpj: "30.942.123/0001-02",
+         cnpj: "30.942.123/0001-02",
         phone: "(64) 3636-4861",
         address: "Jataí - GO",
         logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
