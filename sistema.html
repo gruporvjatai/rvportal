@@ -1305,11 +1305,13 @@ async function payExpense(id) {
     const { error: err1 } = await sb.from('despesas').update({ status: 'PAGO' }).eq('id', id);
     if(err1) { showLoading(false); return showToast("Erro ao baixar: " + err1.message, true); }
     
-    // 2. Insere no LOGS para contabilizar no caixa
+    // 2. Insere no LOGS para contabilizar no caixa (Adicionada a Ref Despesa para permitir o estorno)
     const newLogId = getNextId(STATE.logs);
     const { error: err2 } = await sb.from('logs').insert([{
         id: newLogId, tipo: 'despesa', produto_nome: exp.item, quantidade: exp.quantity,
-        data: new Date().toISOString(), observacao: exp.note, valor_total: exp.cost, status: 'ATIVO',
+        data: new Date().toISOString(), 
+        observacao: (exp.note ? exp.note + ' | ' : '') + 'Ref Despesa #' + exp.id, 
+        valor_total: exp.cost, status: 'ATIVO',
         status_financeiro: 'PAGO', valor_pago: exp.cost
     }]);
     
@@ -1372,7 +1374,7 @@ async function cancelLogItem(uid) {
     const logItem = STATE.logs.find(l => String(l.uid) === String(uid));
     if (!logItem) return showToast("Erro: Registro não encontrado na memória.", true);
 
-    if (!confirm("Atenção! Estornar esse registro devolverá as quantidades ao estoque e cancelará movimentações. Confirma?")) return;
+    if (!confirm("Atenção! Estornar esse registro devolverá as quantidades ao estoque e cancelará movimentações financeiras. Confirma?")) return;
     showLoading(true);
 
     const { error: errCancel } = await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', uid);
@@ -1395,8 +1397,6 @@ async function cancelLogItem(uid) {
                 let physical = Number(prodFound.stock) || 0;
                 let committed = Number(prodFound.committed) || 0;
                 
-                // CRÍTICO: Separa o que já foi entregue (Pronta entrega / Expedição)
-                // O que foi entregue, volta pro físico. O que estava aguardando, sai do comprometido!
                 let delivered = Number(logItem.deliveredQty) || 0;
                 let pending = logQty - delivered;
 
@@ -1416,20 +1416,38 @@ async function cancelLogItem(uid) {
             let match = logNote.match(/#(\d+)/);
             if (match && match[1]) {
                 let origId = match[1];
+                
+                // CORREÇÃO: Pega o valor TOTAL do pedido antes para calcular o status corretamente
+                let orderRows = STATE.logs.filter(l => String(l.id) === String(origId) && l.type === 'venda');
+                let orderTotal = orderRows.reduce((acc, r) => acc + (Number(r.totalValue) || 0), 0);
+
                 for (let i = 0; i < STATE.logs.length; i++) {
                     if (String(STATE.logs[i].id) === String(origId) && STATE.logs[i].type === 'venda') {
                         let currentPaid = Number(STATE.logs[i].paidValue) || 0;
-                        let totalVal = Number(STATE.logs[i].totalValue) || 0;
                         let newPaid = Math.max(0, currentPaid - logValue);
                         
-                        let newStatus = STATE.logs[i].finStatus;
-                        if (newPaid < totalVal) newStatus = 'A RECEBER';
+                        let newStatus = 'PENDENTE';
+                        if (newPaid >= orderTotal && orderTotal > 0) newStatus = 'PAGO';
+                        else if (newPaid > 0) newStatus = 'PARCIAL';
                         
                         await sb.from('logs').update({ valor_pago: newPaid, status_financeiro: newStatus }).eq('uid', STATE.logs[i].uid);
                     }
                 }
             }
         } 
+        else if (logType === 'despesa') {
+            // CORREÇÃO: Estorna também as despesas, voltando-as para PENDENTE
+            let match = logNote.match(/Ref Despesa #(\d+)/);
+            if (match && match[1]) {
+                await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', match[1]);
+            } else {
+                // Tenta achar a despesa pelo valor/nome (para registros antigos)
+                let possibleExp = STATE.expenses.find(e => e.item === logProdName && Number(e.cost) === logValue && e.status === 'PAGO');
+                if (possibleExp) {
+                    await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', possibleExp.id);
+                }
+            }
+        }
         else if (logType === 'entrega') {
             let match = logNote.match(/#(\d+)/);
             if (match && match[1]) {
