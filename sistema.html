@@ -369,12 +369,12 @@
                     <table class="w-full text-sm text-left">
                         <thead class="text-slate-500 border-b">
                             <tr>
-                                <th class="pb-2">Venda/Ref</th>
-                                <th class="pb-2">Cliente</th>
-                                <th class="pb-2">Vencimento</th>
-                                <th class="pb-2">Falta</th>
-                                <th class="pb-2 text-right">Ação</th>
-                            </tr>
+                                    <th class="pb-2">Data</th>
+                                    <th class="pb-2">Categoria</th>
+                                    <th class="pb-2">Valor (R$)</th>
+                                    <th class="pb-2">Obs / Fornecedor</th>
+                                    <th class="pb-2 text-right">Ação</th>
+                                </tr>
                         </thead>
                         <tbody id="fin-receivables-list" class="divide-y"></tbody>
                     </table>
@@ -699,37 +699,46 @@
                 <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
             </div>
             <div class="p-6 space-y-4 overflow-y-auto">
-                 <input type="hidden" id="exp-id"> <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">Descrição do Gasto (Item)</label>
+                 <input type="hidden" id="exp-id">
+                 <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Categoria da Despesa</label>
                     <select id="exp-item" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
-                        <option value="Cimento">Cimento</option>
-                        <option value="Areia">Areia</option>
-                        <option value="Brita">Brita</option>
-                        <option value="Frete">Frete</option>
+                        <option value="Fornecedor">Fornecedor</option>
                         <option value="Salário">Salário</option>
+                        <option value="Energia">Energia</option>
+                        <option value="Água">Água</option>
+                        <option value="Internet">Internet</option>
+                        <option value="Sistema">Sistema</option>
+                        <option value="Contabilidade">Contabilidade</option>
                         <option value="Combustível">Combustível</option>
-                        <option value="Imposto">Imposto</option>
-                        <option value="Maquinas">Máquinas</option>
-                        <option value="Despesas Diversas">Despesas Diversas</option>
+                        <option value="Man. Maquinas">Man. Máquinas</option>
+                        <option value="Veículos">Veículos</option>
+                        <option value="Marcenaria">Marcenaria</option>
                     </select>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Quantidade</label>
-                        <input type="number" id="exp-qty" placeholder="Ex: 50" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Unidade</label>
-                        <select id="exp-unit" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
-                            <option value="Un">Un (Unidade)</option>
-                            <option value="Sc">Sc (Saco)</option>
-                            <option value="Tn">Tn (Tonelada)</option>
-                            <option value="M³">M³ (Metros Cúbicos)</option>                            
-                            <option value="Kg">Kg (Quilo)</option>
-                            <option value="Lt">Lt (Litros)</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Nome / Fornecedor</label>
+                    <input type="text" id="exp-provider" placeholder="Ex: João da Silva..." class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none">
                 </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Custo Total (R$)</label>
+                    <input type="number" id="exp-cost" placeholder="0.00" class="w-full p-3 border rounded-xl font-bold text-red-600 focus:ring-2 focus:ring-emerald-600 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Data de Vencimento / Pagamento</label>
+                    <input type="date" id="exp-date" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Observação</label>
+                    <input type="text" id="exp-note" placeholder="Descrição ou detalhes..." class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none">
+                </div>
+            </div>
+            <div class="p-5 border-t bg-slate-50 flex gap-3">
+                <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="saveExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Salvar Pendente</button>
+            </div>
+        </div>
+    </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Custo Total (R$)</label>
                     <input type="number" id="exp-cost" placeholder="0.00" class="w-full p-3 border rounded-xl font-bold text-red-600 focus:ring-2 focus:ring-emerald-600 outline-none">
@@ -1264,23 +1273,24 @@ async function saveExpense() {
     const isNew = !idVal;
     
     const item = document.getElementById('exp-item').value;
-    const qty = document.getElementById('exp-qty').value;
-    const unit = document.getElementById('exp-unit').value;
+    const provider = document.getElementById('exp-provider').value.trim();
     const cost = document.getElementById('exp-cost').value;
     let date = document.getElementById('exp-date').value || new Date().toISOString();
-    const note = document.getElementById('exp-note').value;
+    const note = document.getElementById('exp-note').value.trim();
     
-    if(!item || !cost) return showToast("Preencha item e custo", true);
+    if(!item || !cost) return showToast("Preencha a categoria e o valor", true);
     showLoading(true);
 
+    // Salva o Fornecedor junto da observação para manter a compatibilidade do banco de dados
+    const finalNote = provider ? `Fornecedor: ${provider}${note ? ' | ' + note : ''}` : note;
+
     const payload = {
-        item: item, quantidade: Number(qty) || 0, unidade: unit,
-        custo: Number(cost), data: date, observacao: note, status: 'PENDENTE'
+        item: item, quantidade: 1, unidade: 'Un', // Valores fixos agora
+        custo: Number(cost), data: date, observacao: finalNote, status: 'PENDENTE'
     };
 
     let error;
 
-    // SEPARANDO O INSERT E O UPDATE PARA GARANTIR QUE NÃO DUPLIQUE
     if (isNew) {
         payload.id = getNextId(STATE.expenses);
         const res = await sb.from('despesas').insert([payload]);
@@ -1293,7 +1303,7 @@ async function saveExpense() {
     if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
 
     document.getElementById('exp-id').value = "";
-    document.getElementById('exp-qty').value = "";
+    document.getElementById('exp-provider').value = "";
     document.getElementById('exp-cost').value = ""; 
     document.getElementById('exp-note').value = "";
     document.getElementById('modal-expense').classList.add('hidden');
@@ -1333,14 +1343,22 @@ function openEditExpense(id) {
     if(!exp) return;
     document.getElementById('exp-id').value = exp.id;
     document.getElementById('exp-item').value = exp.item;
-    document.getElementById('exp-qty').value = exp.quantity;
-    document.getElementById('exp-unit').value = exp.unit;
+    
+    let providerVal = '';
+    let noteVal = exp.note || '';
+    if (noteVal.startsWith('Fornecedor:')) {
+        const parts = noteVal.split('|');
+        providerVal = parts[0].replace('Fornecedor:', '').trim();
+        noteVal = parts.slice(1).join('|').trim();
+    }
+    
+    document.getElementById('exp-provider').value = providerVal;
     document.getElementById('exp-cost').value = exp.cost;
     try { document.getElementById('exp-date').value = exp.date.split('T')[0]; } catch(e){}
-    document.getElementById('exp-note').value = exp.note;
+    document.getElementById('exp-note').value = noteVal;
+    
     document.getElementById('modal-expense').classList.remove('hidden');
 }
-
 
 async function saveProduction(e) {
     e.preventDefault();
@@ -1385,16 +1403,26 @@ async function cancelLogItem(uid) {
     const logType = logItem.type;
     const logProdName = String(logItem.productName || '').trim();
     const logQty = Number(logItem.quantity) || 0;
-    const logNote = String(logItem.note || '');
     const logValue = Number(logItem.totalValue) || 0;
+    const logNote = String(logItem.note || '');
 
     let prodFound = STATE.products.find(p => String(p.name).trim() === logProdName);
 
     try {
         if (logType === 'venda') {
             if (prodFound) {
+                let physical = Number(prodFound.stock) || 0;
                 let committed = Number(prodFound.committed) || 0;
-                await sb.from('produtos').update({ estoque_comprometido: Math.max(0, committed - logQty) }).eq('id', prodFound.id);
+                
+                // CRÍTICO: Separa o que já foi entregue (Pronta entrega / Expedição)
+                // O que foi entregue, volta pro físico. O que estava aguardando, sai do comprometido!
+                let delivered = Number(logItem.deliveredQty) || 0;
+                let pending = logQty - delivered;
+
+                await sb.from('produtos').update({
+                    estoque_fisico: physical + delivered,
+                    estoque_comprometido: Math.max(0, committed - pending)
+                }).eq('id', prodFound.id);
             }
         } 
         else if (logType === 'fabricacao') {
@@ -2174,14 +2202,13 @@ function renderFinance() {
         filteredExp = filteredExp.filter(e => new Date(e.date) <= endD);
     }
 
-    // LISTA DE DESPESAS ATUALIZADA COM BOTOES DE EDITAR/BAIXAR
+   // LISTA DE DESPESAS ATUALIZADA COM BOTOES DE EDITAR/BAIXAR
     document.getElementById('fin-expense-history-list').innerHTML = filteredExp.map(e => `
         <tr class="hover:bg-slate-50 ${e.status !== 'PAGO' ? 'bg-orange-50' : ''}">
             <td class="p-3 text-slate-500">${formatDate(e.date)}</td>
             <td class="p-3 font-medium">${e.item}</td>
-            <td class="p-3 text-center text-slate-500 text-xs">${e.quantity} ${e.unit}</td>
             <td class="p-3 font-bold text-red-500">- ${formatMoney(e.cost)}</td>
-            <td class="p-3 text-slate-400 text-xs italic">${e.note || '-'}</td>
+            <td class="p-3 text-slate-500 text-xs italic">${e.note || '-'}</td>
             <td class="p-3 text-right">
                 ${e.status !== 'PAGO' ? `
                     <div class="flex items-center justify-end gap-2">
