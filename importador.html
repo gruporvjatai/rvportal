@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +10,7 @@
 
     <div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-md">
         <h1 class="text-2xl font-bold mb-2 text-indigo-700">Importador: Contas a Receber</h1>
-        <p class="text-sm text-slate-500 mb-6">Selecione o arquivo .CSV exportado do sistema antigo para injetar no Supabase.</p>
+        <p class="text-sm text-slate-500 mb-6">Selecione o ficheiro .CSV exportado do sistema antigo para injetar no Supabase.</p>
 
         <div class="mb-6 p-4 border-2 border-dashed border-slate-300 rounded-lg text-center bg-slate-50">
             <input type="file" id="csvFileInput" accept=".csv" class="w-full text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"/>
@@ -27,7 +27,7 @@
     </div>
 
     <script>
-        // Suas credenciais já injetadas
+        // Credenciais do Supabase
         const SUPABASE_URL = 'https://lyieiqhkspbowsrlngvn.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
 
@@ -35,9 +35,8 @@
         const btnImportar = document.getElementById('btnImportar');
         const logArea = document.getElementById('logArea');
         const logList = document.getElementById('logList');
-        let csvData = [];
 
-        // Mostra o botão quando seleciona o arquivo
+        // Mostra o botão quando seleciona o ficheiro
         fileInput.addEventListener('change', () => {
             if(fileInput.files.length > 0) btnImportar.classList.remove('hidden');
         });
@@ -50,9 +49,12 @@
             logList.appendChild(li);
         }
 
-        // Gera um UID aleatório para o novo registro
+        // Gera um UID no formato oficial (UUID v4) exigido pelo Supabase
         function generateUID() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
         }
 
         // Formata data de DD/MM/YYYY para YYYY-MM-DD
@@ -76,7 +78,7 @@
         }
 
         async function obterProximoId() {
-            addLog("Buscando o último ID no Supabase para não dar conflito...");
+            addLog("A buscar o último ID no Supabase para não dar conflito...");
             try {
                 let res = await fetch(`${SUPABASE_URL}/rest/v1/logs?select=id&order=id.desc&limit=1`, {
                     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
@@ -97,7 +99,7 @@
             if (!file) return;
 
             btnImportar.disabled = true;
-            btnImportar.innerText = "Processando...";
+            btnImportar.innerText = "A processar...";
             logList.innerHTML = ''; // Limpa logs anteriores
 
             const reader = new FileReader();
@@ -110,7 +112,7 @@
                 const separador = cabecalhoTexto.includes(';') ? ';' : ',';
                 const colunasCabecalho = cabecalhoTexto.split(separador);
 
-                // Descobre a posição das colunas no arquivo importado
+                // Descobre a posição das colunas no ficheiro importado
                 const mapColunas = {
                     cadastro: colunasCabecalho.findIndex(c => c.trim() === 'Cadastro'),
                     vencimento: colunasCabecalho.findIndex(c => c.trim() === 'Vencimento'),
@@ -120,7 +122,7 @@
                     valorPago: colunasCabecalho.findIndex(c => c.trim() === 'Valor Pago')
                 };
 
-                addLog(`Arquivo lido. Encontradas ${linhas.length - 1} contas a importar.`);
+                addLog(`Ficheiro lido. Encontradas ${linhas.length - 1} contas a importar.`);
 
                 let nextId = await obterProximoId();
                 if(!nextId) {
@@ -133,7 +135,7 @@
 
                 // Pula a linha 0 (cabeçalho) e processa os dados
                 for (let i = 1; i < linhas.length; i++) {
-                    // Trata aspas duplas caso o Excel tenha colocado (regex simples para quebrar CSV)
+                    // Trata aspas duplas caso o Excel tenha colocado
                     let cols = linhas[i].split(new RegExp(`${separador}(?=(?:(?:[^"]*"){2})*[^"]*$)`));
                     // Remove aspas sobrando
                     cols = cols.map(c => c.replace(/^"|"$/g, '').trim());
@@ -150,7 +152,7 @@
                     if (valPago >= valTotal && valTotal > 0) statusFin = 'PAGO';
                     else if (valPago > 0) statusFin = 'PARCIAL';
 
-                    // Monta o objeto no padrão da tabela "logs" do RV Portal
+                    // Monta o objeto no padrão da tabela "logs"
                     payloadSupabase.push({
                         id: nextId.toString(),
                         uid: generateUID(),
@@ -163,7 +165,7 @@
                         cliente_nome: nomeCliente,
                         forma_pagamento: 'OUTROS',
                         status: 'ATIVO',
-                        status_entrega: 'ENTREGUE', // Colocamos entregue pra não travar o estoque
+                        status_entrega: 'ENTREGUE', // Entregue para não travar o stock físico
                         qtd_entregue: 1,
                         desconto: 0,
                         status_financeiro: statusFin,
@@ -175,7 +177,7 @@
                     nextId++;
                 }
 
-                addLog(`Preparando envio de ${payloadSupabase.length} registros para o Supabase...`);
+                addLog(`A preparar envio de ${payloadSupabase.length} registos para o Supabase...`);
 
                 // Envia para o Supabase
                 try {
@@ -204,7 +206,7 @@
                 btnImportar.innerText = "Importação Finalizada";
             };
             
-            // Lê o arquivo como texto usando padrão latino para não bugar acentos (ç, ã, etc)
+            // Lê o ficheiro como texto usando padrão latino para não bugar acentos (ç, ã, etc)
             reader.readAsText(file, 'ISO-8859-1');
         }
     </script>
