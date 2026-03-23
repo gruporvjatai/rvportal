@@ -36,7 +36,6 @@
         const logArea = document.getElementById('logArea');
         const logList = document.getElementById('logList');
 
-        // Mostra o botão quando seleciona o ficheiro
         fileInput.addEventListener('change', () => {
             if(fileInput.files.length > 0) btnImportar.classList.remove('hidden');
         });
@@ -49,50 +48,22 @@
             logList.appendChild(li);
         }
 
-        // Gera um UID no formato oficial (UUID v4) exigido pelo Supabase
-        function generateUID() {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-        }
-
         // Formata data de DD/MM/YYYY para YYYY-MM-DD
         function formatarData(dataStr) {
-            if (!dataStr) return new Date().toISOString();
+            if (!dataStr) return null; // Retorna nulo se não houver data, para não inserir datas falsas
             let partes = dataStr.trim().split('/');
             if (partes.length === 3) {
-                // Se o ano vier com 2 dígitos, ajusta para 2000
                 let ano = partes[2].length === 2 ? `20${partes[2]}` : partes[2];
-                // Força a hora para meio-dia para evitar bug de fuso horário
-                return `${ano}-${partes[1]}-${partes[0]}T12:00:00.000Z`;
+                return `${ano}-${partes[1]}-${partes[0]}`;
             }
-            return new Date().toISOString();
+            return null;
         }
 
-        // Formata Moeda Brasileira para Float (ex: 1.250,50 -> 1250.50)
+        // Formata Moeda Brasileira para Float
         function formatarMoeda(valorStr) {
             if (!valorStr) return 0;
             let val = String(valorStr).replace(/R\$/g, '').replace(/\./g, '').replace(',', '.').trim();
             return parseFloat(val) || 0;
-        }
-
-        async function obterProximoId() {
-            addLog("A buscar o último ID na tabela de despesas para não dar conflito...");
-            try {
-                // Alterado para buscar o último ID na tabela despesas
-                let res = await fetch(`${SUPABASE_URL}/rest/v1/despesas?select=id&order=id.desc&limit=1`, {
-                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-                });
-                let data = await res.json();
-                if (data && data.length > 0) {
-                    return parseInt(data[0].id) + 1;
-                }
-                return 1;
-            } catch(e) {
-                addLog("Erro ao buscar ID: " + e.message, true);
-                return null;
-            }
         }
 
         async function processarCSV() {
@@ -101,81 +72,64 @@
 
             btnImportar.disabled = true;
             btnImportar.innerText = "A processar...";
-            logList.innerHTML = ''; // Limpa logs anteriores
+            logList.innerHTML = ''; 
 
             const reader = new FileReader();
             reader.onload = async function(e) {
                 const text = e.target.result;
                 const linhas = text.split('\n').filter(l => l.trim().length > 0);
                 
-                // Pega o cabeçalho para descobrir o separador (; ou ,)
                 const cabecalhoTexto = linhas[0];
                 const separador = cabecalhoTexto.includes(';') ? ';' : ',';
                 const colunasCabecalho = cabecalhoTexto.split(separador);
 
-                // Descobre a posição das colunas no ficheiro importado
                 const mapColunas = {
-                    cadastro: colunasCabecalho.findIndex(c => c.trim() === 'Cadastro'),
                     vencimento: colunasCabecalho.findIndex(c => c.trim() === 'Vencimento'),
                     pessoa: colunasCabecalho.findIndex(c => c.trim() === 'Pessoa'),
                     descricao: colunasCabecalho.findIndex(c => c.trim() === 'Descrição do Título'),
                     valorTotal: colunasCabecalho.findIndex(c => c.trim() === 'Valor Título'),
                     valorPago: colunasCabecalho.findIndex(c => c.trim() === 'Valor Pago'),
-                    tipoGasto: colunasCabecalho.findIndex(c => c.trim() === 'Tipo de Gasto')
+                    tipoGasto: colunasCabecalho.findIndex(c => c.trim() === 'Tipo de Gasto'),
+                    dataBaixa: colunasCabecalho.findIndex(c => c.trim() === 'Data Baixa') // Tentando pegar a data de pagamento
                 };
 
                 addLog(`Ficheiro lido. Encontradas ${linhas.length - 1} contas a pagar a importar.`);
 
-                let nextId = await obterProximoId();
-                if(!nextId) {
-                    btnImportar.disabled = false;
-                    btnImportar.innerText = "Iniciar Importação";
-                    return;
-                }
-
                 let payloadSupabase = [];
 
-                // Pula a linha 0 (cabeçalho) e processa os dados
                 for (let i = 1; i < linhas.length; i++) {
                     let cols = linhas[i].split(new RegExp(`${separador}(?=(?:(?:[^"]*"){2})*[^"]*$)`));
                     cols = cols.map(c => c.replace(/^"|"$/g, '').trim());
 
                     let nomeFornecedor = cols[mapColunas.pessoa] || 'FORNECEDOR NÃO INFORMADO';
                     let descricaoOld = cols[mapColunas.descricao] || 'Despesa importada';
-                    let tipoGasto = (mapColunas.tipoGasto !== -1 && cols[mapColunas.tipoGasto]) ? cols[mapColunas.tipoGasto] : 'Sem categoria';
+                    let tipoGasto = (mapColunas.tipoGasto !== -1 && cols[mapColunas.tipoGasto]) ? cols[mapColunas.tipoGasto] : 'Outros';
                     let valTotal = formatarMoeda(cols[mapColunas.valorTotal]);
                     let valPago = formatarMoeda(cols[mapColunas.valorPago]);
-                    let dataCadastro = formatarData(cols[mapColunas.cadastro]);
+                    
                     let dataVencimento = formatarData(cols[mapColunas.vencimento]);
+                    let dataPagamento = (mapColunas.dataBaixa !== -1) ? formatarData(cols[mapColunas.dataBaixa]) : null;
 
                     let statusFin = 'PENDENTE';
-                    if (valPago >= valTotal && valTotal > 0) statusFin = 'PAGO';
-                    else if (valPago > 0) statusFin = 'PARCIAL';
+                    if (valPago >= valTotal && valTotal > 0) {
+                        statusFin = 'PAGO';
+                        // Se foi pago mas não tem data de baixa, usa a data de hoje para não deixar em branco
+                        if (!dataPagamento) dataPagamento = new Date().toISOString().split('T')[0];
+                    } else if (valPago > 0) {
+                        statusFin = 'PARCIAL';
+                    }
 
-                    // Monta o objeto no padrão da tabela "despesas"
-                    // Nota: Se a sua tabela despesas tiver colunas com nomes diferentes da tabela logs, ajuste aqui.
+                    // Objeto exato conforme as colunas da sua tabela 'despesas' no Supabase
                     payloadSupabase.push({
-                        id: nextId.toString(),
-                        uid: generateUID(),
-                        tipo: 'despesa',
-                        produto_nome: `SISTEMA ANTIGO: ${descricaoOld} [${tipoGasto}]`, 
-                        quantidade: 1,
-                        data: dataCadastro,
-                        observacao: "Importação de base de dados antiga (Contas a Pagar)",
+                        descricao: `SISTEMA ANTIGO: ${descricaoOld}`,
+                        categoria: tipoGasto,
+                        data_vencimento: dataVencimento,
+                        fornecedor: nomeFornecedor,
                         valor_total: valTotal,
-                        cliente_nome: nomeFornecedor, 
-                        forma_pagamento: 'OUTROS',
-                        status: 'ATIVO',
-                        status_entrega: 'ENTREGUE', 
-                        qtd_entregue: 1,
-                        desconto: 0,
                         status_financeiro: statusFin,
-                        vencimento: dataVencimento,
-                        valor_pago: valPago,
-                        endereco_entrega: ''
+                        data_pagamento: dataPagamento,
+                        observacao: "Importação de base antiga"
                     });
-
-                    nextId++;
                 }
 
                 addLog(`A preparar envio de ${payloadSupabase.length} registos para o Supabase...`);
@@ -194,7 +148,7 @@
                     });
 
                     if (res.ok) {
-                        addLog(`✅ SUCESSO! Todas as despesas foram importadas para a tabela de despesas.`);
+                        addLog(`✅ SUCESSO! Todas as despesas foram importadas.`);
                         alert("Importação de Contas a Pagar concluída com sucesso!");
                     } else {
                         let erroText = await res.text();
@@ -204,6 +158,7 @@
                     addLog(`❌ ERRO DE CONEXÃO: ` + e.message, true);
                 }
 
+                btnImportar.disabled = false;
                 btnImportar.innerText = "Importação Finalizada";
             };
             
