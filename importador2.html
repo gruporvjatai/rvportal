@@ -78,9 +78,10 @@
         }
 
         async function obterProximoId() {
-            addLog("A buscar o último ID no Supabase para não dar conflito...");
+            addLog("A buscar o último ID na tabela de despesas para não dar conflito...");
             try {
-                let res = await fetch(`${SUPABASE_URL}/rest/v1/logs?select=id&order=id.desc&limit=1`, {
+                // Alterado para buscar o último ID na tabela despesas
+                let res = await fetch(`${SUPABASE_URL}/rest/v1/despesas?select=id&order=id.desc&limit=1`, {
                     headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
                 });
                 let data = await res.json();
@@ -112,7 +113,7 @@
                 const separador = cabecalhoTexto.includes(';') ? ';' : ',';
                 const colunasCabecalho = cabecalhoTexto.split(separador);
 
-                // Descobre a posição das colunas no ficheiro importado (Ajustado para Contas a Pagar)
+                // Descobre a posição das colunas no ficheiro importado
                 const mapColunas = {
                     cadastro: colunasCabecalho.findIndex(c => c.trim() === 'Cadastro'),
                     vencimento: colunasCabecalho.findIndex(c => c.trim() === 'Vencimento'),
@@ -136,9 +137,7 @@
 
                 // Pula a linha 0 (cabeçalho) e processa os dados
                 for (let i = 1; i < linhas.length; i++) {
-                    // Trata aspas duplas caso o Excel tenha colocado
                     let cols = linhas[i].split(new RegExp(`${separador}(?=(?:(?:[^"]*"){2})*[^"]*$)`));
-                    // Remove aspas sobrando
                     cols = cols.map(c => c.replace(/^"|"$/g, '').trim());
 
                     let nomeFornecedor = cols[mapColunas.pessoa] || 'FORNECEDOR NÃO INFORMADO';
@@ -149,25 +148,25 @@
                     let dataCadastro = formatarData(cols[mapColunas.cadastro]);
                     let dataVencimento = formatarData(cols[mapColunas.vencimento]);
 
-                    // Define o status financeiro igual ao nosso ERP
                     let statusFin = 'PENDENTE';
                     if (valPago >= valTotal && valTotal > 0) statusFin = 'PAGO';
                     else if (valPago > 0) statusFin = 'PARCIAL';
 
-                    // Monta o objeto no padrão da tabela "logs"
+                    // Monta o objeto no padrão da tabela "despesas"
+                    // Nota: Se a sua tabela despesas tiver colunas com nomes diferentes da tabela logs, ajuste aqui.
                     payloadSupabase.push({
                         id: nextId.toString(),
                         uid: generateUID(),
-                        tipo: 'despesa', // AJUSTADO PARA DESPESA
-                        produto_nome: `SISTEMA ANTIGO: ${descricaoOld} [${tipoGasto}]`, // Inclui o tipo de gasto para referência
+                        tipo: 'despesa',
+                        produto_nome: `SISTEMA ANTIGO: ${descricaoOld} [${tipoGasto}]`, 
                         quantidade: 1,
                         data: dataCadastro,
                         observacao: "Importação de base de dados antiga (Contas a Pagar)",
                         valor_total: valTotal,
-                        cliente_nome: nomeFornecedor, // Usando a mesma coluna do DB, mas enviando o Fornecedor/Pessoa
+                        cliente_nome: nomeFornecedor, 
                         forma_pagamento: 'OUTROS',
                         status: 'ATIVO',
-                        status_entrega: 'ENTREGUE', // Pra não influenciar em pendências
+                        status_entrega: 'ENTREGUE', 
                         qtd_entregue: 1,
                         desconto: 0,
                         status_financeiro: statusFin,
@@ -181,9 +180,9 @@
 
                 addLog(`A preparar envio de ${payloadSupabase.length} registos para o Supabase...`);
 
-                // Envia para o Supabase
+                // Envia para a tabela despesas no Supabase
                 try {
-                    let res = await fetch(`${SUPABASE_URL}/rest/v1/logs`, {
+                    let res = await fetch(`${SUPABASE_URL}/rest/v1/despesas`, {
                         method: 'POST',
                         headers: {
                             'apikey': SUPABASE_KEY,
@@ -195,7 +194,7 @@
                     });
 
                     if (res.ok) {
-                        addLog(`✅ SUCESSO! Todas as despesas foram importadas para o ERP.`);
+                        addLog(`✅ SUCESSO! Todas as despesas foram importadas para a tabela de despesas.`);
                         alert("Importação de Contas a Pagar concluída com sucesso!");
                     } else {
                         let erroText = await res.text();
@@ -208,7 +207,6 @@
                 btnImportar.innerText = "Importação Finalizada";
             };
             
-            // Lê o ficheiro como texto usando padrão latino para não bugar acentos (ç, ã, etc)
             reader.readAsText(file, 'ISO-8859-1');
         }
     </script>
