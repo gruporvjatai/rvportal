@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Importador - Contas a Receber</title>
+    <title>Importador para Supabase - Contas a Receber</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f9; }
         .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -12,97 +13,118 @@
         button { padding: 10px 20px; background-color: #0056b3; color: white; border: none; border-radius: 4px; cursor: pointer; }
         button:hover { background-color: #004494; }
         #status { margin-top: 20px; font-weight: bold; color: #333; }
+        .log { margin-top: 10px; font-size: 0.9em; color: #555; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>Importar Contas a Receber (CSV)</h2>
+        <h2>Importador CSV ➔ Supabase (Contas a Receber)</h2>
         <input type="file" id="csvFileInput" accept=".csv">
-        <button onclick="processarCSV()">Ler e Processar CSV</button>
+        <button onclick="processarEEnviarCSV()">Processar e Enviar para Supabase</button>
         <div id="status"></div>
+        <div id="logDetalhado" class="log"></div>
     </div>
 
     <script>
-        function processarCSV() {
+        // ==========================================
+        // 1. CONFIGURAÇÃO DO SUPABASE
+        // ==========================================
+        const SUPABASE_URL = 'https://lyieiqhkspbowsrlngvn.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
+        
+        // Usando supabaseClient para não conflitar com o objeto global 'supabase' do CDN
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function processarEEnviarCSV() {
             const fileInput = document.getElementById('csvFileInput');
             const statusDiv = document.getElementById('status');
+            const logDiv = document.getElementById('logDetalhado');
 
             if (fileInput.files.length === 0) {
-                statusDiv.innerHTML = "<span style='color: red;'>Por favor, selecione um arquivo CSV.</span>";
+                statusDiv.innerHTML = "<span style='color: red;'>Por favor, selecione seu arquivo CSV do sistema antigo.</span>";
                 return;
             }
+
+            statusDiv.innerHTML = "<span style='color: blue;'>Lendo arquivo...</span>";
+            logDiv.innerHTML = "";
 
             const file = fileInput.files[0];
             const reader = new FileReader();
 
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 const text = e.target.result;
                 const contasAReceber = [];
                 
-                // Quebra o texto por linhas
                 const rows = text.split('\n');
-                
-                // Detecta se o CSV está separado por vírgula ou ponto e vírgula
                 const separador = rows[0].includes(';') ? ';' : ',';
 
-                // Começa do índice 1 para pular o cabeçalho
+                // Loop começando em 1 para pular o cabeçalho do seu sistema antigo
                 for (let i = 1; i < rows.length; i++) {
                     const row = rows[i].trim();
-                    if (!row) continue; // Pula linhas em branco
+                    if (!row) continue;
 
                     const cols = row.split(separador);
 
-                    // Mapeamento exato das colunas do seu CSV
-                    // 2: Vencimento, 4: Pessoa, 6: Valor Título, 8: Status
-                    const dataVencimento = cols[2] ? cols[2].trim() : '';
+                    // Índices baseados na estrutura do CSV antigo
+                    const dataVencimentoBR = cols[2] ? cols[2].trim() : '';
                     const cliente = cols[4] ? cols[4].trim() : '';
-                    const valor = cols[6] ? cols[6].trim() : '';
+                    const valorString = cols[6] ? cols[6].trim() : '0';
                     const statusOriginal = cols[8] ? cols[8].trim().toLowerCase() : '';
 
-                    // Lógica de mapeamento de status
+                    // Converte o valor "1.234,56" para número 1234.56
+                    const valorNumerico = parseFloat(valorString.replace(/\./g, '').replace(',', '.'));
+
+                    // Formata a data de DD/MM/YYYY para YYYY-MM-DD (Padrão do Supabase)
+                    let dataVencimentoSQL = null;
+                    if (dataVencimentoBR && dataVencimentoBR.includes('/')) {
+                        const partesData = dataVencimentoBR.split('/');
+                        if (partesData.length === 3) {
+                            dataVencimentoSQL = `${partesData[2]}-${partesData[1]}-${partesData[0]}`;
+                        }
+                    }
+
+                    // Lógica de "Pago" ou "A baixar"
                     let statusFinal = 'A baixar'; 
-                    
                     if (statusOriginal.includes('pago') || statusOriginal.includes('recebido') || statusOriginal.includes('quitado') || statusOriginal.includes('baixado')) {
                         statusFinal = 'Pago';
                     }
 
-                    // Monta o objeto final
-                    contasAReceber.push({
-                        data_vencimento: dataVencimento,
-                        cliente: cliente,
-                        valor: valor,
-                        status: statusFinal,
-                        tipo: 'Receita' // Forçando a categoria de entrada
-                    });
+                    if (dataVencimentoSQL && !isNaN(valorNumerico)) {
+                        contasAReceber.push({
+                            data_vencimento: dataVencimentoSQL,
+                            cliente: cliente,
+                            valor: valorNumerico,
+                            status: statusFinal,
+                            tipo: 'Receita' 
+                        });
+                    }
                 }
 
-                console.log("Array pronto para envio:", contasAReceber);
-                statusDiv.innerHTML = `Processamento concluído! ${contasAReceber.length} contas prontas para importação. (Abra o console do navegador com F12 para ver a lista)`;
+                statusDiv.innerHTML = `<span style='color: orange;'>Enviando ${contasAReceber.length} registros para o Supabase...</span>`;
 
-                // Descomente a linha abaixo e configure sua URL quando for integrar o envio
-                // enviarParaBanco(contasAReceber);
+                // ==========================================
+                // 2. ENVIO PARA O SUPABASE
+                // ==========================================
+                try {
+                    // Lembre-se de ajustar 'sua_tabela_contas_receber' para o nome exato da sua tabela
+                    const { data, error } = await supabaseClient
+                        .from('sua_tabela_contas_receber') 
+                        .insert(contasAReceber);
+
+                    if (error) throw error;
+
+                    statusDiv.innerHTML = `<span style='color: green;'>Sucesso! ${contasAReceber.length} registros foram salvos no Supabase.</span>`;
+                    console.log("Dados inseridos:", data);
+
+                } catch (erro) {
+                    console.error("Erro do Supabase:", erro);
+                    statusDiv.innerHTML = `<span style='color: red;'>Erro ao salvar no banco. Verifique o console.</span>`;
+                    logDiv.innerHTML = "Detalhe do erro: " + erro.message;
+                }
             };
 
             reader.readAsText(file);
-        }
-
-        function enviarParaBanco(dados) {
-            // URL do seu backend (Web App do Apps Script ou outro)
-            const URL_DO_SEU_BACKEND = "COLOQUE_SUA_URL_AQUI";
-
-            fetch(URL_DO_SEU_BACKEND, {
-                method: 'POST',
-                body: JSON.stringify({ acao: 'importarRecebimentos', payload: dados }) 
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('status').innerHTML += "<br><span style='color: green;'>Dados enviados com sucesso!</span>";
-            })
-            .catch(error => {
-                console.error("Erro no envio:", error);
-                document.getElementById('status').innerHTML += "<br><span style='color: red;'>Erro ao enviar para o banco.</span>";
-            });
         }
     </script>
 </body>
