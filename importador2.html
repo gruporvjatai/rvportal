@@ -48,15 +48,24 @@
             logList.appendChild(li);
         }
 
+        // Gera o UID exigido pela sua tabela
+        function generateUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
         // Formata data de DD/MM/YYYY para YYYY-MM-DD
         function formatarData(dataStr) {
-            if (!dataStr) return null; // Retorna nulo se não houver data, para não inserir datas falsas
+            if (!dataStr) return new Date().toISOString().split('T')[0];
             let partes = dataStr.trim().split('/');
             if (partes.length === 3) {
                 let ano = partes[2].length === 2 ? `20${partes[2]}` : partes[2];
-                return `${ano}-${partes[1]}-${partes[0]}`;
+                // Retornando apenas a data (YYYY-MM-DD) pois a coluna é text na sua tabela
+                return `${ano}-${partes[1]}-${partes[0]}`; 
             }
-            return null;
+            return new Date().toISOString().split('T')[0];
         }
 
         // Formata Moeda Brasileira para Float
@@ -64,6 +73,23 @@
             if (!valorStr) return 0;
             let val = String(valorStr).replace(/R\$/g, '').replace(/\./g, '').replace(',', '.').trim();
             return parseFloat(val) || 0;
+        }
+
+        async function obterProximoId() {
+            addLog("A buscar o último ID na tabela despesas...");
+            try {
+                let res = await fetch(`${SUPABASE_URL}/rest/v1/despesas?select=id&order=id.desc&limit=1`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                let data = await res.json();
+                if (data && data.length > 0) {
+                    return parseInt(data[0].id) + 1;
+                }
+                return 1;
+            } catch(e) {
+                addLog("Erro ao buscar ID: " + e.message, true);
+                return null;
+            }
         }
 
         async function processarCSV() {
@@ -83,17 +109,23 @@
                 const separador = cabecalhoTexto.includes(';') ? ';' : ',';
                 const colunasCabecalho = cabecalhoTexto.split(separador);
 
+                // Mapeamento aceitando "Descrição" ou "Descrição do Título" baseado no seu print do CSV
                 const mapColunas = {
                     vencimento: colunasCabecalho.findIndex(c => c.trim() === 'Vencimento'),
                     pessoa: colunasCabecalho.findIndex(c => c.trim() === 'Pessoa'),
-                    descricao: colunasCabecalho.findIndex(c => c.trim() === 'Descrição do Título'),
+                    descricao: colunasCabecalho.findIndex(c => c.trim() === 'Descrição do Título' || c.trim() === 'Descrição'),
                     valorTotal: colunasCabecalho.findIndex(c => c.trim() === 'Valor Título'),
-                    valorPago: colunasCabecalho.findIndex(c => c.trim() === 'Valor Pago'),
-                    tipoGasto: colunasCabecalho.findIndex(c => c.trim() === 'Tipo de Gasto'),
-                    dataBaixa: colunasCabecalho.findIndex(c => c.trim() === 'Data Baixa') // Tentando pegar a data de pagamento
+                    valorPago: colunasCabecalho.findIndex(c => c.trim() === 'Valor Pago')
                 };
 
-                addLog(`Ficheiro lido. Encontradas ${linhas.length - 1} contas a pagar a importar.`);
+                addLog(`Ficheiro lido. Encontradas ${linhas.length - 1} contas a pagar.`);
+
+                let nextId = await obterProximoId();
+                if(!nextId) {
+                    btnImportar.disabled = false;
+                    btnImportar.innerText = "Iniciar Importação";
+                    return;
+                }
 
                 let payloadSupabase = [];
 
@@ -103,38 +135,33 @@
 
                     let nomeFornecedor = cols[mapColunas.pessoa] || 'FORNECEDOR NÃO INFORMADO';
                     let descricaoOld = cols[mapColunas.descricao] || 'Despesa importada';
-                    let tipoGasto = (mapColunas.tipoGasto !== -1 && cols[mapColunas.tipoGasto]) ? cols[mapColunas.tipoGasto] : 'Outros';
                     let valTotal = formatarMoeda(cols[mapColunas.valorTotal]);
                     let valPago = formatarMoeda(cols[mapColunas.valorPago]);
-                    
                     let dataVencimento = formatarData(cols[mapColunas.vencimento]);
-                    let dataPagamento = (mapColunas.dataBaixa !== -1) ? formatarData(cols[mapColunas.dataBaixa]) : null;
 
                     let statusFin = 'PENDENTE';
-                    if (valPago >= valTotal && valTotal > 0) {
-                        statusFin = 'PAGO';
-                        // Se foi pago mas não tem data de baixa, usa a data de hoje para não deixar em branco
-                        if (!dataPagamento) dataPagamento = new Date().toISOString().split('T')[0];
-                    } else if (valPago > 0) {
-                        statusFin = 'PARCIAL';
-                    }
+                    if (valPago >= valTotal && valTotal > 0) statusFin = 'PAGO';
+                    else if (valPago > 0) statusFin = 'PARCIAL';
 
-                    // Objeto exato conforme as colunas da sua tabela 'despesas' no Supabase
+                    // O SEGREDO ESTÁ AQUI: Mapeando estritamente para as colunas do seu print
                     payloadSupabase.push({
-                        descricao: `SISTEMA ANTIGO: ${descricaoOld}`,
-                        categoria: tipoGasto,
-                        data_vencimento: dataVencimento,
-                        fornecedor: nomeFornecedor,
-                        valor_total: valTotal,
-                        status_financeiro: statusFin,
-                        data_pagamento: dataPagamento,
-                        observacao: "Importação de base antiga"
+                        uid: generateUID(),
+                        id: nextId,
+                        status: statusFin,
+                        item: descricaoOld, // Nome da despesa vai para o item
+                        quantidade: 1,
+                        unidade: 'UN',
+                        custo: valTotal, // O valor da conta vai para custo
+                        data: dataVencimento,
+                        observacao: `Fornecedor: ${nomeFornecedor} | Importação Antiga` // Concatena os dados na observação
                     });
+
+                    nextId++;
                 }
 
-                addLog(`A preparar envio de ${payloadSupabase.length} registos para o Supabase...`);
+                addLog(`A preparar envio de ${payloadSupabase.length} registos...`);
 
-                // Envia para a tabela despesas no Supabase
+                // Envia para a tabela despesas
                 try {
                     let res = await fetch(`${SUPABASE_URL}/rest/v1/despesas`, {
                         method: 'POST',
@@ -148,11 +175,11 @@
                     });
 
                     if (res.ok) {
-                        addLog(`✅ SUCESSO! Todas as despesas foram importadas.`);
-                        alert("Importação de Contas a Pagar concluída com sucesso!");
+                        addLog(`✅ SUCESSO! Despesas importadas para o ERP.`);
+                        alert("Importação concluída!");
                     } else {
                         let erroText = await res.text();
-                        addLog(`❌ ERRO DO SUPABASE: ` + erroText, true);
+                        addLog(`❌ ERRO: ` + erroText, true);
                     }
                 } catch(e) {
                     addLog(`❌ ERRO DE CONEXÃO: ` + e.message, true);
