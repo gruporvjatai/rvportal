@@ -43,7 +43,7 @@
                 // Quebra o texto por linhas
                 const rows = text.split('\n');
                 
-                // Detecta se o CSV está separado por vírgula ou ponto e vírgula (padrão do Excel no Brasil)
+                // Detecta se o CSV está separado por vírgula ou ponto e vírgula
                 const separador = rows[0].includes(';') ? ';' : ',';
 
                 // Começa do índice 1 para pular o cabeçalho
@@ -53,17 +53,17 @@
 
                     const cols = row.split(separador);
 
-                    // ATENÇÃO: Ajuste os índices (0, 1, 2, 3...) de acordo com a ordem das colunas no seu CSV
-                    const dataVencimento = cols[0] ? cols[0].trim() : '';
-                    const cliente = cols[1] ? cols[1].trim() : '';
-                    const valor = cols[2] ? cols[2].trim() : '';
-                    const statusOriginal = cols[3] ? cols[3].trim().toLowerCase() : '';
+                    // Mapeamento exato das colunas do seu CSV
+                    // 2: Vencimento, 4: Pessoa, 6: Valor Título, 8: Status
+                    const dataVencimento = cols[2] ? cols[2].trim() : '';
+                    const cliente = cols[4] ? cols[4].trim() : '';
+                    const valor = cols[6] ? cols[6].trim() : '';
+                    const statusOriginal = cols[8] ? cols[8].trim().toLowerCase() : '';
 
                     // Lógica de mapeamento de status
-                    let statusFinal = 'A baixar'; // Padrão para tudo que está pendente
+                    let statusFinal = 'A baixar'; 
                     
-                    // Se a palavra no CSV indicar que já foi pago
-                    if (statusOriginal.includes('pago') || statusOriginal.includes('recebido') || statusOriginal.includes('quitado')) {
+                    if (statusOriginal.includes('pago') || statusOriginal.includes('recebido') || statusOriginal.includes('quitado') || statusOriginal.includes('baixado')) {
                         statusFinal = 'Pago';
                     }
 
@@ -88,12 +88,12 @@
         }
 
         function enviarParaBanco(dados) {
-            // Como seu HTML está no GitHub, usamos o fetch para mandar para a sua API (Google Script ou Supabase)
+            // URL do seu backend (Web App do Apps Script ou outro)
             const URL_DO_SEU_BACKEND = "COLOQUE_SUA_URL_AQUI";
 
             fetch(URL_DO_SEU_BACKEND, {
                 method: 'POST',
-                body: JSON.stringify({ acao: 'importarRecebimentos', payload: dados }) // Ajuste o payload conforme seu backend espera
+                body: JSON.stringify({ acao: 'importarRecebimentos', payload: dados }) 
             })
             .then(response => response.json())
             .then(data => {
