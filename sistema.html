@@ -492,16 +492,52 @@
               </table>
           </div>
       </div>
-
+<!-- ========================================= RELATORIOS ===================================================-->
       <div id="view-production" class="hidden-section w-full h-[calc(100vh-120px)] flex flex-col">
           <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
               <i data-lucide="pie-chart"></i> Relatórios
           </h2>
           
-          <div class="bg-white rounded-xl shadow-sm border p-10 flex flex-col items-center justify-center flex-1">
-              <i data-lucide="bar-chart-2" class="w-20 h-20 text-slate-200 mb-4"></i>
-              <h3 class="text-2xl font-bold text-slate-500">Área de Relatórios</h3>
-              <p class="text-slate-400 mt-2 text-center max-w-md">Em breve, você terá acesso a gráficos, demonstrativos de resultados e relatórios detalhados nesta tela.</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
+              <div onclick="printDailyRevenue()" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all flex flex-col items-center text-center gap-3">
+                  <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+                      <i data-lucide="calendar-days" class="w-7 h-7"></i>
+                  </div>
+                  <h3 class="font-bold text-slate-800 text-lg">Faturamento do Dia</h3>
+                  <p class="text-xs text-slate-500 font-medium">Imprime o resumo das vendas de hoje, formas de pagamento e total geral.</p>
+              </div>
+
+              <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 opacity-60 flex flex-col items-center text-center gap-3">
+                  <div class="w-14 h-14 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center">
+                      <i data-lucide="bar-chart-3" class="w-7 h-7"></i>
+                  </div>
+                  <h3 class="font-bold text-slate-700 text-lg">Vendas por Período</h3>
+                  <span class="bg-slate-200 text-slate-500 text-[10px] font-bold uppercase px-2 py-1 rounded">Em Breve</span>
+              </div>
+
+              <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 opacity-60 flex flex-col items-center text-center gap-3">
+                  <div class="w-14 h-14 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center">
+                      <i data-lucide="trending-up" class="w-7 h-7"></i>
+                  </div>
+                  <h3 class="font-bold text-slate-700 text-lg">Produtos Mais Vendidos</h3>
+                  <span class="bg-slate-200 text-slate-500 text-[10px] font-bold uppercase px-2 py-1 rounded">Em Breve</span>
+              </div>
+
+              <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 opacity-60 flex flex-col items-center text-center gap-3">
+                  <div class="w-14 h-14 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center">
+                      <i data-lucide="users" class="w-7 h-7"></i>
+                  </div>
+                  <h3 class="font-bold text-slate-700 text-lg">Ranking de Clientes</h3>
+                  <span class="bg-slate-200 text-slate-500 text-[10px] font-bold uppercase px-2 py-1 rounded">Em Breve</span>
+              </div>
+
+              <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 opacity-60 flex flex-col items-center text-center gap-3">
+                  <div class="w-14 h-14 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center">
+                      <i data-lucide="package" class="w-7 h-7"></i>
+                  </div>
+                  <h3 class="font-bold text-slate-700 text-lg">Curva ABC de Estoque</h3>
+                  <span class="bg-slate-200 text-slate-500 text-[10px] font-bold uppercase px-2 py-1 rounded">Em Breve</span>
+              </div>
           </div>
       </div>
 
@@ -3148,6 +3184,128 @@ function downloadQuotePDF(id) {
             showToast("Erro ao gerar PDF", true);
         });
     }, 500); 
+}
+
+  // ====== FUNÇÃO DE IMPRESSÃO DO RELATÓRIO DO DIA ======
+
+function printDailyRevenue() {
+    showLoading(true);
+
+    // 1. Pegar a data de hoje formatada (YYYY-MM-DD local)
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    const dataHojeStr = `${ano}-${mes}-${dia}`;
+
+    // 2. Filtrar as vendas de hoje
+    const vendasHoje = STATE.logs.filter(l => {
+        if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
+        try {
+            const dataLog = l.date.split('T')[0];
+            return dataLog === dataHojeStr;
+        } catch(e) { return false; }
+    });
+
+    if (vendasHoje.length === 0) {
+        showLoading(false);
+        return showToast("Nenhuma venda registrada no dia de hoje.", true);
+    }
+
+    // 3. Processar Totais e Formas de Pagamento
+    let totalGeral = 0;
+    let descontosDia = 0;
+    let pagamentosMap = {};
+    let pedidosProcessados = new Set(); 
+
+    vendasHoje.forEach(l => {
+        totalGeral += Number(l.totalValue) || 0;
+
+        // Contar o desconto e o pedido apenas 1x
+        if (!pedidosProcessados.has(l.id)) {
+            descontosDia += Number(l.discount) || 0;
+            pedidosProcessados.add(l.id);
+        }
+
+        // Agrupar pagamentos
+        const pgto = l.paymentMethod || 'Não Informado';
+        if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
+        pagamentosMap[pgto] += Number(l.totalValue) || 0;
+    });
+
+    // 4. Montar o HTML para Impressão
+    const company = {
+        name: "RV PORTAL MADEIRAS",
+        cnpj: "30.942.123/0001-02",
+        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+    };
+
+    const dataImpressao = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR');
+
+    let pgtoRowsHtml = '';
+    for (let [metodo, valor] of Object.entries(pagamentosMap)) {
+        pgtoRowsHtml += `
+            <tr>
+                <td style="padding: 6px; border-bottom: 1px dashed #ccc; font-size: 13px;">${metodo}</td>
+                <td style="padding: 6px; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; font-size: 13px;">${formatMoney(valor)}</td>
+            </tr>
+        `;
+    }
+
+    const el = document.getElementById('print-area');
+    el.innerHTML = `
+        <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img src="${company.logoUrl}" style="max-height: 80px; margin-bottom: 10px;" />
+                <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj}</p>
+                <h3 style="margin: 15px 0 5px 0; font-size: 16px; font-weight: bold; background-color: #f1f5f9; padding: 8px; border: 1px solid #000;">FECHAMENTO DO CAIXA - PDV</h3>
+                <p style="margin: 0; font-size: 11px; color: #64748b;">Referente ao dia: ${hoje.toLocaleDateString('pt-BR')}</p>
+                <p style="margin: 0; font-size: 10px; color: #94a3b8;">Impresso em: ${dataImpressao}</p>
+            </div>
+
+            <div style="border: 1px solid #000; padding: 15px; margin-bottom: 20px; border-radius: 6px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 14px; border-bottom: 2px solid #000; padding-bottom: 5px; text-transform: uppercase;">Resumo Geral de Vendas</h4>
+                <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 5px 0;">Total de Pedidos Gerados:</td>
+                        <td style="padding: 5px 0; text-align: right; font-weight: bold;">${pedidosProcessados.size}</td>
+                    </tr>
+                    ${descontosDia > 0 ? `
+                    <tr>
+                        <td style="padding: 5px 0;">Descontos Concedidos:</td>
+                        <td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(descontosDia)}</td>
+                    </tr>` : ''}
+                    <tr>
+                        <td style="padding: 10px 0; font-size: 15px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">FATURAMENTO LÍQUIDO DO DIA:</td>
+                        <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalGeral)}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="border: 1px solid #000; padding: 15px; border-radius: 6px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 14px; border-bottom: 2px solid #000; padding-bottom: 5px; text-transform: uppercase;">Divisão por Forma de Pagamento</h4>
+                <table style="width: 100%; border-collapse: collapse;">
+                    ${pgtoRowsHtml}
+                    <tr>
+                        <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">TOTAL CONFERIDO:</td>
+                        <td style="padding: 10px 0; font-size: 14px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #059669;">${formatMoney(totalGeral)}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div style="text-align: center; margin-top: 50px; font-size: 11px;">
+                <div style="width: 250px; border-top: 1px solid #000; margin: 0 auto 5px auto;"></div>
+                <strong>Assinatura do Conferente / Responsável</strong>
+            </div>
+        </div>
+    `;
+
+    showLoading(false);
+    setTimeout(() => {
+        window.print();
+        el.innerHTML = ''; // Limpa a área após imprimir
+    }, 500);
 }
         
     </script>
