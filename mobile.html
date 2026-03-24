@@ -8,7 +8,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    
+
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="shortcut icon" type="image/png" href="logo.png">
     <link rel="apple-touch-icon" href="logo.png">
@@ -22,373 +22,223 @@
     <link rel="manifest" href="manifest.json">
 
     <style>
-      body { background-color: #f1f5f9; font-family: 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; padding-top: 60px; padding-bottom: 80px; }
-
-      .border { border-width: 1px !important; border-style: solid !important; border-color: #cbd5e1 !important; }
+      body { background-color: #f8fafc; font-family: 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+      
+      .border { 
+          border-width: 1px !important; 
+          border-style: solid !important; 
+          border-color: #e2e8f0 !important; 
+      }
       
       .hidden-section { display: none !important; }
       .active-section { display: block !important; animation: fadeIn 0.3s ease-in-out; }
-      @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       
       .loader { border: 3px solid #e2e8f0; border-top: 3px solid #059669; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
       @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-      .btn-action:active { transform: scale(0.95); }
+      /* Esconde a barra de rolagem mas permite rolar */
+      ::-webkit-scrollbar { width: 0px; background: transparent; }
 
-      /* IMPRESSÃO CORRIGIDA */
-      @media print {
-        @page { size: A4; margin: 10mm; }
-        body * { visibility: hidden; }
-        #print-area, #print-area * { visibility: visible; }
-        #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
-        .no-print { display: none !important; }
-        
-        .invoice-full, .invoice-box-orig { position: relative; z-index: 1; background-color: transparent !important; width: 100%; border: 1px solid #000; min-height: 27.5cm; }
-        .invoice-full::before, .invoice-box-orig::before {
-            content: ""; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px;
-            background-image: url('https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png'); background-size: contain; background-position: center; background-repeat: no-repeat; opacity: 0.1; z-index: -1; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-        }
-
-        .header-section { display: flex; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
-        .logo-area { width: 120px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #e2e8f0; padding-right: 15px; margin-right: 15px; }
-        .company-details { flex: 1; }
-        .company-title { font-size: 20px; font-weight: 800; color: #059669; text-transform: uppercase; margin: 0; }
-        .company-info { font-size: 11px; color: #475569; line-height: 1.4; margin-top: 5px; }
-        .doc-meta { width: 180px; text-align: right; margin-right: 20px;}
-        .doc-title { font-size: 16px; font-weight: 900; color: #0f172a; text-transform: uppercase; margin-bottom: 5px; }
-        .meta-row { font-size: 11px; margin-bottom: 2px; }
-        .info-grid { display: flex; gap: 20px; margin-bottom: 20px; }
-        .info-col { flex: 1; border: 1px solid #000; border-radius: 6px; overflow: hidden; }
-        .col-header { background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000; }
-        .col-content { padding: 10px; font-size: 11px; line-height: 1.5; }
-        .full-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
-        .full-table th { background-color: #0f172a; color: white; padding: 8px; text-align: left; font-weight: bold; text-transform: uppercase; font-size: 10px; }
-        .full-table td { border-bottom: 1px solid #000; padding: 8px; vertical-align: middle; }
-        .full-table tr:nth-child(even) { background-color: #f8fafc; }
-        .footer-section { display: flex; gap: 30px; margin-top: 10px; }
-        .notes-area { flex: 1; border: 1px dashed #cbd5e1; padding: 10px; border-radius: 6px; }
-        .notes-title { font-size: 10px; font-weight: bold; margin-bottom: 5px; color: #64748b; }
-        .notes-text { font-size: 10px; color: #334155; }
-        .totals-area { width: 250px; }
-        .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; border-bottom: 1px solid #e2e8f0; }
-        .total-row.final { border-bottom: none; border-top: 2px solid #0f172a; font-size: 14px; font-weight: 900; margin-top: 5px; padding-top: 10px; background-color: #f1f5f9; padding: 10px; }
-        
-        /* Ajustes específicos para impressão de financeiro */
-        .items-table-orig { width: 100%; border-collapse: collapse; font-size: 10px; }
-        .items-table-orig th { border-bottom: 1px solid #000; border-right: 1px solid #000; background-color: #eee; padding: 3px; text-align: left; }
-        .items-table-orig td { border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 3px; }
-      }
-      .print-only { display: none; }
+      .nav-active { color: #059669 !important; }
+      .nav-active span { font-weight: 900; }
     </style>
   </head>
-  <body>
+  <body class="text-slate-800 pb-20">
 
-    <header class="fixed top-0 left-0 w-full h-14 bg-slate-900 text-white flex items-center justify-between px-4 z-40 shadow-md no-print">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-full bg-white p-0.5 flex items-center justify-center overflow-hidden">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" class="w-full object-contain" />
+    <header class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full border-2 border-emerald-500 bg-white overflow-hidden p-0.5 flex items-center justify-center">
+                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" class="w-full h-full object-contain" />
+            </div>
+            <h1 class="text-lg font-black tracking-wider text-emerald-400">RV PORTAL</h1>
         </div>
-        <span class="font-bold tracking-wider text-emerald-400 text-sm">RV PORTAL</span>
-      </div>
-      <button onclick="fazerLogout()" class="text-red-400 hover:text-red-300 transition-all p-2">
-        <i data-lucide="log-out" class="w-5 h-5"></i>
-      </button>
+        <button onclick="fazerLogout()" class="text-red-400 hover:text-red-300 p-2"><i data-lucide="log-out"></i></button>
     </header>
 
-    <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 flex justify-around items-center z-40 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)] no-print">
-        <button onclick="navigate('quotes')" id="nav-quotes" class="nav-btn flex-1 flex flex-col items-center justify-center py-3 text-slate-400 hover:text-indigo-600 transition-all">
-            <i data-lucide="folder-open" class="w-6 h-6 mb-1"></i>
-            <span class="text-[10px] font-bold uppercase">Orçamentos</span>
-        </button>
-        <button onclick="navigate('fin')" id="nav-fin" class="nav-btn flex-1 flex flex-col items-center justify-center py-3 text-slate-400 hover:text-indigo-600 transition-all">
-            <i data-lucide="bar-chart-3" class="w-6 h-6 mb-1"></i>
-            <span class="text-[10px] font-bold uppercase">Caixa</span>
-        </button>
-        <button onclick="navigate('prod')" id="nav-prod" class="nav-btn flex-1 flex flex-col items-center justify-center py-3 text-slate-400 hover:text-indigo-600 transition-all">
-            <i data-lucide="package" class="w-6 h-6 mb-1"></i>
-            <span class="text-[10px] font-bold uppercase">Produtos</span>
-        </button>
-        <button onclick="navigate('clients')" id="nav-clients" class="nav-btn flex-1 flex flex-col items-center justify-center py-3 text-slate-400 hover:text-indigo-600 transition-all">
-            <i data-lucide="users" class="w-6 h-6 mb-1"></i>
-            <span class="text-[10px] font-bold uppercase">Clientes</span>
-        </button>
-    </nav>
+    <div id="loading" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center">
+       <div class="bg-white p-6 rounded-2xl flex flex-col items-center shadow-2xl"><div class="loader mb-4"></div><span class="font-bold text-slate-700">Carregando...</span></div>
+    </div>
+    
+    <div id="toast" class="hidden fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-bold text-sm z-50 transition-all text-center min-w-[250px]"></div>
 
-    <main class="p-4 no-print h-full overflow-y-auto">
-      <div id="loading" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center backdrop-blur-sm">
-         <div class="bg-white p-6 rounded-2xl flex flex-col items-center shadow-2xl"><div class="loader mb-4"></div><span class="font-bold text-slate-700">Processando...</span></div>
-      </div>
-      <div id="toast" class="hidden fixed top-20 right-4 left-4 px-4 py-3 rounded-lg shadow-xl text-white font-bold text-center z-50 bg-slate-800 transition-opacity duration-300"></div>
+    <main class="p-4 overflow-x-hidden">
 
       <div id="view-quotes" class="hidden-section">
           <div class="flex flex-col gap-3 mb-4">
-              <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2"><i data-lucide="folder-open" class="text-indigo-600"></i> Orçamentos</h2>
-              <div class="relative w-full">
-                  <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-400 w-5 h-5"></i>
-                  <input type="text" id="quote-search" placeholder="Buscar cliente..." class="w-full pl-10 p-2.5 border rounded-xl text-sm focus:border-indigo-600 outline-none shadow-sm font-medium" onkeyup="renderQuotesList()">
+              <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i data-lucide="folder-open" class="text-indigo-600"></i> Orçamentos</h2>
+              
+              <div class="flex flex-col gap-2">
+                  <div class="relative w-full">
+                      <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
+                      <input type="text" id="quote-search" placeholder="Buscar cliente..." class="w-full pl-10 p-3 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none shadow-sm font-medium bg-white" onkeyup="renderQuotesList()">
+                  </div>
+                  <select id="quote-status-filter" class="w-full p-3 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none shadow-sm font-bold text-slate-600 bg-white" onchange="renderQuotesList()">
+                      <option value="">Todos os Status</option>
+                      <option value="ABERTO">Abertos</option>
+                      <option value="EM NEGOCIAÇÃO">Em Negociação</option>
+                      <option value="APROVADO">Aprovados</option>
+                      <option value="PERDIDO">Perdidos</option>
+                  </select>
               </div>
-              <select id="quote-status-filter" class="w-full p-2.5 border rounded-xl text-sm outline-none shadow-sm font-bold text-slate-600 bg-white" onchange="renderQuotesList()">
-                  <option value="">Todos os Status</option>
-                  <option value="ABERTO">Abertos</option>
-                  <option value="EM NEGOCIAÇÃO">Em Negociação</option>
-                  <option value="APROVADO">Aprovados</option>
-                  <option value="PERDIDO">Perdidos</option>
-              </select>
           </div>
-
-          <div id="quotes-list" class="flex flex-col gap-3 pb-4">
-              </div>
+          
+          <div id="quotes-list" class="flex flex-col gap-3"></div>
       </div>
       
       <div id="view-fin" class="hidden-section">
-        <h2 class="text-xl font-bold text-slate-800 mb-4">Caixa & Finanças</h2>
+        <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="bar-chart-3" class="text-emerald-600"></i> Caixa</h2>
         
-        <div class="grid grid-cols-1 gap-3 mb-6">
-            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 shadow-sm">
-                <p class="text-indigo-800 text-xs font-bold uppercase">Saldo em Caixa</p>
-                <h3 id="fin-balance" class="text-3xl font-black text-indigo-600 mt-1">R$ 0,00</h3>
+        <div class="flex flex-col gap-4">
+            <div class="bg-green-50 p-6 rounded-2xl border border-green-200 shadow-sm relative overflow-hidden">
+                <i data-lucide="trending-up" class="absolute -right-4 -bottom-4 w-24 h-24 text-green-200 opacity-50"></i>
+                <p class="text-green-800 text-xs font-bold uppercase tracking-wider mb-2 relative z-10">Receitas Totais</p>
+                <h3 id="fin-income" class="text-4xl font-black text-green-600 relative z-10">R$ 0,00</h3>
             </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-green-50 p-3 rounded-xl border border-green-100 shadow-sm text-center">
-                    <p class="text-green-800 text-[10px] font-bold uppercase">Receitas</p>
-                    <h3 id="fin-income" class="text-lg font-bold text-green-600 mt-1">R$ 0,00</h3>
-                </div>
-                <div class="bg-red-50 p-3 rounded-xl border border-red-100 shadow-sm text-center">
-                    <p class="text-red-800 text-[10px] font-bold uppercase">Saídas</p>
-                    <h3 id="fin-expenses" class="text-lg font-bold text-red-600 mt-1">R$ 0,00</h3>
-                </div>
+            
+            <div class="bg-red-50 p-6 rounded-2xl border border-red-200 shadow-sm relative overflow-hidden">
+                <i data-lucide="trending-down" class="absolute -right-4 -bottom-4 w-24 h-24 text-red-200 opacity-50"></i>
+                <p class="text-red-800 text-xs font-bold uppercase tracking-wider mb-2 relative z-10">Saídas (Despesas)</p>
+                <h3 id="fin-expenses" class="text-4xl font-black text-red-600 relative z-10">R$ 0,00</h3>
             </div>
-        </div>
-        
-        <div class="flex flex-col gap-6">
-            <div class="bg-white rounded-xl border shadow-sm flex flex-col">
-                <div class="p-3 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
-                    <h3 class="font-bold text-slate-700 flex items-center gap-1.5 text-sm"><i data-lucide="arrow-down-to-line" class="w-4 h-4 text-indigo-600"></i> A Receber</h3>
-                    <div class="flex gap-1.5">
-                        <button onclick="printReceivables()" class="bg-slate-200 text-slate-700 px-2 py-1.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1"><i data-lucide="printer" class="w-3 h-3"></i> Imprimir</button>
-                        <button onclick="openRevenueModal()" class="bg-indigo-600 text-white px-2 py-1.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1"><i data-lucide="plus" class="w-3 h-3"></i> Nova</button>
-                    </div>
-                </div>
-                <div class="p-3 border-b flex flex-col gap-2">
-                    <div class="flex gap-2">
-                        <input type="text" id="rec-search" placeholder="Buscar cliente..." class="w-full p-2 border rounded-lg text-xs outline-none focus:border-indigo-600" onkeyup="renderFinance()">
-                        <select id="rec-status" class="w-28 p-2 border rounded-lg text-xs outline-none" onchange="renderFinance()">
-                            <option value="">Todos</option><option value="ABERTOS">Abertos</option><option value="VENCIDOS">Vencidos</option><option value="PAGOS">Pagos</option>
-                        </select>
-                    </div>
-                    <div class="flex gap-2 items-center">
-                        <input type="date" id="rec-start" class="p-2 border rounded-lg text-xs flex-1 outline-none" onchange="renderFinance()">
-                        <span class="text-slate-400 text-xs">até</span>
-                        <input type="date" id="rec-end" class="p-2 border rounded-lg text-xs flex-1 outline-none" onchange="renderFinance()">
-                        <button onclick="document.getElementById('rec-search').value=''; document.getElementById('rec-status').value=''; document.getElementById('rec-start').value=''; document.getElementById('rec-end').value=''; renderFinance()" class="p-2 bg-slate-100 rounded-lg text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </div>
-                </div>
-                <div class="overflow-x-auto max-h-[400px]">
-                    <table class="w-full text-sm text-left whitespace-nowrap">
-                        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b">
-                            <tr><th class="p-3 font-semibold text-xs">Vencimento</th><th class="p-3 font-semibold text-xs">Cliente</th><th class="p-3 font-semibold text-xs">Valor</th><th class="p-3 font-semibold text-center text-xs">Ação</th></tr>
-                        </thead>
-                        <tbody id="fin-receivables-list" class="divide-y"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl border shadow-sm flex flex-col">
-                <div class="p-3 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
-                    <h3 class="font-bold text-slate-700 flex items-center gap-1.5 text-sm"><i data-lucide="arrow-up-from-line" class="w-4 h-4 text-red-500"></i> A Pagar</h3>
-                    <div class="flex gap-1.5">
-                        <button onclick="printExpenses()" class="bg-slate-200 text-slate-700 px-2 py-1.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1"><i data-lucide="printer" class="w-3 h-3"></i> Imprimir</button>
-                        <button onclick="document.getElementById('exp-id').value=''; document.getElementById('modal-expense').classList.remove('hidden')" class="bg-red-500 text-white px-2 py-1.5 rounded text-[10px] font-bold shadow-sm flex items-center gap-1"><i data-lucide="minus-circle" class="w-3 h-3"></i> Saída</button>
-                    </div>
-                </div>
-                <div class="p-3 border-b flex flex-col gap-2">
-                    <div class="flex gap-2">
-                        <input type="text" id="exp-search" placeholder="Buscar..." class="w-full p-2 border rounded-lg text-xs outline-none focus:border-red-500" onkeyup="renderFinance()">
-                        <select id="exp-status" class="w-28 p-2 border rounded-lg text-xs outline-none" onchange="renderFinance()">
-                            <option value="">Todos</option><option value="PENDENTE">Pendentes</option><option value="PAGO">Pagos</option>
-                        </select>
-                    </div>
-                    <div class="flex gap-2 items-center">
-                        <input type="date" id="exp-start" class="p-2 border rounded-lg text-xs flex-1 outline-none" onchange="renderFinance()">
-                        <span class="text-slate-400 text-xs">até</span>
-                        <input type="date" id="exp-end" class="p-2 border rounded-lg text-xs flex-1 outline-none" onchange="renderFinance()">
-                        <button onclick="document.getElementById('exp-search').value=''; document.getElementById('exp-status').value=''; document.getElementById('exp-start').value=''; document.getElementById('exp-end').value=''; renderFinance()" class="p-2 bg-slate-100 rounded-lg text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </div>
-                </div>
-                <div class="overflow-x-auto max-h-[400px]">
-                    <table class="w-full text-sm text-left whitespace-nowrap">
-                        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b">
-                            <tr><th class="p-3 font-semibold text-xs">Data</th><th class="p-3 font-semibold text-xs">Item/Forn.</th><th class="p-3 font-semibold text-xs">Valor</th><th class="p-3 font-semibold text-center text-xs">Ação</th></tr>
-                        </thead>
-                        <tbody id="fin-expense-history-list" class="divide-y"></tbody>
-                    </table>
-                </div>
+            
+            <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-200 shadow-sm relative overflow-hidden mt-2">
+                <i data-lucide="wallet" class="absolute -right-4 -bottom-4 w-24 h-24 text-indigo-200 opacity-50"></i>
+                <p class="text-indigo-800 text-xs font-bold uppercase tracking-wider mb-2 relative z-10">Saldo em Caixa</p>
+                <h3 id="fin-balance" class="text-4xl font-black text-indigo-700 relative z-10">R$ 0,00</h3>
             </div>
         </div>
       </div>
 
       <div id="view-prod" class="hidden-section">
           <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-bold text-slate-800">Produtos</h2>
-              <button onclick="openProductForm()" class="bg-indigo-700 text-white px-3 py-2 rounded-lg font-bold shadow-md flex items-center gap-1 text-sm"><i data-lucide="plus" class="w-4 h-4"></i> Novo</button>
+              <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i data-lucide="package" class="text-orange-500"></i> Produtos</h2>
+              <button onclick="openProductForm()" class="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-xl font-bold shadow-lg shadow-orange-200 flex items-center gap-2 active:scale-95 transition-transform"><i data-lucide="plus"></i> Novo</button>
           </div>
+          
           <div class="flex flex-col gap-2 mb-4">
-              <input type="text" id="prod-search" placeholder="Buscar produto..." class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600 font-medium bg-white" onkeyup="renderProducts()">
-              <select id="prod-category" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600 font-medium text-slate-600 bg-white" onchange="renderProducts()">
+              <div class="relative w-full">
+                  <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
+                  <input type="text" id="prod-search" placeholder="Buscar produto..." class="w-full pl-10 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-medium bg-white" onkeyup="renderProducts()">
+              </div>
+              <select id="prod-category" class="w-full p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
                   <option value="">Todas as Categorias</option>
               </select>
           </div>
-          <div class="bg-white rounded-xl border shadow-sm overflow-x-auto">
-              <table class="w-full text-sm text-left whitespace-nowrap">
-                  <thead class="bg-slate-50 text-slate-700"><tr><th class="p-3">Produto</th><th class="p-3">Preço</th><th class="p-3">Estoque</th><th class="p-3 text-center">Editar</th></tr></thead>
-                  <tbody id="prod-list" class="divide-y"></tbody>
-              </table>
-          </div>
+
+          <div id="prod-list" class="flex flex-col gap-3"></div>
       </div>
 
       <div id="view-clients" class="hidden-section">
           <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-bold text-slate-800">Clientes</h2>
-              <button onclick="openClientForm()" class="bg-indigo-700 text-white px-3 py-2 rounded-lg font-bold shadow-md flex items-center gap-1 text-sm"><i data-lucide="plus" class="w-4 h-4"></i> Novo</button>
+              <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-blue-500"></i> Clientes</h2>
+              <button onclick="openClientForm()" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl font-bold shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-95 transition-transform"><i data-lucide="plus"></i> Novo</button>
           </div>
-          <div class="mb-4 relative w-full">
-              <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-5 h-5"></i>
-              <input type="text" id="cli-search" placeholder="Buscar nome ou telefone..." class="w-full pl-10 p-3 border rounded-xl outline-none focus:border-indigo-600 font-medium bg-white" onkeyup="renderClients()">
+          
+          <div class="mb-4">
+              <div class="relative w-full">
+                  <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
+                  <input type="text" id="cli-search" placeholder="Buscar por nome, telefone ou doc..." class="w-full pl-10 p-3 border rounded-xl outline-none focus:border-blue-600 font-medium bg-white shadow-sm" onkeyup="renderClients()">
+              </div>
           </div>
-          <div class="bg-white rounded-xl border shadow-sm overflow-x-auto">
-              <table class="w-full text-sm text-left whitespace-nowrap">
-                  <thead class="bg-slate-50 text-slate-700"><tr><th class="p-3">Nome</th><th class="p-3">Telefone</th><th class="p-3 text-center">Ações</th></tr></thead>
-                  <tbody id="clients-list" class="divide-y"></tbody>
-              </table>
-          </div>
+
+          <div id="clients-list" class="flex flex-col gap-3"></div>
       </div>
 
-      <div id="client-form-container" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <form onsubmit="saveClient(event)" class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md">
-            <h3 class="font-bold text-lg mb-4 text-slate-800">Dados do Cliente</h3>
+    </main>
+
+    <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-40 flex justify-around items-center pb-safe" style="padding-bottom: env(safe-area-inset-bottom);">
+        <button onclick="navigate('quotes')" id="nav-quotes" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="folder-open" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Orçamentos</span>
+        </button>
+        <button onclick="navigate('fin')" id="nav-fin" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="bar-chart-3" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Caixa</span>
+        </button>
+        <button onclick="navigate('prod')" id="nav-prod" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="package" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Produtos</span>
+        </button>
+        <button onclick="navigate('clients')" id="nav-clients" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="users" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Clientes</span>
+        </button>
+    </nav>
+
+    <div id="client-form-container" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-end justify-center sm:items-center">
+        <form onsubmit="saveClient(event)" class="bg-white p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md animate-[fadeIn_0.3s]">
+            <div class="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-4 sm:hidden"></div>
+            <h3 class="font-black text-xl mb-6 text-slate-800 flex items-center gap-2"><i data-lucide="user-plus" class="text-blue-500"></i> Dados do Cliente</h3>
             <input type="hidden" id="cli-id">
-            <div class="space-y-3">
-                <input type="text" id="cli-name" required placeholder="Nome do Cliente" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600">
-                <input type="text" id="cli-phone" placeholder="Telefone" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600">
-                <input type="text" id="cli-doc" placeholder="CPF/CNPJ" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600">
-                <input type="text" id="cli-addr" placeholder="Endereço" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label>
+                    <input type="text" id="cli-name" required class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone / WhatsApp</label>
+                    <input type="tel" id="cli-phone" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium" placeholder="(00) 00000-0000">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Documento (CPF/CNPJ)</label>
+                    <input type="text" id="cli-doc" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Endereço</label>
+                    <input type="text" id="cli-addr" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                </div>
             </div>
-            <div class="flex gap-2 mt-6">
-                <button type="button" onclick="document.getElementById('client-form-container').classList.add('hidden')" class="flex-1 p-3 bg-slate-100 text-slate-700 rounded-xl font-bold">Cancelar</button>
-                <button type="submit" class="flex-1 p-3 bg-indigo-700 text-white rounded-xl font-bold shadow-md">Salvar</button>
+            <div class="flex gap-3 mt-8">
+                <button type="button" onclick="document.getElementById('client-form-container').classList.add('hidden')" class="flex-1 p-4 bg-slate-100 text-slate-600 rounded-xl font-bold active:scale-95 transition-transform">Cancelar</button>
+                <button type="submit" class="flex-1 p-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform">Salvar</button>
             </div>
         </form>
-      </div>
+    </div>
 
-      <div id="prod-form-container" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <form onsubmit="saveProduct(event)" class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 class="font-bold text-lg mb-4 text-slate-800">Dados do Produto</h3>
+    <div id="prod-form-container" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-end justify-center sm:items-center">
+        <form onsubmit="saveProduct(event)" class="bg-white p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md animate-[fadeIn_0.3s]">
+            <div class="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-4 sm:hidden"></div>
+            <h3 class="font-black text-xl mb-6 text-slate-800 flex items-center gap-2"><i data-lucide="package-plus" class="text-orange-500"></i> Dados do Produto</h3>
             <input type="hidden" id="prd-id">
-            <div class="space-y-3">
-                <input type="text" id="prd-name" required placeholder="Nome do Produto" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600">
-                <input type="text" id="prd-cat" placeholder="Categoria" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Produto</label>
+                    <input type="text" id="prd-name" required class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-medium">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                    <input type="text" id="prd-cat" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-medium">
+                </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase ml-1">Preço Venda (R$)</label>
-                        <input type="number" id="prd-price" required step="0.01" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Preço Venda</label>
+                        <input type="number" id="prd-price" required step="0.01" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-800">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase ml-1">Custo (R$)</label>
-                        <input type="number" id="prd-cost" step="0.01" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Custo Compra</label>
+                        <input type="number" id="prd-cost" step="0.01" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-800">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase ml-1">Estoque Físico Inicial</label>
-                    <input type="number" id="prd-stock" required class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Estoque Inicial Físico</label>
+                    <input type="number" id="prd-stock" required class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-800">
                 </div>
             </div>
-            <div class="flex gap-2 mt-6">
-                <button type="button" onclick="document.getElementById('prod-form-container').classList.add('hidden')" class="flex-1 p-3 bg-slate-100 rounded-xl font-bold text-slate-700">Cancelar</button>
-                <button type="submit" class="flex-1 p-3 bg-indigo-700 text-white rounded-xl font-bold shadow-md">Salvar</button>
+            <div class="flex gap-3 mt-8">
+                <button type="button" onclick="document.getElementById('prod-form-container').classList.add('hidden')" class="flex-1 p-4 bg-slate-100 text-slate-600 rounded-xl font-bold active:scale-95 transition-transform">Cancelar</button>
+                <button type="submit" class="flex-1 p-4 bg-orange-500 text-white rounded-xl font-bold shadow-lg shadow-orange-200 active:scale-95 transition-transform">Salvar</button>
             </div>
         </form>
-      </div>
-      
-      <div id="modal-receivable-edit" class="hidden fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
-                <h3 class="font-bold text-slate-800 flex items-center gap-2"><i data-lucide="edit" class="text-indigo-600 w-5 h-5"></i> Receber / Baixar</h3>
-                <button onclick="document.getElementById('modal-receivable-edit').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            <div class="p-5 space-y-4 overflow-y-auto">
-                <input type="hidden" id="rec-id">
-                <div class="flex justify-between bg-slate-100 p-3 rounded-xl border border-slate-200">
-                    <span class="text-xs font-bold text-slate-600">Total: <span id="rec-total-lbl" class="text-indigo-700"></span></span>
-                    <span class="text-xs font-bold text-slate-600">Resta: <span id="rec-pending-lbl" class="text-red-600"></span></span>
-                </div>
-                <div><label class="block text-xs font-bold text-slate-500 mb-1 ml-1">Forma</label><select id="rec-method" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600"><option>Dinheiro</option><option>PIX</option><option>Cartão Crédito</option><option>Cartão Débito</option><option>Boleto</option></select></div>
-                <div><label class="block text-xs font-bold text-slate-500 mb-1 ml-1">Vencimento</label><input type="date" id="rec-due" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600"></div>
-                <div class="pt-3 border-t">
-                    <label class="block text-xs font-bold text-green-700 mb-1 ml-1">Dar Baixa (Receber Agora)</label>
-                    <input type="number" id="rec-pay-val" placeholder="0.00" class="w-full p-3 border rounded-xl font-bold text-green-700 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 bg-green-50/50">
-                </div>
-            </div>
-            <div class="p-4 border-t bg-slate-50 flex gap-2">
-                <button onclick="document.getElementById('modal-receivable-edit').classList.add('hidden')" class="flex-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600">Cancelar</button>
-                <button onclick="saveReceivableEdit()" class="flex-1 p-3 bg-indigo-700 rounded-xl font-bold text-white shadow-md">Salvar Baixa</button>
-            </div>
-        </div>
-      </div>
-
-      <div id="modal-revenue" class="hidden fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
-                <h3 class="font-bold text-slate-800 flex items-center gap-2 text-sm"><i data-lucide="plus-circle" class="text-indigo-600 w-5 h-5"></i> Lançar Receita</h3>
-                <button onclick="document.getElementById('modal-revenue').classList.add('hidden')" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            <div class="p-5 space-y-3 overflow-y-auto">
-                <div><label class="block text-xs font-bold text-slate-500 ml-1">Descrição</label><input type="text" id="rev-desc" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600"></div>
-                <div><label class="block text-xs font-bold text-slate-500 ml-1">Cliente</label><input type="text" id="rev-client" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600"></div>
-                <div><label class="block text-xs font-bold text-slate-500 ml-1">Valor (R$)</label><input type="number" id="rev-val" class="w-full p-3 border rounded-xl font-bold text-indigo-700 outline-none focus:border-indigo-600"></div>
-                <div><label class="block text-xs font-bold text-slate-500 ml-1">Vencimento</label><input type="date" id="rev-due" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600"></div>
-                <div><label class="block text-xs font-bold text-slate-500 ml-1">Pagamento</label><select id="rev-method" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-600"><option>PIX</option><option>Dinheiro</option><option>Boleto</option><option>Cartão Crédito</option></select></div>
-            </div>
-            <div class="p-4 border-t bg-slate-50 flex gap-2">
-                <button onclick="document.getElementById('modal-revenue').classList.add('hidden')" class="flex-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600">Cancelar</button>
-                <button onclick="saveRevenue()" class="flex-1 p-3 bg-indigo-700 rounded-xl font-bold text-white shadow-md">Lançar</button>
-            </div>
-        </div>
-      </div>
-
-      <div id="modal-expense" class="hidden fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
-                <h3 class="font-bold text-slate-800 flex items-center gap-2 text-sm"><i data-lucide="minus-circle" class="text-red-500 w-5 h-5"></i> Registrar Saída</h3>
-                <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            <div class="p-5 space-y-3 overflow-y-auto">
-                 <input type="hidden" id="exp-id">
-                 <div><label class="block text-xs font-bold text-slate-500 ml-1">Categoria</label><select id="exp-item" class="w-full p-3 border rounded-xl outline-none focus:border-red-500"><option>Fornecedor</option><option>Salário</option><option>Energia</option><option>Água</option><option>Internet</option><option>Sistema</option><option>Contabilidade</option><option>Combustível</option><option>Man. Maquinas</option><option>Veículos</option></select></div>
-                <div><label class="block text-xs font-bold text-slate-500 ml-1">Fornecedor / Nome</label><input type="text" id="exp-provider" class="w-full p-3 border rounded-xl outline-none focus:border-red-500"></div>
-                <div><label class="block text-xs font-bold text-slate-500 ml-1">Valor Total (R$)</label><input type="number" id="exp-cost" class="w-full p-3 border rounded-xl font-bold text-red-600 outline-none focus:border-red-500"></div>
-                <div><label class="block text-xs font-bold text-slate-500 ml-1">Vencimento</label><input type="date" id="exp-date" class="w-full p-3 border rounded-xl outline-none focus:border-red-500"></div>
-                <div><label class="block text-xs font-bold text-slate-500 ml-1">Observação</label><input type="text" id="exp-note" class="w-full p-3 border rounded-xl outline-none focus:border-red-500"></div>
-            </div>
-            <div class="p-4 border-t bg-slate-50 flex gap-2">
-                <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="flex-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600">Cancelar</button>
-                <button onclick="saveExpense()" class="flex-1 p-3 bg-red-600 rounded-xl font-bold text-white shadow-md">Salvar</button>
-            </div>
-        </div>
-      </div>
-    </main>
-
-    <div id="print-area" class="print-only w-full"></div>
+    </div>
 
     <script>
-        // Sessão e Banco de Dados (Mantidos intactos)
+        // Configuração Inicial Igual
         let dadosUsuario = null;
         const userSessao = localStorage.getItem('rv_user');
 
-        if (!userSessao) {
-            window.location.replace('index.html');
-        } else {
-            dadosUsuario = JSON.parse(userSessao);
-        }
+        if (!userSessao) { window.location.replace('index.html'); } 
+        else { dadosUsuario = JSON.parse(userSessao); }
 
         const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co'; 
         const supabaseKey = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
@@ -403,40 +253,55 @@
             }
         };
 
+        // ====== NAVEGAÇÃO MOBILE ======
         function navigate(viewId) {
+            // Oculta tudo
             document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
+            
+            // Mostra a tela alvo
             const target = document.getElementById('view-' + viewId);
             if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
             
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('text-indigo-600');
-                btn.classList.add('text-slate-400');
+            // Remove classe ativa de todos botões do menu inferior
+            document.querySelectorAll('nav button').forEach(btn => {
+                btn.classList.remove('nav-active');
             });
-            const activeBtn = document.getElementById('nav-' + viewId);
-            if(activeBtn) {
-                activeBtn.classList.remove('text-slate-400');
-                activeBtn.classList.add('text-indigo-600');
-            }
             
+            // Adiciona classe ativa no botão clicado
+            const activeBtn = document.getElementById('nav-' + viewId);
+            if(activeBtn) activeBtn.classList.add('nav-active');
+            
+            // Renderiza conteúdo dependendo da aba
             if(viewId === 'quotes') renderQuotesList();
             if(viewId === 'fin') renderFinance();
-            if(viewId === 'clients') renderClients();
             if(viewId === 'prod') renderProducts();
+            if(viewId === 'clients') renderClients();
+            
             lucide.createIcons();
-            window.scrollTo(0,0);
+            window.scrollTo(0, 0); // Joga pro topo ao trocar de tela
         }
 
+        // Funções Auxiliares
         function formatMoney(val) { return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
         function formatDate(d) { try { return d ? new Date(d).toLocaleDateString('pt-BR') : '-'; } catch(e) { return '-'; } }
         function showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; }
+        
         function showToast(msg, isError) { 
             const t = document.getElementById('toast'); 
             t.textContent = msg; 
-            t.className = `fixed top-20 right-4 left-4 px-4 py-3 rounded-lg shadow-xl text-white font-bold text-center z-50 transition-opacity duration-300 ${isError?'bg-red-600':'bg-slate-800'}`; 
+            t.className = `fixed top-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-bold text-sm z-50 transition-all text-center min-w-[250px] ${isError ? 'bg-red-600' : 'bg-slate-900'}`; 
             t.style.display = 'block'; 
-            setTimeout(() => t.style.display='none', 3500); 
+            setTimeout(() => t.style.display = 'none', 3000); 
         }
 
+        function getNextId(array1, array2 = []) {
+            let max = 0;
+            array1.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
+            array2.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
+            return max + 1;
+        }
+
+        // ====== BUSCA DE DADOS ======
         async function fetchAllRecords(table) {
             let allRecords = [];
             let from = 0;
@@ -450,7 +315,9 @@
                     allRecords.push(...data);
                     if (data.length < step) keepFetching = false;
                     else from += step;
-                } else keepFetching = false;
+                } else {
+                    keepFetching = false;
+                }
             }
             return { data: allRecords };
         }
@@ -458,15 +325,14 @@
         async function loadData() {
             try {
                 const [resProd, resCli, resLog, resDesp] = await Promise.all([
-                    fetchAllRecords('produtos'),
-                    fetchAllRecords('clientes'),
-                    fetchAllRecords('logs'),
-                    fetchAllRecords('despesas')
+                    fetchAllRecords('produtos'), fetchAllRecords('clientes'),
+                    fetchAllRecords('logs'), fetchAllRecords('despesas')
                 ]);
 
                 STATE.products = (resProd.data || []).map(p => ({
-                    id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco), cost: Number(p.custo) || 0,
-                    stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
+                    id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
+                    cost: Number(p.custo) || 0, stock: Number(p.estoque_fisico), 
+                    committed: Number(p.estoque_comprometido),
                     available: Number(p.estoque_fisico) - Number(p.estoque_comprometido)
                 }));
 
@@ -495,494 +361,350 @@
                             uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
                             date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
                             clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
-                            deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
-                            discount: Number(l.desconto), finStatus: l.status_financeiro, dueDate: l.vencimento,
-                            paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
+                            finStatus: l.status_financeiro, dueDate: l.vencimento, paidValue: Number(l.valor_pago)
                         });
                     }
                 });
                 
-                STATE.quotes = Object.values(quotesMap).map(q => { q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); return q; });
+                STATE.quotes = Object.values(quotesMap).map(q => { q.itemsText = q.items.map(i => `${i.qty}x ${i.name}`).join(', '); return q; });
                 
                 STATE.expenses = (resDesp.data || []).map(e => ({
-                    id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
-                    cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
+                    id: e.id, item: e.item, quantity: Number(e.quantidade), cost: Number(e.custo), 
+                    date: e.data, status: e.status || 'PENDENTE'
                 }));
 
-                if(!document.querySelector('.active-section')) navigate('quotes');
-                else navigate(document.querySelector('.active-section').id.replace('view-',''));
-                
-                showLoading(false);
+                onDataLoaded();
             } catch (err) {
                 showLoading(false);
-                showToast("Erro ao conectar no banco.", true);
+                showToast("Erro de conexão", true);
                 console.error(err);
             }
         }
 
-        function getNextId(array1, array2 = []) {
-            let max = 0;
-            array1.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
-            array2.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
-            return max + 1;
-        }
-
-        /* ----- CLIENTES ----- */
-        async function saveClient(e) {
-            e.preventDefault(); showLoading(true);
-            const isNew = !document.getElementById('cli-id').value;
-            const newId = isNew ? getNextId(STATE.clients) : document.getElementById('cli-id').value;
-            const payload = { id: newId, nome: document.getElementById('cli-name').value, telefone: document.getElementById('cli-phone').value, documento: document.getElementById('cli-doc').value, endereco: document.getElementById('cli-addr').value };
-            const { error } = await sb.from('clientes').upsert(payload);
-            if(error) { showLoading(false); return showToast("Erro", true); }
-            document.getElementById('client-form-container').classList.add('hidden'); showToast("Salvo!"); loadData();
-        }
-        async function deleteClient(id) {
-            if(!confirm("Excluir cliente?")) return; showLoading(true);
-            const { error } = await sb.from('clientes').delete().eq('id', id);
-            if(error) { showLoading(false); return showToast("Erro", true); }
-            showToast("Excluído!"); loadData();
-        }
-        function openClientForm(id) { 
-            document.getElementById('client-form-container').classList.remove('hidden'); 
-            if(id) {
-                const c = STATE.clients.find(x => String(x.id) === String(id));
-                document.getElementById('cli-id').value = c.id; document.getElementById('cli-name').value = c.name; document.getElementById('cli-phone').value = c.phone; document.getElementById('cli-doc').value = c.doc; document.getElementById('cli-addr').value = c.address;
+        function onDataLoaded() {
+            if(!document.querySelector('.active-section')) {
+                navigate('quotes'); // Começa pela aba de Orçamentos
             } else {
-                document.getElementById('cli-id').value = ''; document.getElementById('cli-name').value = ''; document.getElementById('cli-phone').value = ''; document.getElementById('cli-doc').value = ''; document.getElementById('cli-addr').value = '';
+                const current = document.querySelector('.active-section').id.replace('view-','');
+                navigate(current);
             }
-        }
-        function renderClients() {
-            const list = document.getElementById('clients-list'); if(!list) return;
-            const term = document.getElementById('cli-search')?.value.toLowerCase() || '';
-            let filtered = STATE.clients || [];
-            if (term) filtered = filtered.filter(c => c.name.toLowerCase().includes(term) || (c.phone && c.phone.toLowerCase().includes(term)));
-            filtered = filtered.slice(0, 100);
-            if (filtered.length === 0) return list.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-slate-400">Nenhum cliente.</td></tr>';
-            list.innerHTML = filtered.map(c=>`<tr class="border-b"><td class="p-3 font-bold text-slate-700 text-xs truncate max-w-[120px]">${c.name}</td><td class="p-3 text-xs text-slate-500">${c.phone || '-'}</td><td class="p-3 text-center flex justify-center gap-2"><button onclick="openClientForm('${c.id}')" class="text-indigo-600 bg-indigo-50 p-1.5 rounded"><i data-lucide="edit-3" class="w-4 h-4"></i></button><button onclick="deleteClient('${c.id}')" class="text-red-500 bg-red-50 p-1.5 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`).join('');
-            lucide.createIcons();
+            showLoading(false);
         }
 
-        /* ----- PRODUTOS ----- */
-        async function saveProduct(e) {
-            e.preventDefault(); showLoading(true);
-            const isNew = !document.getElementById('prd-id').value;
-            const newId = isNew ? getNextId(STATE.products) : document.getElementById('prd-id').value;
-            const payload = { id: newId, nome: document.getElementById('prd-name').value, categoria: document.getElementById('prd-cat').value, preco: parseFloat(document.getElementById('prd-price').value), custo: parseFloat(document.getElementById('prd-cost').value)||0, estoque_fisico: parseFloat(document.getElementById('prd-stock').value), estoque_comprometido: isNew ? 0 : STATE.products.find(p=>p.id==newId).committed };
-            const { error } = await sb.from('produtos').upsert(payload);
-            if(error) { showLoading(false); return showToast("Erro", true); }
-            document.getElementById('prod-form-container').classList.add('hidden'); showToast("Salvo!"); loadData();
-        }
-        function openProductForm(id) { 
-            document.getElementById('prod-form-container').classList.remove('hidden'); 
-            if(id) { 
-                const p=STATE.products.find(x=>x.id==id); 
-                document.getElementById('prd-id').value=p.id; document.getElementById('prd-name').value=p.name; document.getElementById('prd-cat').value=p.category||''; document.getElementById('prd-price').value=p.price; document.getElementById('prd-cost').value=p.cost||''; document.getElementById('prd-stock').value=p.stock; 
-            } else { 
-                document.getElementById('prd-id').value=''; document.getElementById('prd-name').value=''; document.getElementById('prd-cat').value=''; document.getElementById('prd-price').value=''; document.getElementById('prd-cost').value=''; document.getElementById('prd-stock').value=''; 
-            } 
-        }
-        function renderProducts() {
-            const list = document.getElementById('prod-list'); if(!list) return;
-            const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
-            const catFilter = document.getElementById('prod-category')?.value || '';
-            
-            const catSelect = document.getElementById('prod-category');
-            if (catSelect && catSelect.options.length <= 1) {
-                const cats = [...new Set(STATE.products.map(p => p.category))].filter(c => c);
-                cats.forEach(cat => catSelect.appendChild(new Option(cat, cat)));
-            }
-            let filtered = STATE.products.slice();
-            if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
-            if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
-            filtered = filtered.slice(0, 100);
+        // ================= FUNÇÕES DE ORÇAMENTO (CARDS MOBILE) =================
 
-            if (filtered.length === 0) return list.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum produto.</td></tr>';
-            list.innerHTML = filtered.map(p=>`<tr class="border-b"><td class="p-3 font-bold text-slate-700 text-xs truncate max-w-[120px]">${p.name}<br><span class="text-[9px] text-slate-400 uppercase">${p.category||'Geral'}</span></td><td class="p-3 text-xs font-bold text-indigo-700">${formatMoney(p.price)}</td><td class="p-3"><div class="text-[10px] text-slate-500 font-bold">Disp: ${p.available}</div></td><td class="p-3 text-center"><button onclick="openProductForm('${p.id}')" class="text-indigo-600 bg-indigo-50 p-1.5 rounded"><i data-lucide="edit-3" class="w-4 h-4"></i></button></td></tr>`).join('');
-            lucide.createIcons(); 
-        }
-
-        /* ----- ORÇAMENTOS (CARDS NO MOBILE) ----- */
         async function updateQuoteStatus(id, newStatus) {
             showLoading(true);
             const { error } = await sb.from('logs').update({ status: newStatus }).eq('id', id).eq('tipo', 'orcamento');
-            if (error) { showLoading(false); return showToast("Erro", true); }
+            if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
             const quote = STATE.quotes.find(q => String(q.id) === String(id));
             if (quote) quote.status = newStatus;
-            showLoading(false); showToast("Status atualizado!"); renderQuotesList(); 
+            showLoading(false);
+            showToast("Status Atualizado!");
+            renderQuotesList(); 
         }
 
         async function deleteQuote(id) {
-            if(!confirm("Excluir orçamento permanentemente?")) return; showLoading(true);
+            if(!confirm("Excluir este orçamento definitivamente?")) return;
+            showLoading(true);
             const { error } = await sb.from('logs').delete().eq('id', id).eq('tipo', 'orcamento');
-            if(error) { showLoading(false); return showToast("Erro", true); }
-            showToast("Excluído!"); loadData();
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+            showToast("Orçamento Excluído!");
+            loadData();
+        }
+
+        async function shareQuote(id) {
+            const q = STATE.quotes.find(x => x.id == id);
+            if (!q) return;
+            
+            const valorLiquido = q.total - (q.discount || 0);
+            const textoCompartilhar = `*RV PORTAL MADEIRAS*\nOrçamento Nº ${q.id}\nCliente: ${q.clientName}\n\n*Itens:*\n${q.itemsText}\n\n*Total:* ${formatMoney(valorLiquido)}\n\n(Válido por 7 dias)`;
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: `Orçamento #${q.id}`,
+                        text: textoCompartilhar
+                    });
+                } catch (err) {
+                    console.log('Compartilhamento cancelado ou falhou', err);
+                }
+            } else {
+                // Fallback para copiar o texto se não houver suporte nativo
+                navigator.clipboard.writeText(textoCompartilhar);
+                showToast("Texto copiado para a área de transferência!");
+            }
         }
 
         function renderQuotesList() {
-            const list = document.getElementById('quotes-list'); if(!list) return;
+            const list = document.getElementById('quotes-list');
+            if(!list) return;
+
             const term = document.getElementById('quote-search')?.value.toLowerCase() || '';
             const statusFilter = document.getElementById('quote-status-filter')?.value || '';
 
             let filteredQuotes = STATE.quotes.slice().reverse();
+
             if (term) filteredQuotes = filteredQuotes.filter(q => q.clientName && q.clientName.toLowerCase().includes(term));
             if (statusFilter) filteredQuotes = filteredQuotes.filter(q => q.status === statusFilter);
 
-            if(!filteredQuotes.length) return list.innerHTML = '<div class="p-8 text-slate-400 text-center bg-white rounded-xl border">Nenhum orçamento encontrado.</div>';
+            if(!filteredQuotes.length) { 
+                list.innerHTML='<div class="text-center p-10 text-slate-400 font-bold">Nenhum orçamento encontrado.</div>'; 
+                return; 
+            }
             
             list.innerHTML = filteredQuotes.map(q => {
                 const valorLiquido = q.total - (q.discount || 0);
-                const cli = STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
-                let zapLink = "#"; let btnZapClass = "text-slate-300 pointer-events-none";
                 
-                if (cli && cli.phone) {
-                    let num = cli.phone.replace(/\D/g, '');
-                    if (num.length >= 10) {
-                        if (!num.startsWith('55')) num = '55' + num;
-                        const msg = encodeURIComponent(`Olá ${cli.name}, aqui é da RV Portal. Segue o Orçamento #${q.id} no valor de ${formatMoney(valorLiquido)}.\nPodemos fechar?`);
-                        zapLink = `https://wa.me/${num}?text=${msg}`;
-                        btnZapClass = "text-green-500 bg-green-50 hover:bg-green-100";
-                    }
-                }
-
-                let corBorda = "border-slate-200";
-                if (q.status === 'APROVADO') corBorda = "border-emerald-400 border-l-4";
-                if (q.status === 'PERDIDO') corBorda = "border-red-400 border-l-4";
-                if (q.status === 'EM NEGOCIAÇÃO') corBorda = "border-indigo-400 border-l-4";
+                // Sistema de cores por status adaptado para Cards Mobile
+                let bgBorderClass = "bg-white border-slate-200";
+                let badgeClass = "bg-slate-100 text-slate-600";
+                
+                if (q.status === 'APROVADO') { bgBorderClass = "bg-emerald-50 border-emerald-300"; badgeClass = "bg-emerald-200 text-emerald-800"; }
+                else if (q.status === 'PERDIDO') { bgBorderClass = "bg-red-50 border-red-300"; badgeClass = "bg-red-200 text-red-800"; }
+                else if (q.status === 'EM NEGOCIAÇÃO') { bgBorderClass = "bg-indigo-50 border-indigo-300"; badgeClass = "bg-indigo-200 text-indigo-800"; }
 
                 return `
-                <div class="bg-white p-4 rounded-xl shadow-sm border ${corBorda}">
-                    <div class="flex justify-between border-b border-slate-100 pb-2 mb-2 items-center">
-                        <span class="font-black text-slate-700">#${q.id}</span>
-                        <span class="text-[10px] text-slate-400 font-bold bg-slate-50 px-2 py-1 rounded">${formatDate(q.date)}</span>
+                <div class="p-4 rounded-2xl border mb-1 shadow-sm ${bgBorderClass}">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <div class="font-black text-slate-800 text-lg">#${q.id}</div>
+                            <div class="text-[11px] font-bold text-slate-500"><i data-lucide="calendar" class="inline w-3 h-3"></i> ${formatDate(q.date)}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-black text-xl text-slate-800">${formatMoney(valorLiquido)}</div>
+                            <select onchange="updateQuoteStatus('${q.id}', this.value)" class="mt-2 py-1 px-2 rounded-lg text-xs font-bold outline-none border border-transparent appearance-none text-center w-full ${badgeClass}">
+                                <option value="ABERTO" ${q.status === 'ABERTO' ? 'selected' : ''}>Em Aberto</option>
+                                <option value="EM NEGOCIAÇÃO" ${q.status === 'EM NEGOCIAÇÃO' ? 'selected' : ''}>Negociando</option>
+                                <option value="APROVADO" ${q.status === 'APROVADO' ? 'selected' : ''}>Aprovado</option>
+                                <option value="PERDIDO" ${q.status === 'PERDIDO' ? 'selected' : ''}>Perdido</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="font-bold text-slate-800 text-sm">${q.clientName}</div>
-                    <div class="text-xs text-slate-500 mt-1 line-clamp-2">${q.itemsText}</div>
-                    <div class="flex justify-between items-end mt-3 mb-3">
-                        <div class="font-black text-slate-800 text-lg">${formatMoney(valorLiquido)}</div>
-                        <select onchange="updateQuoteStatus('${q.id}', this.value)" class="p-1.5 border rounded-lg text-[10px] font-bold outline-none bg-slate-50">
-                            <option value="ABERTO" ${q.status === 'ABERTO' ? 'selected' : ''}>Aberto</option>
-                            <option value="EM NEGOCIAÇÃO" ${q.status === 'EM NEGOCIAÇÃO' ? 'selected' : ''}>Negociação</option>
-                            <option value="APROVADO" ${q.status === 'APROVADO' ? 'selected' : ''}>Aprovado</option>
-                            <option value="PERDIDO" ${q.status === 'PERDIDO' ? 'selected' : ''}>Perdido</option>
-                        </select>
+                    
+                    <div class="mb-4 bg-white/60 p-3 rounded-xl">
+                        <div class="font-bold text-slate-800 flex items-center gap-1 mb-1"><i data-lucide="user" class="w-4 h-4 text-slate-400"></i> ${q.clientName}</div>
+                        <div class="text-xs text-slate-600 line-clamp-2 leading-relaxed font-medium pl-5">${q.itemsText || '...'}</div>
                     </div>
-                    <div class="flex gap-2 border-t border-slate-100 pt-3">
-                        <button onclick="shareQuotePDF('${q.id}')" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg flex items-center justify-center gap-1 text-[10px] font-bold shadow"><i data-lucide="share-2" class="w-3.5 h-3.5"></i> Compartilhar</button>
-                        <a href="${zapLink}" target="_blank" class="p-2 border rounded-lg flex items-center justify-center ${btnZapClass}"><i data-lucide="message-circle" class="w-4 h-4"></i></a>
-                        <button onclick="printQuote('${q.id}')" class="p-2 border rounded-lg flex items-center justify-center text-slate-600 bg-slate-50"><i data-lucide="printer" class="w-4 h-4"></i></button>
-                        <button onclick='deleteQuote("${q.id}")' class="p-2 border rounded-lg flex items-center justify-center text-red-500 bg-red-50"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    
+                    <div class="flex gap-2 justify-end">
+                        <button onclick="shareQuote('${q.id}')" class="flex-1 p-3 bg-white border border-slate-300 text-slate-700 rounded-xl flex justify-center items-center gap-2 font-bold shadow-sm active:scale-95 transition-transform">
+                            <i data-lucide="share-2" class="w-5 h-5"></i> Enviar
+                        </button>
+                        <button onclick="deleteQuote('${q.id}')" class="p-3 bg-white border border-red-200 text-red-500 rounded-xl flex justify-center items-center shadow-sm active:scale-95 transition-transform" title="Excluir">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        </button>
                     </div>
                 </div>`;
             }).join('');
             lucide.createIcons();
         }
 
-        /* ----- GERAÇÃO E COMPARTILHAMENTO DE PDF ----- */
-        function getInvoiceHTML(sale, isQuote) {
-            const title = isQuote ? "ORÇAMENTO" : "VENDA / PEDIDO";
-            const clientName = sale.clientName || 'Consumidor Final';
-            const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
-
-            let subtotal = 0;
-            const itemsHtml = sale.items.map(i => {
-                const itemTotal = i.qty * i.price; subtotal += itemTotal;
-                return `<tr><td style="border-bottom: 1px solid #000; padding: 5px;">${i.name}</td><td align="center" style="border-bottom: 1px solid #000; padding: 5px;">${i.qty}</td><td align="right" style="border-bottom: 1px solid #000; padding: 5px;">${formatMoney(i.price)}</td><td align="right" style="border-bottom: 1px solid #000; padding: 5px;">${formatMoney(itemTotal)}</td></tr>`;
-            }).join('');
-
-            const discount = Number(sale.discount) || 0;
-            const finalTotal = subtotal - discount;
-            const addressToShow = sale.deliveryAddress ? `ENTREGA: ${sale.deliveryAddress}` : (cli.address || 'Não informado');
-            const obsText = sale.observacao && sale.observacao !== 'Venda PDV' && sale.observacao !== 'Pronta Entrega PDV' ? sale.observacao : 'Válido por 7 dias.';
-
-            return `
-            <div style="font-family: 'Helvetica', sans-serif; color: #1e293b; padding: 15px; border: 1px solid #000; min-height: 27cm; position: relative;">
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; height: 400px; opacity: 0.1; z-index: -1;">
-                    <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width:100%; height:100%; object-fit:contain;" />
-                </div>
-                <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-                    <tr>
-                        <td width="100" style="padding-right:10px;"><img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 60px;" /></td>
-                        <td>
-                            <h2 style="margin: 0; color: #059669; font-size: 16px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                            <div style="font-size: 10px;">CNPJ: 30.942.123/0001-02</div>
-                            <div style="font-size: 10px;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                        </td>
-                        <td align="right">
-                            <h2 style="margin: 0; font-size: 14px; font-weight: 900;">${title}</h2>
-                            <div style="font-size: 10px;"><strong>Nº:</strong> ${sale.id}</div>
-                            <div style="font-size: 10px;"><strong>Data:</strong> ${new Date(sale.date).toLocaleDateString()}</div>
-                        </td>
-                    </tr>
-                </table>
-                <table width="100%" style="margin-bottom: 15px;">
-                    <tr>
-                        <td width="48%" valign="top" style="border: 1px solid #000; padding: 5px; font-size:10px;">
-                            <strong>CLIENTE:</strong> ${cli.name}<br>${cli.doc||''}<br>${cli.phone||''}<br>${addressToShow}
-                        </td>
-                        <td width="4%"></td>
-                        <td width="48%" valign="top" style="border: 1px solid #000; padding: 5px; font-size:10px;">
-                            <strong>PAGAMENTO:</strong> ${sale.paymentMethod || 'A Combinar'}<br><strong>VENDEDOR:</strong> RV PORTAL
-                        </td>
-                    </tr>
-                </table>
-                <table width="100%" style="border-collapse: collapse; font-size: 10px; margin-bottom: 15px;">
-                    <thead><tr><th align="left" style="background: #eee; padding: 5px;">Produto</th><th align="center" style="background: #eee; padding: 5px;">Qtd</th><th align="right" style="background: #eee; padding: 5px;">Unit.</th><th align="right" style="background: #eee; padding: 5px;">Total</th></tr></thead>
-                    <tbody>${itemsHtml}</tbody>
-                </table>
-                <table width="100%" style="font-size: 11px;">
-                    <tr>
-                        <td valign="top" style="padding-right: 20px;"><div style="border: 1px dashed #ccc; padding: 5px;"><strong>Obs:</strong> ${obsText}</div></td>
-                        <td width="200" align="right">
-                            Subtotal: ${formatMoney(subtotal)}<br>
-                            ${discount > 0 ? `<span style="color:red">Desconto: - ${formatMoney(discount)}</span><br>` : ''}
-                            <strong style="font-size: 14px;">TOTAL: ${formatMoney(finalTotal)}</strong>
-                        </td>
-                    </tr>
-                </table>
-            </div>`;
-        }
-
-        function shareQuotePDF(id) {
-            const q = STATE.quotes.find(x => x.id == id); if(!q) return;
-            showLoading(true);
-            const htmlString = getInvoiceHTML(q, true);
-            const opt = { margin: 10, filename: `Orcamento_${id}.pdf`, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-
-            html2pdf().set(opt).from(htmlString).output('blob').then(function(pdfBlob) {
-                showLoading(false);
-                const file = new File([pdfBlob], `Orcamento_${id}.pdf`, { type: 'application/pdf' });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    navigator.share({ title: `Orçamento RV Portal #${id}`, files: [file] }).catch(err => console.log('Compartilhamento cancelado', err));
-                } else {
-                    showToast("Baixando PDF..."); html2pdf().set(opt).from(htmlString).save();
-                }
-            }).catch(err => { showLoading(false); showToast("Erro no PDF", true); });
-        }
-
-        function printQuote(id) { 
-            const q = STATE.quotes.find(x => x.id == id); 
-            document.getElementById('print-area').innerHTML = getInvoiceHTML(q, true); 
-            setTimeout(() => window.print(), 500); 
-        }
-
-        /* ----- CAIXA / FINANCEIRO ----- */
-        function openRevenueModal() { document.getElementById('modal-revenue').classList.remove('hidden'); }
-        async function saveRevenue() {
-            const desc = document.getElementById('rev-desc').value.trim(); const client = document.getElementById('rev-client').value.trim() || 'Consumidor Final'; const val = parseFloat(document.getElementById('rev-val').value) || 0; const due = document.getElementById('rev-due').value || new Date().toISOString(); const method = document.getElementById('rev-method').value;
-            if(!desc || !val) return showToast("Preencha descrição e valor!", true); showLoading(true);
-            const newId = getNextId(STATE.logs);
-            const payload = { id: newId, tipo: 'receita', produto_nome: 'Receita Avulsa: ' + desc, quantidade: 1, data: new Date().toISOString(), observacao: 'Lançamento Manual', valor_total: val, cliente_nome: client, forma_pagamento: method, status: 'ATIVO', status_entrega: 'ENTREGUE', qtd_entregue: 1, desconto: 0, status_financeiro: 'PENDENTE', vencimento: due, valor_pago: 0 };
-            const { error } = await sb.from('logs').insert([payload]);
-            if(error) { showLoading(false); return showToast("Erro", true); }
-            document.getElementById('modal-revenue').classList.add('hidden'); document.getElementById('rev-desc').value = ''; document.getElementById('rev-val').value = ''; showToast("Receita Lançada!"); loadData();
-        }
-
-        async function saveExpense() {
-            const idVal = document.getElementById('exp-id').value; const isNew = !idVal;
-            const item = document.getElementById('exp-item').value; const provider = document.getElementById('exp-provider').value.trim(); const cost = document.getElementById('exp-cost').value; const date = document.getElementById('exp-date').value || new Date().toISOString(); const note = document.getElementById('exp-note').value.trim();
-            if(!item || !cost) return showToast("Preencha a categoria e o valor", true); showLoading(true);
-            const finalNote = provider ? `Fornecedor: ${provider}${note ? ' | ' + note : ''}` : note;
-            const payload = { item: item, quantidade: 1, unidade: 'Un', custo: Number(cost), data: date, observacao: finalNote, status: 'PENDENTE' };
-            let error;
-            if (isNew) { payload.id = getNextId(STATE.expenses); const res = await sb.from('despesas').insert([payload]); error = res.error; } 
-            else { const res = await sb.from('despesas').update(payload).eq('id', idVal); error = res.error; }
-            if(error) { showLoading(false); return showToast("Erro", true); }
-            document.getElementById('exp-id').value = ""; document.getElementById('exp-provider').value = ""; document.getElementById('exp-cost').value = ""; document.getElementById('exp-note').value = ""; document.getElementById('modal-expense').classList.add('hidden');
-            showToast("Despesa Salva!"); loadData();
-        }
-
-        async function payExpense(id) {
-            if(!confirm("Baixar / Pagar esta despesa?")) return; showLoading(true);
-            const exp = STATE.expenses.find(e => String(e.id) === String(id));
-            if(!exp) { showLoading(false); return showToast("Erro", true); }
-            const { error: err1 } = await sb.from('despesas').update({ status: 'PAGO' }).eq('id', id);
-            const { error: err2 } = await sb.from('logs').insert([{ id: getNextId(STATE.logs), tipo: 'despesa', produto_nome: exp.item, quantidade: exp.quantity, data: new Date().toISOString(), observacao: 'Ref Despesa #' + exp.id, valor_total: exp.cost, status: 'ATIVO', status_financeiro: 'PAGO', valor_pago: exp.cost }]);
-            if(err1||err2) { showLoading(false); return showToast("Erro", true); }
-            showToast("Despesa paga!"); loadData();
-        }
-
-        async function excluirReceitaPendente(id) {
-            if(!confirm("Excluir conta permanentemente?")) return; showLoading(true);
-            const {error} = await sb.from('logs').delete().eq('id', id).eq('tipo', 'receita');
-            if(error) { showLoading(false); return showToast("Erro", true); }
-            showToast("Excluída!"); loadData();
-        }
-        
-        async function estornarRecebimento(id) {
-            if(!confirm("Estornar conta para PENDENTE?")) return; showLoading(true);
-            const items = STATE.logs.filter(l => String(l.id) === String(id) && (l.type === 'venda' || l.type === 'receita'));
-            for(let item of items) await sb.from('logs').update({ valor_pago: 0, status_financeiro: 'PENDENTE' }).eq('uid', item.uid);
-            await sb.from('logs').delete().like('observacao', `%Ref Lanc #${id}%`).eq('tipo', 'recebimento');
-            showToast("Estornado!"); loadData();
-        }
-
-        async function excluirDespesa(id) {
-            if(!confirm("Excluir despesa permanentemente?")) return; showLoading(true);
-            const {error} = await sb.from('despesas').delete().eq('id', id);
-            if(error) { showLoading(false); return showToast("Erro", true); }
-            showToast("Excluída!"); loadData();
-        }
-        
-        async function estornarDespesaLog(id) {
-            if(!confirm("Estornar despesa para PENDENTE?")) return; showLoading(true);
-            await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', id);
-            await sb.from('logs').delete().like('observacao', `%Ref Despesa #${id}%`).eq('tipo', 'despesa');
-            showToast("Estornado!"); loadData();
-        }
-
-        function openEditReceivable(id, total, paid, due, method) {
-            document.getElementById('rec-id').value = id; document.getElementById('rec-total-lbl').innerText = formatMoney(total); document.getElementById('rec-pending-lbl').innerText = formatMoney(total - paid);
-            try { document.getElementById('rec-due').value = new Date(due).toISOString().split('T')[0]; } catch(e){}
-            document.getElementById('rec-method').value = method; document.getElementById('rec-pay-val').value = '';
-            document.getElementById('modal-receivable-edit').classList.remove('hidden');
-        }
-
-        async function saveReceivableEdit() {
-            const id = document.getElementById('rec-id').value; 
-            const method = document.getElementById('rec-method').value; 
-            const due = document.getElementById('rec-due').value; 
-            const payVal = Number(document.getElementById('rec-pay-val').value) || 0;
-            
-            showLoading(true);
-            
-            let rowsToUpdate = STATE.logs.filter(l => String(l.id) === String(id) && (l.type === 'venda' || l.type === 'receita'));
-            
-            // CORREÇÃO 1: Calcula o total bruto e subtrai o desconto para achar o valor real da venda
-            let orderTotalBruto = rowsToUpdate.reduce((acc, r) => acc + r.totalValue, 0);
-            let orderDiscount = rowsToUpdate.reduce((acc, r) => Math.max(acc, Number(r.discount) || 0), 0);
-            let orderTotal = orderTotalBruto - orderDiscount;
-            
-            let orderPaid = rowsToUpdate.reduce((acc, r) => Math.max(acc, Number(r.paidValue) || 0), 0);
-            let newOrderPaid = orderPaid + payVal; 
-            
-            // CORREÇÃO 2: Usa toFixed(2) para evitar que dízimas do Javascript travem o status em PARCIAL
-            let isPago = Number(newOrderPaid.toFixed(2)) >= Number(orderTotal.toFixed(2));
-            let finStatus = isPago ? 'PAGO' : (newOrderPaid > 0 ? 'PARCIAL' : 'PENDENTE');
-            
-            for(let row of rowsToUpdate) {
-                let updateData = { valor_pago: newOrderPaid, status_financeiro: finStatus }; 
-                if (method) updateData.forma_pagamento = method; 
-                if (due) updateData.vencimento = due;
-                await sb.from('logs').update(updateData).eq('uid', row.uid);
-            }
-            
-            if (payVal > 0) { 
-                await sb.from('logs').insert([{ 
-                    id: getNextId(STATE.logs), tipo: 'recebimento', produto_nome: 'Baixa', 
-                    quantidade: 0, data: new Date().toISOString(), observacao: 'Ref Lanc #' + id, 
-                    valor_total: payVal, cliente_nome: rowsToUpdate[0].clientName, 
-                    forma_pagamento: method || rowsToUpdate[0].paymentMethod, 
-                    status: 'ATIVO', status_financeiro: 'PAGO', valor_pago: payVal 
-                }]); 
-            }
-            
-            document.getElementById('modal-receivable-edit').classList.add('hidden'); 
-            showToast("Conta atualizada!"); 
-            loadData();
-        }
-
+        // ================= FUNÇÕES DO CAIXA (DASHBOARD) =================
         function renderFinance() {
             const salesMap = {};
             STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
                 if(!salesMap[l.id]) {
-                    salesMap[l.id] = { 
-                        id: l.id, val: 0, paid: 0, discount: 0, status: l.finStatus, 
-                        date: l.date, clientName: l.clientName, payment: l.paymentMethod, 
-                        dueDate: l.dueDate, desc: l.type === 'receita' ? l.productName : `Venda #${l.id}` 
-                    };
+                    salesMap[l.id] = { id: l.id, val: 0, paid: 0, status: l.finStatus };
                 }
-                salesMap[l.id].val += Number(l.totalValue) || 0; 
+                salesMap[l.id].val += Number(l.totalValue) || 0;
                 salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
-                // CORREÇÃO 3: Mapeia também o desconto do pedido
-                salesMap[l.id].discount = Math.max(salesMap[l.id].discount, Number(l.discount) || 0);
             });
-            
-            // CORREÇÃO 4: Aplica a dedução do desconto antes de exibir na tela
-            let salesArr = Object.values(salesMap).map(s => {
-                s.val = s.val - s.discount;
-                return s;
-            });
+            let salesArr = Object.values(salesMap);
 
-            const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) + salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+            const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
+                           salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+            
             const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(e.cost), 0);
             
-            document.getElementById('fin-income').innerText = formatMoney(income); 
-            document.getElementById('fin-expenses').innerText = formatMoney(expenses); 
+            document.getElementById('fin-income').innerText = formatMoney(income);
+            document.getElementById('fin-expenses').innerText = formatMoney(expenses);
             document.getElementById('fin-balance').innerText = formatMoney(income - expenses);
+        }
 
-            // A Receber
-            const termRec = document.getElementById('rec-search')?.value.toLowerCase() || ''; 
-            const statusRec = document.getElementById('rec-status')?.value || ''; 
-            const startRec = document.getElementById('rec-start')?.value; 
-            const endRec = document.getElementById('rec-end')?.value; 
-            const hoje = new Date(); hoje.setHours(0,0,0,0);
+        // ================= FUNÇÕES DE PRODUTOS =================
+        function renderProducts() {
+            const list = document.getElementById('prod-list');
+            if(!list) return;
+
+            const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
+            const catFilter = document.getElementById('prod-category')?.value || '';
+
+            const catSelect = document.getElementById('prod-category');
+            if (catSelect && catSelect.options.length <= 1) {
+                const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
+                categoriasUnicas.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    catSelect.appendChild(option);
+                });
+            }
+
+            let filtered = STATE.products.slice();
+            if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
+            if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="p-10 text-center text-slate-400 font-bold">Nenhum produto cadastrado.</div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map(p => `
+            <div class="bg-white p-4 rounded-2xl border shadow-sm flex items-center justify-between mb-1">
+                <div class="flex flex-col flex-1 mr-2 overflow-hidden">
+                    <h4 class="font-black text-slate-800 text-sm truncate mb-1">${p.name}</h4>
+                    <span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded w-max uppercase">${p.category || 'Geral'}</span>
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                    <span class="font-black text-orange-500 text-lg">${formatMoney(p.price)}</span>
+                    <span class="text-[10px] text-slate-400 font-bold">Estoque: <span class="${p.available <= 0 ? 'text-red-500' : 'text-emerald-500'}">${p.available}</span></span>
+                </div>
+                <button onclick="openProductForm('${p.id}')" class="ml-4 p-3 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-200 active:scale-95 transition">
+                    <i data-lucide="edit-3" class="w-5 h-5"></i>
+                </button>
+            </div>`).join('');
+            lucide.createIcons(); 
+        }
+
+        function openProductForm(id) { 
+            document.getElementById('prod-form-container').classList.remove('hidden'); 
+            if(id) { 
+                const p = STATE.products.find(x => x.id == id); 
+                document.getElementById('prd-id').value = p.id; 
+                document.getElementById('prd-name').value = p.name; 
+                document.getElementById('prd-cat').value = p.category || ''; 
+                document.getElementById('prd-price').value = p.price; 
+                document.getElementById('prd-cost').value = p.cost || ''; 
+                document.getElementById('prd-stock').value = p.stock; 
+            } else { 
+                document.getElementById('prd-id').value = ''; 
+                document.getElementById('prd-name').value = ''; 
+                document.getElementById('prd-cat').value = ''; 
+                document.getElementById('prd-price').value = ''; 
+                document.getElementById('prd-cost').value = ''; 
+                document.getElementById('prd-stock').value = ''; 
+            } 
+        }
+
+        async function saveProduct(e) {
+            e.preventDefault();
+            showLoading(true);
+            const isNew = !document.getElementById('prd-id').value;
+            const newId = isNew ? getNextId(STATE.products) : document.getElementById('prd-id').value;
+
+            const payload = {
+                id: newId, nome: document.getElementById('prd-name').value, categoria: document.getElementById('prd-cat').value,
+                preco: parseFloat(document.getElementById('prd-price').value), 
+                custo: parseFloat(document.getElementById('prd-cost').value) || 0,
+                estoque_fisico: parseFloat(document.getElementById('prd-stock').value),
+                estoque_comprometido: isNew ? 0 : STATE.products.find(p=>p.id==newId).committed
+            };
+
+            const { error } = await sb.from('produtos').upsert(payload);
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+
+            document.getElementById('prod-form-container').classList.add('hidden');
+            showToast("Produto Salvo!");
+            loadData();
+        }
+
+        // ================= FUNÇÕES DE CLIENTES =================
+        function renderClients() {
+            const list = document.getElementById('clients-list');
+            if(!list) return;
             
-            let filteredRec = salesArr;
-            if(termRec) filteredRec = filteredRec.filter(r => (r.clientName && r.clientName.toLowerCase().includes(termRec)) || (r.desc && r.desc.toLowerCase().includes(termRec)));
-            if(statusRec === 'PAGOS') filteredRec = filteredRec.filter(r => r.status === 'PAGO');
-            if(statusRec === 'ABERTOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && new Date(r.dueDate) >= hoje);
-            if(statusRec === 'VENCIDOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && new Date(r.dueDate) < hoje);
-            if(startRec) filteredRec = filteredRec.filter(r => new Date(r.dueDate) >= new Date(startRec));
-            if(endRec) { let endD = new Date(endRec); endD.setHours(23,59,59); filteredRec = filteredRec.filter(r => new Date(r.dueDate) <= endD); }
-            filteredRec.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
+            const term = document.getElementById('cli-search')?.value.toLowerCase() || '';
+            let filtered = STATE.clients || [];
 
-            const recBody = document.getElementById('fin-receivables-list');
-            if(filteredRec.length === 0) recBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro.</td></tr>`;
-            else recBody.innerHTML = filteredRec.map(r => {
-                const isVencido = new Date(r.dueDate) < hoje && r.status !== 'PAGO';
-                return `<tr class="border-b ${isVencido?'bg-red-50/30':(r.status==='PAGO'?'bg-green-50/30':'')}">
-                    <td class="p-3 text-xs"><div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(r.dueDate)}</div><div class="text-[9px] text-slate-400 mt-0.5">${r.payment||'-'}</div></td>
-                    <td class="p-3"><div class="font-bold text-slate-800 text-xs truncate max-w-[100px]">${r.clientName}</div><div class="text-[9px] text-slate-500 truncate w-20">${r.desc}</div></td>
-                    <td class="p-3"><div class="font-bold text-slate-800 text-xs">${formatMoney(r.val)}</div>${r.status !== 'PAGO' && r.paid > 0 ? `<div class="text-[9px] text-orange-500 font-bold">Resta: ${formatMoney(r.val - r.paid)}</div>` : ''}</td>
-                    <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                        ${r.status !== 'PAGO' ? 
-                        `<button onclick="openEditReceivable('${r.id}', ${r.val}, ${r.paid}, '${r.dueDate}', '${r.payment}')" class="bg-indigo-600 text-white text-[10px] py-1.5 px-2 rounded shadow font-bold"><i data-lucide="edit-3" class="w-3 h-3"></i></button>
-                         <button onclick="excluirReceitaPendente('${r.id}')" class="bg-red-50 text-red-500 text-[10px] py-1.5 px-2 rounded"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` 
-                        : 
-                        `<span class="text-[9px] font-bold text-green-700 bg-green-100 px-1 py-1 rounded">PAGO</span>
-                         <button onclick="estornarRecebimento('${r.id}')" class="text-slate-400 hover:text-red-500 px-1 py-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>`}
-                    </td>
-                </tr>`;
-            }).join('');
+            if (term) {
+                filtered = filtered.filter(c => 
+                    c.name.toLowerCase().includes(term) || 
+                    (c.phone && c.phone.toLowerCase().includes(term)) || 
+                    (c.doc && c.doc.toLowerCase().includes(term))
+                );
+            }
 
-            // A Pagar
-            let filteredExp = STATE.expenses.slice();
-            const termExp = document.getElementById('exp-search')?.value.toLowerCase() || ''; const statusExp = document.getElementById('exp-status')?.value || ''; const startExp = document.getElementById('exp-start')?.value; const endExp = document.getElementById('exp-end')?.value;
-            if(termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
-            if(statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
-            if(startExp) filteredExp = filteredExp.filter(e => new Date(e.date) >= new Date(startExp));
-            if(endExp) { let endD = new Date(endExp); endD.setHours(23,59,59); filteredExp = filteredExp.filter(e => new Date(e.date) <= endD); }
-            filteredExp.sort((a,b) => new Date(a.date) - new Date(b.date));
+            const sliced = filtered.slice(0, 150);
 
-            const expBody = document.getElementById('fin-expense-history-list');
-            if(filteredExp.length === 0) expBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro.</td></tr>`;
-            else expBody.innerHTML = filteredExp.map(e => {
-                const isVencido = new Date(e.date) < hoje && e.status !== 'PAGO';
-                let providerVal = e.note || '-'; if (providerVal.startsWith('Fornecedor:')) providerVal = providerVal.replace('Fornecedor:', '').trim();
-                return `<tr class="border-b ${isVencido?'bg-red-50/30':(e.status==='PAGO'?'bg-green-50/30':'')}">
-                    <td class="p-3 text-xs"><div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)}</div></td>
-                    <td class="p-3"><div class="font-bold text-slate-800 text-xs">${e.item}</div><div class="text-[9px] text-slate-500 truncate w-24">${providerVal}</div></td>
-                    <td class="p-3"><div class="font-bold text-slate-800 text-xs">${formatMoney(e.cost)}</div></td>
-                    <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                        ${e.status !== 'PAGO' ? `
-                            <button onclick="payExpense('${e.id}')" class="bg-red-500 text-white p-1.5 rounded shadow"><i data-lucide="check-circle" class="w-3 h-3"></i></button>
-                            <button onclick="excluirDespesa('${e.id}')" class="bg-red-50 text-red-500 p-1.5 rounded"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
-                        ` : `
-                            <span class="text-[9px] font-bold text-green-700 bg-green-100 px-1 py-1 rounded">PAGO</span>
-                            <button onclick="estornarDespesaLog('${e.id}')" class="text-slate-400 hover:text-red-500 px-1 py-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>
-                        `}
-                    </td>
-                </tr>`;
+            if (sliced.length === 0) {
+                list.innerHTML = '<div class="p-10 text-center text-slate-400 font-bold">Nenhum cliente encontrado.</div>';
+                return;
+            }
+
+            list.innerHTML = sliced.map(c => {
+                // Formatação do link pro WhatsApp
+                let num = c.phone ? c.phone.replace(/\D/g, '') : '';
+                if (num.length >= 10 && !num.startsWith('55')) num = '55' + num;
+                const zapLink = num ? `https://wa.me/${num}` : '#';
+                const hasZap = num.length >= 10;
+                const zapClass = hasZap ? 'bg-green-100 text-green-700 active:bg-green-200' : 'bg-slate-100 text-slate-300 pointer-events-none opacity-50';
+
+                return `
+                <div class="bg-white p-5 rounded-2xl border shadow-sm mb-2 relative">
+                    <h4 class="font-black text-slate-800 text-lg mb-2 pr-10 leading-tight">${c.name}</h4>
+                    
+                    <button onclick="openClientForm('${c.id}')" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-blue-600 bg-slate-50 rounded-full active:scale-95 transition">
+                        <i data-lucide="edit-3" class="w-5 h-5"></i>
+                    </button>
+
+                    <div class="flex flex-col gap-1 text-sm font-medium text-slate-600 mb-4">
+                        <span class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4 text-slate-400"></i> ${c.phone || 'Sem telefone'}</span>
+                        ${c.doc ? `<span class="flex items-center gap-2"><i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i> ${c.doc}</span>` : ''}
+                    </div>
+
+                    <a href="${zapLink}" ${hasZap ? 'target="_blank"' : ''} class="w-full flex items-center justify-center gap-2 p-3 rounded-xl font-bold transition-transform active:scale-[0.98] ${zapClass}">
+                        <i data-lucide="message-circle" class="w-5 h-5"></i> Chamar no WhatsApp
+                    </a>
+                </div>`;
             }).join('');
             lucide.createIcons();
         }
 
-        // Impressões (adaptado para Mobile View)
-        function printReceivables() { document.getElementById('print-area').innerHTML = '<h2 style="font-family:sans-serif; text-align:center; padding-top:40px;">Por favor, acesse o sistema no Computador para imprimir relatórios completos financeiros.</h2>'; setTimeout(() => window.print(), 500); }
-        function printExpenses() { document.getElementById('print-area').innerHTML = '<h2 style="font-family:sans-serif; text-align:center; padding-top:40px;">Por favor, acesse o sistema no Computador para imprimir relatórios completos financeiros.</h2>'; setTimeout(() => window.print(), 500); }
+        function openClientForm(id) { 
+            document.getElementById('client-form-container').classList.remove('hidden'); 
+            if(id) {
+                const c = STATE.clients.find(x => String(x.id) === String(id));
+                if(c) {
+                    document.getElementById('cli-id').value = c.id;
+                    document.getElementById('cli-name').value = c.name;
+                    document.getElementById('cli-phone').value = c.phone;
+                    document.getElementById('cli-doc').value = c.doc;
+                    document.getElementById('cli-addr').value = c.address;
+                }
+            } else {
+                document.getElementById('cli-id').value = '';
+                document.getElementById('cli-name').value = '';
+                document.getElementById('cli-phone').value = '';
+                document.getElementById('cli-doc').value = '';
+                document.getElementById('cli-addr').value = '';
+            }
+        }
 
-        function fazerLogout() { localStorage.removeItem('rv_user'); window.location.replace('index.html'); }
+        async function saveClient(e) {
+            e.preventDefault();
+            showLoading(true);
+            const isNew = !document.getElementById('cli-id').value;
+            const newId = isNew ? getNextId(STATE.clients) : document.getElementById('cli-id').value;
+
+            const payload = {
+                id: newId, nome: document.getElementById('cli-name').value, telefone: document.getElementById('cli-phone').value,
+                documento: document.getElementById('cli-doc').value, endereco: document.getElementById('cli-addr').value
+            };
+
+            const { error } = await sb.from('clientes').upsert(payload);
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+            
+            document.getElementById('client-form-container').classList.add('hidden');
+            showToast("Cliente Salvo!");
+            loadData();
+        }
+
+        function fazerLogout() {
+            localStorage.removeItem('rv_user');
+            window.location.replace('index.html');
+        }
+
     </script>
   </body>
 </html>
