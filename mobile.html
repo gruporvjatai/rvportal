@@ -13,7 +13,6 @@
     <link rel="shortcut icon" type="image/png" href="logo.png">
     <link rel="apple-touch-icon" href="logo.png">
     
-
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="RV Portal Madeiras">
@@ -86,9 +85,11 @@
     <main class="p-4 overflow-x-hidden">
 
       <div id="view-quotes" class="hidden-section">
-          <div class="flex flex-col gap-3 mb-4">
+          <div class="flex justify-between items-center mb-4">
               <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i data-lucide="folder-open" class="text-indigo-600"></i> Orçamentos</h2>
-              
+              <button onclick="openNewQuote()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl font-bold shadow-lg shadow-indigo-200 flex items-center gap-2 active:scale-95 transition-transform"><i data-lucide="plus"></i> Novo</button>
+          </div>
+          <div class="flex flex-col gap-3 mb-4">
               <div class="flex flex-col gap-2">
                   <div class="relative w-full">
                       <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
@@ -168,6 +169,118 @@
 
     </main>
 
+    <div id="view-pos" class="hidden fixed inset-0 bg-slate-50 z-[60] flex-col animate-[fadeIn_0.2s]">
+        <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="closeNewQuote()" class="text-white p-2 bg-slate-800 rounded-full hover:bg-slate-700 active:scale-95"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+                <h2 class="text-lg font-black tracking-wider text-white">ORÇAMENTO</h2>
+            </div>
+            <span id="edit-mode-indicator" class="hidden text-[10px] bg-emerald-500 text-white px-2 py-1 rounded font-bold uppercase">Editando</span>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-32">
+            <button onclick="openPosProductModal()" class="w-full bg-indigo-100 text-indigo-700 p-4 rounded-xl font-bold mb-4 flex items-center justify-center gap-2 border border-indigo-200 active:scale-95 transition-transform"><i data-lucide="search"></i> Buscar e Adicionar Produtos</button>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
+                <div class="bg-slate-50 p-3 border-b border-slate-200 font-bold text-slate-700 text-sm flex justify-between items-center">
+                    <span>Itens Adicionados</span> 
+                    <button onclick="clearCart()" class="text-red-500 text-xs border border-red-200 px-2 py-1 rounded bg-white">LIMPAR</button>
+                </div>
+                <div id="pos-cart-items" class="p-3 flex flex-col gap-3"></div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-4">
+                <div>
+                    <input type="hidden" id="pos-client" value="">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente</label>
+                    <button id="pos-client-btn" onclick="openPosClientModal()" class="w-full p-3 border rounded-xl text-left font-bold text-slate-700 flex justify-between items-center bg-slate-50">
+                        <span>Consumidor Final</span>
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                    </button>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Forma de Pagto Base</label>
+                    <select id="pos-payment" class="w-full p-3 border rounded-xl text-sm bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option>Dinheiro</option><option>PIX</option><option>Cartão Crédito</option><option>Cartão Débito</option><option>Boleto 5 dias</option><option>Boleto 10 dias</option><option>Boleto 15 dias</option><option>PIX 7 dias</option><option>Carteira</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <div class="w-1/3">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo Desc.</label>
+                        <select id="pos-discount-type" class="w-full p-3 border rounded-xl text-sm bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" onchange="renderCart()">
+                            <option value="%">%</option><option value="$">R$</option>
+                        </select>
+                    </div>
+                    <div class="w-2/3">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Desconto</label>
+                        <input type="number" id="pos-discount" value="0" class="w-full p-3 border rounded-xl text-sm bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" onchange="renderCart()">
+                    </div>
+                </div>
+                
+                <div class="pt-2">
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="checkbox" id="pos-custom-address-check" class="w-4 h-4 text-indigo-600 rounded" onchange="toggleCustomAddress()">
+                        <label for="pos-custom-address-check" class="text-xs font-bold text-slate-600">Endereço de Entrega Manual</label>
+                    </div>
+                    <textarea id="pos-custom-address" class="hidden w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows="2" placeholder="Digite o endereço completo..."></textarea>
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="checkbox" id="pos-custom-obs-check" class="w-4 h-4 text-indigo-600 rounded" onchange="toggleCustomObs()">
+                        <label for="pos-custom-obs-check" class="text-xs font-bold text-slate-600">Observações Extras</label>
+                    </div>
+                    <textarea id="pos-custom-obs" class="hidden w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows="2" placeholder="Digite as observações gerais..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white border-t p-4 shrink-0 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)]">
+            <div class="flex justify-between items-end mb-3 px-1">
+                <span class="text-xs font-bold text-slate-500">Total (<span id="cart-count">0</span> itens)</span>
+                <span id="pos-total-display" class="text-2xl font-black text-slate-800">R$ 0,00</span>
+            </div>
+            <button onclick="saveQuote()" class="w-full bg-indigo-600 text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 active:scale-95 transition-transform flex justify-center items-center gap-2">
+                <i data-lucide="save"></i> Salvar Orçamento
+            </button>
+        </div>
+    </div>
+    <div id="pos-product-modal" class="hidden fixed inset-0 bg-slate-900 z-[70] flex-col animate-[fadeIn_0.2s]">
+        <div class="p-4 border-b flex justify-between items-center bg-white shrink-0">
+            <h3 class="font-black text-lg text-slate-800 flex items-center gap-2"><i data-lucide="package-search" class="text-indigo-600"></i> Produtos</h3>
+            <button onclick="closePosProductModal()" class="text-slate-400 hover:text-red-500 p-2 bg-slate-100 rounded-full"><i data-lucide="x"></i></button>
+        </div>
+        <div class="p-4 bg-white border-b shrink-0">
+            <div class="relative w-full">
+                <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-5 h-5"></i>
+                <input type="text" id="pos-modal-search" placeholder="Digite o nome..." class="w-full pl-10 p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-600" onkeyup="renderPosProductModal()">
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 bg-slate-50">
+            <div id="pos-modal-grid" class="flex flex-col gap-3"></div>
+        </div>
+    </div>
+
+    <div id="pos-client-modal" class="hidden fixed inset-0 bg-slate-900 z-[70] flex-col animate-[fadeIn_0.2s]">
+        <div class="p-4 border-b flex justify-between items-center bg-white shrink-0">
+            <h3 class="font-black text-lg text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-indigo-600"></i> Selecionar Cliente</h3>
+            <button onclick="closePosClientModal()" class="text-slate-400 hover:text-red-500 p-2 bg-slate-100 rounded-full"><i data-lucide="x"></i></button>
+        </div>
+        <div class="p-4 bg-white border-b shrink-0">
+            <div class="relative w-full">
+                <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-5 h-5"></i>
+                <input type="text" id="pos-client-modal-search" placeholder="Buscar por nome, telefone..." class="w-full pl-10 p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-600" onkeyup="renderPosClientModal()">
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 bg-slate-50">
+            <div id="pos-client-modal-grid" class="flex flex-col gap-3"></div>
+        </div>
+        <div class="p-4 bg-white border-t shrink-0">
+            <button onclick="selectPosClient('', 'Consumidor Final')" class="w-full py-4 bg-slate-200 text-slate-700 font-bold rounded-xl active:scale-95 transition-transform">Consumidor Final (Remover)</button>
+        </div>
+    </div>
+
     <div id="print-area" style="position: absolute; left: -9999px; top: -9999px;"></div>
 
     <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-40 flex justify-around items-center pb-safe" style="padding-bottom: env(safe-area-inset-bottom);">
@@ -189,7 +302,7 @@
         </button>
     </nav>
 
-    <div id="client-form-container" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-end justify-center sm:items-center">
+    <div id="client-form-container" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end justify-center sm:items-center">
         <form onsubmit="saveClient(event)" class="bg-white p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md animate-[fadeIn_0.3s]">
             <div class="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-4 sm:hidden"></div>
             <h3 class="font-black text-xl mb-6 text-slate-800 flex items-center gap-2"><i data-lucide="user-plus" class="text-blue-500"></i> Dados do Cliente</h3>
@@ -219,7 +332,7 @@
         </form>
     </div>
 
-    <div id="prod-form-container" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-end justify-center sm:items-center">
+    <div id="prod-form-container" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end justify-center sm:items-center">
         <form onsubmit="saveProduct(event)" class="bg-white p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md animate-[fadeIn_0.3s]">
             <div class="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-4 sm:hidden"></div>
             <h3 class="font-black text-xl mb-6 text-slate-800 flex items-center gap-2"><i data-lucide="package-plus" class="text-orange-500"></i> Dados do Produto</h3>
@@ -267,6 +380,10 @@
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [] };
+        
+        // VARIÁVEIS DO CARRINHO
+        let CART = [];
+        let CURRENT_QUOTE_ID = null;
 
         window.onload = function() { 
             if (dadosUsuario) {
@@ -276,7 +393,7 @@
         };
 
         function navigate(viewId) {
-            document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
+            document.querySelectorAll('main > div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
             
             const target = document.getElementById('view-' + viewId);
             if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
@@ -304,7 +421,7 @@
         function showToast(msg, isError) { 
             const t = document.getElementById('toast'); 
             t.textContent = msg; 
-            t.className = `fixed top-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-bold text-sm z-50 transition-all text-center min-w-[250px] ${isError ? 'bg-red-600' : 'bg-slate-900'}`; 
+            t.className = `fixed top-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-bold text-sm z-[100] transition-all text-center min-w-[250px] ${isError ? 'bg-red-600' : 'bg-slate-900'}`; 
             t.style.display = 'block'; 
             setTimeout(() => t.style.display = 'none', 3000); 
         }
@@ -405,7 +522,304 @@
             showLoading(false);
         }
 
-        // ================= FUNÇÕES DE ORÇAMENTO E PDF =================
+        // ================= FUNÇÕES DE NOVO ORÇAMENTO (PDV MOBILE) =================
+
+        function openNewQuote() {
+            clearCart();
+            document.getElementById('view-pos').classList.remove('hidden');
+            document.getElementById('view-pos').classList.add('flex');
+            renderCart();
+        }
+
+        function closeNewQuote() {
+            document.getElementById('view-pos').classList.add('hidden');
+            document.getElementById('view-pos').classList.remove('flex');
+        }
+
+        function toggleCustomAddress() {
+            const check = document.getElementById('pos-custom-address-check').checked;
+            const input = document.getElementById('pos-custom-address');
+            if(check) {
+                input.classList.remove('hidden');
+                input.focus();
+            } else {
+                input.classList.add('hidden');
+                input.value = '';
+            }
+        }
+
+        function toggleCustomObs() {
+            const check = document.getElementById('pos-custom-obs-check').checked;
+            const input = document.getElementById('pos-custom-obs');
+            if(check) {
+                input.classList.remove('hidden');
+                input.focus();
+            } else {
+                input.classList.add('hidden');
+                input.value = '';
+            }
+        }
+
+        function calculateTotal() {
+            const sub = CART.reduce((a,b)=>a+(b.qty * b.price), 0);
+            const type = document.getElementById('pos-discount-type').value;
+            const val = parseFloat(document.getElementById('pos-discount').value) || 0;
+            let disc = (type === '%') ? (sub * (val/100)) : val;
+            return { sub, disc, total: Math.max(0, sub - disc) };
+        }
+
+        function renderCart() {
+            const box = document.getElementById('pos-cart-items');
+            document.getElementById('edit-mode-indicator').style.display = CURRENT_QUOTE_ID ? 'inline-block' : 'none';
+            
+            if(!CART.length) { 
+                box.innerHTML='<p class="text-center text-slate-400 my-4 text-sm font-bold">Nenhum item adicionado</p>'; 
+                document.getElementById('pos-total-display').innerText=formatMoney(0); 
+                document.getElementById('cart-count').innerText='0'; 
+                return; 
+            }
+            
+            const totals = calculateTotal();
+            
+            box.innerHTML = CART.map((i, idx) => `
+                <div class="bg-white p-3 border rounded-xl flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <span class="font-bold text-sm text-slate-800 leading-tight pr-2">${i.name}</span>
+                        <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 bg-red-50 p-1.5 rounded-lg active:scale-95 transition-transform"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="flex justify-between items-center mt-1">
+                        <div class="flex items-center gap-2">
+                            <input type="number" value="${i.qty}" step="0.1" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-16 p-2 border rounded-lg bg-slate-50 text-center text-sm font-bold focus:border-indigo-500 outline-none" title="Qtd">
+                            <span class="text-slate-400 text-xs font-bold">x</span>
+                            <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-20 p-2 border rounded-lg bg-slate-50 text-center text-sm font-bold focus:border-indigo-500 outline-none" title="Unit.">
+                        </div>
+                        <div class="font-black text-slate-800 text-base">${formatMoney(i.total)}</div>
+                    </div>
+                </div>`).join('');
+                
+            document.getElementById('pos-total-display').innerText = formatMoney(totals.total);
+            document.getElementById('cart-count').innerText = CART.length;
+            lucide.createIcons();
+        }
+
+        function updateCartItem(idx, field, value) {
+            const item = CART[idx];
+            if(field === 'qty') item.qty = parseFloat(value) || 0;
+            else if (field === 'price') item.price = parseFloat(value) || 0;
+            item.total = item.qty * item.price;
+            renderCart();
+        }
+
+        function clearCart() { 
+            CART=[]; 
+            CURRENT_QUOTE_ID=null; 
+            document.getElementById('pos-discount').value=0; 
+            
+            document.getElementById('pos-client').value = '';
+            document.getElementById('pos-client-btn').querySelector('span').innerText = 'Consumidor Final';
+            
+            document.getElementById('pos-custom-address-check').checked = false;
+            document.getElementById('pos-custom-address').classList.add('hidden');
+            document.getElementById('pos-custom-address').value = '';
+
+            document.getElementById('pos-custom-obs-check').checked = false;
+            document.getElementById('pos-custom-obs').classList.add('hidden');
+            document.getElementById('pos-custom-obs').value = '';
+            
+            renderCart(); 
+        }
+
+        function openPosProductModal() {
+            document.getElementById('pos-product-modal').classList.remove('hidden');
+            document.getElementById('pos-product-modal').classList.add('flex');
+            document.getElementById('pos-modal-search').value = '';
+            renderPosProductModal();
+        }
+
+        function closePosProductModal() { 
+            document.getElementById('pos-product-modal').classList.add('hidden');
+            document.getElementById('pos-product-modal').classList.remove('flex');
+        }
+
+        function renderPosProductModal() {
+            const term = document.getElementById('pos-modal-search').value.toLowerCase();
+            const grid = document.getElementById('pos-modal-grid');
+            if(!grid) return;
+
+            const sortedProducts = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
+
+            grid.innerHTML = sortedProducts.filter(p=>p.name.toLowerCase().includes(term)).map(p => {
+                return `
+                <div class="p-3 border rounded-xl bg-white flex flex-col gap-2">
+                    <div class="flex justify-between">
+                        <h4 class="font-bold text-sm text-slate-800 leading-tight">${p.name}</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded h-max ${p.available<=0?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700'} font-bold">Disp: ${p.available}</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-indigo-600 font-black text-lg">${formatMoney(p.price)}</span>
+                        <div class="flex gap-2">
+                            <input type="number" id="qty-modal-${p.id}" value="1" min="0.1" step="0.1" class="w-16 p-2 border rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-indigo-600 bg-slate-50">
+                            <button onclick="addModalToCart('${p.id}')" class="bg-indigo-600 text-white p-2 rounded-lg font-bold shadow-md shadow-indigo-200 active:scale-95 transition-transform"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function addModalToCart(id) {
+            const p = STATE.products.find(x=>x.id==id);
+            const qtyInput = document.getElementById(`qty-modal-${id}`);
+            const qty = parseFloat(qtyInput.value) || 1;
+            
+            if(p) {
+                const existing = CART.find(x=>x.prodId==id);
+                if(existing) { 
+                    existing.qty += qty; 
+                    existing.total = existing.qty * existing.price; 
+                } else { 
+                    CART.push({prodId:p.id, name:p.name, price:p.price, qty:qty, total:p.price * qty}); 
+                }
+                renderCart();
+                qtyInput.value = "1";
+                showToast(p.name + " adicionado!");
+            }
+        }
+
+        function openPosClientModal() {
+            document.getElementById('pos-client-modal').classList.remove('hidden');
+            document.getElementById('pos-client-modal').classList.add('flex');
+            document.getElementById('pos-client-modal-search').value = '';
+            renderPosClientModal();
+        }
+
+        function closePosClientModal() {
+            document.getElementById('pos-client-modal').classList.add('hidden');
+            document.getElementById('pos-client-modal').classList.remove('flex');
+        }
+
+        function renderPosClientModal() {
+            const term = document.getElementById('pos-client-modal-search').value.toLowerCase();
+            const grid = document.getElementById('pos-client-modal-grid');
+            if(!grid) return;
+
+            const sortedClients = (STATE.clients||[]).slice().sort((a, b) => a.name.localeCompare(b.name));
+
+            let filtered = sortedClients;
+            if (term) {
+                filtered = filtered.filter(c => 
+                    c.name.toLowerCase().includes(term) || 
+                    (c.doc && c.doc.includes(term)) || 
+                    (c.phone && c.phone.includes(term))
+                );
+            }
+
+            grid.innerHTML = filtered.slice(0, 50).map(c => {
+                return `
+                <div class="p-4 border rounded-xl bg-white flex items-center justify-between" onclick="selectPosClient('${c.id}', '${c.name.replace(/'/g, "\\'")}')">
+                    <div class="flex flex-col flex-1 truncate">
+                        <h4 class="font-bold text-sm text-slate-800 truncate">${c.name}</h4>
+                        <span class="text-[11px] text-slate-500 font-medium mt-0.5">Doc: ${c.doc || '-'} | Tel: ${c.phone || '-'}</span>
+                    </div>
+                    <button class="bg-indigo-50 text-indigo-600 p-2 rounded-full"><i data-lucide="check" class="w-5 h-5"></i></button>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function selectPosClient(id, name) {
+            document.getElementById('pos-client').value = id;
+            document.getElementById('pos-client-btn').querySelector('span').innerText = name;
+            closePosClientModal();
+            showToast(name !== 'Consumidor Final' ? `Cliente: ${name}` : "Consumidor Final");
+        }
+
+        async function saveQuote() {
+            if(!CART.length) return showToast("Adicione produtos primeiro!", true);
+            showLoading(true);
+
+            const totals = calculateTotal();
+            const cliId = document.getElementById('pos-client').value;
+            const clientName = STATE.clients.find(c=>c.id==cliId)?.name || "Consumidor Final";
+            
+            const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
+            const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
+            
+            const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
+            const obs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
+
+            const date = new Date().toISOString();
+            const budgetId = CURRENT_QUOTE_ID || getNextId(STATE.logs, STATE.quotes);
+
+            if(CURRENT_QUOTE_ID) await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
+
+            let quotesToInsert = CART.map(item => ({
+                id: budgetId, tipo: 'orcamento', produto_nome: item.name, quantidade: item.qty,
+                data: date, observacao: obs, valor_total: item.total, cliente_nome: clientName, 
+                forma_pagamento: document.getElementById('pos-payment').value, status: 'ABERTO', 
+                desconto: totals.disc, status_financeiro: document.getElementById('pos-discount-type').value, 
+                endereco_entrega: deliveryAddr, status_entrega: '', qtd_entregue: 0, vencimento: date, valor_pago: 0
+            }));
+
+            const { error } = await sb.from('logs').insert(quotesToInsert);
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+
+            clearCart();
+            closeNewQuote();
+            showToast("Orçamento Salvo!");
+            await loadData();
+        }
+
+        // Carrega orçamento existente para edição
+        function loadQuoteToCart(id) {
+            const q = STATE.quotes.find(x => x.id == id);
+            if(!q) return;
+            
+            CART = JSON.parse(JSON.stringify(q.items));
+            CURRENT_QUOTE_ID = q.id; 
+            
+            const clientSelectBtn = document.getElementById('pos-client-btn').querySelector('span');
+            const clientObj = STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
+            
+            if(clientObj) {
+                document.getElementById('pos-client').value = clientObj.id;
+                clientSelectBtn.innerText = clientObj.name;
+            } else {
+                document.getElementById('pos-client').value = '';
+                clientSelectBtn.innerText = q.clientName || 'Consumidor Final';
+            }
+            
+            document.getElementById('pos-payment').value = q.paymentMethod || 'Dinheiro';
+            document.getElementById('pos-discount-type').value = q.discountType || '$';
+            document.getElementById('pos-discount').value = q.discount || 0;
+
+            if(q.deliveryAddress) {
+                document.getElementById('pos-custom-address-check').checked = true;
+                document.getElementById('pos-custom-address').classList.remove('hidden');
+                document.getElementById('pos-custom-address').value = q.deliveryAddress;
+            } else {
+                document.getElementById('pos-custom-address-check').checked = false;
+                document.getElementById('pos-custom-address').classList.add('hidden');
+                document.getElementById('pos-custom-address').value = '';
+            }
+
+            if(q.observacao) {
+                document.getElementById('pos-custom-obs-check').checked = true;
+                document.getElementById('pos-custom-obs').classList.remove('hidden');
+                document.getElementById('pos-custom-obs').value = q.observacao;
+            } else {
+                document.getElementById('pos-custom-obs-check').checked = false;
+                document.getElementById('pos-custom-obs').classList.add('hidden');
+                document.getElementById('pos-custom-obs').value = '';
+            }
+
+            document.getElementById('view-pos').classList.remove('hidden');
+            document.getElementById('view-pos').classList.add('flex');
+            renderCart();
+            showToast(`Editando Orçamento #${q.id}`);
+        }
+
+        // ================= FUNÇÕES DE ORÇAMENTO DA LISTA (PDF, Status, etc) =================
 
         function renderInvoice(sale, isQuote) {
             const el = document.getElementById('print-area');
@@ -492,143 +906,141 @@
         }
 
         async function shareQuote(id) {
-    const q = STATE.quotes.find(x => x.id == id);
-    if (!q) return;
-    
-    showLoading(true);
+            const q = STATE.quotes.find(x => x.id == id);
+            if (!q) return;
+            
+            showLoading(true);
 
-    const clientName = q.clientName || 'Consumidor Final';
-    const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+            const clientName = q.clientName || 'Consumidor Final';
+            const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
 
-    let subtotal = 0;
-    const itemsHtml = q.items.map((i, index) => {
-        const itemTotal = i.qty * i.price;
-        subtotal += itemTotal;
-        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-        return `
-            <tr style="background-color: ${bgColor};">
-                <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
-                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
-            </tr>`;
-    }).join('');
+            let subtotal = 0;
+            const itemsHtml = q.items.map((i, index) => {
+                const itemTotal = i.qty * i.price;
+                subtotal += itemTotal;
+                const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                return `
+                    <tr style="background-color: ${bgColor};">
+                        <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
+                        <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
+                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
+                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
+                    </tr>`;
+            }).join('');
 
-    const discount = Number(q.discount) || 0;
-    const finalTotal = subtotal - discount;
-    const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
-    const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV' 
-                    ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+            const discount = Number(q.discount) || 0;
+            const finalTotal = subtotal - discount;
+            const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
+            const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV' 
+                            ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
 
-    // Montando o HTML em memória, idêntico ao original
-    const htmlString = `
-        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
-            </div>
-            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <tr>
-                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
-                    </td>
-                    <td valign="middle" style="padding-left: 15px;">
-                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
-                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                    </td>
-                    <td align="right" valign="top">
-                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">ORÇAMENTO</h2>
-                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
-                        <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
-                    </td>
-                </tr>
-            </table>
-            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
-                <tr>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
-                        </div>
-                    </td>
-                    <td width="4%"></td>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
-                        </div>
-                    </td>
-                </tr>
-            </table>
-            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
-                <thead>
-                    <tr>
-                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
-                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>${itemsHtml}</tbody>
-            </table>
-            <table width="100%" style="margin-top: 10px;">
-                <tr>
-                    <td valign="top" style="padding-right: 30px;">
-                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                            <div style="font-size: 10px; color: #334155;">${obsText}</div>
-                        </div>
-                    </td>
-                    <td width="250" valign="top">
-                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
+            const htmlString = `
+                <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
+                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
+                    </div>
+                    <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                        <tr>
+                            <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
+                                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
+                            </td>
+                            <td valign="middle" style="padding-left: 15px;">
+                                <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
+                                <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
+                                <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                            </td>
+                            <td align="right" valign="top">
+                                <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">ORÇAMENTO</h2>
+                                <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
+                                <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
+                            </td>
+                        </tr>
+                    </table>
+                    <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
+                        <tr>
+                            <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
+                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                                    <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
+                                </div>
+                            </td>
+                            <td width="4%"></td>
+                            <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
+                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                                    <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                    <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
+                        <thead>
                             <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
+                                <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
+                                <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
+                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
+                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
                             </tr>
-                            ${discount > 0 ? `<tr><td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td><td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td></tr>` : ''}
-                            <tr>
-                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
-                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </div>`;
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
+                    </table>
+                    <table width="100%" style="margin-top: 10px;">
+                        <tr>
+                            <td valign="top" style="padding-right: 30px;">
+                                <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
+                                    <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
+                                    <div style="font-size: 10px; color: #334155;">${obsText}</div>
+                                </div>
+                            </td>
+                            <td width="250" valign="top">
+                                <table width="100%" style="font-size: 11px; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
+                                        <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
+                                    </tr>
+                                    ${discount > 0 ? `<tr><td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td><td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td></tr>` : ''}
+                                    <tr>
+                                        <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
+                                        <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>`;
 
-    const filename = `Orcamento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
-    const opt = {
-        margin: 10, 
-        filename: filename,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+            const filename = `Orcamento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+            const opt = {
+                margin: 10, 
+                filename: filename,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
 
-    try {
-        const pdfBlob = await html2pdf().set(opt).from(htmlString).output('blob');
-        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-        
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-                title: `Orçamento #${q.id}`,
-                text: `Olá ${clientName}, segue o orçamento solicitado.`,
-                files: [file]
-            });
-            showLoading(false);
-        } else {
-            // Se o celular não aguentar envio direto de arquivos
-            html2pdf().set(opt).from(htmlString).save().then(() => {
+            try {
+                const pdfBlob = await html2pdf().set(opt).from(htmlString).output('blob');
+                const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: `Orçamento #${q.id}`,
+                        text: `Olá ${clientName}, segue o orçamento solicitado.`,
+                        files: [file]
+                    });
+                    showLoading(false);
+                } else {
+                    html2pdf().set(opt).from(htmlString).save().then(() => {
+                        showLoading(false);
+                        showToast("PDF Baixado! Seu celular não suporta envio direto.");
+                    });
+                }
+            } catch (err) {
+                console.error("Erro PDF", err);
                 showLoading(false);
-                showToast("PDF Baixado! Seu celular não suporta envio direto do arquivo.");
-            });
+                showToast("Falha ao gerar o PDF", true);
+            }
         }
-    } catch (err) {
-        console.error("Erro PDF", err);
-        showLoading(false);
-        showToast("Falha ao gerar o PDF", true);
-    }
-}
 
         function renderQuotesList() {
             const list = document.getElementById('quotes-list');
@@ -675,17 +1087,20 @@
                         </div>
                     </div>
                     
-                    <div class="mb-4 bg-white/60 p-3 rounded-xl">
+                    <div class="mb-4 bg-white/60 p-3 rounded-xl border border-white/50">
                         <div class="font-bold text-slate-800 flex items-center gap-1 mb-1"><i data-lucide="user" class="w-4 h-4 text-slate-400"></i> ${q.clientName}</div>
                         <div class="text-xs text-slate-600 line-clamp-2 leading-relaxed font-medium pl-5">${q.itemsText || '...'}</div>
                     </div>
                     
-                    <div class="flex gap-2 justify-end">
-                        <button onclick="shareQuote('${q.id}')" class="flex-1 p-3 bg-white border border-slate-300 text-slate-700 rounded-xl flex justify-center items-center gap-2 font-bold shadow-sm active:scale-95 transition-transform">
-                            <i data-lucide="share-2" class="w-5 h-5"></i> Compartilhar
+                    <div class="flex gap-2 justify-end mt-2">
+                        <button onclick="shareQuote('${q.id}')" class="flex-1 p-2 bg-white border border-slate-300 text-slate-700 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform">
+                            <i data-lucide="share-2" class="w-4 h-4"></i> Enviar
                         </button>
-                        <button onclick="deleteQuote('${q.id}')" class="p-3 bg-white border border-red-200 text-red-500 rounded-xl flex justify-center items-center shadow-sm active:scale-95 transition-transform" title="Excluir">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        <button onclick="loadQuoteToCart('${q.id}')" class="flex-1 p-2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i> Editar
+                        </button>
+                        <button onclick="deleteQuote('${q.id}')" class="w-12 p-2 bg-white border border-red-200 text-red-500 rounded-xl flex justify-center items-center shadow-sm active:scale-95 transition-transform" title="Excluir">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     </div>
                 </div>`;
@@ -695,34 +1110,30 @@
 
         // ================= FUNÇÕES DO CAIXA (DASHBOARD) =================
         function renderFinance() {
-    const salesMap = {};
-    
-    // Filtra vendas e receitas exatamente igual ao seu desktop
-    STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
-        if(!salesMap[l.id]) {
-            salesMap[l.id] = { id: l.id, val: 0, paid: 0, status: l.finStatus };
+            const salesMap = {};
+            
+            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+                if(!salesMap[l.id]) {
+                    salesMap[l.id] = { id: l.id, val: 0, paid: 0, status: l.finStatus };
+                }
+                salesMap[l.id].val += Number(l.totalValue) || 0;
+                salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
+            });
+            let salesArr = Object.values(salesMap);
+
+            const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
+                           salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+
+            const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, e) => a + Number(e.cost), 0);
+
+            const elIncome = document.getElementById('fin-income');
+            const elExpenses = document.getElementById('fin-expenses');
+            const elBalance = document.getElementById('fin-balance');
+
+            if(elIncome) elIncome.innerText = formatMoney(income);
+            if(elExpenses) elExpenses.innerText = formatMoney(expenses);
+            if(elBalance) elBalance.innerText = formatMoney(income - expenses);
         }
-        salesMap[l.id].val += Number(l.totalValue) || 0;
-        salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
-    });
-    let salesArr = Object.values(salesMap);
-
-    // Soma das Receitas
-    const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
-                   salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
-
-    // Soma das Despesas
-    const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, e) => a + Number(e.cost), 0);
-
-    // Atualiza a tela se os elementos existirem
-    const elIncome = document.getElementById('fin-income');
-    const elExpenses = document.getElementById('fin-expenses');
-    const elBalance = document.getElementById('fin-balance');
-
-    if(elIncome) elIncome.innerText = formatMoney(income);
-    if(elExpenses) elExpenses.innerText = formatMoney(expenses);
-    if(elBalance) elBalance.innerText = formatMoney(income - expenses);
-}
 
         // ================= FUNÇÕES DE PRODUTOS =================
         function renderProducts() {
@@ -733,7 +1144,6 @@
             const catFilter = document.getElementById('prod-category')?.value || '';
             const catSelect = document.getElementById('prod-category');
             
-            // Popula Categoria Garantindo que Não Duplique
             if (catSelect) {
                 const currentVal = catSelect.value;
                 catSelect.innerHTML = '<option value="">Todas as Categorias</option>';
@@ -838,14 +1248,12 @@
                 return;
             }
 
-            // Transformado de Card para Lista Compacta
             list.innerHTML = sliced.map(c => {
                 let num = c.phone ? c.phone.replace(/\D/g, '') : '';
                 if (num.length >= 10 && !num.startsWith('55')) num = '55' + num;
                 const zapLink = num ? `https://wa.me/${num}` : '#';
                 const hasZap = num.length >= 10;
                 
-                // Opacidade reduzida se não tiver WhatsApp para evitar falsos cliques
                 const zapClass = hasZap ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-slate-50 text-slate-300 pointer-events-none';
 
                 return `
