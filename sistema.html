@@ -950,7 +950,7 @@
             }
         }
 
-  
+
 function onDataLoaded() {
     updateClientSelects();
     if(!document.querySelector('.active-section')) {
@@ -1442,12 +1442,12 @@ async function saveRevenue() {
     const desc = document.getElementById('rev-desc').value.trim();
     const client = document.getElementById('rev-client').value.trim() || 'Consumidor Final';
     const val = parseFloat(document.getElementById('rev-val').value) || 0;
-    
-    // CORREÇÃO: Cortando o T e as horas para enviar apenas YYYY-MM-DD
-    const due = document.getElementById('rev-due').value || new Date().toISOString().split('T')[0];
-    const dataAtual = new Date().toISOString().split('T')[0];
-    
     const method = document.getElementById('rev-method').value;
+    
+    // CORREÇÃO: Cortando o T e as horas (com ajuste de fuso horário local) para enviar apenas YYYY-MM-DD
+    const dataLocal = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const due = document.getElementById('rev-due').value || dataLocal;
+    const dataAtual = dataLocal;
     
     if(!desc || !val) return showToast("Preencha descrição e valor!", true);
     showLoading(true);
@@ -1483,8 +1483,9 @@ async function saveExpense() {
     const provider = document.getElementById('exp-provider').value.trim();
     const cost = document.getElementById('exp-cost').value;
     
-    // CORREÇÃO: Cortando a hora para o Supabase não rejeitar a data
-    let date = document.getElementById('exp-date').value || new Date().toISOString().split('T')[0];
+    // CORREÇÃO: Cortando a hora (com ajuste de fuso horário local) para o Supabase não rejeitar a data
+    const dataLocal = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    let date = document.getElementById('exp-date').value || dataLocal;
     
     const note = document.getElementById('exp-note').value.trim();
     
