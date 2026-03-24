@@ -1442,7 +1442,11 @@ async function saveRevenue() {
     const desc = document.getElementById('rev-desc').value.trim();
     const client = document.getElementById('rev-client').value.trim() || 'Consumidor Final';
     const val = parseFloat(document.getElementById('rev-val').value) || 0;
-    const due = document.getElementById('rev-due').value || new Date().toISOString();
+    
+    // CORREÇÃO: Cortando o T e as horas para enviar apenas YYYY-MM-DD
+    const due = document.getElementById('rev-due').value || new Date().toISOString().split('T')[0];
+    const dataAtual = new Date().toISOString().split('T')[0];
+    
     const method = document.getElementById('rev-method').value;
     
     if(!desc || !val) return showToast("Preencha descrição e valor!", true);
@@ -1451,7 +1455,7 @@ async function saveRevenue() {
     const newId = getNextId(STATE.logs);
     const payload = {
         id: newId, tipo: 'receita', produto_nome: 'Receita Avulsa: ' + desc, quantidade: 1,
-        data: new Date().toISOString(), observacao: 'Lançamento Financeiro Manual', valor_total: val,
+        data: dataAtual, observacao: 'Lançamento Financeiro Manual', valor_total: val,
         cliente_nome: client, forma_pagamento: method, status: 'ATIVO',
         status_entrega: 'ENTREGUE', qtd_entregue: 1, desconto: 0,
         status_financeiro: 'PENDENTE', vencimento: due, valor_pago: 0, endereco_entrega: ''
@@ -1478,7 +1482,10 @@ async function saveExpense() {
     const item = document.getElementById('exp-item').value;
     const provider = document.getElementById('exp-provider').value.trim();
     const cost = document.getElementById('exp-cost').value;
-    let date = document.getElementById('exp-date').value || new Date().toISOString();
+    
+    // CORREÇÃO: Cortando a hora para o Supabase não rejeitar a data
+    let date = document.getElementById('exp-date').value || new Date().toISOString().split('T')[0];
+    
     const note = document.getElementById('exp-note').value.trim();
     
     if(!item || !cost) return showToast("Preencha a categoria e o valor", true);
