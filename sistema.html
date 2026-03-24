@@ -1966,6 +1966,9 @@ function renderQuotesList() {
                     <button onclick="loadQuoteToCart('${q.id}')" class="p-2 border border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 rounded-lg shadow-sm" title="Editar / Faturar">
                         <i data-lucide="edit-3" width="16"></i>
                     </button>
+                    <button onclick="duplicateQuote('${q.id}')" class="p-2 border border-amber-200 bg-white text-amber-500 hover:bg-amber-50 rounded-lg shadow-sm" title="Duplicar Orçamento">
+                        <i data-lucide="copy" width="16"></i>
+                    </button>
                     <button onclick="downloadQuotePDF('${q.id}')" class="p-2 border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm" title="Baixar PDF">
                         <i data-lucide="download" width="16"></i>
                     </button>
@@ -3566,7 +3569,53 @@ function printPeriodReport() {
         el.innerHTML = ''; 
     }, 500);
 }
-        
+
+async function duplicateQuote(id) {
+    if(!confirm("Deseja realmente duplicar este orçamento?")) return;
+    showLoading(true);
+
+    const quoteToCopy = STATE.quotes.find(q => String(q.id) === String(id));
+    if(!quoteToCopy) {
+        showLoading(false);
+        return showToast("Orçamento não encontrado!", true);
+    }
+
+    const newBudgetId = getNextId(STATE.logs, STATE.quotes);
+    const date = new Date().toISOString();
+
+    // Mapear os itens para o formato do banco de dados
+    let quotesToInsert = quoteToCopy.items.map(item => ({
+        id: newBudgetId,
+        tipo: 'orcamento',
+        produto_nome: item.name,
+        quantidade: item.qty,
+        data: date,
+        observacao: quoteToCopy.observacao || '',
+        valor_total: item.total,
+        cliente_nome: quoteToCopy.clientName,
+        forma_pagamento: quoteToCopy.paymentMethod || 'Dinheiro',
+        status: 'ABERTO', // Sempre abre como novo
+        desconto: quoteToCopy.discount || 0,
+        status_financeiro: quoteToCopy.discountType || '$',
+        endereco_entrega: quoteToCopy.deliveryAddress || '',
+        status_entrega: '',
+        qtd_entregue: 0,
+        vencimento: date,
+        valor_pago: 0
+    }));
+
+    const { error } = await sb.from('logs').insert(quotesToInsert);
+
+    if(error) {
+        showLoading(false);
+        return showToast("Erro ao duplicar: " + error.message, true);
+    }
+
+    showToast("Orçamento duplicado com sucesso!");
+    await loadData(); 
+    navigate('quotes'); 
+}
+  
     </script>
   </body>
 </html>
