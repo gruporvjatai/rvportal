@@ -156,7 +156,6 @@
         <button onclick="navigate('quotes')" id="nav-quotes" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="folder-open"></i> <span class="font-medium text-sm">Orçamentos</span></button>
         <button onclick="navigate('fin')" id="nav-fin" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="bar-chart-3"></i> <span class="font-medium text-sm">Financeiro</span></button>
         <div class="border-t border-slate-700 my-2 pt-2"></div>
-        <button onclick="navigate('logs')" id="nav-logs" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="history"></i> <span class="font-medium text-sm">Histórico</span></button>
         <button onclick="navigate('clients')" id="nav-clients" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="users"></i> <span class="font-medium text-sm">Clientes</span></button>
         <button onclick="navigate('prod')" id="nav-prod" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="package"></i> <span class="font-medium text-sm">Produtos</span></button>
         <button onclick="navigate('production')" id="nav-production" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="pie-chart"></i> <span class="font-medium text-sm">Relatórios</span></button>
@@ -181,16 +180,16 @@
       
       <div id="view-pos" class="hidden-section">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-100px)]">
-            <div class="lg:col-span-2 flex flex-col gap-4 h-full">
+            <div class="lg:col-span-2 flex flex-col gap-4 h-full min-h-0">
                 
-                <div class="bg-white rounded-xl shadow-sm border p-6 flex justify-between items-center">
+                <div class="bg-white rounded-xl shadow-sm border p-6 flex justify-between items-center shrink-0">
                     <h3 class="font-bold text-slate-700 text-lg flex gap-2 items-center"><i data-lucide="package-plus"></i> Inserir Itens na Venda</h3>
                     <button onclick="openPosProductModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition"><i data-lucide="search"></i> Buscar e Adicionar Produtos</button>
                 </div>
                 
-                <div class="bg-white p-4 rounded-xl border flex flex-col flex-1 shadow-sm overflow-hidden">
-                    <h3 class="font-bold text-slate-700 mb-4 flex gap-2 items-center text-sm uppercase border-b pb-2"><i data-lucide="history" class="w-4 h-4"></i> Vendas Efetuadas</h3>
-                    <div class="flex gap-2 mb-3">
+                <div class="bg-white p-4 rounded-xl border flex flex-col flex-1 min-h-0 shadow-sm overflow-hidden">
+                    <h3 class="font-bold text-slate-700 mb-4 flex gap-2 items-center text-sm uppercase border-b pb-2 shrink-0"><i data-lucide="history" class="w-4 h-4"></i> Vendas Efetuadas</h3>
+                    <div class="flex gap-2 mb-3 shrink-0">
                         <input type="text" id="pos-hist-search" placeholder="Buscar venda, nome ou ID..." class="w-full p-2 border rounded text-sm outline-none focus:border-emerald-600" onkeyup="renderRecentHistory()">
                         <input type="date" id="pos-hist-start" class="p-2 border rounded text-sm outline-none focus:border-emerald-600" onchange="renderRecentHistory()">
                         <input type="date" id="pos-hist-end" class="p-2 border rounded text-sm outline-none focus:border-emerald-600" onchange="renderRecentHistory()">
@@ -253,7 +252,7 @@
          <div class="bg-white rounded-xl border shadow-sm overflow-hidden mb-8">
             <div class="overflow-x-auto max-h-[40vh]">
                 <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-50 text-slate-700 sticky top-0">
+                    <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10">
                         <tr>
                             <th class="p-4 w-28 text-center">Ações</th>
                             <th class="p-4">Pedido/Data</th>
@@ -286,13 +285,13 @@
          <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
             <div class="overflow-x-auto max-h-[40vh]">
                 <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-50 text-slate-700 sticky top-0">
+                    <thead class="bg-slate-50 text-slate-700 sticky top-0 z-10">
                         <tr>
                             <th class="p-4">Data da Entrega</th>
                             <th class="p-4">Ref. Pedido</th>
                             <th class="p-4">Cliente</th>
                             <th class="p-4">Produto</th>
-                            <th class="p-4 text-center">Qtd Entregue</th>
+                            <th class="p-4 text-center">Qtd Entregue / Ações</th>
                         </tr>
                     </thead>
                     <tbody id="expedition-history-list" class="divide-y"></tbody>
@@ -363,7 +362,10 @@
             <div class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px]">
                 <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
                     <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-down-to-line" class="w-5 h-5 text-indigo-600"></i> Contas a Receber</h3>
-                    <button onclick="openRevenueModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Nova Receita</button>
+                    <div class="flex gap-2">
+                        <button onclick="printReceivables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+                        <button onclick="openRevenueModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Nova</button>
+                    </div>
                 </div>
                 
                 <div class="p-3 border-b bg-white flex flex-col gap-2">
@@ -389,7 +391,7 @@
 
                 <div class="overflow-y-auto flex-1 p-0">
                     <table class="w-full text-sm text-left">
-                        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b">
+                        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b z-10">
                             <tr>
                                 <th class="p-3 font-semibold">Venc/Pagto</th>
                                 <th class="p-3 font-semibold">Cliente/Ref</th>
@@ -405,7 +407,10 @@
             <div class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px]">
                 <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
                     <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-up-from-line" class="w-5 h-5 text-red-500"></i> Contas a Pagar</h3>
-                    <button onclick="document.getElementById('exp-id').value=''; document.getElementById('modal-expense').classList.remove('hidden')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída</button>
+                    <div class="flex gap-2">
+                        <button onclick="printExpenses()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+                        <button onclick="document.getElementById('exp-id').value=''; document.getElementById('modal-expense').classList.remove('hidden')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída</button>
+                    </div>
                 </div>
                 
                 <div class="p-3 border-b bg-white flex flex-col gap-2">
@@ -430,12 +435,12 @@
 
                 <div class="overflow-y-auto flex-1 p-0">
                     <table class="w-full text-sm text-left">
-                        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b">
+                        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b z-10">
                             <tr>
                                 <th class="p-3 font-semibold">Data</th>
                                 <th class="p-3 font-semibold">Fornecedor</th>
                                 <th class="p-3 font-semibold">Valor</th>
-                                <th class="p-3 font-semibold text-right w-24">Ação</th>
+                                <th class="p-3 font-semibold text-right w-[110px]">Ação</th>
                             </tr>
                         </thead>
                         <tbody id="fin-expense-history-list" class="divide-y"></tbody>
@@ -445,8 +450,6 @@
 
         </div>
       </div>
-
-      <div id="view-logs" class="hidden-section"><h2 class="text-2xl font-bold text-slate-800 mb-4">Histórico Completo (Lançamentos e Movimentos)</h2><div class="bg-white rounded-xl border shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-slate-50 text-slate-700"><tr><th class="p-4">Data</th><th class="p-4">Tipo</th><th class="p-4">Descrição/Produto</th><th class="p-4">Cliente</th><th class="p-4">Valor</th><th class="p-4">Status</th><th class="p-4 text-center">Ações</th></tr></thead><tbody id="logs-table-body" class="divide-y"></tbody></table></div></div></div>
 
       <div id="view-clients" class="hidden-section">
           <div class="flex justify-between items-center mb-4">
@@ -540,7 +543,7 @@
 
     <div id="print-area" class="print-only"></div>
 
-    <div id="pos-product-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div id="pos-product-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-10">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
             <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
                 <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="package-search" class="text-emerald-600"></i> Selecionar Produto</h3>
@@ -561,7 +564,7 @@
         </div>
     </div>
 
-    <div id="pos-client-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div id="pos-client-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-10">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
             <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
                 <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-emerald-600"></i> Selecionar Cliente</h3>
@@ -790,10 +793,8 @@
         const userSessao = localStorage.getItem('rv_user');
 
         if (!userSessao) {
-            // Se não tem usuário logado, chuta de volta pro login
             window.location.replace('index.html');
         } else {
-            // Se estiver logado, salva os dados na variável global
             dadosUsuario = JSON.parse(userSessao);
         }
 
@@ -831,7 +832,6 @@
             if(viewId === 'clients') renderClients();
             if(viewId === 'prod') renderProducts();
             if(viewId === 'production') renderProductionSelect();
-            if(viewId === 'logs') renderLogs();
             if(viewId === 'users') renderUsers(); 
             lucide.createIcons();
         }
@@ -848,8 +848,6 @@
         }
 
         // ====== 5. FUNÇÃO DE CARREGAMENTO DO BANCO DE DADOS ======
-        
-        // Nova função que burla o limite de 1000 linhas do Supabase puxando por partes
         async function fetchAllRecords(table) {
             let allRecords = [];
             let from = 0;
@@ -865,8 +863,6 @@
                 
                 if (data && data.length > 0) {
                     allRecords.push(...data);
-                    
-                    // Se veio menos de 1000, significa que chegou no fim da tabela
                     if (data.length < step) {
                         keepFetching = false;
                     } else {
@@ -879,10 +875,8 @@
             return { data: allRecords };
         }
 
-        // ATUALIZAÇÃO: Carregando tudo através do 'logs' e dividindo em memória
         async function loadData() {
             try {
-                // Removemos o orcamentos daqui
                 const [resProd, resCli, resLog, resDesp, resConf] = await Promise.all([
                     fetchAllRecords('produtos'),
                     fetchAllRecords('clientes'),
@@ -893,7 +887,7 @@
 
                 STATE.products = (resProd.data || []).map(p => ({
                     id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
-                    cost: Number(p.custo) || 0, // <--- ESTA É A LINHA NOVA
+                    cost: Number(p.custo) || 0,
                     stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
                     available: Number(p.estoque_fisico) - Number(p.estoque_comprometido)
                 }));
@@ -903,7 +897,6 @@
                 }));
 
                 // ==========================================
-                // MAGIA: DIVIDINDO LOGS E ORÇAMENTOS
                 STATE.logs = [];
                 const quotesMap = {};
                 
@@ -918,7 +911,7 @@
                             };
                         }
                         const unitPrice = Number(l.quantidade) > 0 ? Number(l.valor_total) / Number(l.quantidade) : 0;
-                        quotesMap[qId].items.push({ name: l.produto_nome, qty: Number(l.quantidade), price: unitPrice, total: Number(l.valor_total) });
+                        quotesMap[qId].items.push({ name: l.produto_nome, qty: Number(l.quantidade), price: unitPrice, total: Number(l.valor_total), uid: l.uid });
                         quotesMap[qId].total += Number(l.valor_total);
                     } else {
                         STATE.logs.push({
@@ -969,7 +962,6 @@ function onDataLoaded() {
     showLoading(false);
 }
 
-// ATUALIZAÇÃO: Agora busca o maior ID considerando Logs E Orçamentos juntos
         function getNextId(array1, array2 = []) {
             let max = 0;
             array1.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
@@ -1016,7 +1008,7 @@ async function saveProduct(e) {
     const payload = {
     id: newId, nome: document.getElementById('prd-name').value, categoria: document.getElementById('prd-cat').value,
     preco: parseFloat(document.getElementById('prd-price').value), 
-    custo: parseFloat(document.getElementById('prd-cost').value) || 0, // <--- ESTA É A LINHA NOVA
+    custo: parseFloat(document.getElementById('prd-cost').value) || 0,
     estoque_fisico: parseFloat(document.getElementById('prd-stock').value),
     estoque_comprometido: isNew ? 0 : STATE.products.find(p=>p.id==newId).committed
 };
@@ -1058,7 +1050,6 @@ async function finalizeSale(isProntaEntrega = false) {
 
     let logsToInsert = [];
 
-    // 1. Loop apenas para montar o Array e atualizar os Produtos
     for(let item of CART) {
         const prod = STATE.products.find(p => p.id == item.prodId);
         if(prod) {
@@ -1072,7 +1063,6 @@ async function finalizeSale(isProntaEntrega = false) {
                 updatePayload = { estoque_comprometido: committed + Number(item.qty) };
             }
 
-            // CORREÇÃO: Atualiza a tabela PRODUTOS
             const { error: errProd } = await sb.from('produtos').update(updatePayload).eq('id', prod.id);
             if(errProd) { showLoading(false); return showToast("Erro ao atualizar o estoque do produto.", true); }
         }
@@ -1103,14 +1093,11 @@ async function finalizeSale(isProntaEntrega = false) {
         }
     }
 
-    // 2. Insere TUDO no banco de uma vez só (fora do loop)
     const { error: errLogsFinal } = await sb.from('logs').insert(logsToInsert);
     if(errLogsFinal) { showLoading(false); return showToast("Erro ao registrar os logs da venda.", true); }
 
-    // 3. Deleta o orçamento uma única vez (fora do loop)
     if(CURRENT_QUOTE_ID) {
         await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
-        // Caso o orçamento fique também na tabela "orcamentos" antiga, mantenha a linha abaixo, caso contrário, pode remover:
         await sb.from('orcamentos').delete().eq('id', CURRENT_QUOTE_ID);
     }
 
@@ -1121,7 +1108,6 @@ async function finalizeSale(isProntaEntrega = false) {
     if (isProntaEntrega) { navigate('pos'); } else { navigate('expedition'); }
 }
 
-// ATUALIZAÇÃO: Gravando o orçamento na tabela LOGS
         async function saveQuote() {
             if(!CART.length) return showToast("Vazio!", true);
             showLoading(true);
@@ -1139,7 +1125,6 @@ async function finalizeSale(isProntaEntrega = false) {
             const date = new Date().toISOString();
             const budgetId = CURRENT_QUOTE_ID || getNextId(STATE.logs, STATE.quotes);
 
-            // Deleta o registro antigo no LOGS (se estiver editando)
             if(CURRENT_QUOTE_ID) await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
 
             let quotesToInsert = CART.map(item => ({
@@ -1159,7 +1144,6 @@ async function finalizeSale(isProntaEntrega = false) {
             navigate('quotes');
         }
 
-// ATUALIZAÇÃO: Deleta do LOGS
         async function deleteQuote(id) {
             if(!confirm("Excluir orçamento?")) return;
             showLoading(true);
@@ -1168,6 +1152,169 @@ async function finalizeSale(isProntaEntrega = false) {
             showToast("Excluído!");
             loadData();
         }
+
+// ====== FUNÇÕES NOVAS DE ESTORNO E EXCLUSÃO ======
+
+async function cancelSaleToQuote(saleId) {
+    if(!confirm("Tem certeza que deseja estornar esta venda? Ela voltará a ser um Orçamento e o estoque será devolvido.")) return;
+    showLoading(true);
+
+    const saleItems = STATE.logs.filter(l => String(l.id) === String(saleId) && l.type === 'venda');
+    if(!saleItems.length) { showLoading(false); return showToast("Venda não encontrada", true); }
+
+    try {
+        // 1. Reverter Estoque
+        for(let item of saleItems) {
+            const prod = STATE.products.find(p => p.name === item.productName);
+            if(prod) {
+                let physical = Number(prod.stock) || 0;
+                let committed = Number(prod.committed) || 0;
+                let delivered = Number(item.deliveredQty) || 0;
+                let pending = Number(item.quantity) - delivered;
+
+                const {error} = await sb.from('produtos').update({
+                    estoque_fisico: physical + delivered,
+                    estoque_comprometido: Math.max(0, committed - pending)
+                }).eq('id', prod.id);
+                if(error) throw error;
+            }
+        }
+
+        // 2. Excluir Entregas e Recebimentos Financeiros Relacionados
+        await sb.from('logs').delete().like('observacao', `%Ref Venda #${saleId}%`).eq('tipo', 'entrega');
+        await sb.from('logs').delete().like('observacao', `%Ref Lanc #${saleId}%`).eq('tipo', 'recebimento');
+
+        // 3. Transformar a venda em Orçamento
+        for(let item of saleItems) {
+            const {error} = await sb.from('logs').update({
+                tipo: 'orcamento',
+                status: 'ABERTO',
+                status_entrega: '',
+                qtd_entregue: 0,
+                valor_pago: 0,
+                status_financeiro: '$'
+            }).eq('uid', item.uid);
+            if(error) throw error;
+        }
+
+        showToast("Venda estornada para Orçamento!");
+        await loadData();
+    } catch(err) {
+        showLoading(false);
+        showToast("Erro ao estornar: " + err.message, true);
+    }
+}
+
+async function estornarRecebimento(id) {
+    if(!confirm("Deseja estornar a baixa desta conta? Ela voltará a ficar PENDENTE no financeiro.")) return;
+    showLoading(true);
+    try {
+        const items = STATE.logs.filter(l => String(l.id) === String(id) && (l.type === 'venda' || l.type === 'receita'));
+        for(let item of items) {
+            await sb.from('logs').update({
+                valor_pago: 0,
+                status_financeiro: 'PENDENTE'
+            }).eq('uid', item.uid);
+        }
+        await sb.from('logs').delete().like('observacao', `%Ref Lanc #${id}%`).eq('tipo', 'recebimento');
+
+        showToast("Recebimento estornado!");
+        await loadData();
+    } catch(e) {
+        showLoading(false);
+        showToast("Erro: " + e.message, true);
+    }
+}
+
+async function excluirReceitaPendente(id) {
+    const items = STATE.logs.filter(l => String(l.id) === String(id) && (l.type === 'venda' || l.type === 'receita'));
+    if(!items.length) return;
+    
+    const isVenda = items.some(i => i.type === 'venda');
+
+    if(isVenda) {
+        if(confirm("Esta conta pertence a um Pedido de Venda. Deseja estornar a venda inteira para Orçamento?")) {
+            cancelSaleToQuote(id);
+        }
+    } else {
+        if(!confirm("Excluir esta Receita pendente permanentemente?")) return;
+        showLoading(true);
+        const {error} = await sb.from('logs').delete().eq('id', id).eq('tipo', 'receita');
+        if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+        showToast("Receita excluída!");
+        loadData();
+    }
+}
+
+async function estornarDespesaLog(id) {
+    if(!confirm("Estornar o pagamento desta despesa? Ela voltará a ficar PENDENTE no caixa.")) return;
+    showLoading(true);
+    try {
+        await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', id);
+        await sb.from('logs').delete().like('observacao', `%Ref Despesa #${id}%`).eq('tipo', 'despesa');
+        showToast("Pagamento estornado!");
+        loadData();
+    } catch(e) {
+        showLoading(false);
+        showToast("Erro: " + e.message, true);
+    }
+}
+
+async function excluirDespesa(id) {
+    if(!confirm("Excluir esta despesa permanentemente do sistema?")) return;
+    showLoading(true);
+    const {error} = await sb.from('despesas').delete().eq('id', id);
+    if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+    showToast("Despesa excluída!");
+    loadData();
+}
+
+async function estornarEntregaLog(uid) {
+    if(!confirm("Estornar esta entrega? Os itens devolvidos voltarão como saldo pendente no pedido e o estoque físico será devolvido.")) return;
+    showLoading(true);
+    try {
+        const entregaLog = STATE.logs.find(l => l.uid === uid && l.type === 'entrega');
+        if(!entregaLog) throw new Error("Log de entrega não encontrado");
+
+        let orderIdMatch = entregaLog.note.match(/#(\d+)/);
+        if(!orderIdMatch) throw new Error("ID do pedido não identificado na observação");
+        let orderId = orderIdMatch[1];
+
+        const vendaItem = STATE.logs.find(l => String(l.id) === String(orderId) && l.type === 'venda' && l.productName === entregaLog.productName);
+
+        if(vendaItem) {
+            let currentDelivered = Number(vendaItem.deliveredQty) || 0;
+            let newDelivered = Math.max(0, currentDelivered - entregaLog.quantity);
+            let totalQty = Number(vendaItem.quantity) || 0;
+            let newStatus = newDelivered === 0 ? 'PENDENTE' : (newDelivered < totalQty ? 'PARCIAL' : 'ENTREGUE');
+
+            await sb.from('logs').update({
+                qtd_entregue: newDelivered,
+                status_entrega: newStatus
+            }).eq('uid', vendaItem.uid);
+
+            const prod = STATE.products.find(p => p.name === entregaLog.productName);
+            if(prod) {
+                let physical = Number(prod.stock) || 0;
+                let committed = Number(prod.committed) || 0;
+                await sb.from('produtos').update({
+                    estoque_fisico: physical + entregaLog.quantity,
+                    estoque_comprometido: committed + entregaLog.quantity
+                }).eq('id', prod.id);
+            }
+        }
+
+        await sb.from('logs').delete().eq('uid', uid);
+
+        showToast("Entrega estornada!");
+        await loadData();
+    } catch(e) {
+        showLoading(false);
+        showToast("Erro ao estornar entrega: " + e.message, true);
+    }
+}
+
+// ===========================================
 
 async function confirmOrderDelivery() {
     const orderId = document.getElementById('del-order-id').value;
@@ -1324,7 +1471,6 @@ function openRevenueModal() {
     document.getElementById('modal-revenue').classList.remove('hidden');
 }
 
-// LÓGICA DE LANÇAMENTO E EDIÇÃO DE DESPESAS CORRIGIDA PARA EVITAR DUPLICAÇÃO
 async function saveExpense() {
     const idVal = document.getElementById('exp-id').value;
     const isNew = !idVal;
@@ -1338,11 +1484,10 @@ async function saveExpense() {
     if(!item || !cost) return showToast("Preencha a categoria e o valor", true);
     showLoading(true);
 
-    // Salva o Fornecedor junto da observação para manter a compatibilidade do banco de dados
     const finalNote = provider ? `Fornecedor: ${provider}${note ? ' | ' + note : ''}` : note;
 
     const payload = {
-        item: item, quantidade: 1, unidade: 'Un', // Valores fixos agora
+        item: item, quantidade: 1, unidade: 'Un',
         custo: Number(cost), data: date, observacao: finalNote, status: 'PENDENTE'
     };
 
@@ -1377,11 +1522,9 @@ async function payExpense(id) {
     if(!exp) { showLoading(false); return showToast("Erro: Despesa não encontrada", true); }
     if(exp.status === 'PAGO') { showLoading(false); return showToast("Esta despesa já foi paga!", true); }
     
-    // 1. Atualiza a tabela despesas para PAGO
     const { error: err1 } = await sb.from('despesas').update({ status: 'PAGO' }).eq('id', id);
     if(err1) { showLoading(false); return showToast("Erro ao baixar: " + err1.message, true); }
     
-    // 2. Insere no LOGS para contabilizar no caixa (Adicionada a Ref Despesa para permitir o estorno)
     const newLogId = getNextId(STATE.logs);
     const { error: err2 } = await sb.from('logs').insert([{
         id: newLogId, tipo: 'despesa', produto_nome: exp.item, quantidade: exp.quantity,
@@ -1419,158 +1562,12 @@ function openEditExpense(id) {
     document.getElementById('modal-expense').classList.remove('hidden');
 }
 
-async function saveProduction(e) {
-    e.preventDefault();
-    const pId = document.getElementById('prod-select-production').value;
-    const qty = parseFloat(document.getElementById('prod-qty-production').value);
-    
-    if(!pId || isNaN(qty) || qty <= 0) return showToast("Selecione produto e quantidade!", true);
-    showLoading(true);
-    
-    const prod = STATE.products.find(x => String(x.id) === String(pId));
-    
-    await sb.from('produtos').update({ estoque_fisico: prod.stock + qty }).eq('id', prod.id);
-
-    await sb.from('logs').insert([{
-        id: getNextId(STATE.logs), tipo: 'fabricacao', produto_nome: prod.name,
-        quantidade: qty, data: new Date().toISOString(), observacao: document.getElementById('prod-note-production').value,
-        status: 'ATIVO'
-    }]);
-
-    e.target.reset(); 
-    showToast("Produção Registrada!");
-    loadData();
-}
-
-async function cancelLogItem(uid) {
-    if (!uid || uid === 'undefined' || uid === 'null') {
-        return showToast("Erro: Esse registro não possui UID.", true);
-    }
-
-    const logItem = STATE.logs.find(l => String(l.uid) === String(uid));
-    if (!logItem) return showToast("Erro: Registro não encontrado na memória.", true);
-
-    if (!confirm("Atenção! Estornar esse registro devolverá as quantidades ao estoque e cancelará movimentações financeiras. Confirma?")) return;
-    showLoading(true);
-
-    const { error: errCancel } = await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', uid);
-    if (errCancel) { 
-        showLoading(false); 
-        return showToast("Erro ao cancelar: " + errCancel.message, true); 
-    }
-
-    const logType = logItem.type;
-    const logProdName = String(logItem.productName || '').trim();
-    const logQty = Number(logItem.quantity) || 0;
-    const logValue = Number(logItem.totalValue) || 0;
-    const logNote = String(logItem.note || '');
-
-    let prodFound = STATE.products.find(p => String(p.name).trim() === logProdName);
-
-    try {
-        if (logType === 'venda' || logType === 'receita') {
-            if (prodFound && logType === 'venda') {
-                let physical = Number(prodFound.stock) || 0;
-                let committed = Number(prodFound.committed) || 0;
-                
-                let delivered = Number(logItem.deliveredQty) || 0;
-                let pending = logQty - delivered;
-
-                await sb.from('produtos').update({
-                    estoque_fisico: physical + delivered,
-                    estoque_comprometido: Math.max(0, committed - pending)
-                }).eq('id', prodFound.id);
-            }
-        } 
-        else if (logType === 'fabricacao') {
-            if (prodFound) {
-                let physical = Number(prodFound.stock) || 0;
-                await sb.from('produtos').update({ estoque_fisico: Math.max(0, physical - logQty) }).eq('id', prodFound.id);
-            }
-        } 
-        else if (logType === 'recebimento') {
-            let match = logNote.match(/#(\d+)/);
-            if (match && match[1]) {
-                let origId = match[1];
-                
-                // CORREÇÃO: Pega o valor TOTAL do pedido antes para calcular o status corretamente
-                let orderRows = STATE.logs.filter(l => String(l.id) === String(origId) && (l.type === 'venda' || l.type === 'receita'));
-                let orderTotal = orderRows.reduce((acc, r) => acc + (Number(r.totalValue) || 0), 0);
-
-                for (let i = 0; i < STATE.logs.length; i++) {
-                    if (String(STATE.logs[i].id) === String(origId) && (STATE.logs[i].type === 'venda' || STATE.logs[i].type === 'receita')) {
-                        let currentPaid = Number(STATE.logs[i].paidValue) || 0;
-                        let newPaid = Math.max(0, currentPaid - logValue);
-                        
-                        let newStatus = 'PENDENTE';
-                        if (newPaid >= orderTotal && orderTotal > 0) newStatus = 'PAGO';
-                        else if (newPaid > 0) newStatus = 'PARCIAL';
-                        
-                        await sb.from('logs').update({ valor_pago: newPaid, status_financeiro: newStatus }).eq('uid', STATE.logs[i].uid);
-                    }
-                }
-            }
-        } 
-        else if (logType === 'despesa') {
-            // CORREÇÃO: Estorna também as despesas, voltando-as para PENDENTE
-            let match = logNote.match(/Ref Despesa #(\d+)/);
-            if (match && match[1]) {
-                await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', match[1]);
-            } else {
-                // Tenta achar a despesa pelo valor/nome (para registros antigos)
-                let possibleExp = STATE.expenses.find(e => e.item === logProdName && Number(e.cost) === logValue && e.status === 'PAGO');
-                if (possibleExp) {
-                    await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', possibleExp.id);
-                }
-            }
-        }
-        else if (logType === 'entrega') {
-            let match = logNote.match(/#(\d+)/);
-            if (match && match[1]) {
-                let origId = match[1];
-                for (let i = 0; i < STATE.logs.length; i++) {
-                    if (String(STATE.logs[i].id) === String(origId) && STATE.logs[i].type === 'venda' && String(STATE.logs[i].productName).trim() === logProdName) {
-                        let currentDelivered = Number(STATE.logs[i].deliveredQty) || 0;
-                        let totalQty = Number(STATE.logs[i].quantity) || 0;
-                        let newDelivered = Math.max(0, currentDelivered - logQty);
-                        
-                        let newStatus = '';
-                        if (newDelivered === 0) newStatus = 'PENDENTE';
-                        else if (newDelivered < totalQty) newStatus = 'PARCIAL';
-                        else newStatus = 'ENTREGUE';
-                        
-                        await sb.from('logs').update({ qtd_entregue: newDelivered, status_entrega: newStatus }).eq('uid', STATE.logs[i].uid);
-                        
-                        if (prodFound) {
-                            let physical = Number(prodFound.stock) || 0;
-                            let committed = Number(prodFound.committed) || 0;
-                            await sb.from('produtos').update({ 
-                                estoque_fisico: physical + logQty,
-                                estoque_comprometido: committed + logQty
-                            }).eq('id', prodFound.id);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-    } catch(err) {
-        console.error(err);
-        showLoading(false);
-        return showToast("Erro durante as atualizações de estorno.", true);
-    }
-
-    showToast("Estornado com sucesso!");
-    await loadData();
-}
 
 // =========================================================
 // --- FUNÇÕES DA INTERFACE E RENDERIZAÇÃO (TELA) ---
 // =========================================================
 
-function updateClientSelects() {
-    // Agora usando o Modal, não é mais necessário popular a tag <select>
-}
+function updateClientSelects() { }
 
 function calculateTotal() {
     const sub = CART.reduce((a,b)=>a+(b.qty * b.price), 0);
@@ -1593,7 +1590,6 @@ function toggleCustomAddress() {
     }
 }
 
-// NOVO: Toggle para campo de observações
 function toggleCustomObs() {
     const check = document.getElementById('pos-custom-obs-check').checked;
     const container = document.getElementById('pos-custom-obs-container');
@@ -1679,7 +1675,6 @@ function renderCart() {
             }
             const totals = calculateTotal();
             
-            // CARD SUPER COMPACTO PARA O PDV
             box.innerHTML = CART.map((i,idx) => `
                 <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition">
                     <div class="flex-1 min-w-0">
@@ -1704,7 +1699,6 @@ function clearCart() {
     CURRENT_QUOTE_ID=null; 
     document.getElementById('pos-discount').value=0; 
     
-    // RESET CLIENT PARA CONSUMIDOR FINAL
     document.getElementById('pos-client').value = '';
     document.getElementById('pos-client-btn').querySelector('span').innerText = 'Consumidor Final';
     
@@ -1712,7 +1706,6 @@ function clearCart() {
     document.getElementById('pos-custom-address-container').classList.add('hidden');
     document.getElementById('pos-custom-address').value = '';
 
-    // Limpa a observação também
     document.getElementById('pos-custom-obs-check').checked = false;
     document.getElementById('pos-custom-obs-container').classList.add('hidden');
     document.getElementById('pos-custom-obs').value = '';
@@ -1764,15 +1757,15 @@ function renderRecentHistory() {
             <td class="p-3 text-slate-500 text-xs font-bold">#${r.id} <br><span class="text-[10px] font-normal">${formatDate(r.date)}</span></td>
             <td class="p-3 truncate text-xs font-bold text-slate-700" style="max-width:120px">${r.client}</td>
             <td class="p-3 text-right text-sm text-green-700 font-bold">${formatMoney(r.valorFinal)}</td>
-            <td class="p-3 text-center">
-                <button onclick="reprintSale('${r.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border border-slate-200 p-2 rounded shadow-sm"><i data-lucide="printer" width="14"></i></button>
+            <td class="p-3 text-center flex gap-1 justify-center">
+                <button onclick="reprintSale('${r.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Imprimir"><i data-lucide="printer" width="14"></i></button>
+                <button onclick="cancelSaleToQuote('${r.id}')" class="text-red-500 hover:text-red-700 bg-white border border-red-200 p-2 rounded shadow-sm" title="Estornar para Orçamento"><i data-lucide="rotate-ccw" width="14"></i></button>
             </td>
         </tr>`;
     }).join(''); 
     lucide.createIcons();
 }
 
-// ATUALIZAÇÃO: Status do CRM atualiza no LOGS
         async function updateQuoteStatus(id, newStatus) {
             showLoading(true);
             const { error } = await sb.from('logs').update({ status: newStatus }).eq('id', id).eq('tipo', 'orcamento');
@@ -1900,7 +1893,6 @@ function loadQuoteToCart(id) {
         document.getElementById('pos-custom-address').value = '';
     }
 
-    // CARREGAR A OBSERVAÇÃO
     if(q.observacao) {
         document.getElementById('pos-custom-obs-check').checked = true;
         document.getElementById('pos-custom-obs-container').classList.remove('hidden');
@@ -1988,7 +1980,10 @@ function renderExpedition() {
                     <td class="p-4 text-xs font-bold text-slate-700">${l.note || '-'}</td>
                     <td class="p-4 font-medium text-slate-700 truncate max-w-[200px]">${l.clientName || '-'}</td>
                     <td class="p-4 text-sm">${l.productName}</td>
-                    <td class="p-4 text-center font-bold text-green-600">+ ${l.quantity}</td>
+                    <td class="p-4 text-center font-bold text-green-600 flex items-center justify-between">
+                        <span>+ ${l.quantity}</span>
+                        <button onclick="estornarEntregaLog('${l.uid}')" class="text-red-400 hover:text-red-600 p-1" title="Estornar Entrega"><i data-lucide="rotate-ccw" width="14"></i></button>
+                    </td>
                 </tr>`;
             }).join('');
         }
@@ -2055,7 +2050,6 @@ function renderPosClientModal() {
         );
     }
 
-    // Fatia para não travar o DOM com 2000+ resultados simultâneos
     const sliced = filtered.slice(0, 100);
 
     grid.innerHTML = sliced.map(c => {
@@ -2127,14 +2121,14 @@ function openProductForm(id) {
         document.getElementById('prd-name').value=p.name; 
         document.getElementById('prd-cat').value=p.category || ''; 
         document.getElementById('prd-price').value=p.price; 
-        document.getElementById('prd-cost').value=p.cost || ''; // <--- Lendo o custo
+        document.getElementById('prd-cost').value=p.cost || ''; 
         document.getElementById('prd-stock').value=p.stock; 
     } else { 
         document.getElementById('prd-id').value=''; 
         document.getElementById('prd-name').value=''; 
         document.getElementById('prd-cat').value=''; 
         document.getElementById('prd-price').value=''; 
-        document.getElementById('prd-cost').value=''; // <--- Limpando o custo
+        document.getElementById('prd-cost').value=''; 
         document.getElementById('prd-stock').value=''; 
     } 
 }
@@ -2154,7 +2148,6 @@ function renderClients() {
         );
     }
 
-    // Limitamos para evitar congelamento da tela com os 2000 clientes. A barra de pesquisa ajuda a achar rapidinho.
     const sliced = filtered.slice(0, 150);
 
     if (sliced.length === 0) {
@@ -2207,8 +2200,7 @@ function renderFinance() {
     const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
                    salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
     
-    // O SALDO AGORA SÓ DESCONTA DESPESAS PAGAS
-    const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
+    const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(e.cost), 0);
     
     document.getElementById('fin-income').innerText = formatMoney(income);
     document.getElementById('fin-expenses').innerText = formatMoney(expenses);
@@ -2265,11 +2257,13 @@ function renderFinance() {
                     <div class="font-bold text-slate-800 text-sm">${formatMoney(r.val)}</div>
                     ${r.status !== 'PAGO' && r.paid > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoney(rest)}</div>` : ''}
                 </td>
-                <td class="p-3 text-right flex items-center justify-end h-full">
+                <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
                     ${r.status !== 'PAGO' ? 
-                    `<button onclick="openEditReceivable('${r.id}', ${r.val}, ${r.paid}, '${r.dueDate}', '${r.payment}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-3 rounded shadow flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> BAIXAR</button>` 
+                    `<button onclick="openEditReceivable('${r.id}', ${r.val}, ${r.paid}, '${r.dueDate}', '${r.payment}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-3 rounded shadow flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> BAIXAR</button>
+                     <button onclick="excluirReceitaPendente('${r.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` 
                     : 
-                    `<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> PAGO</span>`
+                    `<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> PAGO</span>
+                     <button onclick="estornarRecebimento('${r.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>`
                     }
                 </td>
             </tr>`;
@@ -2295,7 +2289,6 @@ function renderFinance() {
         filteredExp = filteredExp.filter(e => new Date(e.date) <= endD);
     }
     
-    // Sort Vencimento mais proximo (ou mais antigo vencido) em cima
     filteredExp.sort((a,b) => new Date(a.date) - new Date(b.date));
 
     const expBody = document.getElementById('fin-expense-history-list');
@@ -2328,8 +2321,10 @@ function renderFinance() {
                     ${e.status !== 'PAGO' ? `
                         <button onclick="openEditExpense('${e.id}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
                         <button onclick="payExpense('${e.id}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
+                        <button onclick="excluirDespesa('${e.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
                     ` : `
                         <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
+                        <button onclick="estornarDespesaLog('${e.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3 inline"></i></button>
                     `}
                 </td>
             </tr>`;
@@ -2351,41 +2346,6 @@ function openEditReceivable(id, total, paid, due, method) {
     document.getElementById('modal-receivable-edit').classList.remove('hidden');
 }
 
-function renderLogs() {
-    const body = document.getElementById('logs-table-body');
-    if(!body) return;
-
-    const sortedLogs = (STATE.logs||[]).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    body.innerHTML = sortedLogs.map(l=> {
-        let textProd = l.productName;
-        if (l.type === 'venda') textProd += ` (x${l.quantity})`;
-        else if (l.type === 'entrega') textProd += ` (x${l.quantity})`;
-        else if (l.type === 'recebimento') textProd = l.note;
-        else if (l.type === 'fabricacao') textProd += ` (x${l.quantity})`;
-        else if (l.type === 'despesa') textProd += ` (x${l.quantity})`;
-
-        let valStr = '-';
-        if (l.type === 'venda') valStr = formatMoney(l.totalValue);
-        else if (l.type === 'recebimento') valStr = formatMoney(l.totalValue);
-        else if (l.type === 'despesa') valStr = formatMoney(l.totalValue);
-
-        let canCancel = l.status !== 'CANCELADO';
-        let isDespesa = l.type === 'despesa';
-
-        return `<tr class="hover:bg-slate-50 border-b">
-        <td class="p-4 text-xs">${formatDate(l.date)}</td>
-        <td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold uppercase bg-slate-100">${l.type}</span></td>
-        <td class="p-4 font-medium text-slate-700">${textProd}</td>
-        <td class="p-4 text-xs">${l.clientName||'-'}</td>
-        <td class="p-4 font-bold text-sm ${isDespesa ? 'text-red-500' : ''}">${isDespesa ? '-' + valStr : valStr}</td>
-        <td class="p-4 text-xs font-bold ${l.status==='CANCELADO'?'text-red-500':'text-green-500'}">${l.status}</td>
-        <td class="p-4 text-center">
-            ${canCancel ? `<button onclick="cancelLogItem('${l.uid}')" class="text-red-500 text-xs border border-red-200 p-1 rounded hover:bg-red-50">Estornar</button>` : ''}
-        </td>
-        </tr>`;
-    }).join('');
-}
 
 function renderDashboard() { 
     const grid = document.getElementById('dash-grid');
@@ -2419,13 +2379,7 @@ function renderDashboard() {
 }
 
 function renderProductionSelect() { 
-    // Como a tela de produção virou relatórios e a UI foi limpa, não há mais elementos para injetar aqui.
-    // Mas as funções foram mantidas intactas caso ainda estejam rodando em background em algum lugar
     if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-}
-
-function renderProductionDash() {
-    // Também limpo visualmente já que os gráficos mensais foram substituídos pelos futuros Relatórios
 }
 
 function renderInvoice(sale, isQuote) {
@@ -2448,7 +2402,6 @@ function renderInvoice(sale, isQuote) {
         ? `<div style="padding: 4px; background-color: #fef3c7; border-left: 3px solid #059669; margin-top: 5px;"><strong>ENTREGA:</strong><br>${sale.deliveryAddress}</div>` 
         : cli.address;
 
-    // APLICANDO A OBSERVAÇÃO AQUI NA IMPRESSÃO
     const obsText = sale.observacao && sale.observacao !== 'Venda PDV' && sale.observacao !== 'Pronta Entrega PDV' 
                     ? sale.observacao 
                     : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
@@ -2691,6 +2644,221 @@ function printExpeditionHistory() {
     setTimeout(() => window.print(), 500);
 }
 
+// ====== FUNÇÕES DE IMPRESSÃO FINANCEIRA ======
+
+function printReceivables() {
+    const termRec = document.getElementById('rec-search')?.value.toLowerCase() || '';
+    const statusRec = document.getElementById('rec-status')?.value || '';
+    const startRec = document.getElementById('rec-start')?.value;
+    const endRec = document.getElementById('rec-end')?.value;
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+
+    const salesMap = {};
+    STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+        if(!salesMap[l.id]) {
+            salesMap[l.id] = { 
+                id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date, 
+                clientName: l.clientName, payment: l.paymentMethod, dueDate: l.dueDate,
+                desc: l.type === 'receita' ? l.productName : `Venda #${l.id}`
+            };
+        }
+        salesMap[l.id].val += Number(l.totalValue) || 0;
+        salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
+    });
+    
+    let filtered = Object.values(salesMap);
+
+    if(termRec) {
+        filtered = filtered.filter(r => (r.clientName && r.clientName.toLowerCase().includes(termRec)) || (r.desc && r.desc.toLowerCase().includes(termRec)) || String(r.id).includes(termRec));
+    }
+    if(statusRec === 'PAGOS') filtered = filtered.filter(r => r.status === 'PAGO');
+    if(statusRec === 'ABERTOS') filtered = filtered.filter(r => r.status !== 'PAGO' && new Date(r.dueDate) >= hoje);
+    if(statusRec === 'VENCIDOS') filtered = filtered.filter(r => r.status !== 'PAGO' && new Date(r.dueDate) < hoje);
+    if(startRec) filtered = filtered.filter(r => new Date(r.dueDate) >= new Date(startRec));
+    if(endRec) {
+        let endD = new Date(endRec);
+        endD.setHours(23,59,59);
+        filtered = filtered.filter(r => new Date(r.dueDate) <= endD);
+    }
+    filtered.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+    if (filtered.length === 0) return showToast("Nenhum dado para imprimir", true);
+
+    let totalGeral = 0;
+    let totalPago = 0;
+    
+    const rowsHtml = filtered.map(r => {
+        totalGeral += r.val;
+        totalPago += r.paid;
+        const situacao = r.status === 'PAGO' ? 'PAGO' : (new Date(r.dueDate) < hoje ? 'VENCIDO' : 'ABERTO');
+        
+        return `
+            <tr>
+                <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${formatDate(r.dueDate)}</td>
+                <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; font-weight: bold;">${r.clientName || '-'}</td>
+                <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${r.desc}</td>
+                <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${r.payment || '-'}</td>
+                <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align: center;">${situacao}</td>
+                <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align: right; font-weight: bold;">${formatMoney(r.val)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    let filterText = [];
+    if(statusRec) filterText.push(`Status: ${statusRec}`);
+    if(startDate) filterText.push(`De: ${formatDate(startRec)}`);
+    if(endDate) filterText.push(`Até: ${formatDate(endRec)}`);
+    if(termRec) filterText.push(`Busca: "${termRec}"`);
+    let subheader = filterText.length > 0 ? filterText.join(' | ') : 'Todos os registros';
+
+    const company = {
+        name: "RV PORTAL MADEIRAS",
+        cnpj: "30.942.123/0001-02",
+        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
+    };
+
+    const el = document.getElementById('print-area');
+    el.innerHTML = `
+        <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 15px;">
+            <div class="header-orig" style="display: flex; border: 1px solid #000; margin-bottom: 0;">
+                <div class="logo-box-orig" style="width: 100px; padding: 5px; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center;">
+                    <img src="${company.logoUrl}" style="max-height: 80px; max-width: 100%;" />
+                </div>
+                <div class="company-box-orig" style="flex: 1; padding: 10px; border-right: 1px solid #000;">
+                    <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                    <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj}</p>
+                </div>
+                <div class="info-box-orig" style="width: 250px; padding: 10px; background-color: #f9f9f9; text-align: right;">
+                    <h3 style="margin: 0; font-size: 14px; font-weight: bold;">RELATÓRIO: CONTAS A RECEBER</h3>
+                    <p style="margin: 5px 0; font-size: 12px;">Emissão: ${new Date().toLocaleDateString()}</p>
+                </div>
+            </div>
+
+            <div style="background-color: #f8fafc; border: 1px solid #000; border-top: none; padding: 8px; margin-bottom: 15px; font-size: 12px;">
+                <strong>Filtros aplicados:</strong> ${subheader}
+            </div>
+
+            <table class="items-table-orig" style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000;">
+                <thead>
+                    <tr style="background-color: #f1f5f9;">
+                        <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Vencimento</th>
+                        <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Cliente</th>
+                        <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Referência</th>
+                        <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Pagto</th>
+                        <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Status</th>
+                        <th style="border-bottom: 1px solid #000; padding: 6px; text-align: right;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+                <tfoot>
+                    <tr style="background-color: #f0fdf4;">
+                        <td colspan="5" style="border-top: 2px solid #000; border-right: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 12px;">TOTAL BRUTO NA LISTA:</td>
+                        <td style="border-top: 2px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 14px; color: #0f172a;">${formatMoney(totalGeral)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+    setTimeout(() => window.print(), 500);
+}
+
+function printExpenses() {
+    const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
+    const statusExp = document.getElementById('exp-status')?.value || '';
+    const startExp = document.getElementById('exp-start')?.value;
+    const endExp = document.getElementById('exp-end')?.value;
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+
+    let filteredExp = STATE.expenses.slice();
+    if(termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
+    if(statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
+    if(startExp) filteredExp = filteredExp.filter(e => new Date(e.date) >= new Date(startExp));
+    if(endExp) {
+        let endD = new Date(endExp);
+        endD.setHours(23,59,59);
+        filteredExp = filteredExp.filter(e => new Date(e.date) <= endD);
+    }
+    filteredExp.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+    if (filteredExp.length === 0) return showToast("Nenhum dado para imprimir", true);
+
+    let totalGeral = 0;
+    const rowsHtml = filteredExp.map(e => {
+        totalGeral += e.cost;
+        const situacao = e.status === 'PAGO' ? 'PAGO' : (new Date(e.date) < hoje ? 'VENCIDO' : 'PENDENTE');
+        let providerVal = e.note || '-';
+        if (providerVal.startsWith('Fornecedor:')) providerVal = providerVal.replace('Fornecedor:', '').trim();
+
+        return `
+            <tr>
+                <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${formatDate(e.date)}</td>
+                <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; font-weight: bold;">${e.item}</td>
+                <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${providerVal}</td>
+                <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align: center;">${situacao}</td>
+                <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align: right; font-weight: bold;">${formatMoney(e.cost)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    let filterText = [];
+    if(statusExp) filterText.push(`Status: ${statusExp}`);
+    if(startExp) filterText.push(`De: ${formatDate(startExp)}`);
+    if(endExp) filterText.push(`Até: ${formatDate(endExp)}`);
+    if(termExp) filterText.push(`Busca: "${termExp}"`);
+    let subheader = filterText.length > 0 ? filterText.join(' | ') : 'Todos os registros';
+
+    const company = {
+        name: "RV PORTAL MADEIRAS",
+        cnpj: "30.942.123/0001-02",
+        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
+    };
+
+    const el = document.getElementById('print-area');
+    el.innerHTML = `
+        <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 15px;">
+            <div class="header-orig" style="display: flex; border: 1px solid #000; margin-bottom: 0;">
+                <div class="logo-box-orig" style="width: 100px; padding: 5px; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center;">
+                    <img src="${company.logoUrl}" style="max-height: 80px; max-width: 100%;" />
+                </div>
+                <div class="company-box-orig" style="flex: 1; padding: 10px; border-right: 1px solid #000;">
+                    <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                    <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj}</p>
+                </div>
+                <div class="info-box-orig" style="width: 250px; padding: 10px; background-color: #f9f9f9; text-align: right;">
+                    <h3 style="margin: 0; font-size: 14px; font-weight: bold;">RELATÓRIO: CONTAS A PAGAR</h3>
+                    <p style="margin: 5px 0; font-size: 12px;">Emissão: ${new Date().toLocaleDateString()}</p>
+                </div>
+            </div>
+
+            <div style="background-color: #f8fafc; border: 1px solid #000; border-top: none; padding: 8px; margin-bottom: 15px; font-size: 12px;">
+                <strong>Filtros aplicados:</strong> ${subheader}
+            </div>
+
+            <table class="items-table-orig" style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000;">
+                <thead>
+                    <tr style="background-color: #f1f5f9;">
+                        <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Data</th>
+                        <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Categoria</th>
+                        <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Fornecedor / Obs</th>
+                        <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Status</th>
+                        <th style="border-bottom: 1px solid #000; padding: 6px; text-align: right;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+                <tfoot>
+                    <tr style="background-color: #fef2f2;">
+                        <td colspan="4" style="border-top: 2px solid #000; border-right: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 12px;">TOTAL DAS DESPESAS NA LISTA:</td>
+                        <td style="border-top: 2px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 14px; color: #dc2626;">${formatMoney(totalGeral)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+    setTimeout(() => window.print(), 500);
+}
+
 function reprintSale(id) {
     const items = STATE.logs.filter(l => String(l.id) === String(id));
     if(!items.length) return;
@@ -2723,7 +2891,6 @@ function reprintSale(id) {
     renderInvoice(saleObj, false); 
     setTimeout(() => window.print(), 500);
 }
-
 
 function fazerLogout() {
     localStorage.removeItem('rv_user');
@@ -2799,10 +2966,6 @@ async function toggleUserStatus(id, currentStatus) {
     loadData();
 }
 
-
-
- // NOVA FUNÇÃO: Abordagem Virtual (Sem tocar no DOM e 100% à prova de página em branco)
-// NOVA FUNÇÃO: Abordagem Virtual com o Layout EXATO da Impressão
 function downloadQuotePDF(id) {
     const q = STATE.quotes.find(x => x.id == id);
     if(!q) return;
@@ -2813,7 +2976,6 @@ function downloadQuotePDF(id) {
     const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
 
     let subtotal = 0;
-    // Tabela de itens com efeito "Zebrado" (linha branca, linha cinza claro) e bordas
     const itemsHtml = q.items.map((i, index) => {
         const itemTotal = i.qty * i.price;
         subtotal += itemTotal;
@@ -2834,7 +2996,6 @@ function downloadQuotePDF(id) {
     const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV' 
                     ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
 
-    // O HTML String com todo o CSS inline recriando o seu Layout Nativo
     const htmlString = `
         <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
             
@@ -2926,11 +3087,10 @@ function downloadQuotePDF(id) {
         </div>
     `;
 
-    // Atraso intencional de 500ms para a Logo e Marca D'água baixarem antes de gerar o PDF
     setTimeout(() => {
         const opt = {
         margin:       10, 
-        filename:     `RV PORTAL - ${clientName} - #${q.id}.pdf`, // <--- O NOME É ALTERADO EXATAMENTE AQUI!
+        filename:     `RV PORTAL - ${clientName} - #${q.id}.pdf`,
         image:        { type: 'jpeg', quality: 1 },
         html2canvas:  { 
             scale: 2, 
