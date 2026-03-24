@@ -507,12 +507,12 @@
                   <p class="text-xs text-slate-500 font-medium">Imprime o resumo das vendas de hoje, formas de pagamento e total geral.</p>
               </div>
 
-              <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 opacity-60 flex flex-col items-center text-center gap-3">
-                  <div class="w-14 h-14 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center">
+              <div onclick="openPeriodReportModal()" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-indigo-500 hover:shadow-md cursor-pointer transition-all flex flex-col items-center text-center gap-3">
+                  <div class="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center">
                       <i data-lucide="bar-chart-3" class="w-7 h-7"></i>
                   </div>
-                  <h3 class="font-bold text-slate-700 text-lg">Vendas por Período</h3>
-                  <span class="bg-slate-200 text-slate-500 text-[10px] font-bold uppercase px-2 py-1 rounded">Em Breve</span>
+                  <h3 class="font-bold text-slate-800 text-lg">Vendas por Período</h3>
+                  <p class="text-xs text-slate-500 font-medium">Filtre vendas por data, cliente ou método de pagamento.</p>
               </div>
 
               <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 opacity-60 flex flex-col items-center text-center gap-3">
@@ -576,6 +576,50 @@
         </form>
     </div>
 
+<div id="modal-period-report" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="calendar-search" class="text-indigo-600"></i> Relatório de Vendas</h3>
+                <button onclick="closePeriodReportModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Data Inicial</label>
+                        <input type="date" id="rep-per-start" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Data Final</label>
+                        <input type="date" id="rep-per-end" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none bg-white">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Forma de Pagamento</label>
+                    <select id="rep-per-payment" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none bg-white">
+                        <option value="Todos">Todos</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="PIX">PIX</option>
+                        <option value="Cartão Crédito">Cartão Crédito</option>
+                        <option value="Cartão Débito">Cartão Débito</option>
+                        <option value="Boleto 5 dias">Boleto 5 dias</option>
+                        <option value="Boleto 10 dias">Boleto 10 dias</option>
+                        <option value="Boleto 15 dias">Boleto 15 dias</option>
+                        <option value="PIX 7 dias">PIX 7 dias</option>
+                        <option value="Carteira">Carteira</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Cliente</label>
+                    <input type="text" id="rep-per-client" placeholder="Digite o nome (Deixe vazio para Todos)" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none">
+                </div>
+            </div>
+            <div class="p-5 border-t bg-slate-50 flex gap-3">
+                <button onclick="closePeriodReportModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="printPeriodReport()" class="flex-1 py-3 bg-indigo-700 rounded-xl font-bold text-white hover:bg-indigo-800 shadow-lg flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Gerar e Imprimir</button>
+            </div>
+        </div>
+    </div>
+      
     </main>
 
     <div id="print-area" class="print-only"></div>
@@ -3309,6 +3353,189 @@ function printDailyRevenue() {
     setTimeout(() => {
         window.print();
         el.innerHTML = ''; // Limpa a área após imprimir
+    }, 500);
+}
+
+
+  function openPeriodReportModal() {
+    // Seta as datas para o mês atual por padrão
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
+    
+    document.getElementById('rep-per-start').value = primeiroDia;
+    document.getElementById('rep-per-end').value = ultimoDia;
+    document.getElementById('rep-per-payment').value = 'Todos';
+    document.getElementById('rep-per-client').value = '';
+    
+    document.getElementById('modal-period-report').classList.remove('hidden');
+}
+
+function closePeriodReportModal() {
+    document.getElementById('modal-period-report').classList.add('hidden');
+}
+
+function printPeriodReport() {
+    showLoading(true);
+
+    const start = document.getElementById('rep-per-start').value;
+    const end = document.getElementById('rep-per-end').value;
+    const payment = document.getElementById('rep-per-payment').value;
+    const client = document.getElementById('rep-per-client').value.toLowerCase().trim();
+
+    // 1. Agrupar vendas por ID (já que 1 pedido pode ter vários itens)
+    const salesMap = {};
+    STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
+        if (!salesMap[l.id]) {
+            salesMap[l.id] = {
+                id: l.id,
+                date: l.date,
+                clientName: l.clientName || 'Consumidor Final',
+                paymentMethod: l.paymentMethod || 'Não Informado',
+                discount: Number(l.discount) || 0,
+                totalValue: 0, // Valor já líquido dos itens
+                itemsText: ''
+            };
+        }
+        salesMap[l.id].totalValue += Number(l.totalValue) || 0;
+        salesMap[l.id].itemsText += `${l.productName} (x${l.quantity}), `;
+    });
+
+    let filteredSales = Object.values(salesMap);
+
+    // 2. Aplicar Filtros
+    if (start) {
+        filteredSales = filteredSales.filter(s => new Date(s.date) >= new Date(start + "T00:00:00"));
+    }
+    if (end) {
+        let endD = new Date(end + "T23:59:59");
+        filteredSales = filteredSales.filter(s => new Date(s.date) <= endD);
+    }
+    if (payment !== 'Todos') {
+        filteredSales = filteredSales.filter(s => s.paymentMethod === payment);
+    }
+    if (client) {
+        filteredSales = filteredSales.filter(s => s.clientName.toLowerCase().includes(client));
+    }
+
+    filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date)); // Ordenar do mais antigo pro mais novo
+
+    if (filteredSales.length === 0) {
+        showLoading(false);
+        return showToast("Nenhuma venda encontrada para esses filtros.", true);
+    }
+
+    // 3. Calcular Totais e Formas de Pagamento
+    let totalLiquido = 0;
+    let totalDescontos = 0;
+    let pagamentosMap = {};
+
+    let rowsHtml = filteredSales.map(s => {
+        totalLiquido += s.totalValue;
+        totalDescontos += s.discount;
+
+        const pgto = s.paymentMethod;
+        if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
+        pagamentosMap[pgto] += s.totalValue;
+
+        return `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 5px; font-size: 11px;">${formatDate(s.date)}</td>
+                <td style="padding: 8px 5px; font-size: 11px; font-weight: bold;">#${s.id}</td>
+                <td style="padding: 8px 5px; font-size: 11px;">${s.clientName}</td>
+                <td style="padding: 8px 5px; font-size: 11px; text-transform: uppercase;">${s.paymentMethod}</td>
+                <td style="padding: 8px 5px; font-size: 12px; font-weight: bold; text-align: right; color: #059669;">${formatMoney(s.totalValue)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `
+        <tr>
+            <td style="padding: 6px; border-bottom: 1px dashed #ccc; font-size: 12px;">${metodo}</td>
+            <td style="padding: 6px; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; font-size: 12px;">${formatMoney(valor)}</td>
+        </tr>
+    `).join('');
+
+    // 4. Montar a Tela de Impressão
+    const company = {
+        name: "RV PORTAL MADEIRAS",
+        cnpj: "30.942.123/0001-02",
+        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+    };
+
+    const filtroTexto = `Período: ${start ? formatDate(start) : 'Início'} até ${end ? formatDate(end) : 'Hoje'} | Pgto: ${payment} ${client ? ' | Cliente: ' + client : ''}`;
+
+    const el = document.getElementById('print-area');
+    el.innerHTML = `
+        <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <img src="${company.logoUrl}" style="max-height: 60px;" />
+                    <div>
+                        <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                        <p style="margin: 2px 0; font-size: 11px; color: #64748b;">CNPJ: ${company.cnpj}</p>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: bold;">RELATÓRIO DE VENDAS</h3>
+                    <p style="margin: 2px 0; font-size: 11px;">Impresso em: ${new Date().toLocaleString('pt-BR')}</p>
+                </div>
+            </div>
+
+            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 20px; font-size: 12px; border-radius: 6px;">
+                <strong>Filtros aplicados:</strong> ${filtroTexto}
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                <thead>
+                    <tr style="background-color: #f1f5f9; border-bottom: 2px solid #0f172a;">
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Data</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pedido</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Cliente</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pgto</th>
+                        <th style="padding: 8px 5px; text-align: right; font-size: 11px;">Valor Liq.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+
+            <div style="display: flex; justify-content: space-between; gap: 20px;">
+                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Receitas por Método</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        ${pgtoRowsHtml}
+                    </table>
+                </div>
+
+                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px; background-color: #f8fafc;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Resumo do Período</h4>
+                    <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 5px 0;">Qtd. Pedidos:</td>
+                            <td style="padding: 5px 0; text-align: right; font-weight: bold;">${filteredSales.length}</td>
+                        </tr>
+                        ${totalDescontos > 0 ? `
+                        <tr>
+                            <td style="padding: 5px 0; color: red;">Descontos Aplicados:</td>
+                            <td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(totalDescontos)}</td>
+                        </tr>` : ''}
+                        <tr>
+                            <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">LÍQUIDO TOTAL:</td>
+                            <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalLiquido)}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    showLoading(false);
+    closePeriodReportModal();
+    setTimeout(() => {
+        window.print();
+        el.innerHTML = ''; 
     }, 500);
 }
         
