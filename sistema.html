@@ -2937,7 +2937,8 @@ function printExpenses() {
 }
 
 function reprintSale(id) {
-    const items = STATE.logs.filter(l => String(l.id) === String(id));
+    // A CORREÇÃO ESTÁ AQUI: Adicionado "&& l.type === 'venda'" para ignorar baixas e entregas
+    const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
     if(!items.length) return;
     
     const totalDiscount = items[0].discount || 0;
@@ -2959,7 +2960,8 @@ function reprintSale(id) {
             return { 
                 name: i.productName, 
                 qty: i.quantity, 
-                price: grossItemTotal / i.quantity, 
+                // Prevenção extra para evitar qualquer divisão por zero futura:
+                price: i.quantity > 0 ? (grossItemTotal / i.quantity) : 0, 
                 total: grossItemTotal 
             };
         })
