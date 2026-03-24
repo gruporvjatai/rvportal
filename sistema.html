@@ -2277,18 +2277,6 @@ function renderFinance() {
                 </td>
             </tr>`;
         }).join('');
-    
-  htmlRec += `
-        <tr class="bg-indigo-50/60 border-t-2 border-indigo-200">
-            <td colspan="2" class="p-3 text-right font-black text-slate-700 uppercase text-xs align-middle">Total Filtrado:</td>
-            <td class="p-3 border-r border-indigo-100">
-                <div class="font-black text-indigo-800 text-sm">${formatMoney(totalValRec)}</div>
-                ${totalRestRec > 0 ? `<div class="text-[10px] text-orange-600 font-bold mt-0.5">Pendente: ${formatMoney(totalRestRec)}</div>` : ''}
-            </td>
-            <td></td>
-        </tr>`;
-
-        recBody.innerHTML = htmlRec;
     }
 
     // ---------------------------------------------------------
