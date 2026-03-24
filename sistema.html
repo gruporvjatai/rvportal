@@ -607,16 +607,16 @@
                     <label class="block text-sm font-bold text-slate-700 mb-1">Forma de Pagamento</label>
                     <select id="rep-per-payment" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none bg-white">
                         <option value="Todos">Todos</option>
-                        <option value="Dinheiro">Dinheiro</option>
-                        <option value="PIX">PIX</option>
-                        <option value="Cartão Crédito">Cartão Crédito</option>
-                        <option value="Cartão Débito">Cartão Débito</option>
-                        <option value="Boleto 5 dias">Boleto 5 dias</option>
-                        <option value="Boleto 10 dias">Boleto 10 dias</option>
-                        <option value="Boleto 15 dias">Boleto 15 dias</option>
-                        <option value="PIX 7 dias">PIX 7 dias</option>
-                        <option value="Carteira">Carteira</option>
-                    </select>
+                        <option>Dinheiro</option>
+                              <option>PIX</option>
+                              <option>Carteira</option>
+                              <option>Cartão Débito</option>
+                              <option>Cartão Crédito</option>
+                              <option>Boleto 21 dias</option>
+                              <option>Boleto 30 dias</option>
+                              <option>Boleto Programado</option>
+                              <option>Cheque</option>
+                            </select>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Cliente</label>
@@ -773,7 +773,17 @@
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Forma de Pagto</label>
-                    <select id="rec-method" class="w-full p-3 border rounded-xl"><option>Dinheiro</option><option>PIX</option><option>Cartão Crédito</option><option>Cartão Débito</option><option>Boleto 5 dias</option><option>Boleto 10 dias</option><option>Boleto 15 dias</option><option>PIX 7 dias</option><option>Carteira</option></select>
+                    <select id="rec-method" class="w-full p-3 border rounded-xl">
+                              <option>Dinheiro</option>
+                              <option>PIX</option>
+                              <option>Carteira</option>
+                              <option>Cartão Débito</option>
+                              <option>Cartão Crédito</option>
+                              <option>Boleto 21 dias</option>
+                              <option>Boleto 30 dias</option>
+                              <option>Boleto Programado</option>
+                              <option>Cheque</option>
+                            </select>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Data Vencimento</label>
@@ -818,8 +828,16 @@
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Forma de Pagto Base</label>
                     <select id="rev-method" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none">
-                        <option>PIX</option><option>Dinheiro</option><option>Boleto</option><option>Cartão Crédito</option>
-                    </select>
+                        <option>Dinheiro</option>
+                              <option>PIX</option>
+                              <option>Carteira</option>
+                              <option>Cartão Débito</option>
+                              <option>Cartão Crédito</option>
+                              <option>Boleto 21 dias</option>
+                              <option>Boleto 30 dias</option>
+                              <option>Boleto Programado</option>
+                              <option>Cheque</option>
+                            </select>
                 </div>
             </div>
             <div class="p-5 border-t bg-slate-50 flex gap-3">
