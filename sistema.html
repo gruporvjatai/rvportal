@@ -2208,7 +2208,8 @@ function renderFinance() {
     const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
                    salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
     
-    const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(e.cost), 0);
+    // CORREÇÃO APLICADA AQUI ABAIXO (b.cost em vez de e.cost)
+    const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
     
     document.getElementById('fin-income').innerText = formatMoney(income);
     document.getElementById('fin-expenses').innerText = formatMoney(expenses);
