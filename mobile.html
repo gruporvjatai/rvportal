@@ -13,10 +13,13 @@
     <link rel="shortcut icon" type="image/png" href="logo.png">
     <link rel="apple-touch-icon" href="logo.png">
     
+
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="RV Portal">
+    <meta name="application-name" content="RV Portal Madeiras">
+    <meta name="apple-mobile-web-app-title" content="RV Portal Madeiras">
     <meta name="theme-color" content="#0f172a"> 
+    <link rel="manifest" href="manifest.json">
 
     <style>
       body { background-color: #f1f5f9; font-family: 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; padding-top: 60px; padding-bottom: 80px; }
@@ -836,32 +839,85 @@
         }
 
         async function saveReceivableEdit() {
-            const id = document.getElementById('rec-id').value; const method = document.getElementById('rec-method').value; const due = document.getElementById('rec-due').value; const payVal = Number(document.getElementById('rec-pay-val').value) || 0;
+            const id = document.getElementById('rec-id').value; 
+            const method = document.getElementById('rec-method').value; 
+            const due = document.getElementById('rec-due').value; 
+            const payVal = Number(document.getElementById('rec-pay-val').value) || 0;
+            
             showLoading(true);
+            
             let rowsToUpdate = STATE.logs.filter(l => String(l.id) === String(id) && (l.type === 'venda' || l.type === 'receita'));
-            let orderTotal = rowsToUpdate.reduce((acc, r) => acc + r.totalValue, 0); let orderPaid = rowsToUpdate.reduce((acc, r) => Math.max(acc, r.paidValue), 0);
-            let newOrderPaid = orderPaid + payVal; let finStatus = newOrderPaid >= orderTotal ? 'PAGO' : (newOrderPaid > 0 ? 'PARCIAL' : 'PENDENTE');
+            
+            // CORREÇÃO 1: Calcula o total bruto e subtrai o desconto para achar o valor real da venda
+            let orderTotalBruto = rowsToUpdate.reduce((acc, r) => acc + r.totalValue, 0);
+            let orderDiscount = rowsToUpdate.reduce((acc, r) => Math.max(acc, Number(r.discount) || 0), 0);
+            let orderTotal = orderTotalBruto - orderDiscount;
+            
+            let orderPaid = rowsToUpdate.reduce((acc, r) => Math.max(acc, Number(r.paidValue) || 0), 0);
+            let newOrderPaid = orderPaid + payVal; 
+            
+            // CORREÇÃO 2: Usa toFixed(2) para evitar que dízimas do Javascript travem o status em PARCIAL
+            let isPago = Number(newOrderPaid.toFixed(2)) >= Number(orderTotal.toFixed(2));
+            let finStatus = isPago ? 'PAGO' : (newOrderPaid > 0 ? 'PARCIAL' : 'PENDENTE');
+            
             for(let row of rowsToUpdate) {
-                let updateData = { valor_pago: newOrderPaid, status_financeiro: finStatus }; if (method) updateData.forma_pagamento = method; if (due) updateData.vencimento = due;
+                let updateData = { valor_pago: newOrderPaid, status_financeiro: finStatus }; 
+                if (method) updateData.forma_pagamento = method; 
+                if (due) updateData.vencimento = due;
                 await sb.from('logs').update(updateData).eq('uid', row.uid);
             }
-            if (payVal > 0) { await sb.from('logs').insert([{ id: getNextId(STATE.logs), tipo: 'recebimento', produto_nome: 'Baixa', quantidade: 0, data: new Date().toISOString(), observacao: 'Ref Lanc #' + id, valor_total: payVal, cliente_nome: rowsToUpdate[0].clientName, forma_pagamento: method || rowsToUpdate[0].paymentMethod, status: 'ATIVO', status_financeiro: 'PAGO', valor_pago: payVal }]); }
-            document.getElementById('modal-receivable-edit').classList.add('hidden'); showToast("Conta atualizada!"); loadData();
+            
+            if (payVal > 0) { 
+                await sb.from('logs').insert([{ 
+                    id: getNextId(STATE.logs), tipo: 'recebimento', produto_nome: 'Baixa', 
+                    quantidade: 0, data: new Date().toISOString(), observacao: 'Ref Lanc #' + id, 
+                    valor_total: payVal, cliente_nome: rowsToUpdate[0].clientName, 
+                    forma_pagamento: method || rowsToUpdate[0].paymentMethod, 
+                    status: 'ATIVO', status_financeiro: 'PAGO', valor_pago: payVal 
+                }]); 
+            }
+            
+            document.getElementById('modal-receivable-edit').classList.add('hidden'); 
+            showToast("Conta atualizada!"); 
+            loadData();
         }
 
         function renderFinance() {
             const salesMap = {};
             STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
-                if(!salesMap[l.id]) salesMap[l.id] = { id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date, clientName: l.clientName, payment: l.paymentMethod, dueDate: l.dueDate, desc: l.type === 'receita' ? l.productName : `Venda #${l.id}` };
-                salesMap[l.id].val += Number(l.totalValue) || 0; salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
+                if(!salesMap[l.id]) {
+                    salesMap[l.id] = { 
+                        id: l.id, val: 0, paid: 0, discount: 0, status: l.finStatus, 
+                        date: l.date, clientName: l.clientName, payment: l.paymentMethod, 
+                        dueDate: l.dueDate, desc: l.type === 'receita' ? l.productName : `Venda #${l.id}` 
+                    };
+                }
+                salesMap[l.id].val += Number(l.totalValue) || 0; 
+                salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
+                // CORREÇÃO 3: Mapeia também o desconto do pedido
+                salesMap[l.id].discount = Math.max(salesMap[l.id].discount, Number(l.discount) || 0);
             });
-            let salesArr = Object.values(salesMap);
+            
+            // CORREÇÃO 4: Aplica a dedução do desconto antes de exibir na tela
+            let salesArr = Object.values(salesMap).map(s => {
+                s.val = s.val - s.discount;
+                return s;
+            });
+
             const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) + salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
             const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(e.cost), 0);
-            document.getElementById('fin-income').innerText = formatMoney(income); document.getElementById('fin-expenses').innerText = formatMoney(expenses); document.getElementById('fin-balance').innerText = formatMoney(income - expenses);
+            
+            document.getElementById('fin-income').innerText = formatMoney(income); 
+            document.getElementById('fin-expenses').innerText = formatMoney(expenses); 
+            document.getElementById('fin-balance').innerText = formatMoney(income - expenses);
 
             // A Receber
-            const termRec = document.getElementById('rec-search')?.value.toLowerCase() || ''; const statusRec = document.getElementById('rec-status')?.value || ''; const startRec = document.getElementById('rec-start')?.value; const endRec = document.getElementById('rec-end')?.value; const hoje = new Date(); hoje.setHours(0,0,0,0);
+            const termRec = document.getElementById('rec-search')?.value.toLowerCase() || ''; 
+            const statusRec = document.getElementById('rec-status')?.value || ''; 
+            const startRec = document.getElementById('rec-start')?.value; 
+            const endRec = document.getElementById('rec-end')?.value; 
+            const hoje = new Date(); hoje.setHours(0,0,0,0);
+            
             let filteredRec = salesArr;
             if(termRec) filteredRec = filteredRec.filter(r => (r.clientName && r.clientName.toLowerCase().includes(termRec)) || (r.desc && r.desc.toLowerCase().includes(termRec)));
             if(statusRec === 'PAGOS') filteredRec = filteredRec.filter(r => r.status === 'PAGO');
