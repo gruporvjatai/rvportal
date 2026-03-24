@@ -2716,8 +2716,8 @@ function printReceivables() {
 
     let filterText = [];
     if(statusRec) filterText.push(`Status: ${statusRec}`);
-    if(startDate) filterText.push(`De: ${formatDate(startRec)}`);
-    if(endDate) filterText.push(`Até: ${formatDate(endRec)}`);
+    if(startRec) filterText.push(`De: ${formatDate(startRec)}`);
+    if(endRec) filterText.push(`Até: ${formatDate(endRec)}`);
     if(termRec) filterText.push(`Busca: "${termRec}"`);
     let subheader = filterText.length > 0 ? filterText.join(' | ') : 'Todos os registros';
 
