@@ -2246,7 +2246,11 @@ function renderFinance() {
     if(filteredRec.length === 0) {
         recBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
     } else {
-        recBody.innerHTML = filteredRec.map(r => {
+        // Calcula os totais do que está filtrado
+        const totalValRec = filteredRec.reduce((acc, r) => acc + r.val, 0);
+        const totalRestRec = filteredRec.reduce((acc, r) => acc + (r.status !== 'PAGO' ? (r.val - r.paid) : 0), 0);
+
+        let htmlRec = filteredRec.map(r => {
             const dataVenc = new Date(r.dueDate);
             const isVencido = dataVenc < hoje && r.status !== 'PAGO';
             const corFundo = isVencido ? 'bg-red-50/50' : (r.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : '');
@@ -2277,6 +2281,19 @@ function renderFinance() {
                 </td>
             </tr>`;
         }).join('');
+
+        // Linha com os Totais
+        htmlRec += `
+        <tr class="bg-indigo-50/60 border-t-2 border-indigo-200">
+            <td colspan="2" class="p-3 text-right font-black text-slate-700 uppercase text-xs align-middle">Total Filtrado:</td>
+            <td class="p-3 border-r border-indigo-100">
+                <div class="font-black text-indigo-800 text-sm">${formatMoney(totalValRec)}</div>
+                ${totalRestRec > 0 ? `<div class="text-[10px] text-orange-600 font-bold mt-0.5">Pendente: ${formatMoney(totalRestRec)}</div>` : ''}
+            </td>
+            <td></td>
+        </tr>`;
+
+        recBody.innerHTML = htmlRec;
     }
 
     // ---------------------------------------------------------
@@ -2304,16 +2321,17 @@ function renderFinance() {
     if(filteredExp.length === 0) {
         expBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
     } else {
-        expBody.innerHTML = filteredExp.map(e => {
+        // Calcula o total filtrado de despesas
+        const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost, 0);
+
+        let htmlExp = filteredExp.map(e => {
             const dataVenc = new Date(e.date);
             const isVencido = dataVenc < hoje && e.status !== 'PAGO';
             const corFundo = isVencido ? 'bg-red-50/50' : (e.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : 'bg-orange-50/30');
             const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
 
             let providerVal = e.note || '-';
-            if (providerVal.startsWith('Fornecedor:')) {
-                providerVal = providerVal.replace('Fornecedor:', '').trim();
-            }
+            if (providerVal.startsWith('Fornecedor:')) providerVal = providerVal.replace('Fornecedor:', '').trim();
 
             return `<tr class="hover:bg-slate-100 ${corFundo} transition">
                 <td class="p-3 text-xs border-r border-slate-100">
@@ -2338,10 +2356,19 @@ function renderFinance() {
                 </td>
             </tr>`;
         }).join('');
-    }
 
-    lucide.createIcons();
-}
+        // Linha com o Total
+        htmlExp += `
+        <tr class="bg-red-50/60 border-t-2 border-red-200">
+            <td colspan="2" class="p-3 text-right font-black text-slate-700 uppercase text-xs align-middle">Total Filtrado:</td>
+            <td class="p-3 border-r border-red-100">
+                <div class="font-black text-red-700 text-sm">${formatMoney(totalValExp)}</div>
+            </td>
+            <td></td>
+        </tr>`;
+
+        expBody.innerHTML = htmlExp;
+    }
 
 function openEditReceivable(id, total, paid, due, method) {
     document.getElementById('rec-id').value = id;
