@@ -492,50 +492,143 @@
         }
 
         async function shareQuote(id) {
-            const q = STATE.quotes.find(x => x.id == id);
-            if (!q) return;
-            
-            showLoading(true);
-            renderInvoice(q, true); 
-            
-            const clientName = q.clientName || 'Consumidor Final';
-            const filename = `Orcamento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
-            const element = document.getElementById('print-area');
-            
-            const opt = {
-                margin: 10, 
-                filename: filename,
-                image: { type: 'jpeg', quality: 1 },
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+    const q = STATE.quotes.find(x => x.id == id);
+    if (!q) return;
+    
+    showLoading(true);
 
-            try {
-                // Gera o Blob do PDF
-                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
-                const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-                
-                // Tenta compartilhar o Arquivo Nativo do celular
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        title: `Orçamento #${q.id}`,
-                        text: `Olá ${clientName}, segue o orçamento solicitado em anexo.`,
-                        files: [file]
-                    });
-                    showLoading(false);
-                } else {
-                    // Fallback se o navegador do celular não suportar arquivos no share
-                    html2pdf().set(opt).from(element).save().then(() => {
-                        showLoading(false);
-                        showToast("PDF Baixado! Seu celular não suporta envio direto do arquivo.");
-                    });
-                }
-            } catch (err) {
-                console.error("Erro PDF", err);
+    const clientName = q.clientName || 'Consumidor Final';
+    const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+
+    let subtotal = 0;
+    const itemsHtml = q.items.map((i, index) => {
+        const itemTotal = i.qty * i.price;
+        subtotal += itemTotal;
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        return `
+            <tr style="background-color: ${bgColor};">
+                <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
+                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
+                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
+                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
+            </tr>`;
+    }).join('');
+
+    const discount = Number(q.discount) || 0;
+    const finalTotal = subtotal - discount;
+    const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
+    const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV' 
+                    ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+
+    // Montando o HTML em memória, idêntico ao original
+    const htmlString = `
+        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
+                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
+            </div>
+            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                <tr>
+                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
+                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
+                    </td>
+                    <td valign="middle" style="padding-left: 15px;">
+                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
+                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
+                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                    </td>
+                    <td align="right" valign="top">
+                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">ORÇAMENTO</h2>
+                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
+                        <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
+                    </td>
+                </tr>
+            </table>
+            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
+                <tr>
+                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
+                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                            <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
+                        </div>
+                    </td>
+                    <td width="4%"></td>
+                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
+                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                            <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
+                <thead>
+                    <tr>
+                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
+                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
+                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
+                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+            <table width="100%" style="margin-top: 10px;">
+                <tr>
+                    <td valign="top" style="padding-right: 30px;">
+                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
+                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
+                            <div style="font-size: 10px; color: #334155;">${obsText}</div>
+                        </div>
+                    </td>
+                    <td width="250" valign="top">
+                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
+                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
+                            </tr>
+                            ${discount > 0 ? `<tr><td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td><td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td></tr>` : ''}
+                            <tr>
+                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
+                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>`;
+
+    const filename = `Orcamento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+    const opt = {
+        margin: 10, 
+        filename: filename,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+        const pdfBlob = await html2pdf().set(opt).from(htmlString).output('blob');
+        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                title: `Orçamento #${q.id}`,
+                text: `Olá ${clientName}, segue o orçamento solicitado.`,
+                files: [file]
+            });
+            showLoading(false);
+        } else {
+            // Se o celular não aguentar envio direto de arquivos
+            html2pdf().set(opt).from(htmlString).save().then(() => {
                 showLoading(false);
-                showToast("Falha ao gerar o PDF", true);
-            }
+                showToast("PDF Baixado! Seu celular não suporta envio direto do arquivo.");
+            });
         }
+    } catch (err) {
+        console.error("Erro PDF", err);
+        showLoading(false);
+        showToast("Falha ao gerar o PDF", true);
+    }
+}
 
         function renderQuotesList() {
             const list = document.getElementById('quotes-list');
@@ -602,26 +695,34 @@
 
         // ================= FUNÇÕES DO CAIXA (DASHBOARD) =================
         function renderFinance() {
-            // Lógica Exata puxada do seu painel Desktop original
-            const salesMap = {};
-            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
-                if(!salesMap[l.id]) {
-                    salesMap[l.id] = { id: l.id, val: 0, paid: 0, status: l.finStatus };
-                }
-                salesMap[l.id].val += Number(l.totalValue) || 0;
-                salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
-            });
-            let salesArr = Object.values(salesMap);
-
-            const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
-                           salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
-            
-            const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(e.cost), 0);
-            
-            document.getElementById('fin-income').innerText = formatMoney(income);
-            document.getElementById('fin-expenses').innerText = formatMoney(expenses);
-            document.getElementById('fin-balance').innerText = formatMoney(income - expenses);
+    const salesMap = {};
+    
+    // Filtra vendas e receitas exatamente igual ao seu desktop
+    STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+        if(!salesMap[l.id]) {
+            salesMap[l.id] = { id: l.id, val: 0, paid: 0, status: l.finStatus };
         }
+        salesMap[l.id].val += Number(l.totalValue) || 0;
+        salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
+    });
+    let salesArr = Object.values(salesMap);
+
+    // Soma das Receitas
+    const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
+                   salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+
+    // Soma das Despesas
+    const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, e) => a + Number(e.cost), 0);
+
+    // Atualiza a tela se os elementos existirem
+    const elIncome = document.getElementById('fin-income');
+    const elExpenses = document.getElementById('fin-expenses');
+    const elBalance = document.getElementById('fin-balance');
+
+    if(elIncome) elIncome.innerText = formatMoney(income);
+    if(elExpenses) elExpenses.innerText = formatMoney(expenses);
+    if(elBalance) elBalance.innerText = formatMoney(income - expenses);
+}
 
         // ================= FUNÇÕES DE PRODUTOS =================
         function renderProducts() {
