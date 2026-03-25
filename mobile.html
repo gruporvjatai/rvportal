@@ -108,29 +108,31 @@
           <div id="quotes-list" class="flex flex-col gap-3"></div>
       </div>
       
-      <div id="view-fin" class="hidden-section">
-        <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="bar-chart-3" class="text-emerald-600"></i> Caixa</h2>
+     <div id="view-reports" class="hidden-section">
+    <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="file-text" class="text-emerald-600"></i> Relatórios</h2>
+    
+    <div class="flex flex-col gap-4">
+        <button onclick="printDailyReport()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
+            <div>
+                <h3 class="text-base font-black text-slate-800 mb-1">Faturamento do Dia</h3>
+                <p class="text-xs text-slate-500 font-medium">Resumo de vendas de hoje.</p>
+            </div>
+            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <i data-lucide="sun" class="w-6 h-6"></i>
+            </div>
+        </button>
         
-        <div class="flex flex-col gap-4">
-            <div class="bg-green-50 p-6 rounded-2xl border border-green-200 shadow-sm relative overflow-hidden">
-                <i data-lucide="trending-up" class="absolute -right-4 -bottom-4 w-24 h-24 text-green-200 opacity-50"></i>
-                <p class="text-green-800 text-xs font-bold uppercase tracking-wider mb-2 relative z-10">Receitas Totais</p>
-                <h3 id="fin-income" class="text-4xl font-black text-green-600 relative z-10">R$ 0,00</h3>
+        <button onclick="openPeriodReportModal()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
+            <div>
+                <h3 class="text-base font-black text-slate-800 mb-1">Vendas por Período</h3>
+                <p class="text-xs text-slate-500 font-medium">Filtros de data e pagamento.</p>
             </div>
-            
-            <div class="bg-red-50 p-6 rounded-2xl border border-red-200 shadow-sm relative overflow-hidden">
-                <i data-lucide="trending-down" class="absolute -right-4 -bottom-4 w-24 h-24 text-red-200 opacity-50"></i>
-                <p class="text-red-800 text-xs font-bold uppercase tracking-wider mb-2 relative z-10">Saídas (Despesas)</p>
-                <h3 id="fin-expenses" class="text-4xl font-black text-red-600 relative z-10">R$ 0,00</h3>
+            <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <i data-lucide="calendar-search" class="w-6 h-6"></i>
             </div>
-            
-            <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-200 shadow-sm relative overflow-hidden mt-2">
-                <i data-lucide="wallet" class="absolute -right-4 -bottom-4 w-24 h-24 text-indigo-200 opacity-50"></i>
-                <p class="text-indigo-800 text-xs font-bold uppercase tracking-wider mb-2 relative z-10">Saldo em Caixa</p>
-                <h3 id="fin-balance" class="text-4xl font-black text-indigo-700 relative z-10">R$ 0,00</h3>
-            </div>
-        </div>
-      </div>
+        </button>
+    </div>
+</div>
 
       <div id="view-prod" class="hidden-section">
           <div class="flex justify-between items-center mb-4">
@@ -289,6 +291,49 @@
         </div>
     </div>
 
+
+
+    <div id="modal-period-report" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-center justify-center p-4 animate-[fadeIn_0.2s]">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+            <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="calendar-search" class="text-indigo-600 w-5 h-5"></i> Gerar Relatório</h3>
+            <button onclick="closePeriodReportModal()" class="text-slate-400 hover:text-red-500 bg-white rounded-full p-1"><i data-lucide="x"></i></button>
+        </div>
+        <div class="p-5 space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Início</label>
+                    <input type="date" id="rep-per-start" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Fim</label>
+                    <input type="date" id="rep-per-end" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Forma de Pagto</label>
+                <select id="rep-per-payment" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="Todos">Todos</option>
+                    <option>Dinheiro</option><option>PIX</option><option>Carteira</option>
+                    <option>Cartão Débito</option><option>Cartão Crédito</option>
+                    <option>Boleto 21 dias</option><option>Boleto 30 dias</option>
+                    <option>Boleto Programado</option><option>Cheque</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente (Opcional)</label>
+                <input type="text" id="rep-per-client" placeholder="Ex: João da Silva" class="w-full p-3 border rounded-xl bg-slate-50 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
+        <div class="p-4 border-t bg-slate-50 flex gap-3">
+            <button onclick="closePeriodReportModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 active:scale-95">Cancelar</button>
+            <button onclick="printPeriodReport()" class="flex-1 py-3 bg-indigo-600 rounded-xl font-bold text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+        </div>
+    </div>
+</div>
+
+    
+
     <div id="print-area" style="position: absolute; left: -9999px; top: -9999px;"></div>
 
     <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-40 flex justify-around items-center pb-safe" style="padding-bottom: env(safe-area-inset-bottom);">
@@ -296,9 +341,9 @@
             <i data-lucide="folder-open" class="mb-1 w-6 h-6"></i>
             <span class="text-[10px] uppercase font-medium">Orçamentos</span>
         </button>
-        <button onclick="navigate('fin')" id="nav-fin" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
-            <i data-lucide="bar-chart-3" class="mb-1 w-6 h-6"></i>
-            <span class="text-[10px] uppercase font-medium">Caixa</span>
+        <button onclick="navigate('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="file-text" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Relatórios</span>
         </button>
         <button onclick="navigate('prod')" id="nav-prod" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
             <i data-lucide="package" class="mb-1 w-6 h-6"></i>
@@ -413,8 +458,7 @@
             const activeBtn = document.getElementById('nav-' + viewId);
             if(activeBtn) activeBtn.classList.add('nav-active');
             
-            if(viewId === 'quotes') renderQuotesList();
-            if(viewId === 'fin') renderFinance();
+            if(viewId === 'quotes') renderQuotesList();           
             if(viewId === 'prod') renderProducts();
             if(viewId === 'clients') renderClients();
             
@@ -1117,31 +1161,225 @@
         }
 
         // ================= FUNÇÕES DO CAIXA (DASHBOARD) =================
-        function renderFinance() {
-            const salesMap = {};
-            
-            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
-                if(!salesMap[l.id]) {
-                    salesMap[l.id] = { id: l.id, val: 0, paid: 0, status: l.finStatus };
-                }
-                salesMap[l.id].val += Number(l.totalValue) || 0;
-                salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
-            });
-            let salesArr = Object.values(salesMap);
-
-            const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
-                           salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
-
-            const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, e) => a + Number(e.cost), 0);
-
-            const elIncome = document.getElementById('fin-income');
-            const elExpenses = document.getElementById('fin-expenses');
-            const elBalance = document.getElementById('fin-balance');
-
-            if(elIncome) elIncome.innerText = formatMoney(income);
-            if(elExpenses) elExpenses.innerText = formatMoney(expenses);
-            if(elBalance) elBalance.innerText = formatMoney(income - expenses);
+        // ================= FUNÇÕES DE RELATÓRIOS =================
+function printDailyReport() {
+    showLoading(true);
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    let totalVendas = 0;
+    let descontos = 0;
+    let pagamentosMap = {};
+    let rowsHtml = '';
+    
+    // Filtra vendas de hoje e agrupa por ID
+    const todayLogs = STATE.logs.filter(l => l.date && l.date.startsWith(todayStr) && l.type === 'venda' && l.status !== 'CANCELADO');
+    const salesMap = {};
+    
+    todayLogs.forEach(l => {
+        if (!salesMap[l.id]) {
+            salesMap[l.id] = { id: l.id, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0 };
         }
+        salesMap[l.id].totalValue += Number(l.totalValue) || 0;
+    });
+    
+    Object.values(salesMap).forEach(s => {
+        totalVendas += s.totalValue;
+        descontos += s.discount;
+        const pgto = s.paymentMethod;
+        if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
+        pagamentosMap[pgto] += s.totalValue;
+        
+        rowsHtml += `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 5px; font-size: 11px; font-weight: bold;">#${s.id}</td>
+                <td style="padding: 8px 5px; font-size: 11px;">${s.clientName}</td>
+                <td style="padding: 8px 5px; font-size: 11px; text-transform: uppercase;">${s.paymentMethod}</td>
+                <td style="padding: 8px 5px; font-size: 12px; font-weight: bold; text-align: right; color: #059669;">${formatMoney(s.totalValue)}</td>
+            </tr>
+        `;
+    });
+
+    let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `
+        <tr>
+            <td style="padding: 6px; border-bottom: 1px dashed #ccc; font-size: 12px;">${metodo}</td>
+            <td style="padding: 6px; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; font-size: 12px;">${formatMoney(valor)}</td>
+        </tr>
+    `).join('');
+
+    if (Object.keys(salesMap).length === 0) {
+        rowsHtml = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Nenhuma venda registrada hoje.</td></tr>';
+    }
+
+    const company = { name: "RV PORTAL MADEIRAS", cnpj: "30.942.123/0001-02", logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" };
+    const el = document.getElementById('print-area');
+    
+    el.innerHTML = `
+        <div style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 20px; color: #1e293b;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <img src="${company.logoUrl}" style="max-height: 60px;" />
+                    <div>
+                        <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                        <p style="margin: 2px 0; font-size: 11px; color: #64748b;">CNPJ: ${company.cnpj}</p>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: bold;">FATURAMENTO DIÁRIO</h3>
+                    <p style="margin: 2px 0; font-size: 11px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
+                </div>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                <thead>
+                    <tr style="background-color: #f1f5f9; border-bottom: 2px solid #0f172a;">
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pedido</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Cliente</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pgto</th>
+                        <th style="padding: 8px 5px; text-align: right; font-size: 11px;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+            <div style="display: flex; justify-content: space-between; gap: 20px;">
+                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Métodos de Pagto</h4>
+                    <table style="width: 100%; border-collapse: collapse;">${pgtoRowsHtml}</table>
+                </div>
+                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px; background-color: #f8fafc;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Resumo do Dia</h4>
+                    <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                        <tr><td style="padding: 5px 0;">Qtd. Vendas:</td><td style="padding: 5px 0; text-align: right; font-weight: bold;">${Object.keys(salesMap).length}</td></tr>
+                        ${descontos > 0 ? `<tr><td style="padding: 5px 0; color: red;">Descontos:</td><td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(descontos)}</td></tr>` : ''}
+                        <tr>
+                            <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">LÍQUIDO:</td>
+                            <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalVendas)}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    showLoading(false);
+    setTimeout(() => { window.print(); el.innerHTML = ''; }, 500);
+}
+
+function openPeriodReportModal() {
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
+    document.getElementById('rep-per-start').value = primeiroDia;
+    document.getElementById('rep-per-end').value = ultimoDia;
+    document.getElementById('rep-per-payment').value = 'Todos';
+    document.getElementById('rep-per-client').value = '';
+    document.getElementById('modal-period-report').classList.remove('hidden');
+}
+
+function closePeriodReportModal() {
+    document.getElementById('modal-period-report').classList.add('hidden');
+}
+
+function printPeriodReport() {
+    showLoading(true);
+    const start = document.getElementById('rep-per-start').value;
+    const end = document.getElementById('rep-per-end').value;
+    const payment = document.getElementById('rep-per-payment').value;
+    const client = document.getElementById('rep-per-client').value.toLowerCase().trim();
+
+    const salesMap = {};
+    STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
+        if (!salesMap[l.id]) {
+            salesMap[l.id] = { id: l.id, date: l.date, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0 };
+        }
+        salesMap[l.id].totalValue += Number(l.totalValue) || 0;
+    });
+
+    let filteredSales = Object.values(salesMap);
+    if (start) filteredSales = filteredSales.filter(s => new Date(s.date) >= new Date(start + "T00:00:00"));
+    if (end) { let endD = new Date(end + "T23:59:59"); filteredSales = filteredSales.filter(s => new Date(s.date) <= endD); }
+    if (payment !== 'Todos') filteredSales = filteredSales.filter(s => s.paymentMethod === payment);
+    if (client) filteredSales = filteredSales.filter(s => s.clientName.toLowerCase().includes(client));
+
+    filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    if (filteredSales.length === 0) {
+        showLoading(false);
+        return showToast("Nenhuma venda encontrada para os filtros.", true);
+    }
+
+    let totalLiquido = 0; let totalDescontos = 0; let pagamentosMap = {};
+    let rowsHtml = filteredSales.map(s => {
+        totalLiquido += s.totalValue; totalDescontos += s.discount;
+        const pgto = s.paymentMethod;
+        if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
+        pagamentosMap[pgto] += s.totalValue;
+
+        return `<tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 5px; font-size: 11px;">${formatDate(s.date)}</td>
+                <td style="padding: 8px 5px; font-size: 11px; font-weight: bold;">#${s.id}</td>
+                <td style="padding: 8px 5px; font-size: 11px;">${s.clientName}</td>
+                <td style="padding: 8px 5px; font-size: 11px; text-transform: uppercase;">${s.paymentMethod}</td>
+                <td style="padding: 8px 5px; font-size: 12px; font-weight: bold; text-align: right; color: #059669;">${formatMoney(s.totalValue)}</td>
+            </tr>`;
+    }).join('');
+
+    let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `<tr><td style="padding: 6px; border-bottom: 1px dashed #ccc; font-size: 12px;">${metodo}</td><td style="padding: 6px; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; font-size: 12px;">${formatMoney(valor)}</td></tr>`).join('');
+
+    const company = { name: "RV PORTAL MADEIRAS", cnpj: "30.942.123/0001-02", logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" };
+    const filtroTexto = `Período: ${start ? formatDate(start) : 'Início'} até ${end ? formatDate(end) : 'Hoje'} | Pgto: ${payment} ${client ? '| Cliente: ' + client : ''}`;
+    const el = document.getElementById('print-area');
+    
+    el.innerHTML = `
+        <div style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 20px; color: #1e293b;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <img src="${company.logoUrl}" style="max-height: 60px;" />
+                    <div>
+                        <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                        <p style="margin: 2px 0; font-size: 11px; color: #64748b;">CNPJ: ${company.cnpj}</p>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: bold;">RELATÓRIO DE VENDAS</h3>
+                    <p style="margin: 2px 0; font-size: 11px;">Impresso: ${new Date().toLocaleString('pt-BR')}</p>
+                </div>
+            </div>
+            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 20px; font-size: 12px; border-radius: 6px;">
+                <strong>Filtros aplicados:</strong> ${filtroTexto}
+            </div>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                <thead>
+                    <tr style="background-color: #f1f5f9; border-bottom: 2px solid #0f172a;">
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Data</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pedido</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Cliente</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pgto</th>
+                        <th style="padding: 8px 5px; text-align: right; font-size: 11px;">Valor Liq.</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+            <div style="display: flex; justify-content: space-between; gap: 20px;">
+                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Métodos de Pagto</h4>
+                    <table style="width: 100%; border-collapse: collapse;">${pgtoRowsHtml}</table>
+                </div>
+                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px; background-color: #f8fafc;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Resumo do Período</h4>
+                    <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                        <tr><td style="padding: 5px 0;">Qtd. Vendas:</td><td style="padding: 5px 0; text-align: right; font-weight: bold;">${filteredSales.length}</td></tr>
+                        ${totalDescontos > 0 ? `<tr><td style="padding: 5px 0; color: red;">Descontos:</td><td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(totalDescontos)}</td></tr>` : ''}
+                        <tr>
+                            <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">LÍQUIDO:</td>
+                            <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalLiquido)}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    showLoading(false);
+    closePeriodReportModal();
+    setTimeout(() => { window.print(); el.innerHTML = ''; }, 500);
+}
 
         // ================= FUNÇÕES DE PRODUTOS =================
         function renderProducts() {
