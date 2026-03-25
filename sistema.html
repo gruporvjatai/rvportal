@@ -1876,6 +1876,7 @@ function renderRecentHistory() {
             <td class="p-3 text-right text-sm text-green-700 font-bold">${formatMoney(r.valorFinal)}</td>
             <td class="p-3 text-center flex gap-1 justify-center">
                 <button onclick="reprintSale('${r.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Imprimir"><i data-lucide="printer" width="14"></i></button>
+                <button onclick="duplicateSaleToQuote('${r.id}')" class="text-amber-500 hover:text-amber-700 bg-white border border-amber-200 p-2 rounded shadow-sm" title="Duplicar para Orçamento"><i data-lucide="copy" width="14"></i></button>
                 <button onclick="cancelSaleToQuote('${r.id}')" class="text-red-500 hover:text-red-700 bg-white border border-red-200 p-2 rounded shadow-sm" title="Estornar para Orçamento"><i data-lucide="rotate-ccw" width="14"></i></button>
             </td>
         </tr>`;
@@ -3602,6 +3603,58 @@ async function duplicateQuote(id) {
     }
 
     showToast("Orçamento duplicado com sucesso!");
+    await loadData(); 
+    navigate('quotes'); 
+}
+
+  async function duplicateSaleToQuote(saleId) {
+    if(!confirm("Deseja duplicar esta venda para um novo orçamento?")) return;
+    showLoading(true);
+
+    const saleItems = STATE.logs.filter(l => String(l.id) === String(saleId) && l.type === 'venda');
+    if(!saleItems.length) {
+        showLoading(false);
+        return showToast("Venda não encontrada!", true);
+    }
+
+    const newBudgetId = getNextId(STATE.logs, STATE.quotes);
+    const date = new Date().toISOString();
+
+    // Mapear os itens da venda para o formato de orçamento
+    let quotesToInsert = saleItems.map(item => {
+        // Se a observação for padrão de venda, a gente limpa no orçamento
+        let obs = item.note || '';
+        if(obs === 'Venda PDV' || obs === 'Pronta Entrega PDV') obs = '';
+
+        return {
+            id: newBudgetId,
+            tipo: 'orcamento',
+            produto_nome: item.productName,
+            quantidade: item.quantity,
+            data: date,
+            observacao: obs,
+            valor_total: item.totalValue, // Vai puxar o valor líquido fechado na época
+            cliente_nome: item.clientName,
+            forma_pagamento: item.paymentMethod || 'Dinheiro',
+            status: 'ABERTO', // Abre como um orçamento novo em folha
+            desconto: 0, // Zera para não abater desconto duas vezes
+            status_financeiro: '$',
+            endereco_entrega: item.deliveryAddress || '',
+            status_entrega: '',
+            qtd_entregue: 0,
+            vencimento: date,
+            valor_pago: 0
+        };
+    });
+
+    const { error } = await sb.from('logs').insert(quotesToInsert);
+
+    if(error) {
+        showLoading(false);
+        return showToast("Erro ao duplicar: " + error.message, true);
+    }
+
+    showToast("Venda duplicada para Orçamento!");
     await loadData(); 
     navigate('quotes'); 
 }
