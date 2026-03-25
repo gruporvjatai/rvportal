@@ -1852,12 +1852,10 @@ function renderRecentHistory() {
         recentSales = recentSales.filter(r => (r.client && r.client.toLowerCase().includes(term)) || (r.itemsText.toLowerCase().includes(term)) || String(r.id).includes(term));
     }
     if(startDate) {
-        recentSales = recentSales.filter(r => new Date(r.date) >= new Date(startDate));
+        recentSales = recentSales.filter(r => new Date(r.date) >= new Date(startDate + "T00:00:00"));
     }
     if(endDate) {
-        let endD = new Date(endDate);
-        endD.setHours(23,59,59);
-        recentSales = recentSales.filter(r => new Date(r.date) <= endD);
+        recentSales = recentSales.filter(r => new Date(r.date) <= new Date(endDate + "T23:59:59"));
     }
 
     recentSales = recentSales.slice(0, 50); 
@@ -2084,11 +2082,9 @@ function renderExpedition() {
         if (nameFilter) {
             histLogs = histLogs.filter(l => (l.clientName && l.clientName.toLowerCase().includes(nameFilter)) || (l.productName && l.productName.toLowerCase().includes(nameFilter)));
         }
-        if (startDate) histLogs = histLogs.filter(l => new Date(l.date) >= new Date(startDate));
+        if (startDate) histLogs = histLogs.filter(l => new Date(l.date) >= new Date(startDate + "T00:00:00"));
         if (endDate) {
-            let endD = new Date(endDate);
-            endD.setHours(23,59,59); 
-            histLogs = histLogs.filter(l => new Date(l.date) <= endD);
+            histLogs = histLogs.filter(l => new Date(l.date) <= new Date(endDate + "T23:59:59"));
         }
 
         histLogs.sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -2347,11 +2343,9 @@ function renderFinance() {
     if(statusRec === 'ABERTOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && new Date(r.dueDate) >= hoje);
     if(statusRec === 'VENCIDOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && new Date(r.dueDate) < hoje);
     
-    if(startRec) filteredRec = filteredRec.filter(r => new Date(r.dueDate) >= new Date(startRec));
+    if(startRec) filteredRec = filteredRec.filter(r => new Date(r.dueDate) >= new Date(startRec + "T00:00:00"));
     if(endRec) {
-        let endD = new Date(endRec);
-        endD.setHours(23,59,59);
-        filteredRec = filteredRec.filter(r => new Date(r.dueDate) <= endD);
+        filteredRec = filteredRec.filter(r => new Date(r.dueDate) <= new Date(endRec + "T23:59:59"));
     }
     
     filteredRec.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
@@ -2422,11 +2416,9 @@ function renderFinance() {
     if(termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
     if(statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
     
-    if(startExp) filteredExp = filteredExp.filter(e => new Date(e.date) >= new Date(startExp));
+    if(startExp) filteredExp = filteredExp.filter(e => new Date(e.date) >= new Date(startExp + "T00:00:00"));
     if(endExp) {
-        let endD = new Date(endExp);
-        endD.setHours(23,59,59);
-        filteredExp = filteredExp.filter(e => new Date(e.date) <= endD);
+        filteredExp = filteredExp.filter(e => new Date(e.date) <= new Date(endExp + "T23:59:59"));
     }
     
     filteredExp.sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -2708,11 +2700,9 @@ function printExpeditionHistory() {
     if (nameFilter) {
         histLogs = histLogs.filter(l => (l.clientName && l.clientName.toLowerCase().includes(nameFilter)) || (l.productName && l.productName.toLowerCase().includes(nameFilter)));
     }
-    if (startDate) histLogs = histLogs.filter(l => new Date(l.date) >= new Date(startDate));
+    if (startDate) histLogs = histLogs.filter(l => new Date(l.date) >= new Date(startDate + "T00:00:00"));
     if (endDate) {
-        let endD = new Date(endDate);
-        endD.setHours(23,59,59);
-        histLogs = histLogs.filter(l => new Date(l.date) <= endD);
+        histLogs = histLogs.filter(l => new Date(l.date) <= new Date(endDate + "T23:59:59"));
     }
     histLogs.sort((a,b) => new Date(b.date) - new Date(a.date));
 
@@ -2859,8 +2849,10 @@ function printReceivables() {
 
     let filterText = [];
     if(statusRec) filterText.push(`Status: ${statusRec}`);
-    if(startRec) filterText.push(`De: ${formatDate(startRec)}`);
-    if(endRec) filterText.push(`Até: ${formatDate(endRec)}`);
+    if(startRec) filtered = filtered.filter(r => new Date(r.dueDate) >= new Date(startRec + "T00:00:00"));
+    if(endRec) {
+        filtered = filtered.filter(r => new Date(r.dueDate) <= new Date(endRec + "T23:59:59"));
+    }
     if(termRec) filterText.push(`Busca: "${termRec}"`);
     let subheader = filterText.length > 0 ? filterText.join(' | ') : 'Todos os registros';
 
@@ -2926,11 +2918,9 @@ function printExpenses() {
     let filteredExp = STATE.expenses.slice();
     if(termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
     if(statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
-    if(startExp) filteredExp = filteredExp.filter(e => new Date(e.date) >= new Date(startExp));
+    if(startExp) filteredExp = filteredExp.filter(e => new Date(e.date) >= new Date(startExp + "T00:00:00"));
     if(endExp) {
-        let endD = new Date(endExp);
-        endD.setHours(23,59,59);
-        filteredExp = filteredExp.filter(e => new Date(e.date) <= endD);
+        filteredExp = filteredExp.filter(e => new Date(e.date) <= new Date(endExp + "T23:59:59"));
     }
     filteredExp.sort((a,b) => new Date(a.date) - new Date(b.date));
 
