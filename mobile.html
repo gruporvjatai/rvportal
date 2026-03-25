@@ -109,30 +109,30 @@
       </div>
       
      <div id="view-reports" class="hidden-section">
-    <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="file-text" class="text-emerald-600"></i> Relatórios</h2>
-    
-    <div class="flex flex-col gap-4">
-        <button onclick="printDailyReport()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
-            <div>
-                <h3 class="text-base font-black text-slate-800 mb-1">Faturamento do Dia</h3>
-                <p class="text-xs text-slate-500 font-medium">Resumo de vendas de hoje.</p>
-            </div>
-            <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <i data-lucide="sun" class="w-6 h-6"></i>
-            </div>
-        </button>
+        <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="file-text" class="text-emerald-600"></i> Relatórios</h2>
         
-        <button onclick="openPeriodReportModal()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
-            <div>
-                <h3 class="text-base font-black text-slate-800 mb-1">Vendas por Período</h3>
-                <p class="text-xs text-slate-500 font-medium">Filtros de data e pagamento.</p>
-            </div>
-            <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                <i data-lucide="calendar-search" class="w-6 h-6"></i>
-            </div>
-        </button>
+        <div class="flex flex-col gap-4">
+            <button onclick="showDailyReport()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
+                <div>
+                    <h3 class="text-base font-black text-slate-800 mb-1">Faturamento do Dia</h3>
+                    <p class="text-xs text-slate-500 font-medium">Resumo de vendas de hoje.</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="sun" class="w-6 h-6"></i>
+                </div>
+            </button>
+            
+            <button onclick="openPeriodReportModal()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
+                <div>
+                    <h3 class="text-base font-black text-slate-800 mb-1">Vendas por Período</h3>
+                    <p class="text-xs text-slate-500 font-medium">Filtros de data e pagamento.</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="calendar-search" class="w-6 h-6"></i>
+                </div>
+            </button>
+        </div>
     </div>
-</div>
 
       <div id="view-prod" class="hidden-section">
           <div class="flex justify-between items-center mb-4">
@@ -256,6 +256,20 @@
             </button>
         </div>
     </div>
+
+    <div id="view-report-result" class="hidden fixed inset-0 bg-slate-50 z-[90] flex-col animate-[fadeIn_0.2s]">
+        <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="closeReportView()" class="text-white p-2 bg-slate-800 rounded-full hover:bg-slate-700 active:scale-95">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </button>
+                <h2 class="text-lg font-black tracking-wider text-white">RELATÓRIO</h2>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 bg-slate-100" id="report-result-content">
+            </div>
+    </div>
+
     <div id="pos-product-modal" class="hidden fixed inset-0 bg-slate-900 z-[70] flex-col animate-[fadeIn_0.2s]">
         <div class="p-4 border-b flex justify-between items-center bg-white shrink-0">
             <h3 class="font-black text-lg text-slate-800 flex items-center gap-2"><i data-lucide="package-search" class="text-indigo-600"></i> Produtos</h3>
@@ -291,8 +305,6 @@
         </div>
     </div>
 
-
-
     <div id="modal-period-report" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-center justify-center p-4 animate-[fadeIn_0.2s]">
     <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
         <div class="p-4 border-b flex justify-between items-center bg-slate-50">
@@ -327,14 +339,10 @@
         </div>
         <div class="p-4 border-t bg-slate-50 flex gap-3">
             <button onclick="closePeriodReportModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 active:scale-95">Cancelar</button>
-            <button onclick="printPeriodReport()" class="flex-1 py-3 bg-indigo-600 rounded-xl font-bold text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+            <button onclick="showPeriodReport()" class="flex-1 py-3 bg-indigo-600 rounded-xl font-bold text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i data-lucide="eye" class="w-4 h-4"></i> Visualizar</button>
         </div>
     </div>
-</div>
-
-    
-
-    <div id="print-area" style="position: absolute; left: -9999px; top: -9999px;"></div>
+    </div>
 
     <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-40 flex justify-around items-center pb-safe" style="padding-bottom: env(safe-area-inset-bottom);">
         <button onclick="navigate('quotes')" id="nav-quotes" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
@@ -458,7 +466,7 @@
             const activeBtn = document.getElementById('nav-' + viewId);
             if(activeBtn) activeBtn.classList.add('nav-active');
             
-            if(viewId === 'quotes') renderQuotesList();           
+            if(viewId === 'quotes') renderQuotesList();            
             if(viewId === 'prod') renderProducts();
             if(viewId === 'clients') renderClients();
             
@@ -871,72 +879,6 @@
             showToast(`Editando Orçamento #${q.id}`);
         }
 
-        // ================= FUNÇÕES DE ORÇAMENTO DA LISTA (PDF, Status, etc) =================
-
-        function renderInvoice(sale, isQuote) {
-            const el = document.getElementById('print-area');
-            const title = isQuote ? "ORÇAMENTO" : "VENDA / PEDIDO";
-            const clientName = sale.clientName || 'Consumidor Final';
-            const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
-
-            let subtotal = 0;
-            const itemsHtml = sale.items.map(i => {
-                const itemTotal = i.qty * i.price;
-                subtotal += itemTotal;
-                return `<tr><td>${i.name}</td><td align="center">${i.qty}</td><td align="right">${formatMoney(i.price)}</td><td align="right">${formatMoney(itemTotal)}</td></tr>`;
-            }).join('');
-
-            const discount = Number(sale.discount) || 0;
-            const finalTotal = subtotal - discount;
-            
-            const addressToShow = sale.deliveryAddress 
-                ? `<div style="padding: 4px; background-color: #fef3c7; border-left: 3px solid #059669; margin-top: 5px;"><strong>ENTREGA:</strong><br>${sale.deliveryAddress}</div>` 
-                : (cli.address || '');
-
-            const obsText = sale.observacao && sale.observacao !== 'Venda PDV' && sale.observacao !== 'Pronta Entrega PDV' 
-                            ? sale.observacao 
-                            : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
-
-            el.innerHTML = `
-            <div class="invoice-full">
-                <div class="header-section">
-                    <div class="logo-area"><img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 80px;" crossorigin="anonymous"/></div>
-                    <div class="company-details">
-                        <h2 class="company-title">RV PORTAL MADEIRAS</h2>
-                        <div class="company-info">CNPJ: 30.942.123/0001-02 </div>
-                        <div class="company-info">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861 </div>
-                    </div>
-                    <div class="doc-meta">
-                        <div class="doc-title">${title}</div>
-                        <div class="meta-row"><strong>Nº:</strong> ${sale.id || '--'}</div>
-                        <div class="meta-row"><strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</div>
-                    </div>
-                </div>
-                <div class="info-grid">
-                    <div class="info-col">
-                        <div class="col-header">Dados do Cliente</div>
-                        <div class="col-content"><strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}</div>
-                    </div>
-                    <div class="info-col">
-                        <div class="col-header">Pagamento</div>
-                        <div class="col-content"><strong>Forma:</strong> ${sale.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL</div>
-                    </div>
-                </div>
-                <table class="full-table">
-                    <thead><tr><th>Descrição</th><th align="center">Qtd</th><th align="right">Unit.</th><th align="right">Total</th></tr></thead>
-                    <tbody>${itemsHtml}</tbody>
-                </table>
-                <div class="footer-section">
-                    <div class="notes-area"><div class="notes-title">Observações:</div><div class="notes-text">${obsText}</div></div>
-                    <div class="totals-area">
-                        <div class="total-row"><span>Subtotal:</span><span>${formatMoney(subtotal)}</span></div>
-                        ${discount > 0 ? `<div class="total-row" style="color:red"><span>Desconto:</span><span>- ${formatMoney(discount)}</span></div>` : ''}
-                        <div class="total-row final"><span>TOTAL:</span><span>${formatMoney(finalTotal)}</span></div>
-                    </div>
-                </div>
-            </div>`;
-        }
-
         async function updateQuoteStatus(id, newStatus) {
             showLoading(true);
             const { error } = await sb.from('logs').update({ status: newStatus }).eq('id', id).eq('tipo', 'orcamento');
@@ -1141,7 +1083,6 @@
                     
                     <div class="mb-4 bg-white/60 p-3 rounded-xl border border-white/50">
                         <div class="font-bold text-sm text-slate-800 flex items-center gap-1 mb-1"><i data-lucide="user" class="w-4 h-4 text-slate-400"></i> ${q.clientName}</div>
-                        <!--<div class="text-xs text-slate-600 line-clamp-2 leading-relaxed font-medium pl-5">${q.itemsText || '...'}</div>-->
                     </div>
                     
                     <div class="flex gap-2 justify-end mt-2">
@@ -1160,226 +1101,221 @@
             lucide.createIcons();
         }
 
-        // ================= FUNÇÕES DO CAIXA (DASHBOARD) =================
-        // ================= FUNÇÕES DE RELATÓRIOS =================
-function printDailyReport() {
-    showLoading(true);
-    const todayStr = new Date().toISOString().split('T')[0];
-    
-    let totalVendas = 0;
-    let descontos = 0;
-    let pagamentosMap = {};
-    let rowsHtml = '';
-    
-    // Filtra vendas de hoje e agrupa por ID
-    const todayLogs = STATE.logs.filter(l => l.date && l.date.startsWith(todayStr) && l.type === 'venda' && l.status !== 'CANCELADO');
-    const salesMap = {};
-    
-    todayLogs.forEach(l => {
-        if (!salesMap[l.id]) {
-            salesMap[l.id] = { id: l.id, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0 };
+        // ================= FUNÇÕES DE RELATÓRIOS (VISUALIZAÇÃO MOBILE) =================
+        function closeReportView() {
+            document.getElementById('view-report-result').classList.add('hidden');
+            document.getElementById('view-report-result').classList.remove('flex');
+            document.getElementById('report-result-content').innerHTML = '';
         }
-        salesMap[l.id].totalValue += Number(l.totalValue) || 0;
-    });
-    
-    Object.values(salesMap).forEach(s => {
-        totalVendas += s.totalValue;
-        descontos += s.discount;
-        const pgto = s.paymentMethod;
-        if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
-        pagamentosMap[pgto] += s.totalValue;
-        
-        rowsHtml += `
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 8px 5px; font-size: 11px; font-weight: bold;">#${s.id}</td>
-                <td style="padding: 8px 5px; font-size: 11px;">${s.clientName}</td>
-                <td style="padding: 8px 5px; font-size: 11px; text-transform: uppercase;">${s.paymentMethod}</td>
-                <td style="padding: 8px 5px; font-size: 12px; font-weight: bold; text-align: right; color: #059669;">${formatMoney(s.totalValue)}</td>
-            </tr>
-        `;
-    });
 
-    let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `
-        <tr>
-            <td style="padding: 6px; border-bottom: 1px dashed #ccc; font-size: 12px;">${metodo}</td>
-            <td style="padding: 6px; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; font-size: 12px;">${formatMoney(valor)}</td>
-        </tr>
-    `).join('');
+        function showDailyReport() {
+            showLoading(true);
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            let totalVendas = 0;
+            let descontos = 0;
+            let pagamentosMap = {};
+            let rowsHtml = '';
+            
+            const todayLogs = STATE.logs.filter(l => l.date && l.date.startsWith(todayStr) && l.type === 'venda' && l.status !== 'CANCELADO');
+            const salesMap = {};
+            
+            todayLogs.forEach(l => {
+                if (!salesMap[l.id]) {
+                    salesMap[l.id] = { id: l.id, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0 };
+                }
+                salesMap[l.id].totalValue += Number(l.totalValue) || 0;
+            });
+            
+            Object.values(salesMap).forEach(s => {
+                totalVendas += s.totalValue;
+                descontos += s.discount;
+                const pgto = s.paymentMethod;
+                if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
+                pagamentosMap[pgto] += s.totalValue;
+                
+                rowsHtml += `
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2 flex flex-col gap-1">
+                        <div class="flex justify-between items-start">
+                            <span class="font-bold text-sm text-slate-800">#${s.id} - ${s.clientName}</span>
+                            <span class="font-black text-emerald-600">${formatMoney(s.totalValue)}</span>
+                        </div>
+                        <span class="text-[11px] text-slate-500 font-bold uppercase bg-slate-100 w-max px-2 py-0.5 rounded">${s.paymentMethod}</span>
+                    </div>
+                `;
+            });
 
-    if (Object.keys(salesMap).length === 0) {
-        rowsHtml = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Nenhuma venda registrada hoje.</td></tr>';
-    }
+            let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `
+                <div class="flex justify-between items-center border-b border-dashed border-slate-300 py-2">
+                    <span class="text-sm font-medium text-slate-600">${metodo}</span>
+                    <span class="text-sm font-bold text-slate-800">${formatMoney(valor)}</span>
+                </div>
+            `).join('');
 
-    const company = { name: "RV PORTAL MADEIRAS", cnpj: "30.942.123/0001-02", logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" };
-    const el = document.getElementById('print-area');
-    
-    el.innerHTML = `
-        <div style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 20px; color: #1e293b;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <img src="${company.logoUrl}" style="max-height: 60px;" />
-                    <div>
-                        <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
-                        <p style="margin: 2px 0; font-size: 11px; color: #64748b;">CNPJ: ${company.cnpj}</p>
+            if (Object.keys(salesMap).length === 0) {
+                rowsHtml = '<div class="text-center p-6 text-slate-400 font-bold">Nenhuma venda registrada hoje.</div>';
+            }
+
+            const el = document.getElementById('report-result-content');
+            
+            el.innerHTML = `
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
+                        <h3 class="font-black text-xl text-emerald-600 mb-1">FATURAMENTO DIÁRIO</h3>
+                        <p class="text-xs font-bold text-slate-500">${new Date().toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h4 class="font-bold text-slate-700 mb-2 uppercase text-xs">Vendas do Dia</h4>
+                        ${rowsHtml}
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4">
+                        <h4 class="font-bold text-slate-700 mb-3 border-b pb-2 uppercase text-xs">Métodos de Pagamento</h4>
+                        ${pgtoRowsHtml}
+                    </div>
+
+                    <div class="bg-slate-900 p-5 rounded-2xl shadow-lg mb-8 text-white">
+                        <h4 class="font-bold text-slate-400 mb-3 uppercase text-xs">Resumo do Dia</h4>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm">Qtd. Vendas:</span>
+                            <span class="text-sm font-bold">${Object.keys(salesMap).length}</span>
+                        </div>
+                        ${descontos > 0 ? `
+                        <div class="flex justify-between items-center mb-1 text-red-400">
+                            <span class="text-sm">Descontos:</span>
+                            <span class="text-sm font-bold">- ${formatMoney(descontos)}</span>
+                        </div>` : ''}
+                        <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
+                            <span class="font-black text-lg">LÍQUIDO:</span>
+                            <span class="font-black text-2xl text-emerald-400">${formatMoney(totalVendas)}</span>
+                        </div>
                     </div>
                 </div>
-                <div style="text-align: right;">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: bold;">FATURAMENTO DIÁRIO</h3>
-                    <p style="margin: 2px 0; font-size: 11px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-                </div>
-            </div>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-                <thead>
-                    <tr style="background-color: #f1f5f9; border-bottom: 2px solid #0f172a;">
-                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pedido</th>
-                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Cliente</th>
-                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pgto</th>
-                        <th style="padding: 8px 5px; text-align: right; font-size: 11px;">Valor</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-            <div style="display: flex; justify-content: space-between; gap: 20px;">
-                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px;">
-                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Métodos de Pagto</h4>
-                    <table style="width: 100%; border-collapse: collapse;">${pgtoRowsHtml}</table>
-                </div>
-                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px; background-color: #f8fafc;">
-                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Resumo do Dia</h4>
-                    <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-                        <tr><td style="padding: 5px 0;">Qtd. Vendas:</td><td style="padding: 5px 0; text-align: right; font-weight: bold;">${Object.keys(salesMap).length}</td></tr>
-                        ${descontos > 0 ? `<tr><td style="padding: 5px 0; color: red;">Descontos:</td><td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(descontos)}</td></tr>` : ''}
-                        <tr>
-                            <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">LÍQUIDO:</td>
-                            <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalVendas)}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-        </div>
-    `;
-    showLoading(false);
-    setTimeout(() => { window.print(); el.innerHTML = ''; }, 500);
-}
-
-function openPeriodReportModal() {
-    const hoje = new Date();
-    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
-    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
-    document.getElementById('rep-per-start').value = primeiroDia;
-    document.getElementById('rep-per-end').value = ultimoDia;
-    document.getElementById('rep-per-payment').value = 'Todos';
-    document.getElementById('rep-per-client').value = '';
-    document.getElementById('modal-period-report').classList.remove('hidden');
-}
-
-function closePeriodReportModal() {
-    document.getElementById('modal-period-report').classList.add('hidden');
-}
-
-function printPeriodReport() {
-    showLoading(true);
-    const start = document.getElementById('rep-per-start').value;
-    const end = document.getElementById('rep-per-end').value;
-    const payment = document.getElementById('rep-per-payment').value;
-    const client = document.getElementById('rep-per-client').value.toLowerCase().trim();
-
-    const salesMap = {};
-    STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
-        if (!salesMap[l.id]) {
-            salesMap[l.id] = { id: l.id, date: l.date, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0 };
+            `;
+            
+            showLoading(false);
+            document.getElementById('view-report-result').classList.remove('hidden');
+            document.getElementById('view-report-result').classList.add('flex');
+            lucide.createIcons();
         }
-        salesMap[l.id].totalValue += Number(l.totalValue) || 0;
-    });
 
-    let filteredSales = Object.values(salesMap);
-    if (start) filteredSales = filteredSales.filter(s => new Date(s.date) >= new Date(start + "T00:00:00"));
-    if (end) { let endD = new Date(end + "T23:59:59"); filteredSales = filteredSales.filter(s => new Date(s.date) <= endD); }
-    if (payment !== 'Todos') filteredSales = filteredSales.filter(s => s.paymentMethod === payment);
-    if (client) filteredSales = filteredSales.filter(s => s.clientName.toLowerCase().includes(client));
+        function openPeriodReportModal() {
+            const hoje = new Date();
+            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+            const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
+            document.getElementById('rep-per-start').value = primeiroDia;
+            document.getElementById('rep-per-end').value = ultimoDia;
+            document.getElementById('rep-per-payment').value = 'Todos';
+            document.getElementById('rep-per-client').value = '';
+            document.getElementById('modal-period-report').classList.remove('hidden');
+        }
 
-    filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date));
+        function closePeriodReportModal() {
+            document.getElementById('modal-period-report').classList.add('hidden');
+        }
 
-    if (filteredSales.length === 0) {
-        showLoading(false);
-        return showToast("Nenhuma venda encontrada para os filtros.", true);
-    }
+        function showPeriodReport() {
+            showLoading(true);
+            const start = document.getElementById('rep-per-start').value;
+            const end = document.getElementById('rep-per-end').value;
+            const payment = document.getElementById('rep-per-payment').value;
+            const client = document.getElementById('rep-per-client').value.toLowerCase().trim();
 
-    let totalLiquido = 0; let totalDescontos = 0; let pagamentosMap = {};
-    let rowsHtml = filteredSales.map(s => {
-        totalLiquido += s.totalValue; totalDescontos += s.discount;
-        const pgto = s.paymentMethod;
-        if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
-        pagamentosMap[pgto] += s.totalValue;
+            const salesMap = {};
+            STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
+                if (!salesMap[l.id]) {
+                    salesMap[l.id] = { id: l.id, date: l.date, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0 };
+                }
+                salesMap[l.id].totalValue += Number(l.totalValue) || 0;
+            });
 
-        return `<tr style="border-bottom: 1px solid #e2e8f0;">
-                <td style="padding: 8px 5px; font-size: 11px;">${formatDate(s.date)}</td>
-                <td style="padding: 8px 5px; font-size: 11px; font-weight: bold;">#${s.id}</td>
-                <td style="padding: 8px 5px; font-size: 11px;">${s.clientName}</td>
-                <td style="padding: 8px 5px; font-size: 11px; text-transform: uppercase;">${s.paymentMethod}</td>
-                <td style="padding: 8px 5px; font-size: 12px; font-weight: bold; text-align: right; color: #059669;">${formatMoney(s.totalValue)}</td>
-            </tr>`;
-    }).join('');
+            let filteredSales = Object.values(salesMap);
+            if (start) filteredSales = filteredSales.filter(s => new Date(s.date) >= new Date(start + "T00:00:00"));
+            if (end) { let endD = new Date(end + "T23:59:59"); filteredSales = filteredSales.filter(s => new Date(s.date) <= endD); }
+            if (payment !== 'Todos') filteredSales = filteredSales.filter(s => s.paymentMethod === payment);
+            if (client) filteredSales = filteredSales.filter(s => s.clientName.toLowerCase().includes(client));
 
-    let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `<tr><td style="padding: 6px; border-bottom: 1px dashed #ccc; font-size: 12px;">${metodo}</td><td style="padding: 6px; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; font-size: 12px;">${formatMoney(valor)}</td></tr>`).join('');
+            filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    const company = { name: "RV PORTAL MADEIRAS", cnpj: "30.942.123/0001-02", logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" };
-    const filtroTexto = `Período: ${start ? formatDate(start) : 'Início'} até ${end ? formatDate(end) : 'Hoje'} | Pgto: ${payment} ${client ? '| Cliente: ' + client : ''}`;
-    const el = document.getElementById('print-area');
-    
-    el.innerHTML = `
-        <div style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 20px; color: #1e293b;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <img src="${company.logoUrl}" style="max-height: 60px;" />
-                    <div>
-                        <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
-                        <p style="margin: 2px 0; font-size: 11px; color: #64748b;">CNPJ: ${company.cnpj}</p>
+            if (filteredSales.length === 0) {
+                showLoading(false);
+                return showToast("Nenhuma venda encontrada.", true);
+            }
+
+            let totalLiquido = 0; let totalDescontos = 0; let pagamentosMap = {};
+            let rowsHtml = filteredSales.map(s => {
+                totalLiquido += s.totalValue; totalDescontos += s.discount;
+                const pgto = s.paymentMethod;
+                if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
+                pagamentosMap[pgto] += s.totalValue;
+
+                return `
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2 flex flex-col gap-1">
+                        <div class="flex justify-between items-start">
+                            <span class="font-bold text-sm text-slate-800">#${s.id} - ${s.clientName}</span>
+                            <span class="font-black text-emerald-600">${formatMoney(s.totalValue)}</span>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <span class="text-[10px] text-slate-400 font-bold"><i data-lucide="calendar" class="inline w-3 h-3"></i> ${formatDate(s.date)}</span>
+                            <span class="text-[10px] text-slate-500 font-bold uppercase bg-slate-100 px-2 py-0.5 rounded">${s.paymentMethod}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `
+                <div class="flex justify-between items-center border-b border-dashed border-slate-300 py-2">
+                    <span class="text-sm font-medium text-slate-600">${metodo}</span>
+                    <span class="text-sm font-bold text-slate-800">${formatMoney(valor)}</span>
+                </div>
+            `).join('');
+
+            const filtroTexto = `${start ? formatDate(start) : 'Início'} até ${end ? formatDate(end) : 'Hoje'} <br> Pgto: ${payment} ${client ? '| Cliente: ' + client : ''}`;
+            const el = document.getElementById('report-result-content');
+            
+            el.innerHTML = `
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
+                        <h3 class="font-black text-xl text-indigo-600 mb-2">VENDAS POR PERÍODO</h3>
+                        <div class="bg-indigo-50 p-2 rounded-lg text-[11px] font-bold text-indigo-800">${filtroTexto}</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h4 class="font-bold text-slate-700 mb-2 uppercase text-xs">Vendas Filtradas</h4>
+                        ${rowsHtml}
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4">
+                        <h4 class="font-bold text-slate-700 mb-3 border-b pb-2 uppercase text-xs">Métodos de Pagamento</h4>
+                        ${pgtoRowsHtml}
+                    </div>
+
+                    <div class="bg-slate-900 p-5 rounded-2xl shadow-lg mb-8 text-white">
+                        <h4 class="font-bold text-slate-400 mb-3 uppercase text-xs">Resumo do Período</h4>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm">Qtd. Vendas:</span>
+                            <span class="text-sm font-bold">${filteredSales.length}</span>
+                        </div>
+                        ${totalDescontos > 0 ? `
+                        <div class="flex justify-between items-center mb-1 text-red-400">
+                            <span class="text-sm">Descontos:</span>
+                            <span class="text-sm font-bold">- ${formatMoney(totalDescontos)}</span>
+                        </div>` : ''}
+                        <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
+                            <span class="font-black text-lg">LÍQUIDO:</span>
+                            <span class="font-black text-2xl text-indigo-400">${formatMoney(totalLiquido)}</span>
+                        </div>
                     </div>
                 </div>
-                <div style="text-align: right;">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: bold;">RELATÓRIO DE VENDAS</h3>
-                    <p style="margin: 2px 0; font-size: 11px;">Impresso: ${new Date().toLocaleString('pt-BR')}</p>
-                </div>
-            </div>
-            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 20px; font-size: 12px; border-radius: 6px;">
-                <strong>Filtros aplicados:</strong> ${filtroTexto}
-            </div>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-                <thead>
-                    <tr style="background-color: #f1f5f9; border-bottom: 2px solid #0f172a;">
-                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Data</th>
-                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pedido</th>
-                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Cliente</th>
-                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pgto</th>
-                        <th style="padding: 8px 5px; text-align: right; font-size: 11px;">Valor Liq.</th>
-                    </tr>
-                </thead>
-                <tbody>${rowsHtml}</tbody>
-            </table>
-            <div style="display: flex; justify-content: space-between; gap: 20px;">
-                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px;">
-                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Métodos de Pagto</h4>
-                    <table style="width: 100%; border-collapse: collapse;">${pgtoRowsHtml}</table>
-                </div>
-                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px; background-color: #f8fafc;">
-                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Resumo do Período</h4>
-                    <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-                        <tr><td style="padding: 5px 0;">Qtd. Vendas:</td><td style="padding: 5px 0; text-align: right; font-weight: bold;">${filteredSales.length}</td></tr>
-                        ${totalDescontos > 0 ? `<tr><td style="padding: 5px 0; color: red;">Descontos:</td><td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(totalDescontos)}</td></tr>` : ''}
-                        <tr>
-                            <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">LÍQUIDO:</td>
-                            <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalLiquido)}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-        </div>
-    `;
-    showLoading(false);
-    closePeriodReportModal();
-    setTimeout(() => { window.print(); el.innerHTML = ''; }, 500);
-}
+            `;
+            
+            showLoading(false);
+            closePeriodReportModal();
+            document.getElementById('view-report-result').classList.remove('hidden');
+            document.getElementById('view-report-result').classList.add('flex');
+            lucide.createIcons();
+        }
 
         // ================= FUNÇÕES DE PRODUTOS =================
         function renderProducts() {
