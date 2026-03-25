@@ -3268,105 +3268,137 @@ function printDailyRevenue() {
     const dia = String(hoje.getDate()).padStart(2, '0');
     const dataHojeStr = `${ano}-${mes}-${dia}`;
 
-    // 2. Filtrar as vendas de hoje
-    const vendasHoje = STATE.logs.filter(l => {
-        if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
+    // 2. Agrupar vendas de HOJE por ID (para agrupar itens do mesmo pedido)
+    const salesMap = {};
+    STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
         try {
-            const dataLog = l.date.split('T')[0];
-            return dataLog === dataHojeStr;
-        } catch(e) { return false; }
+            if (l.date.split('T')[0] !== dataHojeStr) return; // Puxa apenas hoje
+        } catch(e) { return; }
+
+        if (!salesMap[l.id]) {
+            salesMap[l.id] = {
+                id: l.id,
+                date: l.date,
+                clientName: l.clientName || 'Consumidor Final',
+                paymentMethod: l.paymentMethod || 'Não Informado',
+                discount: Number(l.discount) || 0,
+                totalValue: 0, 
+                itemsText: ''
+            };
+        }
+        salesMap[l.id].totalValue += Number(l.totalValue) || 0;
+        salesMap[l.id].itemsText += `${l.productName} (x${l.quantity}), `;
     });
+
+    let vendasHoje = Object.values(salesMap).sort((a, b) => new Date(a.date) - new Date(b.date));
 
     if (vendasHoje.length === 0) {
         showLoading(false);
         return showToast("Nenhuma venda registrada no dia de hoje.", true);
     }
 
-    // 3. Processar Totais e Formas de Pagamento
-    let totalGeral = 0;
-    let descontosDia = 0;
+    // 3. Calcular Totais e Formas de Pagamento
+    let totalLiquido = 0;
+    let totalDescontos = 0;
     let pagamentosMap = {};
-    let pedidosProcessados = new Set(); 
 
-    vendasHoje.forEach(l => {
-        totalGeral += Number(l.totalValue) || 0;
+    let rowsHtml = vendasHoje.map(s => {
+        totalLiquido += s.totalValue;
+        totalDescontos += s.discount;
 
-        // Contar o desconto e o pedido apenas 1x
-        if (!pedidosProcessados.has(l.id)) {
-            descontosDia += Number(l.discount) || 0;
-            pedidosProcessados.add(l.id);
-        }
-
-        // Agrupar pagamentos
-        const pgto = l.paymentMethod || 'Não Informado';
+        const pgto = s.paymentMethod;
         if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
-        pagamentosMap[pgto] += Number(l.totalValue) || 0;
-    });
+        pagamentosMap[pgto] += s.totalValue;
 
-    // 4. Montar o HTML para Impressão
+        return `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 8px 5px; font-size: 11px;">${formatDate(s.date)}</td>
+                <td style="padding: 8px 5px; font-size: 11px; font-weight: bold;">#${s.id}</td>
+                <td style="padding: 8px 5px; font-size: 11px;">${s.clientName}</td>
+                <td style="padding: 8px 5px; font-size: 11px; text-transform: uppercase;">${s.paymentMethod}</td>
+                <td style="padding: 8px 5px; font-size: 12px; font-weight: bold; text-align: right; color: #059669;">${formatMoney(s.totalValue)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `
+        <tr>
+            <td style="padding: 6px; border-bottom: 1px dashed #ccc; font-size: 12px;">${metodo}</td>
+            <td style="padding: 6px; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; font-size: 12px;">${formatMoney(valor)}</td>
+        </tr>
+    `).join('');
+
+    // 4. Montar a Tela de Impressão (Baseada no Vendas por Período)
     const company = {
         name: "RV PORTAL MADEIRAS",
         cnpj: "30.942.123/0001-02",
         logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
     };
 
-    const dataImpressao = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR');
-
-    let pgtoRowsHtml = '';
-    for (let [metodo, valor] of Object.entries(pagamentosMap)) {
-        pgtoRowsHtml += `
-            <tr>
-                <td style="padding: 6px; border-bottom: 1px dashed #ccc; font-size: 13px;">${metodo}</td>
-                <td style="padding: 6px; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; font-size: 13px;">${formatMoney(valor)}</td>
-            </tr>
-        `;
-    }
+    const filtroTexto = `Período: Vendas de Hoje (${hoje.toLocaleDateString('pt-BR')})`;
 
     const el = document.getElementById('print-area');
     el.innerHTML = `
-        <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 600px; margin: auto; padding: 20px;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <img src="${company.logoUrl}" style="max-height: 80px; margin-bottom: 10px;" />
-                <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
-                <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj}</p>
-                <h3 style="margin: 15px 0 5px 0; font-size: 16px; font-weight: bold; background-color: #f1f5f9; padding: 8px; border: 1px solid #000;">FECHAMENTO DO CAIXA - PDV</h3>
-                <p style="margin: 0; font-size: 11px; color: #64748b;">Referente ao dia: ${hoje.toLocaleDateString('pt-BR')}</p>
-                <p style="margin: 0; font-size: 10px; color: #94a3b8;">Impresso em: ${dataImpressao}</p>
+        <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <img src="${company.logoUrl}" style="max-height: 60px;" />
+                    <div>
+                        <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                        <p style="margin: 2px 0; font-size: 11px; color: #64748b;">CNPJ: ${company.cnpj}</p>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <h3 style="margin: 0; font-size: 16px; font-weight: bold;">FATURAMENTO DO DIA</h3>
+                    <p style="margin: 2px 0; font-size: 11px;">Impresso em: ${new Date().toLocaleString('pt-BR')}</p>
+                </div>
             </div>
 
-            <div style="border: 1px solid #000; padding: 15px; margin-bottom: 20px; border-radius: 6px;">
-                <h4 style="margin: 0 0 10px 0; font-size: 14px; border-bottom: 2px solid #000; padding-bottom: 5px; text-transform: uppercase;">Resumo Geral de Vendas</h4>
-                <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-                    <tr>
-                        <td style="padding: 5px 0;">Total de Pedidos Gerados:</td>
-                        <td style="padding: 5px 0; text-align: right; font-weight: bold;">${pedidosProcessados.size}</td>
-                    </tr>
-                    ${descontosDia > 0 ? `
-                    <tr>
-                        <td style="padding: 5px 0;">Descontos Concedidos:</td>
-                        <td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(descontosDia)}</td>
-                    </tr>` : ''}
-                    <tr>
-                        <td style="padding: 10px 0; font-size: 15px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">FATURAMENTO LÍQUIDO DO DIA:</td>
-                        <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalGeral)}</td>
-                    </tr>
-                </table>
+            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 20px; font-size: 12px; border-radius: 6px;">
+                <strong>Filtros aplicados:</strong> ${filtroTexto}
             </div>
 
-            <div style="border: 1px solid #000; padding: 15px; border-radius: 6px;">
-                <h4 style="margin: 0 0 10px 0; font-size: 14px; border-bottom: 2px solid #000; padding-bottom: 5px; text-transform: uppercase;">Divisão por Forma de Pagamento</h4>
-                <table style="width: 100%; border-collapse: collapse;">
-                    ${pgtoRowsHtml}
-                    <tr>
-                        <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">TOTAL CONFERIDO:</td>
-                        <td style="padding: 10px 0; font-size: 14px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #059669;">${formatMoney(totalGeral)}</td>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                <thead>
+                    <tr style="background-color: #f1f5f9; border-bottom: 2px solid #0f172a;">
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Data</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pedido</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Cliente</th>
+                        <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pgto</th>
+                        <th style="padding: 8px 5px; text-align: right; font-size: 11px;">Valor Liq.</th>
                     </tr>
-                </table>
-            </div>
-            
-            <div style="text-align: center; margin-top: 50px; font-size: 11px;">
-                <div style="width: 250px; border-top: 1px solid #000; margin: 0 auto 5px auto;"></div>
-                <strong>Assinatura do Conferente / Responsável</strong>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+
+            <div style="display: flex; justify-content: space-between; gap: 20px;">
+                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Receitas por Método</h4>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        ${pgtoRowsHtml}
+                    </table>
+                </div>
+
+                <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px; background-color: #f8fafc;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Resumo do Dia</h4>
+                    <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 5px 0;">Qtd. Pedidos:</td>
+                            <td style="padding: 5px 0; text-align: right; font-weight: bold;">${vendasHoje.length}</td>
+                        </tr>
+                        ${totalDescontos > 0 ? `
+                        <tr>
+                            <td style="padding: 5px 0; color: red;">Descontos Aplicados:</td>
+                            <td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(totalDescontos)}</td>
+                        </tr>` : ''}
+                        <tr>
+                            <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">LÍQUIDO TOTAL:</td>
+                            <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalLiquido)}</td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
     `;
@@ -3374,7 +3406,7 @@ function printDailyRevenue() {
     showLoading(false);
     setTimeout(() => {
         window.print();
-        el.innerHTML = ''; // Limpa a área após imprimir
+        el.innerHTML = ''; 
     }, 500);
 }
 
