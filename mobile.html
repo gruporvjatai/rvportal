@@ -430,6 +430,14 @@
     </div>
 
     <script>
+        // Função auxiliar blindada para formatar data local padrão Input Date YYYY-MM-DD
+        function toLocalYYYYMMDD(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
         let dadosUsuario = null;
         const userSessao = localStorage.getItem('rv_user');
 
@@ -475,7 +483,16 @@
         }
 
         function formatMoney(val) { return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-        function formatDate(d) { try { return d ? new Date(d).toLocaleDateString('pt-BR') : '-'; } catch(e) { return '-'; } }
+        
+        // FIX: Tratamento seguro para formatação de data respeitando o fuso
+        function formatDate(d) { 
+            try { 
+                if (!d) return '-';
+                const safeDate = (typeof d === 'string' && d.length === 10) ? d + 'T00:00:00' : d;
+                return new Date(safeDate).toLocaleDateString('pt-BR'); 
+            } catch(e) { return '-'; } 
+        }
+
         function showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; }
         
         function showToast(msg, isError) { 
@@ -830,7 +847,6 @@
             await loadData();
         }
 
-        // Carrega orçamento existente para edição
         function loadQuoteToCart(id) {
             const q = STATE.quotes.find(x => x.id == id);
             if(!q) return;
@@ -1101,23 +1117,22 @@
             lucide.createIcons();
         }
 
-        // ================= FUNÇÕES DE RELATÓRIOS (VISUALIZAÇÃO MOBILE) =================
-        function closeReportView() {
-            document.getElementById('view-report-result').classList.add('hidden');
-            document.getElementById('view-report-result').classList.remove('flex');
-            document.getElementById('report-result-content').innerHTML = '';
-        }
-
+        // FIX: Relatório diário blindado no fuso horário local pt-BR
         function showDailyReport() {
             showLoading(true);
-            const todayStr = new Date().toISOString().split('T')[0];
             
+            const dataHojeLocal = new Date().toLocaleDateString('pt-BR');
             let totalVendas = 0;
             let descontos = 0;
             let pagamentosMap = {};
             let rowsHtml = '';
             
-            const todayLogs = STATE.logs.filter(l => l.date && l.date.startsWith(todayStr) && l.type === 'venda' && l.status !== 'CANCELADO');
+            const todayLogs = STATE.logs.filter(l => {
+                if (!l.date) return false;
+                const dataLogLocal = new Date(l.date).toLocaleDateString('pt-BR');
+                return dataLogLocal === dataHojeLocal && l.type === 'venda' && l.status !== 'CANCELADO';
+            });
+
             const salesMap = {};
             
             todayLogs.forEach(l => {
@@ -1162,7 +1177,7 @@
                 <div class="max-w-md mx-auto">
                     <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
                         <h3 class="font-black text-xl text-emerald-600 mb-1">FATURAMENTO DIÁRIO</h3>
-                        <p class="text-xs font-bold text-slate-500">${new Date().toLocaleDateString('pt-BR')}</p>
+                        <p class="text-xs font-bold text-slate-500">${dataHojeLocal}</p>
                     </div>
                     
                     <div class="mb-4">
@@ -1200,12 +1215,13 @@
             lucide.createIcons();
         }
 
+        // FIX: Utilizando função blindada de data para o modal não puxar datas erradas no `<input type="date">`
         function openPeriodReportModal() {
             const hoje = new Date();
-            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
-            const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
-            document.getElementById('rep-per-start').value = primeiroDia;
-            document.getElementById('rep-per-end').value = ultimoDia;
+            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+            document.getElementById('rep-per-start').value = toLocalYYYYMMDD(primeiroDia);
+            document.getElementById('rep-per-end').value = toLocalYYYYMMDD(ultimoDia);
             document.getElementById('rep-per-payment').value = 'Todos';
             document.getElementById('rep-per-client').value = '';
             document.getElementById('modal-period-report').classList.remove('hidden');
@@ -1231,8 +1247,14 @@
             });
 
             let filteredSales = Object.values(salesMap);
-            if (start) filteredSales = filteredSales.filter(s => new Date(s.date) >= new Date(start + "T00:00:00"));
-            if (end) { let endD = new Date(end + "T23:59:59"); filteredSales = filteredSales.filter(s => new Date(s.date) <= endD); }
+            if (start) {
+                const startD = new Date(start + "T00:00:00");
+                filteredSales = filteredSales.filter(s => new Date(s.date) >= startD);
+            }
+            if (end) {
+                const endD = new Date(end + "T23:59:59");
+                filteredSales = filteredSales.filter(s => new Date(s.date) <= endD);
+            }
             if (payment !== 'Todos') filteredSales = filteredSales.filter(s => s.paymentMethod === payment);
             if (client) filteredSales = filteredSales.filter(s => s.clientName.toLowerCase().includes(client));
 
