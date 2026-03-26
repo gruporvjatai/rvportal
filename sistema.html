@@ -180,83 +180,106 @@
      <div id="view-dash" class="hidden-section"><h2 class="text-2xl font-bold text-slate-800 mb-6">Visão Geral do Estoque</h2><div id="dash-grid" class="flex flex-col gap-3 pb-10"></div></div>
       
       <div id="view-pos" class="hidden-section">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-100px)]">
-            <div class="lg:col-span-2 flex flex-col gap-4 h-full min-h-0">
-                
-                <div class="bg-white rounded-xl shadow-sm border p-6 flex justify-between items-center shrink-0">
-                    <h3 class="font-bold text-slate-700 text-lg flex gap-2 items-center"><i data-lucide="package-plus"></i> Inserir Itens na Venda</h3>
-                    <button onclick="openPosProductModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition"><i data-lucide="search"></i> Buscar e Adicionar Produtos</button>
+    <div class="flex flex-col gap-6 h-[calc(100vh-100px)]">
+        
+        <div class="bg-white rounded-xl shadow-sm border p-6 flex flex-wrap justify-between items-center shrink-0 gap-4">
+            <h3 class="font-bold text-slate-700 text-lg flex gap-2 items-center"><i data-lucide="shopping-cart"></i> PDV - Caixa</h3>
+            <div class="flex gap-4 flex-wrap">
+                <button onclick="openPosHistoryModal()" class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition">
+                    <i data-lucide="history"></i> Ver Vendas Efetuadas
+                </button>
+                <button onclick="openPosProductModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg transition">
+                    <i data-lucide="search"></i> Buscar e Adicionar Produtos
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border shadow-lg flex flex-col flex-1 min-h-0 overflow-hidden border-t-4 border-t-slate-800">
+            
+            <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
+                <div class="font-bold text-slate-700 flex gap-2 items-center">
+                    <i data-lucide="list"></i> ITENS DA VENDA 
+                    <span id="edit-mode-indicator" class="hidden text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded ml-2">EDITANDO</span>
                 </div>
-                
-                <div class="bg-white p-4 rounded-xl border flex flex-col flex-1 min-h-0 shadow-sm overflow-hidden">
-                    <h3 class="font-bold text-slate-700 mb-4 flex gap-2 items-center text-sm uppercase border-b pb-2 shrink-0"><i data-lucide="history" class="w-4 h-4"></i> Vendas Efetuadas</h3>
-                    <div class="flex gap-2 mb-3 shrink-0">
-                        <input type="text" id="pos-hist-search" placeholder="Buscar venda, nome ou ID..." class="w-full p-2 border rounded text-sm outline-none focus:border-emerald-600" onkeyup="renderRecentHistory()">
-                        <input type="date" id="pos-hist-start" class="p-2 border rounded text-sm outline-none focus:border-emerald-600" onchange="renderRecentHistory()">
-                        <input type="date" id="pos-hist-end" class="p-2 border rounded text-sm outline-none focus:border-emerald-600" onchange="renderRecentHistory()">
-                        <button onclick="document.getElementById('pos-hist-search').value=''; document.getElementById('pos-hist-start').value=''; document.getElementById('pos-hist-end').value=''; renderRecentHistory()" class="p-2 bg-slate-200 hover:bg-slate-300 rounded text-xs"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </div>
-                    <div class="overflow-y-auto flex-1">
-                        <table class="w-full text-sm text-left">
-                            <tbody id="pos-recent-history" class="divide-y"></tbody>
-                        </table>
-                    </div>
-                </div>
+                <button onclick="clearCart()" class="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 px-3 py-1.5 rounded bg-white shadow-sm">LIMPAR CARRINHO</button>
             </div>
             
-            <div class="bg-white p-0 rounded-xl border shadow-lg flex flex-col h-full overflow-hidden border-t-4 border-t-slate-800">
-                <div class="p-4 bg-slate-50 border-b flex justify-between items-center"><div class="font-bold text-slate-700 flex gap-2 items-center"><i data-lucide="shopping-cart"></i> ITENS <span id="edit-mode-indicator" class="hidden text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded ml-2">EDITANDO</span></div><button onclick="clearCart()" class="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 px-2 py-1 rounded bg-white">LIMPAR</button></div>
-                <div id="pos-cart-items" class="flex-1 space-y-2 overflow-y-auto p-4 bg-white"></div>
-                <div class="bg-slate-50 p-4 border-t space-y-3 shadow-inner">
-                    <div class="space-y-2">
-                        <div class="flex gap-2">
-                            <input type="hidden" id="pos-client" value="">
-                            <button id="pos-client-btn" onclick="openPosClientModal()" class="w-full p-2 border rounded text-sm bg-white focus:border-emerald-600 text-left flex justify-between items-center text-slate-600 font-bold">
-                                <span>Consumidor Final</span>
-                                <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
-                            </button>
-                            <button onclick="navigate('clients')" class="p-2 bg-slate-200 rounded hover:bg-slate-300" title="Cadastrar Novo Cliente"><i data-lucide="user-plus"></i></button>
-                        </div>
-                        
-                        <div class="flex items-center gap-2 mt-1">
-                            <input type="checkbox" id="pos-custom-address-check" class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-600" onchange="toggleCustomAddress()">
-                            <label for="pos-custom-address-check" class="text-xs font-bold text-slate-600 cursor-pointer select-none">Adicionar Endereço de Entrega</label>
-                        </div>
-                        <div id="pos-custom-address-container" class="hidden transition-all duration-300">
-                            <textarea id="pos-custom-address" rows="2" placeholder="Digite o endereço completo da obra / ponto de referência..." class="w-full p-2 border rounded-lg text-xs bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 outline-none resize-none shadow-inner"></textarea>
-                        </div>
+            <div id="pos-cart-items" class="flex-1 overflow-y-auto p-4 bg-white space-y-2"></div>
+            
+            <div class="bg-slate-50 p-4 border-t shadow-inner flex flex-col lg:flex-row gap-8 justify-between shrink-0">
+                
+                <div class="flex-1 space-y-4">
+                    <div class="flex gap-2">
+                        <input type="hidden" id="pos-client" value="">
+                        <button id="pos-client-btn" onclick="openPosClientModal()" class="w-full p-3 border rounded-lg text-sm bg-white focus:border-emerald-600 text-left flex justify-between items-center text-slate-600 font-bold shadow-sm">
+                            <span>Consumidor Final</span>
+                            <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                        </button>
+                        <button onclick="navigate('clients')" class="p-3 bg-slate-200 rounded-lg hover:bg-slate-300 shadow-sm" title="Cadastrar Novo Cliente"><i data-lucide="user-plus"></i></button>
+                    </div>
 
-                        <div class="flex items-center gap-2 mt-1">
-                            <input type="checkbox" id="pos-custom-obs-check" class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-600" onchange="toggleCustomObs()">
-                            <label for="pos-custom-obs-check" class="text-xs font-bold text-slate-600 cursor-pointer select-none">Adicionar Observações</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white p-3 rounded-lg border shadow-sm">
+                            <div class="flex items-center gap-2 mb-2">
+                                <input type="checkbox" id="pos-custom-address-check" class="w-4 h-4 text-emerald-600 rounded" onchange="toggleCustomAddress()">
+                                <label for="pos-custom-address-check" class="text-xs font-bold text-slate-600 cursor-pointer select-none">Adicionar Endereço de Entrega</label>
+                            </div>
+                            <div id="pos-custom-address-container" class="hidden">
+                                <textarea id="pos-custom-address" rows="2" placeholder="Digite o endereço completo da obra..." class="w-full p-2 border rounded text-xs bg-slate-50 focus:ring-2 focus:ring-emerald-200 outline-none resize-none"></textarea>
+                            </div>
                         </div>
-                        <div id="pos-custom-obs-container" class="hidden transition-all duration-300">
-                            <textarea id="pos-custom-obs" rows="2" placeholder="Digite as observações gerais para a impressão..." class="w-full p-2 border rounded-lg text-xs bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200 outline-none resize-none shadow-inner"></textarea>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-2 mt-2">
-                            <select id="pos-payment" class="w-full p-2 border rounded text-sm bg-white">
-                              <option>Dinheiro</option>
-                              <option>PIX</option>
-                              <option>Carteira</option>
-                              <option>Cartão Débito</option>
-                              <option>Cartão Crédito</option>
-                              <option>Boleto 21 dias</option>
-                              <option>Boleto 30 dias</option>
-                              <option>Boleto Programado</option>
-                              <option>Cheque</option>
-                            </select>
-                            <div class="flex rounded border bg-white overflow-hidden"><select id="pos-discount-type" class="bg-slate-100 text-xs px-1 border-r font-bold focus:outline-none" onchange="renderCart()"><option value="%">%</option><option value="$">R$</option></select><input type="number" id="pos-discount" value="0" class="w-full p-2 text-sm focus:outline-none" placeholder="Desc." onchange="renderCart()"></div>
+                        <div class="bg-white p-3 rounded-lg border shadow-sm">
+                            <div class="flex items-center gap-2 mb-2">
+                                <input type="checkbox" id="pos-custom-obs-check" class="w-4 h-4 text-emerald-600 rounded" onchange="toggleCustomObs()">
+                                <label for="pos-custom-obs-check" class="text-xs font-bold text-slate-600 cursor-pointer select-none">Adicionar Observações</label>
+                            </div>
+                            <div id="pos-custom-obs-container" class="hidden">
+                                <textarea id="pos-custom-obs" rows="2" placeholder="Observações gerais para impressão..." class="w-full p-2 border rounded text-xs bg-slate-50 focus:ring-2 focus:ring-emerald-200 outline-none resize-none"></textarea>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="flex justify-between items-end border-t border-slate-300 pt-3"><div class="text-xs text-slate-500">Itens: <span id="cart-count">0</span></div><div class="text-right"><div class="text-xs text-slate-500">Total a Pagar</div><div id="pos-total-display" class="text-2xl font-bold text-slate-800 leading-none">R$ 0,00</div></div></div>
-                    <div class="grid grid-cols-2 gap-2 pt-2"><button onclick="saveQuote()" class="btn-action bg-indigo-700 hover:bg-indigo-800 text-white py-3 text-sm"><i data-lucide="save"></i> Salvar Orç.</button><button onclick="finalizeSale()" class="btn-action bg-green-600 hover:bg-green-700 text-white py-3 text-sm shadow-lg shadow-green-200"><i data-lucide="check-circle"></i> Vender</button></div>
+                </div>
+
+                <div class="w-full lg:w-96 flex flex-col justify-end gap-3">
+                    <div class="grid grid-cols-2 gap-2">
+                        <select id="pos-payment" class="w-full p-2.5 border rounded-lg text-sm bg-white shadow-sm font-medium">
+                            <option>Dinheiro</option>
+                            <option>PIX</option>
+                            <option>Carteira</option>
+                            <option>Cartão Débito</option>
+                            <option>Cartão Crédito</option>
+                            <option>Boleto 21 dias</option>
+                            <option>Boleto 30 dias</option>
+                            <option>Boleto Programado</option>
+                            <option>Cheque</option>
+                        </select>
+                        <div class="flex rounded-lg border bg-white shadow-sm overflow-hidden">
+                            <select id="pos-discount-type" class="bg-slate-100 text-xs px-2 border-r font-bold outline-none" onchange="renderCart()">
+                                <option value="%">%</option>
+                                <option value="$">R$</option>
+                            </select>
+                            <input type="number" id="pos-discount" value="0" class="w-full p-2.5 text-sm outline-none font-medium" placeholder="Desc." onchange="renderCart()">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-end border-t border-slate-200 pt-3 mt-1">
+                        <div class="text-sm text-slate-500">Itens: <span id="cart-count" class="font-bold text-slate-700">0</span></div>
+                        <div class="text-right">
+                            <div class="text-xs text-slate-500 uppercase tracking-wide font-bold">Total a Pagar</div>
+                            <div id="pos-total-display" class="text-3xl font-black text-emerald-700 leading-none mt-1">R$ 0,00</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mt-2">
+                        <button onclick="saveQuote()" class="btn-action bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-sm shadow-lg rounded-xl"><i data-lucide="save"></i> Salvar Orç.</button>
+                        <button onclick="finalizeSale()" class="btn-action bg-green-600 hover:bg-green-700 text-white py-3 text-sm shadow-lg shadow-green-200 rounded-xl"><i data-lucide="check-circle"></i> Vender</button>
+                    </div>
                 </div>
             </div>
         </div>
-      </div>
-
+    </div>
+</div>
+      
 <div id="view-expedition" class="hidden-section">
          <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="truck"></i> Expedição / Entregas Pendentes</h2>
          
@@ -900,7 +923,40 @@
             </div>
         </div>
     </div>
-  
+
+    <div id="pos-history-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden">
+        
+        <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+            <h3 class="font-bold text-slate-700 flex items-center gap-2 text-lg"><i data-lucide="history"></i> Vendas Efetuadas</h3>
+            <button onclick="closePosHistoryModal()" class="p-2 bg-slate-200 hover:bg-red-100 hover:text-red-600 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        
+        <div class="p-4 bg-white border-b flex flex-wrap gap-3 items-center shrink-0">
+            <input type="text" id="pos-hist-search" placeholder="Buscar venda, nome ou ID..." class="flex-1 p-2.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50" onkeyup="renderRecentHistory()">
+            <input type="date" id="pos-hist-start" class="p-2.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50" onchange="renderRecentHistory()">
+            <input type="date" id="pos-hist-end" class="p-2.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50" onchange="renderRecentHistory()">
+            <button onclick="document.getElementById('pos-hist-search').value=''; document.getElementById('pos-hist-start').value=''; document.getElementById('pos-hist-end').value=''; renderRecentHistory()" class="p-2.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-700 font-bold transition" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        
+        <div class="overflow-y-auto flex-1 p-4 bg-slate-100">
+            <div class="bg-white rounded-lg border shadow-sm overflow-hidden">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-800 text-white">
+                        <tr>
+                            <th class="p-3">Pedido</th>
+                            <th class="p-3">Data</th>
+                            <th class="p-3">Cliente</th>
+                            <th class="p-3">Valor</th>
+                            <th class="p-3 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pos-recent-history" class="divide-y"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
         // ====== 1. VERIFICAÇÃO DE LOGIN GLOBAL ======
@@ -3616,7 +3672,16 @@
             await loadData(); 
             navigate('quotes'); 
         }
-        
+
+function openPosHistoryModal() {
+    document.getElementById('pos-history-modal').classList.remove('hidden');
+    renderRecentHistory(); // Garante que a tabela carrega os dados fresquinhos na hora que abrir
+}
+
+function closePosHistoryModal() {
+    document.getElementById('pos-history-modal').classList.add('hidden');
+}
+  
     </script> 
   </body>
 </html>
