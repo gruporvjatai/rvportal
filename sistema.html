@@ -3039,6 +3039,12 @@
             };
             
             renderInvoice(saleObj, false); 
+            
+            // CORREÇÃO AQUI: Fecha o modal antes de chamar a impressão
+            if (typeof closePosHistoryModal === 'function') {
+                closePosHistoryModal();
+            }
+            
             setTimeout(() => window.print(), 500);
         }
 
