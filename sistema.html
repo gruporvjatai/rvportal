@@ -3309,7 +3309,6 @@
                         date: l.date,
                         clientName: l.clientName || 'Consumidor Final',
                         paymentMethod: l.paymentMethod || 'Não Informado',
-                        discount: Number(l.discount) || 0,
                         totalValue: 0, 
                         itemsText: ''
                     };
@@ -3326,12 +3325,10 @@
             }
 
             let totalLiquido = 0;
-            let totalDescontos = 0;
             let pagamentosMap = {};
 
             let rowsHtml = vendasHoje.map(s => {
                 totalLiquido += s.totalValue;
-                totalDescontos += s.discount;
 
                 const pgto = s.paymentMethod;
                 if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
@@ -3414,11 +3411,6 @@
                                     <td style="padding: 5px 0;">Qtd. Pedidos:</td>
                                     <td style="padding: 5px 0; text-align: right; font-weight: bold;">${vendasHoje.length}</td>
                                 </tr>
-                                ${totalDescontos > 0 ? `
-                                <tr>
-                                    <td style="padding: 5px 0; color: red;">Descontos Aplicados:</td>
-                                    <td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(totalDescontos)}</td>
-                                </tr>` : ''}
                                 <tr>
                                     <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">LÍQUIDO TOTAL:</td>
                                     <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalLiquido)}</td>
@@ -3474,7 +3466,6 @@
                         date: l.date,
                         clientName: l.clientName || 'Consumidor Final',
                         paymentMethod: l.paymentMethod || 'Não Informado',
-                        discount: Number(l.discount) || 0,
                         totalValue: 0, 
                         itemsText: ''
                     };
@@ -3498,12 +3489,10 @@
             }
 
             let totalLiquido = 0;
-            let totalDescontos = 0;
             let pagamentosMap = {};
 
             let rowsHtml = filteredSales.map(s => {
                 totalLiquido += s.totalValue;
-                totalDescontos += s.discount;
 
                 const pgto = s.paymentMethod;
                 if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
@@ -3586,11 +3575,6 @@
                                     <td style="padding: 5px 0;">Qtd. Pedidos:</td>
                                     <td style="padding: 5px 0; text-align: right; font-weight: bold;">${filteredSales.length}</td>
                                 </tr>
-                                ${totalDescontos > 0 ? `
-                                <tr>
-                                    <td style="padding: 5px 0; color: red;">Descontos Aplicados:</td>
-                                    <td style="padding: 5px 0; text-align: right; color: red;">- ${formatMoney(totalDescontos)}</td>
-                                </tr>` : ''}
                                 <tr>
                                     <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">LÍQUIDO TOTAL:</td>
                                     <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalLiquido)}</td>
