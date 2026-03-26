@@ -1785,9 +1785,19 @@
             const grid = document.getElementById('pos-modal-grid');
             if(!grid) return;
 
-            const sortedProducts = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
+            // 1. Pega os produtos e ordena
+            let filtered = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
 
-            grid.innerHTML = sortedProducts.filter(p=>p.name.toLowerCase().includes(term)).map(p => {
+            // 2. Aplica o filtro da busca
+            if (term) {
+                filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
+            }
+
+            // 3. O SEGREDO AQUI: Limita a 50 produtos na tela por vez!
+            const sliced = filtered.slice(0, 50);
+
+            // 4. Desenha a tela apenas com os 50 primeiros
+            grid.innerHTML = sliced.map(p => {
                 return `
                 <div class="p-4 border border-slate-200 rounded-xl hover:shadow-md bg-white flex items-center justify-between group transition">
                     <div class="flex flex-col w-1/2">
@@ -1803,6 +1813,7 @@
                     </div>
                 </div>`;
             }).join('');
+            
             lucide.createIcons();
         }
 
