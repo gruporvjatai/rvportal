@@ -595,8 +595,19 @@
                     }
                 });
                 
-                STATE.quotes = Object.values(quotesMap).map(q => { q.itemsText = q.items.map(i => `${i.qty}x ${i.name}`).join(', '); return q; });
-                STATE.sales = Object.values(salesMap).map(s => { s.itemsText = s.items.map(i => `${i.qty}x ${i.name}`).join(', '); return s; });
+                STATE.quotes = Object.values(quotesMap).map(q => { 
+                    q.itemsText = q.items.map(i => `${i.qty}x ${i.name}`).join(', '); 
+                    // Calcula o desconto absoluto para usar nos relatórios e listas
+                    q.absoluteDiscount = q.discountType === '%' ? q.total * (q.discount / 100) : q.discount;
+                    return q; 
+                });
+                
+                STATE.sales = Object.values(salesMap).map(s => { 
+                    s.itemsText = s.items.map(i => `${i.qty}x ${i.name}`).join(', '); 
+                    // Calcula o desconto absoluto para usar nos relatórios e listas
+                    s.absoluteDiscount = s.discountType === '%' ? s.total * (s.discount / 100) : s.discount;
+                    return s; 
+                });
                 
                 STATE.expenses = (resDesp.data || []).map(e => ({
                     id: e.id, item: e.item, quantity: Number(e.quantidade), cost: Number(e.custo), 
