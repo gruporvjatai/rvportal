@@ -38,15 +38,15 @@
       .nav-active span { font-weight: 900; }
 
       /* Estilos para o PDF oculto na tela */
-      .invoice-full { border: 1px solid #000; min-height: 27.5cm; background-color: transparent !important; position: relative; z-index: 1; font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background: white;}
-      .invoice-full::before { content: ""; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; background-image: url('https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png'); background-size: contain; background-position: center; background-repeat: no-repeat; opacity: 0.1; z-index: -1; }
+      .invoice-full { border: 1px solid #000; min-height: 27.5cm; width: 100%; box-sizing: border-box; background-color: transparent !important; position: relative; z-index: 1; font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background: white;}
+      .invoice-full::before { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; background-image: url('https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png'); background-size: contain; background-position: center; background-repeat: no-repeat; opacity: 0.1; z-index: -1; pointer-events: none; }
       .header-section { display: flex; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
       .logo-area { width: 120px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #e2e8f0; padding-right: 15px; margin-right: 15px; }
       .company-details { flex: 1; }
       .company-title { font-size: 20px; font-weight: 800; color: #059669; margin: 0; }
       .company-info { font-size: 11px; color: #475569; margin-top: 5px; }
-      .doc-meta { width: 180px; text-align: right; }
-      .doc-title { font-size: 16px; font-weight: 900; color: #0f172a; margin-bottom: 5px; }
+      .doc-meta { width: 220px; text-align: right; } /* Aumentado para evitar quebra no título */
+      .doc-title { font-size: 15px; font-weight: 900; color: #0f172a; margin-bottom: 5px; text-transform: uppercase; }
       .meta-row { font-size: 11px; margin-bottom: 2px; }
       .info-grid { display: flex; gap: 20px; margin-bottom: 20px; }
       .info-col { flex: 1; border: 1px solid #000; border-radius: 6px; overflow: hidden; }
@@ -597,15 +597,15 @@
                 
                 STATE.quotes = Object.values(quotesMap).map(q => { 
                     q.itemsText = q.items.map(i => `${i.qty}x ${i.name}`).join(', '); 
-                    // Calcula o desconto absoluto para usar nos relatórios e listas
-                    q.absoluteDiscount = q.discountType === '%' ? q.total * (q.discount / 100) : q.discount;
+                    // CORREÇÃO: Pega o desconto diretamente em Reais para evitar cálculo sobreposto
+                    q.absoluteDiscount = Number(q.discount) || 0;
                     return q; 
                 });
                 
                 STATE.sales = Object.values(salesMap).map(s => { 
                     s.itemsText = s.items.map(i => `${i.qty}x ${i.name}`).join(', '); 
-                    // Calcula o desconto absoluto para usar nos relatórios e listas
-                    s.absoluteDiscount = s.discountType === '%' ? s.total * (s.discount / 100) : s.discount;
+                    // CORREÇÃO: Pega o desconto diretamente em Reais para evitar cálculo sobreposto (No PDV Desktop já é salvo em absoluto)
+                    s.absoluteDiscount = Number(s.discount) || 0;
                     return s; 
                 });
                 
@@ -901,10 +901,8 @@
             
             document.getElementById('pos-payment').value = q.paymentMethod || 'Dinheiro';
             document.getElementById('pos-discount-type').value = q.discountType || '$';
-            document.getElementById('pos-discount').value = q.discount || 0; // Puxa exato como tá no banco
+            document.getElementById('pos-discount').value = q.discount || 0; 
 
-            // CORREÇÃO: Se era porcentagem, o valor salvo é o desconto final em reais.
-            // Para editar, convertemos o R$ de volta para o número da %.
             if(q.discountType === '%') {
                 document.getElementById('pos-discount').value = q.total > 0 ? ((Number(q.discount) / q.total) * 100).toFixed(2) : 0;
             } else {
@@ -981,21 +979,21 @@
                     </tr>`;
             }).join('');
 
-            // CORREÇÃO: O Desconto do banco JÁ ESTÁ EM REAIS! 
-           const valorDesconto = Number(q.absoluteDiscount) || 0;
+            // Puxa o valor do desconto calculado corretamente e não em duplicidade
+            const valorDesconto = Number(q.absoluteDiscount) || 0;
             const finalTotal = subtotal - valorDesconto;
             
             const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
             const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV' 
                             ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
 
-            const tituloDoc = isVenda ? "COMPROVANTE DE VENDA" : "ORÇAMENTO";
+            // CORREÇÃO DE LAYOUT: Reduzindo o título de Vendas para não quebrar a largura
+            const tituloDoc = isVenda ? "PEDIDO DE VENDA" : "ORÇAMENTO";
 
-            // CORREÇÃO DO LAYOUT PDF: Crio o elemento usando AS SUAS CLASSES em um container isolado!
             const tempDiv = document.createElement('div');
             tempDiv.style.position = 'absolute';
             tempDiv.style.left = '-9999px';
-            tempDiv.style.width = '210mm'; // Força a largura do A4
+            tempDiv.style.width = '210mm'; 
             tempDiv.innerHTML = `
                 <div class="invoice-full">
                     <div class="header-section">
@@ -1051,20 +1049,21 @@
                     </div>
                 </div>
             `;
-            // Anexar ao body para que o html2pdf capture as suas regras de <style>
+            
             document.body.appendChild(tempDiv);
 
             const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+            
+            // CORREÇÃO CRÍTICA PARA CELULAR: windowWidth força o print do celular a simular uma tela de 800px pra não espremer o A4
             const opt = {
-                margin: 0, 
+                margin: 5, 
                 filename: filename,
                 image: { type: 'jpeg', quality: 1 },
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true, windowWidth: 800 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
             try {
-                // Seleciona a classe "invoice-full" que acabou de ser criada 
                 const pdfBlob = await html2pdf().set(opt).from(tempDiv.children[0]).output('blob');
                 document.body.removeChild(tempDiv);
                 
