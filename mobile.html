@@ -113,10 +113,7 @@
           
           <div id="quotes-list" class="flex flex-col gap-3"></div>
       </div>
-          
 
-      
-      
      <div id="view-reports" class="hidden-section">
         <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="file-text" class="text-emerald-600"></i> Relatórios</h2>
         
@@ -457,11 +454,12 @@
         const supabaseKey = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [] };
+        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], sales: [] };
         
         // VARIÁVEIS DO CARRINHO
         let CART = [];
         let CURRENT_QUOTE_ID = null;
+        let currentDocType = 'orcamento';
 
         window.onload = function() { 
             if (dadosUsuario) {
@@ -557,10 +555,9 @@
                     id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco
                 }));
 
-                // Atualize as variáveis no topo antes de iterar:
                 STATE.logs = [];
                 const quotesMap = {};
-                const salesMap = {}; // CRIAMOS ESTA
+                const salesMap = {};
                 
                 (resLog.data || []).forEach(l => {
                     if (l.tipo === 'orcamento') {
@@ -577,7 +574,6 @@
                         quotesMap[qId].total += Number(l.valor_total);
                         
                     } else if (l.tipo === 'venda') {
-                        // MAPEANDO AS VENDAS EXATAMENTE COMO ORÇAMENTOS
                         const qId = String(l.id);
                         if(!salesMap[qId]) {
                             salesMap[qId] = { 
@@ -596,7 +592,8 @@
                             uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
                             date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
                             clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
-                            finStatus: l.status_financeiro, dueDate: l.vencimento, paidValue: Number(l.valor_pago)
+                            finStatus: l.status_financeiro, dueDate: l.vencimento, paidValue: Number(l.valor_pago),
+                            discount: Number(l.desconto)
                         });
                     }
                 });
@@ -640,8 +637,6 @@
             document.getElementById('view-pos').classList.add('hidden');
             document.getElementById('view-pos').classList.remove('flex');
         }
-
-      
 
         function toggleCustomAddress() {
             const check = document.getElementById('pos-custom-address-check').checked;
@@ -878,7 +873,9 @@
         }
 
         function loadQuoteToCart(id) {
-            const q = STATE.quotes.find(x => x.id == id);
+            // Pode carregar tanto Orçamento quanto Venda para edição
+            let q = STATE.quotes.find(x => String(x.id) === String(id));
+            if(!q) q = STATE.sales.find(x => String(x.id) === String(id));
             if(!q) return;
             
             CART = JSON.parse(JSON.stringify(q.items));
@@ -922,7 +919,7 @@
             document.getElementById('view-pos').classList.remove('hidden');
             document.getElementById('view-pos').classList.add('flex');
             renderCart();
-            showToast(`Editando Orçamento #${q.id}`);
+            showToast(`Editando Registro #${q.id}`);
         }
 
         async function updateQuoteStatus(id, newStatus) {
@@ -946,7 +943,8 @@
         }
 
         async function shareQuote(id) {
-            const q = STATE.quotes.find(x => x.id == id);
+            let q = STATE.quotes.find(x => String(x.id) === String(id));
+            if (!q) q = STATE.sales.find(x => String(x.id) === String(id)); // Puxa venda se não achar em orçamentos
             if (!q) return;
             
             showLoading(true);
@@ -968,11 +966,22 @@
                     </tr>`;
             }).join('');
 
-            const discount = Number(q.discount) || 0;
-            const finalTotal = subtotal - discount;
+            // FIX: Corrigindo cálculo para desconto % vs R$
+            let valorDesconto = 0;
+            if(q.discountType === '%') {
+                valorDesconto = subtotal * (Number(q.discount) / 100);
+            } else {
+                valorDesconto = Number(q.discount) || 0;
+            }
+            
+            const finalTotal = subtotal - valorDesconto;
+            
             const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
             const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV' 
                             ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+
+            const isVenda = !!STATE.sales.find(x => String(x.id) === String(id));
+            const tituloDoc = isVenda ? "COMPROVANTE DE VENDA" : "ORÇAMENTO";
 
             const htmlString = `
                 <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
@@ -990,7 +999,7 @@
                                 <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
                             </td>
                             <td align="right" valign="top">
-                                <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">ORÇAMENTO</h2>
+                                <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">${tituloDoc}</h2>
                                 <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
                                 <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
                             </td>
@@ -1038,9 +1047,9 @@
                                         <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
                                         <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
                                     </tr>
-                                    ${discount > 0 ? `<tr><td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td><td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td></tr>` : ''}
+                                    ${valorDesconto > 0 ? `<tr><td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td><td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(valorDesconto)}</td></tr>` : ''}
                                     <tr>
-                                        <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
+                                        <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL:</td>
                                         <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
                                     </tr>
                                 </table>
@@ -1049,7 +1058,7 @@
                     </table>
                 </div>`;
 
-            const filename = `Orcamento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+            const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
             const opt = {
                 margin: 10, 
                 filename: filename,
@@ -1064,8 +1073,8 @@
                 
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     await navigator.share({
-                        title: `Orçamento #${q.id}`,
-                        text: `Olá ${clientName}, segue o orçamento solicitado.`,
+                        title: `${tituloDoc} #${q.id}`,
+                        text: `Olá ${clientName}, segue o documento solicitado.`,
                         files: [file]
                     });
                     showLoading(false);
@@ -1079,6 +1088,98 @@
                 console.error("Erro PDF", err);
                 showLoading(false);
                 showToast("Falha ao gerar o PDF", true);
+            }
+        }
+
+        function setDocType(type) {
+            currentDocType = type;
+            const btnOrc = document.getElementById('tab-orcamentos');
+            const btnVen = document.getElementById('tab-vendas');
+            const statusFilter = document.getElementById('quote-status-filter');
+
+            if(type === 'orcamento') {
+                btnOrc.className = "flex-1 py-2 rounded-lg text-sm font-black bg-white text-indigo-600 shadow-sm transition-all";
+                btnVen.className = "flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
+                statusFilter.style.display = 'block';
+            } else {
+                btnVen.className = "flex-1 py-2 rounded-lg text-sm font-black bg-white text-emerald-600 shadow-sm transition-all";
+                btnOrc.className = "flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
+                statusFilter.style.display = 'none'; // Oculta o select de status em vendas
+            }
+            renderQuotesList();
+        }
+
+        async function estornarVenda(id) {
+            if(!confirm("Tem certeza que deseja estornar esta VENDA para ORÇAMENTO? Os produtos retornarão ao estoque!")) return;
+            showLoading(true);
+            
+            const sale = STATE.sales.find(s => String(s.id) === String(id));
+            if (!sale) { showLoading(false); return; }
+
+            try {
+                // 1. Retornar os itens para o Estoque Físico
+                for (let item of sale.items) {
+                    const prod = STATE.products.find(p => p.name === item.name);
+                    if(prod) {
+                        const novoEstoque = Number(prod.stock) + Number(item.qty);
+                        await sb.from('produtos').update({ estoque_fisico: novoEstoque }).eq('id', prod.id);
+                    }
+                }
+
+                // 2. Mudar a label nos logs para 'orcamento'
+                const { error } = await sb.from('logs').update({ tipo: 'orcamento', status: 'ABERTO' }).eq('id', id).eq('tipo', 'venda');
+                if(error) throw error;
+                
+                showToast("Venda Estornada com sucesso!");
+                await loadData(); 
+                setDocType('orcamento'); 
+            } catch(e) {
+                showLoading(false);
+                showToast("Erro: " + e.message, true);
+            }
+        }
+
+        async function duplicarParaOrcamento(id) {
+            if(!confirm("Duplicar esta venda como um novo ORÇAMENTO em aberto?")) return;
+            showLoading(true);
+
+            const sale = STATE.sales.find(s => String(s.id) === String(id));
+            if (!sale) { showLoading(false); return; }
+
+            try {
+                const logsToCopy = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
+                const newId = getNextId(STATE.logs, STATE.quotes);
+                const date = new Date().toISOString();
+
+                const newLogs = logsToCopy.map(l => ({
+                    id: newId,
+                    tipo: 'orcamento',
+                    produto_nome: l.productName,
+                    quantidade: l.quantity,
+                    data: date,
+                    observacao: l.note,
+                    valor_total: l.totalValue,
+                    cliente_nome: l.clientName,
+                    forma_pagamento: l.paymentMethod || 'Dinheiro',
+                    status: 'ABERTO',
+                    desconto: sale.discount || 0,
+                    status_financeiro: sale.discountType || '$',
+                    endereco_entrega: sale.deliveryAddress || '',
+                    status_entrega: '',
+                    qtd_entregue: 0,
+                    vencimento: date,
+                    valor_pago: 0
+                }));
+
+                const { error } = await sb.from('logs').insert(newLogs);
+                if(error) throw error;
+
+                showToast("Duplicado com Sucesso!");
+                await loadData();
+                setDocType('orcamento');
+            } catch(e) {
+                showLoading(false);
+                showToast("Erro ao duplicar: " + e.message, true);
             }
         }
 
@@ -1102,7 +1203,15 @@
             }
             
             list.innerHTML = filteredList.map(q => {
-                const valorLiquido = q.total - (q.discount || 0);
+                
+                // FIX: Calculo Seguro de Desconto % ou R$
+                let valorDesconto = 0;
+                if(q.discountType === '%') {
+                    valorDesconto = q.total * (Number(q.discount) / 100);
+                } else {
+                    valorDesconto = Number(q.discount) || 0;
+                }
+                const valorLiquido = q.total - valorDesconto;
                 
                 // === LAYOUT DE ORÇAMENTO ===
                 if (currentDocType === 'orcamento') {
@@ -1147,7 +1256,7 @@
                     </div>`;
                 } 
                 
-                // === LAYOUT DE VENDA (Com novos botões) ===
+                // === LAYOUT DE VENDA ===
                 else {
                     return `
                     <div class="p-4 rounded-2xl border mb-1 shadow-sm bg-slate-50 border-slate-200">
@@ -1165,8 +1274,8 @@
                             <div class="font-bold text-sm text-slate-800 flex items-center gap-1 mb-1"><i data-lucide="user" class="w-4 h-4 text-slate-400"></i> ${q.clientName}</div>
                         </div>
                         <div class="flex gap-2 justify-end mt-2">
-                            <button onclick="shareQuote('${q.id}')" class="flex-1 p-2 bg-slate-800 text-white rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
-                                <i data-lucide="printer" class="w-4 h-4"></i> Imprimir
+                            <button onclick="shareQuote('${q.id}')" class="flex-1 p-2 bg-green-100 border border-green-300 text-green-700 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
+                                <i data-lucide="share-2" class="w-4 h-4"></i> Enviar
                             </button>
                             <button onclick="duplicarParaOrcamento('${q.id}')" class="flex-1 p-2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
                                 <i data-lucide="copy" class="w-4 h-4"></i> Duplicar
@@ -1201,23 +1310,34 @@
             
             todayLogs.forEach(l => {
                 if (!salesMap[l.id]) {
-                    salesMap[l.id] = { id: l.id, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0 };
+                    salesMap[l.id] = { id: l.id, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0, discountType: l.finStatus || '$' };
                 }
                 salesMap[l.id].totalValue += Number(l.totalValue) || 0;
             });
             
             Object.values(salesMap).forEach(s => {
-                totalVendas += s.totalValue;
-                descontos += s.discount;
+                
+                // Tratar o desconto de % se for o caso
+                let descValor = 0;
+                if(s.discountType === '%') {
+                    descValor = s.totalValue * (s.discount / 100);
+                } else {
+                    descValor = s.discount;
+                }
+                const valorFinal = s.totalValue - descValor;
+
+                totalVendas += valorFinal;
+                descontos += descValor;
+                
                 const pgto = s.paymentMethod;
                 if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
-                pagamentosMap[pgto] += s.totalValue;
+                pagamentosMap[pgto] += valorFinal;
                 
                 rowsHtml += `
                     <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2 flex flex-col gap-1">
                         <div class="flex justify-between items-start">
                             <span class="font-bold text-sm text-slate-800">#${s.id} - ${s.clientName}</span>
-                            <span class="font-black text-emerald-600">${formatMoney(s.totalValue)}</span>
+                            <span class="font-black text-emerald-600">${formatMoney(valorFinal)}</span>
                         </div>
                         <span class="text-[11px] text-slate-500 font-bold uppercase bg-slate-100 w-max px-2 py-0.5 rounded">${s.paymentMethod}</span>
                     </div>
@@ -1262,7 +1382,7 @@
                         </div>
                         ${descontos > 0 ? `
                         <div class="flex justify-between items-center mb-1 text-red-400">
-                            <span class="text-sm">Descontos:</span>
+                            <span class="text-sm">Descontos Totais:</span>
                             <span class="text-sm font-bold">- ${formatMoney(descontos)}</span>
                         </div>` : ''}
                         <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
@@ -1319,7 +1439,7 @@
             const salesMap = {};
             STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
                 if (!salesMap[l.id]) {
-                    salesMap[l.id] = { id: l.id, date: l.date, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0 };
+                    salesMap[l.id] = { id: l.id, date: l.date, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0, discountType: l.finStatus || '$' };
                 }
                 salesMap[l.id].totalValue += Number(l.totalValue) || 0;
             });
@@ -1345,16 +1465,26 @@
 
             let totalLiquido = 0; let totalDescontos = 0; let pagamentosMap = {};
             let rowsHtml = filteredSales.map(s => {
-                totalLiquido += s.totalValue; totalDescontos += s.discount;
+                
+                let descValor = 0;
+                if(s.discountType === '%') {
+                    descValor = s.totalValue * (s.discount / 100);
+                } else {
+                    descValor = s.discount;
+                }
+                const valorFinal = s.totalValue - descValor;
+
+                totalLiquido += valorFinal; 
+                totalDescontos += descValor;
                 const pgto = s.paymentMethod;
                 if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
-                pagamentosMap[pgto] += s.totalValue;
+                pagamentosMap[pgto] += valorFinal;
 
                 return `
                     <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2 flex flex-col gap-1">
                         <div class="flex justify-between items-start">
                             <span class="font-bold text-sm text-slate-800">#${s.id} - ${s.clientName}</span>
-                            <span class="font-black text-emerald-600">${formatMoney(s.totalValue)}</span>
+                            <span class="font-black text-emerald-600">${formatMoney(valorFinal)}</span>
                         </div>
                         <div class="flex justify-between items-center mt-1">
                             <span class="text-[10px] text-slate-400 font-bold"><i data-lucide="calendar" class="inline w-3 h-3"></i> ${formatDate(s.date)}</span>
@@ -1399,7 +1529,7 @@
                         </div>
                         ${totalDescontos > 0 ? `
                         <div class="flex justify-between items-center mb-1 text-red-400">
-                            <span class="text-sm">Descontos:</span>
+                            <span class="text-sm">Descontos Totais:</span>
                             <span class="text-sm font-bold">- ${formatMoney(totalDescontos)}</span>
                         </div>` : ''}
                         <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
@@ -1578,102 +1708,6 @@
             }
         }
 
-
-      let currentDocType = 'orcamento';
-
-        function setDocType(type) {
-            currentDocType = type;
-            const btnOrc = document.getElementById('tab-orcamentos');
-            const btnVen = document.getElementById('tab-vendas');
-            const statusFilter = document.getElementById('quote-status-filter');
-
-            if(type === 'orcamento') {
-                btnOrc.className = "flex-1 py-2 rounded-lg text-sm font-black bg-white text-indigo-600 shadow-sm transition-all";
-                btnVen.className = "flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
-                statusFilter.style.display = 'block';
-            } else {
-                btnVen.className = "flex-1 py-2 rounded-lg text-sm font-black bg-white text-emerald-600 shadow-sm transition-all";
-                btnOrc.className = "flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
-                statusFilter.style.display = 'none'; // Oculta o select de status em vendas
-            }
-            renderQuotesList();
-        }
-
-        async function estornarVenda(id) {
-            if(!confirm("Tem certeza que deseja estornar esta VENDA para ORÇAMENTO? Os produtos retornarão ao estoque!")) return;
-            showLoading(true);
-            
-            const sale = STATE.sales.find(s => String(s.id) === String(id));
-            if (!sale) { showLoading(false); return; }
-
-            try {
-                // 1. Retornar os itens para o Estoque Físico
-                for (let item of sale.items) {
-                    const prod = STATE.products.find(p => p.name === item.name);
-                    if(prod) {
-                        const novoEstoque = Number(prod.stock) + Number(item.qty);
-                        await sb.from('produtos').update({ estoque_fisico: novoEstoque }).eq('id', prod.id);
-                    }
-                }
-
-                // 2. Mudar a label nos logs para 'orcamento'
-                const { error } = await sb.from('logs').update({ tipo: 'orcamento', status: 'ABERTO' }).eq('id', id).eq('tipo', 'venda');
-                if(error) throw error;
-                
-                showToast("Venda Estornada com sucesso!");
-                await loadData(); // Recarrega o banco na tela
-                setDocType('orcamento'); // Volta a aba pra orçamentos
-            } catch(e) {
-                showLoading(false);
-                showToast("Erro: " + e.message, true);
-            }
-        }
-
-        async function duplicarParaOrcamento(id) {
-            if(!confirm("Duplicar esta venda como um novo ORÇAMENTO em aberto?")) return;
-            showLoading(true);
-
-            const sale = STATE.sales.find(s => String(s.id) === String(id));
-            if (!sale) { showLoading(false); return; }
-
-            try {
-                const logsToCopy = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
-                const newId = getNextId(STATE.logs, STATE.quotes);
-                const date = new Date().toISOString();
-
-                const newLogs = logsToCopy.map(l => ({
-                    id: newId,
-                    tipo: 'orcamento',
-                    produto_nome: l.productName,
-                    quantidade: l.quantity,
-                    data: date,
-                    observacao: l.note,
-                    valor_total: l.totalValue,
-                    cliente_nome: l.clientName,
-                    forma_pagamento: l.paymentMethod || 'Dinheiro',
-                    status: 'ABERTO',
-                    desconto: sale.discount || 0,
-                    status_financeiro: sale.discountType || '$',
-                    endereco_entrega: sale.deliveryAddress || '',
-                    status_entrega: '',
-                    qtd_entregue: 0,
-                    vencimento: date,
-                    valor_pago: 0
-                }));
-
-                const { error } = await sb.from('logs').insert(newLogs);
-                if(error) throw error;
-
-                showToast("Duplicado com Sucesso!");
-                await loadData();
-                setDocType('orcamento');
-            } catch(e) {
-                showLoading(false);
-                showToast("Erro ao duplicar: " + e.message, true);
-            }
-        }
-
-      
         async function saveClient(e) {
             e.preventDefault();
             showLoading(true);
@@ -1697,8 +1731,6 @@
             localStorage.removeItem('rv_user');
             window.location.replace('index.html');
         }
-
-    
     </script>
   </body>
 </html>
