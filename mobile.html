@@ -436,7 +436,6 @@
     </div>
 
     <script>
-        // Função auxiliar blindada para formatar data local padrão Input Date YYYY-MM-DD
         function toLocalYYYYMMDD(dateObj) {
             const y = dateObj.getFullYear();
             const m = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -456,7 +455,6 @@
 
         let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], sales: [] };
         
-        // VARIÁVEIS DO CARRINHO
         let CART = [];
         let CURRENT_QUOTE_ID = null;
         let currentDocType = 'orcamento';
@@ -491,7 +489,6 @@
 
         function formatMoney(val) { return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
         
-        // FIX: Tratamento seguro para formatação de data respeitando o fuso
         function formatDate(d) { 
             try { 
                 if (!d) return '-';
@@ -623,8 +620,6 @@
             }
             showLoading(false);
         }
-
-        // ================= FUNÇÕES DE NOVO ORÇAMENTO (PDV MOBILE) =================
 
         function openNewQuote() {
             clearCart();
@@ -873,7 +868,6 @@
         }
 
         function loadQuoteToCart(id) {
-            // Pode carregar tanto Orçamento quanto Venda para edição
             let q = STATE.quotes.find(x => String(x.id) === String(id));
             if(!q) q = STATE.sales.find(x => String(x.id) === String(id));
             if(!q) return;
@@ -894,7 +888,14 @@
             
             document.getElementById('pos-payment').value = q.paymentMethod || 'Dinheiro';
             document.getElementById('pos-discount-type').value = q.discountType || '$';
-            document.getElementById('pos-discount').value = q.discount || 0;
+
+            // CORREÇÃO: Se era porcentagem, o valor salvo é o desconto final em reais.
+            // Para editar, convertemos o R$ de volta para o número da %.
+            if(q.discountType === '%') {
+                document.getElementById('pos-discount').value = q.total > 0 ? ((Number(q.discount) / q.total) * 100).toFixed(2) : 0;
+            } else {
+                document.getElementById('pos-discount').value = q.discount || 0;
+            }
 
             if(q.deliveryAddress) {
                 document.getElementById('pos-custom-address-check').checked = true;
@@ -944,7 +945,8 @@
 
         async function shareQuote(id) {
             let q = STATE.quotes.find(x => String(x.id) === String(id));
-            if (!q) q = STATE.sales.find(x => String(x.id) === String(id)); // Puxa venda se não achar em orçamentos
+            const isVenda = !q;
+            if (!q) q = STATE.sales.find(x => String(x.id) === String(id));
             if (!q) return;
             
             showLoading(true);
@@ -953,12 +955,11 @@
             const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
 
             let subtotal = 0;
-            const itemsHtml = q.items.map((i, index) => {
+            const itemsHtml = q.items.map((i) => {
                 const itemTotal = i.qty * i.price;
                 subtotal += itemTotal;
-                const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
                 return `
-                    <tr style="background-color: ${bgColor};">
+                    <tr>
                         <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
                         <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
                         <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
@@ -966,101 +967,82 @@
                     </tr>`;
             }).join('');
 
-            // FIX: Corrigindo cálculo para desconto % vs R$
-            let valorDesconto = 0;
-            if(q.discountType === '%') {
-                valorDesconto = subtotal * (Number(q.discount) / 100);
-            } else {
-                valorDesconto = Number(q.discount) || 0;
-            }
-            
+            // CORREÇÃO: O Desconto do banco JÁ ESTÁ EM REAIS! 
+            const valorDesconto = Number(q.discount) || 0;
             const finalTotal = subtotal - valorDesconto;
             
             const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
             const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV' 
                             ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
 
-            const isVenda = !!STATE.sales.find(x => String(x.id) === String(id));
             const tituloDoc = isVenda ? "COMPROVANTE DE VENDA" : "ORÇAMENTO";
 
-            const htmlString = `
-                <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
+            // CORREÇÃO DO LAYOUT PDF: Crio o elemento usando AS SUAS CLASSES em um container isolado!
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.width = '210mm'; // Força a largura do A4
+            tempDiv.innerHTML = `
+                <div class="invoice-full">
+                    <div class="header-section">
+                        <div class="logo-area">
+                            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px;" />
+                        </div>
+                        <div class="company-details">
+                            <h2 class="company-title">RV PORTAL MADEIRAS</h2>
+                            <div class="company-info">CNPJ: 30.942.123/0001-02</div>
+                            <div class="company-info">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                        </div>
+                        <div class="doc-meta">
+                            <h2 class="doc-title">${tituloDoc}</h2>
+                            <div class="meta-row"><strong>Nº:</strong> ${q.id}</div>
+                            <div class="meta-row"><strong>Data:</strong> ${formatDate(q.date)}</div>
+                        </div>
                     </div>
-                    <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                        <tr>
-                            <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
-                            </td>
-                            <td valign="middle" style="padding-left: 15px;">
-                                <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                                <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
-                                <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                            </td>
-                            <td align="right" valign="top">
-                                <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">${tituloDoc}</h2>
-                                <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
-                                <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
-                            </td>
-                        </tr>
-                    </table>
-                    <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
-                        <tr>
-                            <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
-                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                                    <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
-                                </div>
-                            </td>
-                            <td width="4%"></td>
-                            <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                                    <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
-                    <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
+                    <div class="info-grid">
+                        <div class="info-col">
+                            <div class="col-header">Dados do Cliente</div>
+                            <div class="col-content">
+                                <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
+                            </div>
+                        </div>
+                        <div class="info-col">
+                            <div class="col-header">Pagamento</div>
+                            <div class="col-content">
+                                <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
+                            </div>
+                        </div>
+                    </div>
+                    <table class="full-table">
                         <thead>
                             <tr>
-                                <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
-                                <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
-                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
-                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
+                                <th align="left">Descrição</th>
+                                <th align="center" width="50">Qtd</th>
+                                <th align="right" width="90">Unit.</th>
+                                <th align="right" width="90">Total</th>
                             </tr>
                         </thead>
                         <tbody>${itemsHtml}</tbody>
                     </table>
-                    <table width="100%" style="margin-top: 10px;">
-                        <tr>
-                            <td valign="top" style="padding-right: 30px;">
-                                <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
-                                    <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                                    <div style="font-size: 10px; color: #334155;">${obsText}</div>
-                                </div>
-                            </td>
-                            <td width="250" valign="top">
-                                <table width="100%" style="font-size: 11px; border-collapse: collapse;">
-                                    <tr>
-                                        <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
-                                        <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
-                                    </tr>
-                                    ${valorDesconto > 0 ? `<tr><td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td><td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(valorDesconto)}</td></tr>` : ''}
-                                    <tr>
-                                        <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL:</td>
-                                        <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                </div>`;
+                    <div class="footer-section">
+                        <div class="notes-area">
+                            <div class="notes-title">Observações:</div>
+                            <div class="notes-text">${obsText}</div>
+                        </div>
+                        <div class="totals-area">
+                            <div class="total-row"><span>Subtotal:</span><span>${formatMoney(subtotal)}</span></div>
+                            ${valorDesconto > 0 ? `<div class="total-row" style="color: red;"><span>Desconto:</span><span>- ${formatMoney(valorDesconto)}</span></div>` : ''}
+                            <div class="total-row final"><span>TOTAL:</span><span>${formatMoney(finalTotal)}</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            // Anexar ao body para que o html2pdf capture as suas regras de <style>
+            document.body.appendChild(tempDiv);
 
             const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
             const opt = {
-                margin: 10, 
+                margin: 0, 
                 filename: filename,
                 image: { type: 'jpeg', quality: 1 },
                 html2canvas: { scale: 2, useCORS: true, letterRendering: true },
@@ -1068,7 +1050,10 @@
             };
 
             try {
-                const pdfBlob = await html2pdf().set(opt).from(htmlString).output('blob');
+                // Seleciona a classe "invoice-full" que acabou de ser criada 
+                const pdfBlob = await html2pdf().set(opt).from(tempDiv.children[0]).output('blob');
+                document.body.removeChild(tempDiv);
+                
                 const file = new File([pdfBlob], filename, { type: 'application/pdf' });
                 
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -1079,12 +1064,13 @@
                     });
                     showLoading(false);
                 } else {
-                    html2pdf().set(opt).from(htmlString).save().then(() => {
+                    html2pdf().set(opt).from(tempDiv.children[0]).save().then(() => {
                         showLoading(false);
                         showToast("PDF Baixado! Seu celular não suporta envio direto.");
                     });
                 }
             } catch (err) {
+                if(document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
                 console.error("Erro PDF", err);
                 showLoading(false);
                 showToast("Falha ao gerar o PDF", true);
@@ -1104,7 +1090,7 @@
             } else {
                 btnVen.className = "flex-1 py-2 rounded-lg text-sm font-black bg-white text-emerald-600 shadow-sm transition-all";
                 btnOrc.className = "flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
-                statusFilter.style.display = 'none'; // Oculta o select de status em vendas
+                statusFilter.style.display = 'none'; 
             }
             renderQuotesList();
         }
@@ -1117,7 +1103,6 @@
             if (!sale) { showLoading(false); return; }
 
             try {
-                // 1. Retornar os itens para o Estoque Físico
                 for (let item of sale.items) {
                     const prod = STATE.products.find(p => p.name === item.name);
                     if(prod) {
@@ -1126,7 +1111,6 @@
                     }
                 }
 
-                // 2. Mudar a label nos logs para 'orcamento'
                 const { error } = await sb.from('logs').update({ tipo: 'orcamento', status: 'ABERTO' }).eq('id', id).eq('tipo', 'venda');
                 if(error) throw error;
                 
@@ -1190,7 +1174,6 @@
             const term = document.getElementById('quote-search')?.value.toLowerCase() || '';
             const statusFilter = document.getElementById('quote-status-filter')?.value || '';
 
-            // Lê de STATE.quotes OU de STATE.sales baseado na aba selecionada
             let baseList = currentDocType === 'orcamento' ? (STATE.quotes || []) : (STATE.sales || []);
             let filteredList = baseList.slice().reverse();
 
@@ -1204,16 +1187,10 @@
             
             list.innerHTML = filteredList.map(q => {
                 
-                // FIX: Calculo Seguro de Desconto % ou R$
-                let valorDesconto = 0;
-                if(q.discountType === '%') {
-                    valorDesconto = q.total * (Number(q.discount) / 100);
-                } else {
-                    valorDesconto = Number(q.discount) || 0;
-                }
+                // CORREÇÃO: Valor de desconto já é lido com valor absoluto salvo no banco
+                const valorDesconto = Number(q.discount) || 0;
                 const valorLiquido = q.total - valorDesconto;
                 
-                // === LAYOUT DE ORÇAMENTO ===
                 if (currentDocType === 'orcamento') {
                     let bgBorderClass = "bg-white border-slate-200";
                     let badgeClass = "bg-slate-100 text-slate-600";
@@ -1254,10 +1231,7 @@
                             </button>
                         </div>
                     </div>`;
-                } 
-                
-                // === LAYOUT DE VENDA ===
-                else {
+                } else {
                     return `
                     <div class="p-4 rounded-2xl border mb-1 shadow-sm bg-slate-50 border-slate-200">
                         <div class="flex justify-between items-start mb-3">
@@ -1290,7 +1264,6 @@
             lucide.createIcons();
         }
 
-        // FIX: Relatório diário blindado no fuso horário local pt-BR
         function showDailyReport() {
             showLoading(true);
             
@@ -1317,13 +1290,8 @@
             
             Object.values(salesMap).forEach(s => {
                 
-                // Tratar o desconto de % se for o caso
-                let descValor = 0;
-                if(s.discountType === '%') {
-                    descValor = s.totalValue * (s.discount / 100);
-                } else {
-                    descValor = s.discount;
-                }
+                // CORREÇÃO: Lê o desconto absoluto
+                const descValor = Number(s.discount) || 0;
                 const valorFinal = s.totalValue - descValor;
 
                 totalVendas += valorFinal;
@@ -1399,7 +1367,6 @@
             lucide.createIcons();
         }
 
-        // FIX: Utilizando função blindada de data para o modal não puxar datas erradas no `<input type="date">`
         function openPeriodReportModal() {
             const hoje = new Date();
             const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
@@ -1415,7 +1382,7 @@
             document.getElementById('modal-period-report').classList.add('hidden');
         }
 
-      function closeReportView() {
+        function closeReportView() {
             const reportView = document.getElementById('view-report-result');
             const reportContent = document.getElementById('report-result-content');
             
@@ -1423,10 +1390,7 @@
                 reportView.classList.remove('flex');
                 reportView.classList.add('hidden');
             }
-            
-            if (reportContent) {
-                reportContent.innerHTML = '';
-            }
+            if (reportContent) reportContent.innerHTML = '';
         }
 
         function showPeriodReport() {
@@ -1466,12 +1430,8 @@
             let totalLiquido = 0; let totalDescontos = 0; let pagamentosMap = {};
             let rowsHtml = filteredSales.map(s => {
                 
-                let descValor = 0;
-                if(s.discountType === '%') {
-                    descValor = s.totalValue * (s.discount / 100);
-                } else {
-                    descValor = s.discount;
-                }
+                // CORREÇÃO: Lê desconto absoluto
+                const descValor = Number(s.discount) || 0;
                 const valorFinal = s.totalValue - descValor;
 
                 totalLiquido += valorFinal; 
@@ -1547,7 +1507,6 @@
             lucide.createIcons();
         }
 
-        // ================= FUNÇÕES DE PRODUTOS =================
         function renderProducts() {
             const list = document.getElementById('prod-list');
             if(!list) return;
@@ -1637,7 +1596,6 @@
             loadData();
         }
 
-        // ================= FUNÇÕES DE CLIENTES (LISTA) =================
         function renderClients() {
             const list = document.getElementById('clients-list');
             if(!list) return;
