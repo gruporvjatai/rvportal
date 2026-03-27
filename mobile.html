@@ -842,11 +842,13 @@
             showToast(name !== 'Consumidor Final' ? `Cliente: ${name}` : "Consumidor Final");
         }
 
-        async function saveQuote() {
+       async function saveQuote() {
             if(!CART.length) return showToast("Adicione produtos primeiro!", true);
             showLoading(true);
 
-            const totals = calculateTotal();
+            const type = document.getElementById('pos-discount-type').value;
+            const valTyped = parseFloat(document.getElementById('pos-discount').value) || 0;
+            
             const cliId = document.getElementById('pos-client').value;
             const clientName = STATE.clients.find(c=>c.id==cliId)?.name || "Consumidor Final";
             
@@ -865,7 +867,7 @@
                 id: budgetId, tipo: 'orcamento', produto_nome: item.name, quantidade: item.qty,
                 data: date, observacao: obs, valor_total: item.total, cliente_nome: clientName, 
                 forma_pagamento: document.getElementById('pos-payment').value, status: 'ABERTO', 
-                desconto: totals.disc, status_financeiro: document.getElementById('pos-discount-type').value, 
+                desconto: valTyped, status_financeiro: type, 
                 endereco_entrega: deliveryAddr, status_entrega: '', qtd_entregue: 0, vencimento: date, valor_pago: 0
             }));
 
@@ -899,6 +901,7 @@
             
             document.getElementById('pos-payment').value = q.paymentMethod || 'Dinheiro';
             document.getElementById('pos-discount-type').value = q.discountType || '$';
+            document.getElementById('pos-discount').value = q.discount || 0; // Puxa exato como tá no banco
 
             // CORREÇÃO: Se era porcentagem, o valor salvo é o desconto final em reais.
             // Para editar, convertemos o R$ de volta para o número da %.
@@ -979,7 +982,7 @@
             }).join('');
 
             // CORREÇÃO: O Desconto do banco JÁ ESTÁ EM REAIS! 
-            const valorDesconto = Number(q.discount) || 0;
+           const valorDesconto = Number(q.absoluteDiscount) || 0;
             const finalTotal = subtotal - valorDesconto;
             
             const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
@@ -1198,8 +1201,8 @@
             
             list.innerHTML = filteredList.map(q => {
                 
-                // CORREÇÃO: Valor de desconto já é lido com valor absoluto salvo no banco
-                const valorDesconto = Number(q.discount) || 0;
+                // Pega o valor real de desconto já calculado na carga de dados
+                const valorDesconto = Number(q.absoluteDiscount) || 0;
                 const valorLiquido = q.total - valorDesconto;
                 
                 if (currentDocType === 'orcamento') {
@@ -1277,33 +1280,18 @@
 
         function showDailyReport() {
             showLoading(true);
-            
             const dataHojeLocal = new Date().toLocaleDateString('pt-BR');
-            let totalVendas = 0;
-            let descontos = 0;
-            let pagamentosMap = {};
-            let rowsHtml = '';
+            let totalVendas = 0; let descontos = 0; let pagamentosMap = {}; let rowsHtml = '';
             
-            const todayLogs = STATE.logs.filter(l => {
-                if (!l.date) return false;
-                const dataLogLocal = new Date(l.date).toLocaleDateString('pt-BR');
-                return dataLogLocal === dataHojeLocal && l.type === 'venda' && l.status !== 'CANCELADO';
+            const todaySales = STATE.sales.filter(s => {
+                if (!s.date) return false;
+                const dataLogLocal = new Date(s.date).toLocaleDateString('pt-BR');
+                return dataLogLocal === dataHojeLocal && s.status !== 'CANCELADO';
             });
 
-            const salesMap = {};
-            
-            todayLogs.forEach(l => {
-                if (!salesMap[l.id]) {
-                    salesMap[l.id] = { id: l.id, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0, discountType: l.finStatus || '$' };
-                }
-                salesMap[l.id].totalValue += Number(l.totalValue) || 0;
-            });
-            
-            Object.values(salesMap).forEach(s => {
-                
-                // CORREÇÃO: Lê o desconto absoluto
-                const descValor = Number(s.discount) || 0;
-                const valorFinal = s.totalValue - descValor;
+            todaySales.forEach(s => {
+                const descValor = Number(s.absoluteDiscount) || 0;
+                const valorFinal = s.total - descValor;
 
                 totalVendas += valorFinal;
                 descontos += descValor;
@@ -1330,34 +1318,30 @@
                 </div>
             `).join('');
 
-            if (Object.keys(salesMap).length === 0) {
+            if (todaySales.length === 0) {
                 rowsHtml = '<div class="text-center p-6 text-slate-400 font-bold">Nenhuma venda registrada hoje.</div>';
             }
 
             const el = document.getElementById('report-result-content');
-            
             el.innerHTML = `
                 <div class="max-w-md mx-auto">
                     <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
                         <h3 class="font-black text-xl text-emerald-600 mb-1">FATURAMENTO DIÁRIO</h3>
                         <p class="text-xs font-bold text-slate-500">${dataHojeLocal}</p>
                     </div>
-                    
                     <div class="mb-4">
                         <h4 class="font-bold text-slate-700 mb-2 uppercase text-xs">Vendas do Dia</h4>
                         ${rowsHtml}
                     </div>
-
                     <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4">
                         <h4 class="font-bold text-slate-700 mb-3 border-b pb-2 uppercase text-xs">Métodos de Pagamento</h4>
                         ${pgtoRowsHtml}
                     </div>
-
                     <div class="bg-slate-900 p-5 rounded-2xl shadow-lg mb-8 text-white">
                         <h4 class="font-bold text-slate-400 mb-3 uppercase text-xs">Resumo do Dia</h4>
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-sm">Qtd. Vendas:</span>
-                            <span class="text-sm font-bold">${Object.keys(salesMap).length}</span>
+                            <span class="text-sm font-bold">${todaySales.length}</span>
                         </div>
                         ${descontos > 0 ? `
                         <div class="flex justify-between items-center mb-1 text-red-400">
@@ -1411,15 +1395,8 @@
             const payment = document.getElementById('rep-per-payment').value;
             const client = document.getElementById('rep-per-client').value.toLowerCase().trim();
 
-            const salesMap = {};
-            STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
-                if (!salesMap[l.id]) {
-                    salesMap[l.id] = { id: l.id, date: l.date, clientName: l.clientName || 'Consumidor Final', paymentMethod: l.paymentMethod || 'Não Informado', discount: Number(l.discount) || 0, totalValue: 0, discountType: l.finStatus || '$' };
-                }
-                salesMap[l.id].totalValue += Number(l.totalValue) || 0;
-            });
+            let filteredSales = STATE.sales.filter(s => s.status !== 'CANCELADO');
 
-            let filteredSales = Object.values(salesMap);
             if (start) {
                 const startD = new Date(start + "T00:00:00");
                 filteredSales = filteredSales.filter(s => new Date(s.date) >= startD);
@@ -1440,10 +1417,8 @@
 
             let totalLiquido = 0; let totalDescontos = 0; let pagamentosMap = {};
             let rowsHtml = filteredSales.map(s => {
-                
-                // CORREÇÃO: Lê desconto absoluto
-                const descValor = Number(s.discount) || 0;
-                const valorFinal = s.totalValue - descValor;
+                const descValor = Number(s.absoluteDiscount) || 0;
+                const valorFinal = s.total - descValor;
 
                 totalLiquido += valorFinal; 
                 totalDescontos += descValor;
@@ -1474,24 +1449,20 @@
 
             const filtroTexto = `${start ? formatDate(start) : 'Início'} até ${end ? formatDate(end) : 'Hoje'} <br> Pgto: ${payment} ${client ? '| Cliente: ' + client : ''}`;
             const el = document.getElementById('report-result-content');
-            
             el.innerHTML = `
                 <div class="max-w-md mx-auto">
                     <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
                         <h3 class="font-black text-xl text-indigo-600 mb-2">VENDAS POR PERÍODO</h3>
                         <div class="bg-indigo-50 p-2 rounded-lg text-[11px] font-bold text-indigo-800">${filtroTexto}</div>
                     </div>
-                    
                     <div class="mb-4">
                         <h4 class="font-bold text-slate-700 mb-2 uppercase text-xs">Vendas Filtradas</h4>
                         ${rowsHtml}
                     </div>
-
                     <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4">
                         <h4 class="font-bold text-slate-700 mb-3 border-b pb-2 uppercase text-xs">Métodos de Pagamento</h4>
                         ${pgtoRowsHtml}
                     </div>
-
                     <div class="bg-slate-900 p-5 rounded-2xl shadow-lg mb-8 text-white">
                         <h4 class="font-bold text-slate-400 mb-3 uppercase text-xs">Resumo do Período</h4>
                         <div class="flex justify-between items-center mb-1">
