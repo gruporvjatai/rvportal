@@ -957,118 +957,154 @@
             loadData();
         }
 
-        async function shareQuote(id) {
-            let q = STATE.quotes.find(x => String(x.id) === String(id));
-            const isVenda = !q;
-            if (!q) q = STATE.sales.find(x => String(x.id) === String(id));
-            if (!q) return;
+       async function shareQuote(id) {
+    let q = STATE.quotes.find(x => String(x.id) === String(id));
+    const isVenda = !q;
+    if (!q) q = STATE.sales.find(x => String(x.id) === String(id));
+    if (!q) return;
+    
+    showLoading(true);
+
+    const clientName = q.clientName || 'Consumidor Final';
+    const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+
+    // Para VENDAS: reconstruir o valor bruto por item (igual ao reprintSale do desktop)
+    // Para ORÇAMENTOS: usar os valores diretamente (já são brutos)
+    let itemsParaRender = q.items;
+    let valorDesconto = Number(q.absoluteDiscount) || 0;
+
+    if (isVenda) {
+        const netTotal = q.items.reduce((acc, i) => acc + i.total, 0);
+        const grossTotal = netTotal + valorDesconto;
+        const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
+        itemsParaRender = q.items.map(i => ({
+            name: i.name,
+            qty: i.qty,
+            price: i.qty > 0 ? (i.total * fator / i.qty) : 0,
+            total: i.total * fator
+        }));
+    }
+
+    let subtotal = 0;
+    const itemsHtml = itemsParaRender.map((i) => {
+        const itemTotal = i.qty * i.price;
+        subtotal += itemTotal;
+        return `
+            <tr>
+                <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
+                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
+                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
+                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
+            </tr>`;
+    }).join('');
+
+    const finalTotal = subtotal - valorDesconto;
+    const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
+    const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV'
+                    ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    const tituloDoc = isVenda ? "COMPROVANTE DE VENDA" : "ORÇAMENTO";
+
+    const htmlString = `
+        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
             
-            showLoading(true);
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
+                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
+            </div>
 
-            const clientName = q.clientName || 'Consumidor Final';
-            const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                <tr>
+                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
+                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
+                    </td>
+                    <td valign="middle" style="padding-left: 15px;">
+                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
+                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
+                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                    </td>
+                    <td align="right" valign="top">
+                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">${tituloDoc}</h2>
+                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
+                        <div style="font-size: 11px;"><strong>Data:</strong> ${formatDate(q.date)}</div>
+                    </td>
+                </tr>
+            </table>
 
-            let subtotal = 0;
-            const itemsHtml = q.items.map((i) => {
-                const itemTotal = i.qty * i.price;
-                subtotal += itemTotal;
-                return `
+            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
+                <tr>
+                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
+                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                            <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
+                        </div>
+                    </td>
+                    <td width="4%"></td>
+                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
+                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                            <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
+                <thead>
                     <tr>
-                        <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
-                        <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
-                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
-                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
-                    </tr>`;
-            }).join('');
+                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px;">Descrição</th>
+                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 50px;">Qtd</th>
+                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Unit.</th>
+                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
 
-            const valorDesconto = Number(q.absoluteDiscount) || 0;
-            // Para vendas: subtotal dos itens já é líquido (desconto pré-aplicado por item via fator no finalizeSale).
-            // Para orçamentos: subtotal dos itens é bruto, e o desconto deve ser subtraído.
-            const grossSubtotal = isVenda ? (subtotal + valorDesconto) : subtotal;
-            const finalTotal = isVenda ? subtotal : Math.max(0, subtotal - valorDesconto);
-            
-            const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
-            const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV' 
-                            ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
-
-            const tituloDoc = isVenda ? "COMPROVANTE DE VENDA" : "ORÇAMENTO";
-
-            const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            tempDiv.style.width = '210mm';
-            tempDiv.innerHTML = `
-                <div class="invoice-full">
-                    <div class="header-section">
-                        <div class="logo-area">
-                            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px;" />
+            <table width="100%" style="margin-top: 10px;">
+                <tr>
+                    <td valign="top" style="padding-right: 30px;">
+                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
+                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
+                            <div style="font-size: 10px; color: #334155;">${obsText}</div>
                         </div>
-                        <div class="company-details">
-                            <h2 class="company-title">RV PORTAL MADEIRAS</h2>
-                            <div class="company-info">CNPJ: 30.942.123/0001-02</div>
-                            <div class="company-info">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                        </div>
-                        <div class="doc-meta">
-                            <h2 class="doc-title">${tituloDoc}</h2>
-                            <div class="meta-row"><strong>Nº:</strong> ${q.id}</div>
-                            <div class="meta-row"><strong>Data:</strong> ${formatDate(q.date)}</div>
-                        </div>
-                    </div>
-                    <div class="info-grid">
-                        <div class="info-col">
-                            <div class="col-header">Dados do Cliente</div>
-                            <div class="col-content">
-                                <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
-                            </div>
-                        </div>
-                        <div class="info-col">
-                            <div class="col-header">Pagamento</div>
-                            <div class="col-content">
-                                <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
-                            </div>
-                        </div>
-                    </div>
-                    <table class="full-table">
-                        <thead>
+                    </td>
+                    <td width="250" valign="top">
+                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
                             <tr>
-                                <th align="left">Descrição</th>
-                                <th align="center" width="50">Qtd</th>
-                                <th align="right" width="90">Unit.</th>
-                                <th align="right" width="90">Total</th>
+                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
+                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
                             </tr>
-                        </thead>
-                        <tbody>${itemsHtml}</tbody>
-                    </table>
-                    <div class="footer-section">
-                        <div class="notes-area">
-                            <div class="notes-title">Observações:</div>
-                            <div class="notes-text">${obsText}</div>
-                        </div>
-                        <div class="totals-area">
-                            <div class="total-row"><span>Subtotal:</span><span>${formatMoney(grossSubtotal)}</span></div>
-                            ${valorDesconto > 0 ? `<div class="total-row" style="color: red;"><span>Desconto:</span><span>- ${formatMoney(valorDesconto)}</span></div>` : ''}
-                            <div class="total-row final"><span>TOTAL:</span><span>${formatMoney(finalTotal)}</span></div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(tempDiv);
+                            ${valorDesconto > 0 ? `
+                            <tr>
+                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
+                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(valorDesconto)}</td>
+                            </tr>` : ''}
+                            <tr>
+                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">TOTAL A PAGAR:</td>
+                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">${formatMoney(finalTotal)}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    `;
 
-            const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
-            const opt = {
-                margin: 0, 
-                filename: filename,
-                image: { type: 'jpeg', quality: 1 },
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
+    const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+    const opt = {
+        margin: 10,
+        filename: filename,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
 
+    try {
+        setTimeout(async () => {
             try {
-                const pdfBlob = await html2pdf().set(opt).from(tempDiv.children[0]).output('blob');
-                document.body.removeChild(tempDiv);
-                
+                const pdfBlob = await html2pdf().set(opt).from(htmlString).output('blob');
+
                 const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-                
+
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     await navigator.share({
                         title: `${tituloDoc} #${q.id}`,
@@ -1077,18 +1113,22 @@
                     });
                     showLoading(false);
                 } else {
-                    html2pdf().set(opt).from(tempDiv.children[0]).save().then(() => {
-                        showLoading(false);
-                        showToast("PDF Baixado! Seu celular não suporta envio direto.");
-                    });
+                    await html2pdf().set(opt).from(htmlString).save();
+                    showLoading(false);
+                    showToast("PDF Baixado! Seu celular não suporta envio direto.");
                 }
             } catch (err) {
-                if(document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
                 console.error("Erro PDF", err);
                 showLoading(false);
                 showToast("Falha ao gerar o PDF", true);
             }
-        }
+        }, 500);
+    } catch (err) {
+        showLoading(false);
+        showToast("Falha ao gerar o PDF", true);
+    }
+}
+
 
         function setDocType(type) {
             currentDocType = type;
