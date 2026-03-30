@@ -2619,8 +2619,8 @@
 
         function renderInvoice(sale, isQuote) {
             const el = document.getElementById('print-area');
-            const title = isQuote ? "ORÇAMENTO" : "VENDA / PEDIDO";
-            const clientName = sale.clientName || 'Consumidor Final';
+            const title = isQuote ? "ORÇAMENTO" : "PEDIDO DE VENDA";
+            const clientName = sale.clientName || 'CONSUMIDOR FINAL';
             const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
 
             let subtotal = 0;
