@@ -1002,7 +1002,7 @@
     const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
     const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV'
                     ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
-    const tituloDoc = isVenda ? "COMPROVANTE DE VENDA" : "ORÇAMENTO";
+    const tituloDoc = isVenda ? "PEDIDO DE VENDA" : "ORÇAMENTO";
 
     const htmlString = `
         <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
