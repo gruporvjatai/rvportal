@@ -1278,8 +1278,7 @@
             let logsToInsert = [];
 
             for(let item of CART) {
-                // AQUI ESTÁ A CORREÇÃO: 
-                // Agora o sistema encontra o produto pelo ID (venda normal) OU pelo Nome (se veio de um Orçamento)
+                // Lógica corrigida para encontrar o produto pelo ID ou Nome
                 const prod = STATE.products.find(p => p.id == item.prodId || String(p.name).trim() === String(item.name).trim());
                 
                 if(prod) {
@@ -1287,7 +1286,6 @@
                     let committed = Number(prod.committed) || 0;
                     let updatePayload = {};
 
-                    // Se for pronta entrega, abate do físico. Senão, aumenta o comprometido (o que reduz o Disponível na tela)
                     if (isProntaEntrega) {
                         updatePayload = { estoque_fisico: Math.max(0, physical - Number(item.qty)) };
                     } else {
@@ -1307,7 +1305,7 @@
                     observacao: customObs ? customObs : (isProntaEntrega ? 'Pronta Entrega PDV' : 'Venda PDV'), 
                     valor_total: (item.total * fator),
                     cliente_nome: clientName, forma_pagamento: payment, status: 'ATIVO',
-                    status_entrega: statusEntrega, qtdEntregue: qtdEntregue, desconto: totals.disc,
+                    status_entrega: statusEntrega, qtd_entregue: qtdEntregue, desconto: totals.disc, // <-- ERRO CORRIGIDO AQUI
                     status_financeiro: 'A RECEBER', vencimento: dueDate.toISOString(),
                     valor_pago: 0, endereco_entrega: deliveryAddr
                 });
@@ -1337,6 +1335,8 @@
             
             if (isProntaEntrega) { navigate('pos'); } else { navigate('expedition'); }
         }
+
+  
   
         async function saveQuote() {
             if(!CART.length) return showToast("Vazio!", true);
