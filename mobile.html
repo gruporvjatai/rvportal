@@ -1384,11 +1384,11 @@
                             <span class="text-sm">Qtd. Vendas:</span>
                             <span class="text-sm font-bold">${todaySales.length}</span>
                         </div>
-                        ${descontos > 0 ? `
+                      <!--  ${descontos > 0 ? `
                         <div class="flex justify-between items-center mb-1 text-red-400">
                             <span class="text-sm">Descontos Totais:</span>
                             <span class="text-sm font-bold">- ${formatMoney(descontos)}</span>
-                        </div>` : ''}
+                        </div>` : ''} -->
                         <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
                             <span class="font-black text-lg">LÍQUIDO:</span>
                             <span class="font-black text-2xl text-emerald-400">${formatMoney(totalVendas)}</span>
@@ -1511,11 +1511,11 @@
                             <span class="text-sm">Qtd. Vendas:</span>
                             <span class="text-sm font-bold">${filteredSales.length}</span>
                         </div>
-                        ${totalDescontos > 0 ? `
+                        <!--${totalDescontos > 0 ? `
                         <div class="flex justify-between items-center mb-1 text-red-400">
                             <span class="text-sm">Descontos Totais:</span>
                             <span class="text-sm font-bold">- ${formatMoney(totalDescontos)}</span>
-                        </div>` : ''}
+                        </div>` : ''} -->
                         <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
                             <span class="font-black text-lg">LÍQUIDO:</span>
                             <span class="font-black text-2xl text-indigo-400">${formatMoney(totalLiquido)}</span>
