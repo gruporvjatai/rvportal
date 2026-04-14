@@ -175,6 +175,58 @@
           <div id="clients-list" class="flex flex-col gap-2"></div>
       </div>
 
+      <!-- ==================== NOVA ABA CAIXA (FINANCEIRO) ==================== -->
+      <div id="view-fin" class="hidden-section">
+          <div class="flex justify-between items-center mb-5">
+              <h2 class="text-xl font-bold text-slate-800">Financeiro / Caixa</h2>
+              <button onclick="document.getElementById('exp-id').value=''; document.getElementById('modal-expense').classList.remove('hidden')" class="bg-red-500 active:bg-red-600 text-white text-xs px-3 py-2 rounded-lg font-bold shadow-md flex items-center gap-1"><i data-lucide="plus"></i> Nova Despesa</button>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-3 mb-8">
+              <div class="col-span-2 bg-slate-800 p-5 rounded-2xl shadow-md text-white flex justify-between items-center relative overflow-hidden">
+                  <div class="relative z-10">
+                      <p class="text-[10px] font-bold uppercase mb-1 text-slate-400 tracking-wider">Saldo em Caixa</p>
+                      <h3 id="fin-balance" class="text-3xl font-black text-white">R$ 0,00</h3>
+                  </div>
+                  <i data-lucide="wallet" class="w-12 h-12 text-slate-700 absolute right-4 -bottom-2 z-0 transform rotate-[-15deg]"></i>
+              </div>
+              <div class="bg-green-50 p-4 rounded-2xl border border-green-200 shadow-sm flex flex-col justify-center">
+                  <p class="text-green-800 text-[10px] font-bold uppercase mb-1">Entradas Pagas</p>
+                  <h3 id="fin-income" class="text-lg font-bold text-green-700 truncate">R$ 0,00</h3>
+              </div>
+              <div class="bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm flex flex-col justify-center">
+                  <p class="text-red-800 text-[10px] font-bold uppercase mb-1">Saídas Pagas</p>
+                  <h3 id="fin-expenses" class="text-lg font-bold text-red-700 truncate">R$ 0,00</h3>
+              </div>
+          </div>
+
+          <h3 class="font-bold text-slate-800 mb-4 text-sm flex items-center gap-2"><i data-lucide="alert-circle" class="w-4 h-4 text-orange-500"></i> Gestão de Pendências</h3>
+          
+          <div class="mb-5">
+              <h4 class="text-xs font-black text-green-700 uppercase tracking-wider mb-2 ml-1 flex items-center gap-1"><i data-lucide="arrow-down-to-line" class="w-3 h-3"></i> A Receber (Vendas)</h4>
+              <div id="fin-receivables-list" class="flex flex-col gap-3"></div>
+          </div>
+
+          <div class="mb-8">
+              <h4 class="text-xs font-black text-red-700 uppercase tracking-wider mb-2 ml-1 flex items-center gap-1"><i data-lucide="arrow-up-from-line" class="w-3 h-3"></i> A Pagar (Despesas)</h4>
+              <div id="fin-payables-list" class="flex flex-col gap-3"></div>
+          </div>
+
+          <h3 class="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2 pt-6 border-t border-slate-200"><i data-lucide="list" class="w-4 h-4 text-slate-500"></i> Extrato de Caixa</h3>
+          <div class="flex gap-2 mb-4 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
+              <div class="flex-1">
+                  <label class="block text-[9px] font-bold text-slate-400 uppercase ml-1">De</label>
+                  <input type="date" id="fin-ext-start" class="w-full p-1.5 bg-transparent text-xs outline-none" onchange="renderFinance()">
+              </div>
+              <div class="w-px bg-slate-200 my-1"></div>
+              <div class="flex-1">
+                  <label class="block text-[9px] font-bold text-slate-400 uppercase ml-1">Até</label>
+                  <input type="date" id="fin-ext-end" class="w-full p-1.5 bg-transparent text-xs outline-none" onchange="renderFinance()">
+              </div>
+          </div>
+          <div id="fin-extrato-list" class="flex flex-col gap-3 pb-6"></div>
+      </div>
+
     </main>
 
     <div id="view-pos" class="hidden fixed inset-0 bg-slate-50 z-[60] flex-col animate-[fadeIn_0.2s]">
@@ -350,6 +402,100 @@
     </div>
     </div>
 
+    <!-- Modal de Baixa de Recebimento -->
+    <div id="modal-receivable-edit" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] animate-[fadeIn_0.3s_ease-out]">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl sm:rounded-t-2xl">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="check-circle" class="text-green-600"></i> Baixar Recebimento</h3>
+                <button onclick="document.getElementById('modal-receivable-edit').classList.add('hidden')" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto flex-1">
+                <input type="hidden" id="rec-id">
+                <div class="flex justify-between items-center bg-slate-100 p-4 rounded-xl border border-slate-200">
+                    <div class="text-center">
+                        <span class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Total Venda</span>
+                        <span id="rec-total-lbl" class="text-indigo-700 font-black text-sm"></span>
+                    </div>
+                    <div class="w-px h-8 bg-slate-300"></div>
+                    <div class="text-center">
+                        <span class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Falta Pagar</span>
+                        <span id="rec-pending-lbl" class="text-red-600 font-black text-sm"></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Forma de Pagamento</label>
+                    <select id="rec-method" class="w-full p-3 border rounded-xl outline-none bg-slate-50">
+                        <option>PIX</option>
+                        <option>Dinheiro</option>
+                        <option>Transferência</option>
+                        <option>Cartão Crédito</option>
+                        <option>Cartão Débito</option>
+                        <option>Boleto</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-green-700 uppercase mb-1">Valor Recebido (R$)</label>
+                    <input type="number" id="rec-pay-val" placeholder="0.00" class="w-full p-4 border-2 border-green-200 rounded-xl font-black text-2xl focus:border-green-500 outline-none text-green-700 bg-green-50 text-center">
+                </div>
+            </div>
+            <div class="p-5 border-t bg-white pb-8 sm:pb-5">
+                <button onclick="saveReceivableEdit()" class="w-full p-4 bg-green-600 rounded-xl font-bold text-white active:bg-green-700 shadow-lg flex justify-center gap-2"><i data-lucide="check-circle"></i> Confirmar Baixa</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Despesa -->
+    <div id="modal-expense" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] animate-[fadeIn_0.3s_ease-out]">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl sm:rounded-t-2xl">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="minus-circle" class="text-red-500"></i> Registrar Saída</h3>
+                <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto flex-1">
+                 <input type="hidden" id="exp-id"> 
+                 <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                    <select id="exp-item" class="w-full p-3 border rounded-xl focus:border-red-500 outline-none bg-slate-50">
+                        <option value="Fornecedor">Fornecedor</option>
+                        <option value="Salário">Salário</option>
+                        <option value="Energia">Energia</option>
+                        <option value="Água">Água</option>
+                        <option value="Internet">Internet</option>
+                        <option value="Imposto">Imposto</option>
+                        <option value="Sistema">Sistema</option>
+                        <option value="Contabilidade">Contabilidade</option>
+                        <option value="Combustível">Combustível</option>
+                        <option value="Man. Maquinas">Man. Máquinas</option>
+                        <option value="Juros/Taxas">Juros/Taxas</option>
+                        <option value="Veículos">Veículos</option>
+                        <option value="Marcenaria">Marcenaria</option>
+                        <option value="Instalação">Instalação</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Fornecedor / Nome</label>
+                    <input type="text" id="exp-provider" placeholder="Nome..." class="w-full p-3 border rounded-xl focus:border-red-500 outline-none bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Valor (R$)</label>
+                    <input type="number" id="exp-cost" placeholder="0.00" class="w-full p-3 border rounded-xl font-bold text-red-600 focus:border-red-500 outline-none bg-slate-50 text-lg">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Data de Vencimento</label>
+                    <input type="date" id="exp-date" class="w-full p-3 border rounded-xl focus:border-red-500 outline-none bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Observação</label>
+                    <input type="text" id="exp-note" placeholder="NF, Detalhes..." class="w-full p-3 border rounded-xl focus:border-red-500 outline-none bg-slate-50">
+                </div>
+            </div>
+            <div class="p-5 border-t bg-white pb-8 sm:pb-5">
+                <button onclick="saveExpense()" class="w-full p-4 bg-red-600 rounded-xl font-bold text-white active:bg-red-700 shadow-lg flex justify-center gap-2"><i data-lucide="save"></i> Salvar Pendente</button>
+            </div>
+        </div>
+    </div>
+
     <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-40 flex justify-around items-center pb-safe" style="padding-bottom: env(safe-area-inset-bottom);">
         <button onclick="navigate('quotes')" id="nav-quotes" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
             <i data-lucide="folder-open" class="mb-1 w-6 h-6"></i>
@@ -358,6 +504,10 @@
         <button onclick="navigate('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
             <i data-lucide="file-text" class="mb-1 w-6 h-6"></i>
             <span class="text-[10px] uppercase font-medium">Relatórios</span>
+        </button>
+        <button onclick="navigate('fin')" id="nav-fin" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="wallet" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Caixa</span>
         </button>
         <button onclick="navigate('prod')" id="nav-prod" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
             <i data-lucide="package" class="mb-1 w-6 h-6"></i>
@@ -443,6 +593,10 @@
             return `${y}-${m}-${d}`;
         }
 
+        function getHojeLocalStr() {
+            return new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        }
+
         let dadosUsuario = null;
         const userSessao = localStorage.getItem('rv_user');
 
@@ -482,6 +636,7 @@
             if(viewId === 'quotes') renderQuotesList();            
             if(viewId === 'prod') renderProducts();
             if(viewId === 'clients') renderClients();
+            if(viewId === 'fin') renderFinance();
             
             lucide.createIcons();
             window.scrollTo(0, 0); 
@@ -513,6 +668,8 @@
             array2.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
             return max + 1;
         }
+
+        function gerarUid() { return Math.floor(Date.now() * 100 + Math.random() * 100).toString(); }
 
         async function fetchAllRecords(table) {
             let allRecords = [];
@@ -584,35 +741,31 @@
                         salesMap[qId].total += Number(l.valor_total);
                     }
                     
-                    if (l.tipo !== 'orcamento') {
-                        STATE.logs.push({
-                            uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
-                            date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
-                            clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
-                            finStatus: l.status_financeiro, dueDate: l.vencimento, paidValue: Number(l.valor_pago),
-                            discount: Number(l.desconto)
-                        });
-                    }
+                    STATE.logs.push({
+                        uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
+                        date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
+                        clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
+                        finStatus: l.status_financeiro, dueDate: l.vencimento, paidValue: Number(l.valor_pago),
+                        discount: Number(l.desconto), deliveryAddress: l.endereco_entrega
+                    });
                 });
                 
                 STATE.quotes = Object.values(quotesMap).map(q => { 
                     q.itemsText = q.items.map(i => `${i.qty}x ${i.name}`).join(', '); 
-                    // Para orçamentos: total é bruto, absoluteDiscount é o desconto a subtrair
                     q.absoluteDiscount = q.discountType === '%' ? q.total * (q.discount / 100) : q.discount;
                     return q; 
                 });
                 
                 STATE.sales = Object.values(salesMap).map(s => { 
                     s.itemsText = s.items.map(i => `${i.qty}x ${i.name}`).join(', ');
-                    // Para vendas: total JÁ É LÍQUIDO (desconto aplicado por item no finalizeSale via fator).
-                    // absoluteDiscount armazena o valor do desconto apenas para exibição.
                     s.absoluteDiscount = Number(s.discount) || 0;
                     return s; 
                 });
                 
                 STATE.expenses = (resDesp.data || []).map(e => ({
                     id: e.id, item: e.item, quantity: Number(e.quantidade), cost: Number(e.custo), 
-                    date: e.data, status: e.status || 'PENDENTE'
+                    date: e.data, note: e.observacao, status: e.status || 'PENDENTE',
+                    provider: e.observacao ? (e.observacao.startsWith('Fornecedor:') ? e.observacao.replace('Fornecedor:', '').trim() : '') : ''
                 }));
 
                 onDataLoaded();
@@ -633,6 +786,331 @@
             showLoading(false);
         }
 
+        // ==================== FUNÇÕES DO FINANCEIRO (CAIXA) ====================
+        function renderFinance() {
+            const hojeLocalStr = getHojeLocalStr();
+            
+            // Agrupar vendas e receitas por ID
+            const receivablesMap = {};
+            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+                if(!receivablesMap[l.id]) {
+                    receivablesMap[l.id] = { 
+                        id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date, 
+                        clientName: l.clientName, payment: l.paymentMethod, dueDate: l.dueDate,
+                        desc: l.type === 'receita' ? l.productName : `Venda #${l.id}`
+                    };
+                }
+                receivablesMap[l.id].val += Number(l.totalValue) || 0;
+                receivablesMap[l.id].paid = Math.max(receivablesMap[l.id].paid, Number(l.paidValue) || 0);
+            });
+            
+            let receivablesArr = Object.values(receivablesMap);
+            
+            // Calcular totais para os cards
+            const totalRecebido = receivablesArr.filter(r => r.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
+                                 receivablesArr.filter(r => r.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+            
+            const totalDespesasPagas = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
+            
+            document.getElementById('fin-income').innerText = formatMoney(totalRecebido);
+            document.getElementById('fin-expenses').innerText = formatMoney(totalDespesasPagas);
+            document.getElementById('fin-balance').innerText = formatMoney(totalRecebido - totalDespesasPagas);
+
+            // Lista A Receber (Pendentes)
+            const recBody = document.getElementById('fin-receivables-list');
+            let recHtml = '';
+            
+            receivablesArr.filter(r => r.status !== 'PAGO' && (r.val - r.paid) > 0).forEach(r => {
+                const falta = r.val - r.paid;
+                const dataVencStr = (r.dueDate||'').split('T')[0];
+                const isVencido = dataVencStr < hojeLocalStr;
+                
+                recHtml += `
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${isVencido ? 'border-l-red-500' : 'border-l-green-500'} relative">
+                    <div class="flex-1 pr-2">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">${r.desc} ${isVencido ? '<span class="text-red-500 ml-1">VENCIDO</span>' : ''}</span>
+                        <h4 class="font-bold text-slate-700 text-sm leading-tight">${r.clientName}</h4>
+                        <p class="text-[10px] text-slate-500 mt-1">Venc: ${formatDate(r.dueDate)} | ${r.payment || '-'}</p>
+                        <p class="text-[10px] text-red-600 font-bold mt-1">Falta: ${formatMoney(falta)}</p>
+                    </div>
+                    <button onclick="openBaixaReceita('${r.id}', ${r.val}, ${r.paid})" class="bg-green-100 text-green-700 hover:bg-green-200 active:bg-green-300 text-[10px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Baixar</button>
+                </div>`;
+            });
+            
+            recBody.innerHTML = recHtml || `<div class="text-center text-slate-400 text-xs py-3 bg-slate-100 rounded-xl border border-dashed border-slate-300">Não há contas a receber.</div>`;
+
+            // Lista A Pagar (Despesas Pendentes)
+            const payBody = document.getElementById('fin-payables-list');
+            let payHtml = '';
+            
+            STATE.expenses.filter(e => e.status !== 'PAGO').forEach(e => {
+                const dataVencStr = (e.date||'').split('T')[0];
+                const isVencido = dataVencStr < hojeLocalStr;
+                
+                payHtml += `
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${isVencido ? 'border-l-red-500' : 'border-l-red-500'} relative">
+                    <div class="flex-1 pr-2">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">${formatDate(e.date)} ${isVencido ? '<span class="text-red-500 ml-1">VENCIDO</span>' : ''}</span>
+                        <h4 class="font-bold text-slate-700 text-sm leading-tight">${e.item}</h4>
+                        <p class="text-[10px] text-slate-500 truncate">${e.provider || e.note || '-'}</p>
+                        <p class="text-[10px] text-red-600 font-bold mt-1">Pagar: ${formatMoney(e.cost)}</p>
+                    </div>
+                    <div class="flex gap-1.5 items-center">
+                        <button onclick="openEditExpense('${e.id}')" class="p-2 bg-slate-100 text-slate-600 rounded-lg active:bg-slate-200"><i data-lucide="edit-3" class="w-3 h-3"></i></button>
+                        <button onclick="payExpense('${e.id}')" class="bg-red-100 text-red-700 active:bg-red-200 text-[10px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Pagar</button>
+                    </div>
+                </div>`;
+            });
+            
+            payBody.innerHTML = payHtml || `<div class="text-center text-slate-400 text-xs py-3 bg-slate-100 rounded-xl border border-dashed border-slate-300">Não há contas a pagar.</div>`;
+
+            // Extrato de Caixa (Recebimentos + Despesas Pagas)
+            const extBody = document.getElementById('fin-extrato-list');
+            let extrato = [];
+            
+            // Recebimentos
+            STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO').forEach(l => {
+                extrato.push({ 
+                    type: 'in', 
+                    date: l.date, 
+                    title: l.note || 'Recebimento', 
+                    desc: l.paymentMethod || '-', 
+                    val: l.totalValue, 
+                    uid: l.uid,
+                    refId: l.id
+                });
+            });
+            
+            // Despesas pagas (via logs de despesa)
+            STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO').forEach(l => {
+                const exp = STATE.expenses.find(e => String(e.id) === String(l.productName));
+                extrato.push({ 
+                    type: 'out', 
+                    date: l.date, 
+                    title: exp ? exp.item : 'Despesa', 
+                    desc: l.note || '-', 
+                    val: l.totalValue, 
+                    uid: l.uid,
+                    refId: l.productName
+                });
+            });
+
+            const startDate = document.getElementById('fin-ext-start')?.value;
+            const endDate = document.getElementById('fin-ext-end')?.value;
+            
+            if(startDate) extrato = extrato.filter(i => new Date(i.date) >= new Date(startDate + 'T00:00:00'));
+            if(endDate) extrato = extrato.filter(i => new Date(i.date) <= new Date(endDate + 'T23:59:59'));
+            
+            extrato.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            extBody.innerHTML = extrato.length ? extrato.map(i => `
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+                    <div class="flex-1 pr-2">
+                        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${formatDate(i.date)}</span>
+                        <h4 class="text-xs font-bold text-slate-700 leading-tight">${i.title}</h4>
+                        <p class="text-[10px] text-slate-500 truncate mt-0.5">${i.desc}</p>
+                    </div>
+                    <div class="flex flex-col items-end gap-1.5">
+                        <span class="font-black text-sm ${i.type === 'in' ? 'text-green-600' : 'text-red-600'}">${i.type === 'in' ? '+' : '-'} ${formatMoney(i.val)}</span>
+                        <button onclick="${i.type === 'in' ? `estornarRecebimento('${i.uid}')` : `estornarDespesaLog('${i.refId}')`}" class="text-[9px] font-bold text-slate-400 uppercase bg-slate-50 border border-slate-200 py-1 px-2 rounded active:bg-red-50 active:text-red-500">Estornar</button>
+                    </div>
+                </div>
+            `).join('') : `<div class="text-center text-slate-400 text-xs py-4">Nenhuma movimentação no período.</div>`;
+
+            lucide.createIcons();
+        }
+
+        function openBaixaReceita(id, total, paid) {
+            document.getElementById('rec-id').value = id;
+            document.getElementById('rec-total-lbl').innerText = formatMoney(total);
+            document.getElementById('rec-pending-lbl').innerText = formatMoney(total - paid);
+            document.getElementById('rec-pay-val').value = '';
+            document.getElementById('modal-receivable-edit').classList.remove('hidden');
+        }
+
+        async function saveReceivableEdit() {
+            const id = document.getElementById('rec-id').value;
+            const method = document.getElementById('rec-method').value;
+            const payVal = Number(document.getElementById('rec-pay-val').value) || 0;
+            
+            if(payVal <= 0) return showToast("Insira um valor maior que zero", true);
+            showLoading(true);
+
+            try {
+                const rowsToUpdate = STATE.logs.filter(l => String(l.id) === String(id) && (l.type === 'venda' || l.type === 'receita'));
+                if(!rowsToUpdate.length) throw new Error("Registro não encontrado");
+
+                let orderTotal = rowsToUpdate.reduce((acc, r) => acc + r.totalValue, 0);
+                let orderPaid = rowsToUpdate.reduce((acc, r) => Math.max(acc, r.paidValue), 0);
+                let newOrderPaid = orderPaid + payVal;
+                let finStatus = newOrderPaid >= orderTotal ? 'PAGO' : (newOrderPaid > 0 ? 'PARCIAL' : 'PENDENTE');
+
+                for(let row of rowsToUpdate) {
+                    await sb.from('logs').update({ 
+                        valor_pago: newOrderPaid, 
+                        status_financeiro: finStatus 
+                    }).eq('uid', row.uid);
+                }
+
+                const newLogId = getNextId(STATE.logs);
+                await sb.from('logs').insert([{
+                    id: newLogId, 
+                    tipo: 'recebimento', 
+                    produto_nome: 'Baixa de Conta', 
+                    quantidade: 0,
+                    data: getHojeLocalStr(), 
+                    observacao: 'Ref Lanc #' + id, 
+                    valor_total: payVal,
+                    cliente_nome: rowsToUpdate[0].clientName, 
+                    forma_pagamento: method,
+                    status: 'ATIVO', 
+                    status_financeiro: 'PAGO', 
+                    valor_pago: payVal,
+                    uid: gerarUid()
+                }]);
+
+                document.getElementById('modal-receivable-edit').classList.add('hidden');
+                showToast("Baixa registrada!");
+                await loadData();
+            } catch(err) {
+                showLoading(false);
+                showToast("Erro: " + err.message, true);
+                console.error(err);
+            }
+        }
+
+        async function estornarRecebimento(uid) {
+            if(!confirm("Estornar este recebimento? O valor voltará para 'A Receber'.")) return;
+            showLoading(true);
+
+            try {
+                const recLog = STATE.logs.find(l => l.uid === uid && l.type === 'recebimento');
+                if(!recLog) throw new Error("Log não encontrado");
+
+                const match = recLog.note.match(/#(\d+)/);
+                if(!match) throw new Error("ID não identificado");
+                const parentId = match[1];
+                const valorEstorno = recLog.totalValue;
+
+                await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', uid);
+
+                const rowsToUpdate = STATE.logs.filter(l => String(l.id) === String(parentId) && (l.type === 'venda' || l.type === 'receita'));
+                for(let row of rowsToUpdate) {
+                    let novoPago = Math.max(0, row.paidValue - valorEstorno);
+                    let novoStatus = novoPago === 0 ? 'PENDENTE' : (novoPago < row.totalValue ? 'PARCIAL' : 'PAGO');
+                    await sb.from('logs').update({ valor_pago: novoPago, status_financeiro: novoStatus }).eq('uid', row.uid);
+                }
+
+                showToast("Estorno concluído!");
+                await loadData();
+            } catch (err) {
+                showLoading(false);
+                showToast("Erro: " + err.message, true);
+            }
+        }
+
+        function openEditExpense(id) {
+            const exp = STATE.expenses.find(e => String(e.id) === String(id));
+            if(!exp) return;
+            
+            document.getElementById('exp-id').value = exp.id;
+            document.getElementById('exp-item').value = exp.item;
+            document.getElementById('exp-provider').value = exp.provider || '';
+            document.getElementById('exp-cost').value = exp.cost;
+            try { document.getElementById('exp-date').value = exp.date.split('T')[0]; } catch(e){}
+            document.getElementById('exp-note').value = exp.note ? exp.note.replace(`Fornecedor: ${exp.provider} | `, '').trim() : '';
+            document.getElementById('modal-expense').classList.remove('hidden');
+        }
+
+        async function saveExpense() {
+            const idVal = document.getElementById('exp-id').value;
+            const isNew = !idVal;
+            
+            const item = document.getElementById('exp-item').value;
+            const provider = document.getElementById('exp-provider').value.trim();
+            const cost = parseFloat(document.getElementById('exp-cost').value) || 0;
+            const date = document.getElementById('exp-date').value || getHojeLocalStr();
+            const noteBase = document.getElementById('exp-note').value.trim();
+            
+            if(!item || !cost) return showToast("Preencha categoria e valor", true);
+            showLoading(true);
+
+            const finalNote = provider ? `Fornecedor: ${provider}${noteBase ? ' | ' + noteBase : ''}` : noteBase;
+
+            const payload = {
+                item: item, quantidade: 1, unidade: 'Un',
+                custo: cost, data: date, observacao: finalNote, status: 'PENDENTE'
+            };
+
+            let error;
+            if (isNew) {
+                payload.id = getNextId(STATE.expenses);
+                const res = await sb.from('despesas').insert([payload]);
+                error = res.error;
+            } else {
+                const res = await sb.from('despesas').update(payload).eq('id', idVal);
+                error = res.error;
+            }
+
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+
+            document.getElementById('exp-id').value = "";
+            document.getElementById('exp-provider').value = "";
+            document.getElementById('exp-cost').value = ""; 
+            document.getElementById('exp-note').value = "";
+            document.getElementById('modal-expense').classList.add('hidden');
+            
+            showToast(isNew ? "Despesa Lançada (Pendente)!" : "Despesa Atualizada!");
+            loadData();
+        }
+
+        async function payExpense(id) {
+            if(!confirm("Confirmar a baixa desta despesa? O valor sairá do caixa agora.")) return;
+            showLoading(true);
+            
+            const exp = STATE.expenses.find(e => String(e.id) === String(id));
+            if(!exp) { showLoading(false); return showToast("Erro: Despesa não encontrada", true); }
+            if(exp.status === 'PAGO') { showLoading(false); return showToast("Esta despesa já foi paga!", true); }
+            
+            const { error: err1 } = await sb.from('despesas').update({ status: 'PAGO' }).eq('id', id);
+            if(err1) { showLoading(false); return showToast("Erro ao baixar: " + err1.message, true); }
+            
+            const newLogId = getNextId(STATE.logs);
+            const { error: err2 } = await sb.from('logs').insert([{
+                id: newLogId, tipo: 'despesa', produto_nome: String(id), quantidade: exp.quantity,
+                data: getHojeLocalStr(), 
+                observacao: (exp.note ? exp.note + ' | ' : '') + 'Ref Despesa #' + exp.id, 
+                valor_total: exp.cost, status: 'ATIVO',
+                status_financeiro: 'PAGO', valor_pago: exp.cost,
+                uid: gerarUid()
+            }]);
+            
+            if(err2) { showLoading(false); return showToast("Erro ao gerar log de caixa: " + err2.message, true); }
+            
+            showToast("Despesa baixada com sucesso!");
+            loadData();
+        }
+
+        async function estornarDespesaLog(id) {
+            if(!confirm("Estornar o pagamento desta despesa? Ela voltará a ficar PENDENTE no caixa.")) return;
+            showLoading(true);
+            try {
+                await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', id);
+                const logParaEstornar = STATE.logs.find(l => l.type === 'despesa' && String(l.productName) === String(id));
+                if (logParaEstornar) {
+                    await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', logParaEstornar.uid);
+                }
+                showToast("Pagamento estornado!");
+                loadData();
+            } catch(e) {
+                showLoading(false);
+                showToast("Erro: " + e.message, true);
+            }
+        }
+
+        // ==================== DEMAIS FUNÇÕES (ORÇAMENTOS, PRODUTOS, CLIENTES) ====================
+        // (Mantidas exatamente como estavam no código original)
+        
         function openNewQuote() {
             clearCart();
             document.getElementById('view-pos').classList.remove('hidden');
@@ -903,8 +1381,6 @@
             document.getElementById('pos-payment').value = q.paymentMethod || 'Dinheiro';
             document.getElementById('pos-discount-type').value = q.discountType || '$';
 
-            // CORREÇÃO: Se era porcentagem, o valor salvo é o desconto final em reais.
-            // Para editar, convertemos o R$ de volta para o número da %.
             if(q.discountType === '%') {
                 document.getElementById('pos-discount').value = q.total > 0 ? ((Number(q.discount) / q.total) * 100).toFixed(2) : 0;
             } else {
@@ -958,177 +1434,174 @@
         }
 
        async function shareQuote(id) {
-    let q = STATE.quotes.find(x => String(x.id) === String(id));
-    const isVenda = !q;
-    if (!q) q = STATE.sales.find(x => String(x.id) === String(id));
-    if (!q) return;
-    
-    showLoading(true);
-
-    const clientName = q.clientName || 'Consumidor Final';
-    const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
-
-    // Para VENDAS: reconstruir o valor bruto por item (igual ao reprintSale do desktop)
-    // Para ORÇAMENTOS: usar os valores diretamente (já são brutos)
-    let itemsParaRender = q.items;
-    let valorDesconto = Number(q.absoluteDiscount) || 0;
-
-    if (isVenda) {
-        const netTotal = q.items.reduce((acc, i) => acc + i.total, 0);
-        const grossTotal = netTotal + valorDesconto;
-        const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
-        itemsParaRender = q.items.map(i => ({
-            name: i.name,
-            qty: i.qty,
-            price: i.qty > 0 ? (i.total * fator / i.qty) : 0,
-            total: i.total * fator
-        }));
-    }
-
-    let subtotal = 0;
-    const itemsHtml = itemsParaRender.map((i) => {
-        const itemTotal = i.qty * i.price;
-        subtotal += itemTotal;
-        return `
-            <tr>
-                <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
-                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
-            </tr>`;
-    }).join('');
-
-    const finalTotal = subtotal - valorDesconto;
-    const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
-    const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV'
-                    ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
-    const tituloDoc = isVenda ? "PEDIDO DE VENDA" : "ORÇAMENTO";
-
-    const htmlString = `
-        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
+            let q = STATE.quotes.find(x => String(x.id) === String(id));
+            const isVenda = !q;
+            if (!q) q = STATE.sales.find(x => String(x.id) === String(id));
+            if (!q) return;
             
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
-            </div>
+            showLoading(true);
 
-            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <tr>
-                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
-                    </td>
-                    <td valign="middle" style="padding-left: 15px;">
-                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
-                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                    </td>
-                    <td align="right" valign="top">
-                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">${tituloDoc}</h2>
-                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
-                        <div style="font-size: 11px;"><strong>Data:</strong> ${formatDate(q.date)}</div>
-                    </td>
-                </tr>
-            </table>
+            const clientName = q.clientName || 'Consumidor Final';
+            const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
 
-            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
-                <tr>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
-                        </div>
-                    </td>
-                    <td width="4%"></td>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
-                        </div>
-                    </td>
-                </tr>
-            </table>
+            let itemsParaRender = q.items;
+            let valorDesconto = Number(q.absoluteDiscount) || 0;
 
-            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
-                <thead>
+            if (isVenda) {
+                const netTotal = q.items.reduce((acc, i) => acc + i.total, 0);
+                const grossTotal = netTotal + valorDesconto;
+                const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
+                itemsParaRender = q.items.map(i => ({
+                    name: i.name,
+                    qty: i.qty,
+                    price: i.qty > 0 ? (i.total * fator / i.qty) : 0,
+                    total: i.total * fator
+                }));
+            }
+
+            let subtotal = 0;
+            const itemsHtml = itemsParaRender.map((i) => {
+                const itemTotal = i.qty * i.price;
+                subtotal += itemTotal;
+                return `
                     <tr>
-                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px;">Descrição</th>
-                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 50px;">Qtd</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Unit.</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>${itemsHtml}</tbody>
-            </table>
+                        <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
+                        <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
+                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
+                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
+                    </tr>`;
+            }).join('');
 
-            <table width="100%" style="margin-top: 10px;">
-                <tr>
-                    <td valign="top" style="padding-right: 30px;">
-                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                            <div style="font-size: 10px; color: #334155;">${obsText}</div>
-                        </div>
-                    </td>
-                    <td width="250" valign="top">
-                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
+            const finalTotal = subtotal - valorDesconto;
+            const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
+            const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV'
+                            ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+            const tituloDoc = isVenda ? "PEDIDO DE VENDA" : "ORÇAMENTO";
+
+            const htmlString = `
+                <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
+                    
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
+                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
+                    </div>
+
+                    <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                        <tr>
+                            <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
+                                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
+                            </td>
+                            <td valign="middle" style="padding-left: 15px;">
+                                <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
+                                <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
+                                <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                            </td>
+                            <td align="right" valign="top">
+                                <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">${tituloDoc}</h2>
+                                <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
+                                <div style="font-size: 11px;"><strong>Data:</strong> ${formatDate(q.date)}</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
+                        <tr>
+                            <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
+                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                                    <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
+                                </div>
+                            </td>
+                            <td width="4%"></td>
+                            <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
+                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                                    <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
+                        <thead>
                             <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
+                                <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px;">Descrição</th>
+                                <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 50px;">Qtd</th>
+                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Unit.</th>
+                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Total</th>
                             </tr>
-                            ${valorDesconto > 0 ? `
-                            <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(valorDesconto)}</td>
-                            </tr>` : ''}
-                            <tr>
-                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">TOTAL A PAGAR:</td>
-                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">${formatMoney(finalTotal)}</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </div>
-    `;
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
+                    </table>
 
-    const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
-    const opt = {
-        margin: 10,
-        filename: filename,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+                    <table width="100%" style="margin-top: 10px;">
+                        <tr>
+                            <td valign="top" style="padding-right: 30px;">
+                                <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
+                                    <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
+                                    <div style="font-size: 10px; color: #334155;">${obsText}</div>
+                                </div>
+                            </td>
+                            <td width="250" valign="top">
+                                <table width="100%" style="font-size: 11px; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
+                                        <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
+                                    </tr>
+                                    ${valorDesconto > 0 ? `
+                                    <tr>
+                                        <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
+                                        <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(valorDesconto)}</td>
+                                    </tr>` : ''}
+                                    <tr>
+                                        <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">TOTAL A PAGAR:</td>
+                                        <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">${formatMoney(finalTotal)}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            `;
 
-    try {
-        setTimeout(async () => {
+            const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+            const opt = {
+                margin: 10,
+                filename: filename,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
             try {
-                const pdfBlob = await html2pdf().set(opt).from(htmlString).output('blob');
+                setTimeout(async () => {
+                    try {
+                        const pdfBlob = await html2pdf().set(opt).from(htmlString).output('blob');
 
-                const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+                        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        title: `${tituloDoc} #${q.id}`,
-                        text: `Olá ${clientName}, segue o documento solicitado.`,
-                        files: [file]
-                    });
-                    showLoading(false);
-                } else {
-                    await html2pdf().set(opt).from(htmlString).save();
-                    showLoading(false);
-                    showToast("PDF Baixado! Seu celular não suporta envio direto.");
-                }
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                title: `${tituloDoc} #${q.id}`,
+                                text: `Olá ${clientName}, segue o documento solicitado.`,
+                                files: [file]
+                            });
+                            showLoading(false);
+                        } else {
+                            await html2pdf().set(opt).from(htmlString).save();
+                            showLoading(false);
+                            showToast("PDF Baixado! Seu celular não suporta envio direto.");
+                        }
+                    } catch (err) {
+                        console.error("Erro PDF", err);
+                        showLoading(false);
+                        showToast("Falha ao gerar o PDF", true);
+                    }
+                }, 500);
             } catch (err) {
-                console.error("Erro PDF", err);
                 showLoading(false);
                 showToast("Falha ao gerar o PDF", true);
             }
-        }, 500);
-    } catch (err) {
-        showLoading(false);
-        showToast("Falha ao gerar o PDF", true);
-    }
-}
-
+        }
 
         function setDocType(type) {
             currentDocType = type;
@@ -1241,8 +1714,6 @@
             list.innerHTML = filteredList.map(q => {
                 
                 const valorDesconto = Number(q.absoluteDiscount) || 0;
-                // CORRIGIDO: Para orçamentos, total é bruto -> subtrair desconto.
-                // Para vendas, total já é líquido -> usar diretamente sem subtrair de novo.
                 const valorLiquido = currentDocType === 'venda' ? q.total : Math.max(0, q.total - valorDesconto);
                 
                 if (currentDocType === 'orcamento') {
@@ -1308,9 +1779,6 @@
                             <button onclick="duplicarParaOrcamento('${q.id}')" class="flex-1 p-2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
                                 <i data-lucide="copy" class="w-4 h-4"></i> Duplicar
                             </button>
-                           <!-- <button onclick="estornarVenda('${q.id}')" class="flex-1 p-2 bg-red-50 border border-red-200 text-red-600 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
-                                <i data-lucide="corner-up-left" class="w-4 h-4"></i> Estornar 
-                            </button> -->
                         </div>
                     </div>`;
                 }
@@ -1331,7 +1799,6 @@
 
             todaySales.forEach(s => {
                 const descValor = Number(s.absoluteDiscount) || 0;
-                // CORRIGIDO: total das vendas já é líquido (desconto aplicado por item no finalizeSale)
                 const valorFinal = s.total;
 
                 totalVendas += valorFinal;
@@ -1384,11 +1851,6 @@
                             <span class="text-sm">Qtd. Vendas:</span>
                             <span class="text-sm font-bold">${todaySales.length}</span>
                         </div>
-                      <!--  ${descontos > 0 ? `
-                        <div class="flex justify-between items-center mb-1 text-red-400">
-                            <span class="text-sm">Descontos Totais:</span>
-                            <span class="text-sm font-bold">- ${formatMoney(descontos)}</span>
-                        </div>` : ''} -->
                         <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
                             <span class="font-black text-lg">LÍQUIDO:</span>
                             <span class="font-black text-2xl text-emerald-400">${formatMoney(totalVendas)}</span>
@@ -1459,7 +1921,6 @@
             let totalLiquido = 0; let totalDescontos = 0; let pagamentosMap = {};
             let rowsHtml = filteredSales.map(s => {
                 const descValor = Number(s.absoluteDiscount) || 0;
-                // CORRIGIDO: total das vendas já é líquido (desconto aplicado por item no finalizeSale)
                 const valorFinal = s.total;
 
                 totalLiquido += valorFinal; 
@@ -1511,11 +1972,6 @@
                             <span class="text-sm">Qtd. Vendas:</span>
                             <span class="text-sm font-bold">${filteredSales.length}</span>
                         </div>
-                        <!--${totalDescontos > 0 ? `
-                        <div class="flex justify-between items-center mb-1 text-red-400">
-                            <span class="text-sm">Descontos Totais:</span>
-                            <span class="text-sm font-bold">- ${formatMoney(totalDescontos)}</span>
-                        </div>` : ''} -->
                         <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
                             <span class="font-black text-lg">LÍQUIDO:</span>
                             <span class="font-black text-2xl text-indigo-400">${formatMoney(totalLiquido)}</span>
