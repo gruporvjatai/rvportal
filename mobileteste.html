@@ -1,0 +1,2174 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ERP Mobile - RV PORTAL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="shortcut icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="RV Portal Madeiras">
+    <meta name="apple-mobile-web-app-title" content="RV Portal Madeiras">
+    <meta name="theme-color" content="#0f172a"> 
+    <link rel="manifest" href="manifest.json"> 
+
+    <style>
+      body { background-color: #f8fafc; font-family: 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+      
+      .border { border-width: 1px !important; border-style: solid !important; border-color: #e2e8f0 !important; }
+      
+      .hidden-section { display: none !important; }
+      .active-section { display: block !important; animation: fadeIn 0.3s ease-in-out; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      
+      .loader { border: 3px solid #e2e8f0; border-top: 3px solid #059669; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+      ::-webkit-scrollbar { width: 0px; background: transparent; }
+
+      .nav-active { color: #059669 !important; }
+      .nav-active span { font-weight: 900; }
+
+      /* Estilos para o PDF oculto na tela */
+      .invoice-full { border: 1px solid #000; min-height: 27.5cm; background-color: transparent !important; position: relative; z-index: 1; font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background: white;}
+      .invoice-full::before { content: ""; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; background-image: url('https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png'); background-size: contain; background-position: center; background-repeat: no-repeat; opacity: 0.1; z-index: -1; }
+      .header-section { display: flex; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
+      .logo-area { width: 120px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #e2e8f0; padding-right: 15px; margin-right: 15px; }
+      .company-details { flex: 1; }
+      .company-title { font-size: 20px; font-weight: 800; color: #059669; margin: 0; }
+      .company-info { font-size: 11px; color: #475569; margin-top: 5px; }
+      .doc-meta { width: 180px; text-align: right; }
+      .doc-title { font-size: 16px; font-weight: 900; color: #0f172a; margin-bottom: 5px; }
+      .meta-row { font-size: 11px; margin-bottom: 2px; }
+      .info-grid { display: flex; gap: 20px; margin-bottom: 20px; }
+      .info-col { flex: 1; border: 1px solid #000; border-radius: 6px; overflow: hidden; }
+      .col-header { background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000; }
+      .col-content { padding: 10px; font-size: 11px; line-height: 1.5; }
+      .full-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
+      .full-table th { background-color: #0f172a; color: white; padding: 8px; text-align: left; }
+      .full-table td { border-bottom: 1px solid #000; padding: 8px; }
+      .footer-section { display: flex; gap: 30px; margin-top: 10px; }
+      .notes-area { flex: 1; border: 1px dashed #cbd5e1; padding: 10px; border-radius: 6px; }
+      .notes-title { font-size: 10px; font-weight: bold; margin-bottom: 5px; color: #64748b; }
+      .notes-text { font-size: 10px; color: #334155; }
+      .totals-area { width: 250px; }
+      .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; border-bottom: 1px solid #e2e8f0; }
+      .total-row.final { border-bottom: none; border-top: 2px solid #0f172a; font-size: 14px; font-weight: 900; background-color: #f1f5f9; padding: 10px; margin-top: 5px; }
+    </style>
+  </head>
+  <body class="text-slate-800 pb-20">
+
+    <header class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full border-2 border-emerald-500 bg-white overflow-hidden p-0.5 flex items-center justify-center">
+                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" class="w-full h-full object-contain" />
+            </div>
+            <h1 class="text-lg font-black tracking-wider text-emerald-400">RV PORTAL</h1>
+        </div>
+        <button onclick="fazerLogout()" class="text-red-400 hover:text-red-300 p-2"><i data-lucide="log-out"></i></button>
+    </header>
+
+    <div id="loading" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center">
+       <div class="bg-white p-6 rounded-2xl flex flex-col items-center shadow-2xl"><div class="loader mb-4"></div><span class="font-bold text-slate-700 mt-2">Processando...</span></div>
+    </div>
+    
+    <div id="toast" class="hidden fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-bold text-sm z-50 transition-all text-center min-w-[250px]"></div>
+
+    <main class="p-4 overflow-x-hidden">
+
+     <div id="view-quotes" class="hidden-section">
+          <div class="flex justify-between items-center mb-4">
+              <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i data-lucide="folder-open" class="text-indigo-600"></i> Registros</h2>
+              <button onclick="openNewQuote()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl font-bold shadow-lg shadow-indigo-200 flex items-center gap-2 active:scale-95 transition-transform"><i data-lucide="plus"></i> Novo</button>
+          </div>
+          
+          <div class="flex bg-slate-200 p-1 rounded-xl mb-4">
+              <button id="tab-orcamentos" onclick="setDocType('orcamento')" class="flex-1 py-2 rounded-lg text-sm font-black bg-white text-indigo-600 shadow-sm transition-all">Orçamentos</button>
+              <button id="tab-vendas" onclick="setDocType('venda')" class="flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all">Vendas</button>
+          </div>
+
+          <div class="flex flex-col gap-3 mb-4">
+              <div class="flex flex-col gap-2">
+                  <div class="relative w-full">
+                      <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
+                      <input type="text" id="quote-search" placeholder="Buscar cliente..." class="w-full pl-10 p-3 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none shadow-sm font-medium bg-white" onkeyup="renderQuotesList()">
+                  </div>
+                  <select id="quote-status-filter" class="w-full p-3 border rounded-xl text-sm focus:ring-2 focus:ring-indigo-600 outline-none shadow-sm font-bold text-slate-600 bg-white" onchange="renderQuotesList()">
+                      <option value="">Todos os Status</option>
+                      <option value="ABERTO">Abertos</option>
+                      <option value="EM NEGOCIAÇÃO">Em Negociação</option>
+                      <option value="APROVADO">Aprovados</option>
+                      <option value="PERDIDO">Perdidos</option>
+                  </select>
+              </div>
+          </div>
+          
+          <div id="quotes-list" class="flex flex-col gap-3"></div>
+      </div>
+
+     <div id="view-reports" class="hidden-section">
+        <h2 class="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="file-text" class="text-emerald-600"></i> Relatórios</h2>
+        
+        <div class="flex flex-col gap-4">
+            <button onclick="showDailyReport()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
+                <div>
+                    <h3 class="text-base font-black text-slate-800 mb-1">Faturamento do Dia</h3>
+                    <p class="text-xs text-slate-500 font-medium">Resumo de vendas de hoje.</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="sun" class="w-6 h-6"></i>
+                </div>
+            </button>
+            
+            <button onclick="openPeriodReportModal()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
+                <div>
+                    <h3 class="text-base font-black text-slate-800 mb-1">Vendas por Período</h3>
+                    <p class="text-xs text-slate-500 font-medium">Filtros de data e pagamento.</p>
+                </div>
+                <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="calendar-search" class="w-6 h-6"></i>
+                </div>
+            </button>
+        </div>
+    </div>
+
+      <div id="view-prod" class="hidden-section">
+          <div class="flex justify-between items-center mb-4">
+              <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i data-lucide="package" class="text-orange-500"></i> Produtos</h2>
+              <button onclick="openProductForm()" class="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-xl font-bold shadow-lg shadow-orange-200 flex items-center gap-2 active:scale-95 transition-transform"><i data-lucide="plus"></i> Novo</button>
+          </div>
+          
+          <div class="flex flex-col gap-2 mb-4">
+              <div class="relative w-full">
+                  <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
+                  <input type="text" id="prod-search" placeholder="Buscar produto..." class="w-full pl-10 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-medium bg-white" onkeyup="renderProducts()">
+              </div>
+              <select id="prod-category" class="w-full p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
+                  <option value="">Todas as Categorias</option>
+              </select>
+          </div>
+
+          <div id="prod-list" class="flex flex-col gap-3"></div>
+      </div>
+
+      <div id="view-clients" class="hidden-section">
+          <div class="flex justify-between items-center mb-4">
+              <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-blue-500"></i> Clientes</h2>
+              <button onclick="openClientForm()" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl font-bold shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-95 transition-transform"><i data-lucide="plus"></i> Novo</button>
+          </div>
+          
+          <div class="mb-4">
+              <div class="relative w-full">
+                  <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
+                  <input type="text" id="cli-search" placeholder="Buscar por nome, telefone ou doc..." class="w-full pl-10 p-3 border rounded-xl outline-none focus:border-blue-600 font-medium bg-white shadow-sm" onkeyup="renderClients()">
+              </div>
+          </div>
+
+          <div id="clients-list" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- ==================== NOVA ABA CAIXA (FINANCEIRO) ==================== -->
+      <div id="view-fin" class="hidden-section">
+          <div class="flex justify-between items-center mb-5">
+              <h2 class="text-xl font-bold text-slate-800">Financeiro / Caixa</h2>
+              <button onclick="document.getElementById('exp-id').value=''; document.getElementById('modal-expense').classList.remove('hidden')" class="bg-red-500 active:bg-red-600 text-white text-xs px-3 py-2 rounded-lg font-bold shadow-md flex items-center gap-1"><i data-lucide="plus"></i> Nova Despesa</button>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-3 mb-8">
+              <div class="col-span-2 bg-slate-800 p-5 rounded-2xl shadow-md text-white flex justify-between items-center relative overflow-hidden">
+                  <div class="relative z-10">
+                      <p class="text-[10px] font-bold uppercase mb-1 text-slate-400 tracking-wider">Saldo em Caixa</p>
+                      <h3 id="fin-balance" class="text-3xl font-black text-white">R$ 0,00</h3>
+                  </div>
+                  <i data-lucide="wallet" class="w-12 h-12 text-slate-700 absolute right-4 -bottom-2 z-0 transform rotate-[-15deg]"></i>
+              </div>
+              <div class="bg-green-50 p-4 rounded-2xl border border-green-200 shadow-sm flex flex-col justify-center">
+                  <p class="text-green-800 text-[10px] font-bold uppercase mb-1">Entradas Pagas</p>
+                  <h3 id="fin-income" class="text-lg font-bold text-green-700 truncate">R$ 0,00</h3>
+              </div>
+              <div class="bg-red-50 p-4 rounded-2xl border border-red-200 shadow-sm flex flex-col justify-center">
+                  <p class="text-red-800 text-[10px] font-bold uppercase mb-1">Saídas Pagas</p>
+                  <h3 id="fin-expenses" class="text-lg font-bold text-red-700 truncate">R$ 0,00</h3>
+              </div>
+          </div>
+
+          <h3 class="font-bold text-slate-800 mb-4 text-sm flex items-center gap-2"><i data-lucide="alert-circle" class="w-4 h-4 text-orange-500"></i> Gestão de Pendências</h3>
+          
+          <div class="mb-5">
+              <h4 class="text-xs font-black text-green-700 uppercase tracking-wider mb-2 ml-1 flex items-center gap-1"><i data-lucide="arrow-down-to-line" class="w-3 h-3"></i> A Receber (Vendas)</h4>
+              <div id="fin-receivables-list" class="flex flex-col gap-3"></div>
+          </div>
+
+          <div class="mb-8">
+              <h4 class="text-xs font-black text-red-700 uppercase tracking-wider mb-2 ml-1 flex items-center gap-1"><i data-lucide="arrow-up-from-line" class="w-3 h-3"></i> A Pagar (Despesas)</h4>
+              <div id="fin-payables-list" class="flex flex-col gap-3"></div>
+          </div>
+
+          <h3 class="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2 pt-6 border-t border-slate-200"><i data-lucide="list" class="w-4 h-4 text-slate-500"></i> Extrato de Caixa</h3>
+          <div class="flex gap-2 mb-4 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
+              <div class="flex-1">
+                  <label class="block text-[9px] font-bold text-slate-400 uppercase ml-1">De</label>
+                  <input type="date" id="fin-ext-start" class="w-full p-1.5 bg-transparent text-xs outline-none" onchange="renderFinance()">
+              </div>
+              <div class="w-px bg-slate-200 my-1"></div>
+              <div class="flex-1">
+                  <label class="block text-[9px] font-bold text-slate-400 uppercase ml-1">Até</label>
+                  <input type="date" id="fin-ext-end" class="w-full p-1.5 bg-transparent text-xs outline-none" onchange="renderFinance()">
+              </div>
+          </div>
+          <div id="fin-extrato-list" class="flex flex-col gap-3 pb-6"></div>
+      </div>
+
+    </main>
+
+    <div id="view-pos" class="hidden fixed inset-0 bg-slate-50 z-[60] flex-col animate-[fadeIn_0.2s]">
+        <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="closeNewQuote()" class="text-white p-2 bg-slate-800 rounded-full hover:bg-slate-700 active:scale-95"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+                <h2 class="text-lg font-black tracking-wider text-white">ORÇAMENTO</h2>
+            </div>
+            <span id="edit-mode-indicator" class="hidden text-[10px] bg-emerald-500 text-white px-2 py-1 rounded font-bold uppercase">Editando</span>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-32">
+            <button onclick="openPosProductModal()" class="w-full bg-indigo-100 text-indigo-700 p-4 rounded-xl font-bold mb-4 flex items-center justify-center gap-2 border border-indigo-200 active:scale-95 transition-transform"><i data-lucide="search"></i> Buscar e Adicionar Produtos</button>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
+                <div class="bg-slate-50 p-3 border-b border-slate-200 font-bold text-slate-700 text-sm flex justify-between items-center">
+                    <span>Itens Adicionados</span> 
+                    <button onclick="clearCart()" class="text-red-500 text-xs border border-red-200 px-2 py-1 rounded bg-white">LIMPAR</button>
+                </div>
+                <div id="pos-cart-items" class="p-3 flex flex-col gap-3"></div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-4">
+                <div>
+                    <input type="hidden" id="pos-client" value="">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente</label>
+                    <button id="pos-client-btn" onclick="openPosClientModal()" class="w-full p-3 border rounded-xl text-left font-bold text-slate-700 flex justify-between items-center bg-slate-50">
+                        <span>Consumidor Final</span>
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400"></i>
+                    </button>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Forma de Pagto Base</label>
+                    <select id="pos-payment" class="w-full p-3 border rounded-xl text-sm bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option>Dinheiro</option>
+                              <option>PIX</option>
+                              <option>Carteira</option>
+                              <option>Cartão Débito</option>
+                              <option>Cartão Crédito</option>
+                              <option>Boleto 21 dias</option>
+                              <option>Boleto 30 dias</option>
+                              <option>Boleto Programado</option>
+                              <option>Cheque</option>
+                            </select>
+                </div>
+                <div class="flex gap-2">
+                    <div class="w-1/3">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo Desc.</label>
+                        <select id="pos-discount-type" class="w-full p-3 border rounded-xl text-sm bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" onchange="renderCart()">
+                            <option value="%">%</option><option value="$">R$</option>
+                        </select>
+                    </div>
+                    <div class="w-2/3">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Desconto</label>
+                        <input type="number" id="pos-discount" value="0" class="w-full p-3 border rounded-xl text-sm bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" onchange="renderCart()">
+                    </div>
+                </div>
+                
+                <div class="pt-2">
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="checkbox" id="pos-custom-address-check" class="w-4 h-4 text-indigo-600 rounded" onchange="toggleCustomAddress()">
+                        <label for="pos-custom-address-check" class="text-xs font-bold text-slate-600">Endereço de Entrega Manual</label>
+                    </div>
+                    <textarea id="pos-custom-address" class="hidden w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows="2" placeholder="Digite o endereço completo..."></textarea>
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="checkbox" id="pos-custom-obs-check" class="w-4 h-4 text-indigo-600 rounded" onchange="toggleCustomObs()">
+                        <label for="pos-custom-obs-check" class="text-xs font-bold text-slate-600">Observações Extras</label>
+                    </div>
+                    <textarea id="pos-custom-obs" class="hidden w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows="2" placeholder="Digite as observações gerais..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white border-t p-4 shrink-0 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)]">
+            <div class="flex justify-between items-end mb-3 px-1">
+                <span class="text-xs font-bold text-slate-500">Total (<span id="cart-count">0</span> itens)</span>
+                <span id="pos-total-display" class="text-2xl font-black text-slate-800">R$ 0,00</span>
+            </div>
+            <button onclick="saveQuote()" class="w-full bg-indigo-600 text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 active:scale-95 transition-transform flex justify-center items-center gap-2">
+                <i data-lucide="save"></i> Salvar Orçamento
+            </button>
+        </div>
+    </div>
+
+    <div id="view-report-result" class="hidden fixed inset-0 bg-slate-50 z-[90] flex-col animate-[fadeIn_0.2s]">
+        <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="closeReportView()" class="text-white p-2 bg-slate-800 rounded-full hover:bg-slate-700 active:scale-95 cursor-pointer z-50">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </button>
+                <h2 class="text-lg font-black tracking-wider text-white">RELATÓRIO</h2>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 bg-slate-100" id="report-result-content">
+        </div>
+    </div>
+
+    <div id="pos-product-modal" class="hidden fixed inset-0 bg-slate-900 z-[70] flex-col animate-[fadeIn_0.2s]">
+        <div class="p-4 border-b flex justify-between items-center bg-white shrink-0">
+            <h3 class="font-black text-lg text-slate-800 flex items-center gap-2"><i data-lucide="package-search" class="text-indigo-600"></i> Produtos</h3>
+            <button onclick="closePosProductModal()" class="text-slate-400 hover:text-red-500 p-2 bg-slate-100 rounded-full"><i data-lucide="x"></i></button>
+        </div>
+        <div class="p-4 bg-white border-b shrink-0">
+            <div class="relative w-full">
+                <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-5 h-5"></i>
+                <input type="text" id="pos-modal-search" placeholder="Digite o nome..." class="w-full pl-10 p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-600" onkeyup="renderPosProductModal()">
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 bg-slate-50">
+            <div id="pos-modal-grid" class="flex flex-col gap-3"></div>
+        </div>
+    </div>
+
+    <div id="pos-client-modal" class="hidden fixed inset-0 bg-slate-900 z-[70] flex-col animate-[fadeIn_0.2s]">
+        <div class="p-4 border-b flex justify-between items-center bg-white shrink-0">
+            <h3 class="font-black text-lg text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-indigo-600"></i> Selecionar Cliente</h3>
+            <button onclick="closePosClientModal()" class="text-slate-400 hover:text-red-500 p-2 bg-slate-100 rounded-full"><i data-lucide="x"></i></button>
+        </div>
+        <div class="p-4 bg-white border-b shrink-0">
+            <div class="relative w-full">
+                <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-5 h-5"></i>
+                <input type="text" id="pos-client-modal-search" placeholder="Buscar por nome, telefone..." class="w-full pl-10 p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-600" onkeyup="renderPosClientModal()">
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 bg-slate-50">
+            <div id="pos-client-modal-grid" class="flex flex-col gap-3"></div>
+        </div>
+        <div class="p-4 bg-white border-t shrink-0">
+            <button onclick="selectPosClient('', 'Consumidor Final')" class="w-full py-4 bg-slate-200 text-slate-700 font-bold rounded-xl active:scale-95 transition-transform">Consumidor Final (Remover)</button>
+        </div>
+    </div>
+
+    <div id="modal-period-report" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-center justify-center p-4 animate-[fadeIn_0.2s]">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+            <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="calendar-search" class="text-indigo-600 w-5 h-5"></i> Gerar Relatório</h3>
+            <button onclick="closePeriodReportModal()" class="text-slate-400 hover:text-red-500 bg-white rounded-full p-1"><i data-lucide="x"></i></button>
+        </div>
+        <div class="p-5 space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Início</label>
+                    <input type="date" id="rep-per-start" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Fim</label>
+                    <input type="date" id="rep-per-end" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Forma de Pagto</label>
+                <select id="rep-per-payment" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="Todos">Todos</option>
+                    <option>Dinheiro</option><option>PIX</option><option>Carteira</option>
+                    <option>Cartão Débito</option><option>Cartão Crédito</option>
+                    <option>Boleto 21 dias</option><option>Boleto 30 dias</option>
+                    <option>Boleto Programado</option><option>Cheque</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente (Opcional)</label>
+                <input type="text" id="rep-per-client" placeholder="Ex: João da Silva" class="w-full p-3 border rounded-xl bg-slate-50 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+        </div>
+        <div class="p-4 border-t bg-slate-50 flex gap-3">
+            <button onclick="closePeriodReportModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 active:scale-95">Cancelar</button>
+            <button onclick="showPeriodReport()" class="flex-1 py-3 bg-indigo-600 rounded-xl font-bold text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i data-lucide="eye" class="w-4 h-4"></i> Visualizar</button>
+        </div>
+    </div>
+    </div>
+
+    <!-- Modal de Baixa de Recebimento -->
+    <div id="modal-receivable-edit" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] animate-[fadeIn_0.3s_ease-out]">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl sm:rounded-t-2xl">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="check-circle" class="text-green-600"></i> Baixar Recebimento</h3>
+                <button onclick="document.getElementById('modal-receivable-edit').classList.add('hidden')" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto flex-1">
+                <input type="hidden" id="rec-id">
+                <div class="flex justify-between items-center bg-slate-100 p-4 rounded-xl border border-slate-200">
+                    <div class="text-center">
+                        <span class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Total Venda</span>
+                        <span id="rec-total-lbl" class="text-indigo-700 font-black text-sm"></span>
+                    </div>
+                    <div class="w-px h-8 bg-slate-300"></div>
+                    <div class="text-center">
+                        <span class="block text-[10px] uppercase font-bold text-slate-500 mb-1">Falta Pagar</span>
+                        <span id="rec-pending-lbl" class="text-red-600 font-black text-sm"></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Forma de Pagamento</label>
+                    <select id="rec-method" class="w-full p-3 border rounded-xl outline-none bg-slate-50">
+                        <option>PIX</option>
+                        <option>Dinheiro</option>
+                        <option>Transferência</option>
+                        <option>Cartão Crédito</option>
+                        <option>Cartão Débito</option>
+                        <option>Boleto</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-green-700 uppercase mb-1">Valor Recebido (R$)</label>
+                    <input type="number" id="rec-pay-val" placeholder="0.00" class="w-full p-4 border-2 border-green-200 rounded-xl font-black text-2xl focus:border-green-500 outline-none text-green-700 bg-green-50 text-center">
+                </div>
+            </div>
+            <div class="p-5 border-t bg-white pb-8 sm:pb-5">
+                <button onclick="saveReceivableEdit()" class="w-full p-4 bg-green-600 rounded-xl font-bold text-white active:bg-green-700 shadow-lg flex justify-center gap-2"><i data-lucide="check-circle"></i> Confirmar Baixa</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Despesa -->
+    <div id="modal-expense" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] animate-[fadeIn_0.3s_ease-out]">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl sm:rounded-t-2xl">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="minus-circle" class="text-red-500"></i> Registrar Saída</h3>
+                <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto flex-1">
+                 <input type="hidden" id="exp-id"> 
+                 <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                    <select id="exp-item" class="w-full p-3 border rounded-xl focus:border-red-500 outline-none bg-slate-50">
+                        <option value="Fornecedor">Fornecedor</option>
+                        <option value="Salário">Salário</option>
+                        <option value="Energia">Energia</option>
+                        <option value="Água">Água</option>
+                        <option value="Internet">Internet</option>
+                        <option value="Imposto">Imposto</option>
+                        <option value="Sistema">Sistema</option>
+                        <option value="Contabilidade">Contabilidade</option>
+                        <option value="Combustível">Combustível</option>
+                        <option value="Man. Maquinas">Man. Máquinas</option>
+                        <option value="Juros/Taxas">Juros/Taxas</option>
+                        <option value="Veículos">Veículos</option>
+                        <option value="Marcenaria">Marcenaria</option>
+                        <option value="Instalação">Instalação</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Fornecedor / Nome</label>
+                    <input type="text" id="exp-provider" placeholder="Nome..." class="w-full p-3 border rounded-xl focus:border-red-500 outline-none bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Valor (R$)</label>
+                    <input type="number" id="exp-cost" placeholder="0.00" class="w-full p-3 border rounded-xl font-bold text-red-600 focus:border-red-500 outline-none bg-slate-50 text-lg">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Data de Vencimento</label>
+                    <input type="date" id="exp-date" class="w-full p-3 border rounded-xl focus:border-red-500 outline-none bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Observação</label>
+                    <input type="text" id="exp-note" placeholder="NF, Detalhes..." class="w-full p-3 border rounded-xl focus:border-red-500 outline-none bg-slate-50">
+                </div>
+            </div>
+            <div class="p-5 border-t bg-white pb-8 sm:pb-5">
+                <button onclick="saveExpense()" class="w-full p-4 bg-red-600 rounded-xl font-bold text-white active:bg-red-700 shadow-lg flex justify-center gap-2"><i data-lucide="save"></i> Salvar Pendente</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)] z-40 flex justify-around items-center pb-safe" style="padding-bottom: env(safe-area-inset-bottom);">
+        <button onclick="navigate('quotes')" id="nav-quotes" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="folder-open" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Orçamentos</span>
+        </button>
+        <button onclick="navigate('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="file-text" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Relatórios</span>
+        </button>
+        <button onclick="navigate('fin')" id="nav-fin" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="wallet" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Caixa</span>
+        </button>
+        <button onclick="navigate('prod')" id="nav-prod" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="package" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Produtos</span>
+        </button>
+        <button onclick="navigate('clients')" id="nav-clients" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
+            <i data-lucide="users" class="mb-1 w-6 h-6"></i>
+            <span class="text-[10px] uppercase font-medium">Clientes</span>
+        </button>
+    </nav>
+
+    <div id="client-form-container" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end justify-center sm:items-center">
+        <form onsubmit="saveClient(event)" class="bg-white p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md animate-[fadeIn_0.3s]">
+            <div class="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-4 sm:hidden"></div>
+            <h3 class="font-black text-xl mb-6 text-slate-800 flex items-center gap-2"><i data-lucide="user-plus" class="text-blue-500"></i> Dados do Cliente</h3>
+            <input type="hidden" id="cli-id">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label>
+                    <input type="text" id="cli-name" required class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone / WhatsApp</label>
+                    <input type="tel" id="cli-phone" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium" placeholder="(00) 00000-0000">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Documento (CPF/CNPJ)</label>
+                    <input type="text" id="cli-doc" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Endereço</label>
+                    <input type="text" id="cli-addr" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button type="button" onclick="document.getElementById('client-form-container').classList.add('hidden')" class="flex-1 p-4 bg-slate-100 text-slate-600 rounded-xl font-bold active:scale-95 transition-transform">Cancelar</button>
+                <button type="submit" class="flex-1 p-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform">Salvar</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="prod-form-container" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end justify-center sm:items-center">
+        <form onsubmit="saveProduct(event)" class="bg-white p-6 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md animate-[fadeIn_0.3s]">
+            <div class="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mb-4 sm:hidden"></div>
+            <h3 class="font-black text-xl mb-6 text-slate-800 flex items-center gap-2"><i data-lucide="package-plus" class="text-orange-500"></i> Dados do Produto</h3>
+            <input type="hidden" id="prd-id">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Produto</label>
+                    <input type="text" id="prd-name" required class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-medium">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                    <input type="text" id="prd-cat" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-medium">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Preço Venda</label>
+                        <input type="number" id="prd-price" required step="0.01" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-800">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Custo Compra</label>
+                        <input type="number" id="prd-cost" step="0.01" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-800">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Estoque Inicial Físico</label>
+                    <input type="number" id="prd-stock" required class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-800">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button type="button" onclick="document.getElementById('prod-form-container').classList.add('hidden')" class="flex-1 p-4 bg-slate-100 text-slate-600 rounded-xl font-bold active:scale-95 transition-transform">Cancelar</button>
+                <button type="submit" class="flex-1 p-4 bg-orange-500 text-white rounded-xl font-bold shadow-lg shadow-orange-200 active:scale-95 transition-transform">Salvar</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function toLocalYYYYMMDD(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function getHojeLocalStr() {
+            return new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        }
+
+        let dadosUsuario = null;
+        const userSessao = localStorage.getItem('rv_user');
+
+        if (!userSessao) { window.location.replace('index.html'); } 
+        else { dadosUsuario = JSON.parse(userSessao); }
+
+        const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co'; 
+        const supabaseKey = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
+        const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], sales: [] };
+        
+        let CART = [];
+        let CURRENT_QUOTE_ID = null;
+        let currentDocType = 'orcamento';
+
+        window.onload = function() { 
+            if (dadosUsuario) {
+                showLoading(true); 
+                loadData(); 
+            }
+        };
+
+        function navigate(viewId) {
+            document.querySelectorAll('main > div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
+            
+            const target = document.getElementById('view-' + viewId);
+            if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
+            
+            document.querySelectorAll('nav button').forEach(btn => {
+                btn.classList.remove('nav-active');
+            });
+            
+            const activeBtn = document.getElementById('nav-' + viewId);
+            if(activeBtn) activeBtn.classList.add('nav-active');
+            
+            if(viewId === 'quotes') renderQuotesList();            
+            if(viewId === 'prod') renderProducts();
+            if(viewId === 'clients') renderClients();
+            if(viewId === 'fin') renderFinance();
+            
+            lucide.createIcons();
+            window.scrollTo(0, 0); 
+        }
+
+        function formatMoney(val) { return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+        
+        function formatDate(d) { 
+            try { 
+                if (!d) return '-';
+                const safeDate = (typeof d === 'string' && d.length === 10) ? d + 'T00:00:00' : d;
+                return new Date(safeDate).toLocaleDateString('pt-BR'); 
+            } catch(e) { return '-'; } 
+        }
+
+        function showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; }
+        
+        function showToast(msg, isError) { 
+            const t = document.getElementById('toast'); 
+            t.textContent = msg; 
+            t.className = `fixed top-24 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl text-white font-bold text-sm z-[100] transition-all text-center min-w-[250px] ${isError ? 'bg-red-600' : 'bg-slate-900'}`; 
+            t.style.display = 'block'; 
+            setTimeout(() => t.style.display = 'none', 3000); 
+        }
+
+        function getNextId(array1, array2 = []) {
+            let max = 0;
+            array1.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
+            array2.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
+            return max + 1;
+        }
+
+        function gerarUid() { return Math.floor(Date.now() * 100 + Math.random() * 100).toString(); }
+
+        async function fetchAllRecords(table) {
+            let allRecords = [];
+            let from = 0;
+            const step = 1000;
+            let keepFetching = true;
+
+            while (keepFetching) {
+                const { data, error } = await sb.from(table).select('*').range(from, from + step - 1);
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    allRecords.push(...data);
+                    if (data.length < step) keepFetching = false;
+                    else from += step;
+                } else {
+                    keepFetching = false;
+                }
+            }
+            return { data: allRecords };
+        }
+
+        async function loadData() {
+            try {
+                const [resProd, resCli, resLog, resDesp] = await Promise.all([
+                    fetchAllRecords('produtos'), fetchAllRecords('clientes'),
+                    fetchAllRecords('logs'), fetchAllRecords('despesas')
+                ]);
+
+                STATE.products = (resProd.data || []).map(p => ({
+                    id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
+                    cost: Number(p.custo) || 0, stock: Number(p.estoque_fisico), 
+                    committed: Number(p.estoque_comprometido),
+                    available: Number(p.estoque_fisico) - Number(p.estoque_comprometido)
+                }));
+
+                STATE.clients = (resCli.data || []).map(c => ({
+                    id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco
+                }));
+
+                STATE.logs = [];
+                const quotesMap = {};
+                const salesMap = {};
+                
+                (resLog.data || []).forEach(l => {
+                    if (l.tipo === 'orcamento') {
+                        const qId = String(l.id);
+                        if(!quotesMap[qId]) {
+                            quotesMap[qId] = { 
+                                id: qId, date: l.data, clientName: l.cliente_nome, items: [], total: 0, 
+                                status: l.status || 'ABERTO', discount: Number(l.desconto), discountType: l.status_financeiro || '$', 
+                                paymentMethod: l.forma_pagamento, deliveryAddress: l.endereco_entrega, observacao: l.observacao
+                            };
+                        }
+                        const unitPrice = Number(l.quantidade) > 0 ? Number(l.valor_total) / Number(l.quantidade) : 0;
+                        quotesMap[qId].items.push({ name: l.produto_nome, qty: Number(l.quantidade), price: unitPrice, total: Number(l.valor_total), uid: l.uid });
+                        quotesMap[qId].total += Number(l.valor_total);
+                        
+                    } else if (l.tipo === 'venda') {
+                        const qId = String(l.id);
+                        if(!salesMap[qId]) {
+                            salesMap[qId] = { 
+                                id: qId, date: l.data, clientName: l.cliente_nome, items: [], total: 0, 
+                                status: l.status, discount: Number(l.desconto), discountType: l.status_financeiro || '$', 
+                                paymentMethod: l.forma_pagamento, deliveryAddress: l.endereco_entrega, observacao: l.observacao
+                            };
+                        }
+                        const unitPrice = Number(l.quantidade) > 0 ? Number(l.valor_total) / Number(l.quantidade) : 0;
+                        salesMap[qId].items.push({ name: l.produto_nome, qty: Number(l.quantidade), price: unitPrice, total: Number(l.valor_total), uid: l.uid });
+                        salesMap[qId].total += Number(l.valor_total);
+                    }
+                    
+                    STATE.logs.push({
+                        uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
+                        date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
+                        clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
+                        finStatus: l.status_financeiro, dueDate: l.vencimento, paidValue: Number(l.valor_pago),
+                        discount: Number(l.desconto), deliveryAddress: l.endereco_entrega
+                    });
+                });
+                
+                STATE.quotes = Object.values(quotesMap).map(q => { 
+                    q.itemsText = q.items.map(i => `${i.qty}x ${i.name}`).join(', '); 
+                    q.absoluteDiscount = q.discountType === '%' ? q.total * (q.discount / 100) : q.discount;
+                    return q; 
+                });
+                
+                STATE.sales = Object.values(salesMap).map(s => { 
+                    s.itemsText = s.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+                    s.absoluteDiscount = Number(s.discount) || 0;
+                    return s; 
+                });
+                
+                STATE.expenses = (resDesp.data || []).map(e => ({
+                    id: e.id, item: e.item, quantity: Number(e.quantidade), cost: Number(e.custo), 
+                    date: e.data, note: e.observacao, status: e.status || 'PENDENTE',
+                    provider: e.observacao ? (e.observacao.startsWith('Fornecedor:') ? e.observacao.replace('Fornecedor:', '').trim() : '') : ''
+                }));
+
+                onDataLoaded();
+            } catch (err) {
+                showLoading(false);
+                showToast("Erro de conexão", true);
+                console.error(err);
+            }
+        }
+
+        function onDataLoaded() {
+            if(!document.querySelector('.active-section')) {
+                navigate('quotes'); 
+            } else {
+                const current = document.querySelector('.active-section').id.replace('view-','');
+                navigate(current);
+            }
+            showLoading(false);
+        }
+
+        // ==================== FUNÇÕES DO FINANCEIRO (CAIXA) ====================
+        function renderFinance() {
+            const hojeLocalStr = getHojeLocalStr();
+            
+            // Agrupar vendas e receitas por ID
+            const receivablesMap = {};
+            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+                if(!receivablesMap[l.id]) {
+                    receivablesMap[l.id] = { 
+                        id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date, 
+                        clientName: l.clientName, payment: l.paymentMethod, dueDate: l.dueDate,
+                        desc: l.type === 'receita' ? l.productName : `Venda #${l.id}`
+                    };
+                }
+                receivablesMap[l.id].val += Number(l.totalValue) || 0;
+                receivablesMap[l.id].paid = Math.max(receivablesMap[l.id].paid, Number(l.paidValue) || 0);
+            });
+            
+            let receivablesArr = Object.values(receivablesMap);
+            
+            // Calcular totais para os cards
+            const totalRecebido = receivablesArr.filter(r => r.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
+                                 receivablesArr.filter(r => r.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+            
+            const totalDespesasPagas = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
+            
+            document.getElementById('fin-income').innerText = formatMoney(totalRecebido);
+            document.getElementById('fin-expenses').innerText = formatMoney(totalDespesasPagas);
+            document.getElementById('fin-balance').innerText = formatMoney(totalRecebido - totalDespesasPagas);
+
+            // Lista A Receber (Pendentes)
+            const recBody = document.getElementById('fin-receivables-list');
+            let recHtml = '';
+            
+            receivablesArr.filter(r => r.status !== 'PAGO' && (r.val - r.paid) > 0).forEach(r => {
+                const falta = r.val - r.paid;
+                const dataVencStr = (r.dueDate||'').split('T')[0];
+                const isVencido = dataVencStr < hojeLocalStr;
+                
+                recHtml += `
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${isVencido ? 'border-l-red-500' : 'border-l-green-500'} relative">
+                    <div class="flex-1 pr-2">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">${r.desc} ${isVencido ? '<span class="text-red-500 ml-1">VENCIDO</span>' : ''}</span>
+                        <h4 class="font-bold text-slate-700 text-sm leading-tight">${r.clientName}</h4>
+                        <p class="text-[10px] text-slate-500 mt-1">Venc: ${formatDate(r.dueDate)} | ${r.payment || '-'}</p>
+                        <p class="text-[10px] text-red-600 font-bold mt-1">Falta: ${formatMoney(falta)}</p>
+                    </div>
+                    <button onclick="openBaixaReceita('${r.id}', ${r.val}, ${r.paid})" class="bg-green-100 text-green-700 hover:bg-green-200 active:bg-green-300 text-[10px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Baixar</button>
+                </div>`;
+            });
+            
+            recBody.innerHTML = recHtml || `<div class="text-center text-slate-400 text-xs py-3 bg-slate-100 rounded-xl border border-dashed border-slate-300">Não há contas a receber.</div>`;
+
+            // Lista A Pagar (Despesas Pendentes)
+            const payBody = document.getElementById('fin-payables-list');
+            let payHtml = '';
+            
+            STATE.expenses.filter(e => e.status !== 'PAGO').forEach(e => {
+                const dataVencStr = (e.date||'').split('T')[0];
+                const isVencido = dataVencStr < hojeLocalStr;
+                
+                payHtml += `
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${isVencido ? 'border-l-red-500' : 'border-l-red-500'} relative">
+                    <div class="flex-1 pr-2">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">${formatDate(e.date)} ${isVencido ? '<span class="text-red-500 ml-1">VENCIDO</span>' : ''}</span>
+                        <h4 class="font-bold text-slate-700 text-sm leading-tight">${e.item}</h4>
+                        <p class="text-[10px] text-slate-500 truncate">${e.provider || e.note || '-'}</p>
+                        <p class="text-[10px] text-red-600 font-bold mt-1">Pagar: ${formatMoney(e.cost)}</p>
+                    </div>
+                    <div class="flex gap-1.5 items-center">
+                        <button onclick="openEditExpense('${e.id}')" class="p-2 bg-slate-100 text-slate-600 rounded-lg active:bg-slate-200"><i data-lucide="edit-3" class="w-3 h-3"></i></button>
+                        <button onclick="payExpense('${e.id}')" class="bg-red-100 text-red-700 active:bg-red-200 text-[10px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Pagar</button>
+                    </div>
+                </div>`;
+            });
+            
+            payBody.innerHTML = payHtml || `<div class="text-center text-slate-400 text-xs py-3 bg-slate-100 rounded-xl border border-dashed border-slate-300">Não há contas a pagar.</div>`;
+
+            // Extrato de Caixa (Recebimentos + Despesas Pagas)
+            const extBody = document.getElementById('fin-extrato-list');
+            let extrato = [];
+            
+            // Recebimentos
+            STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO').forEach(l => {
+                extrato.push({ 
+                    type: 'in', 
+                    date: l.date, 
+                    title: l.note || 'Recebimento', 
+                    desc: l.paymentMethod || '-', 
+                    val: l.totalValue, 
+                    uid: l.uid,
+                    refId: l.id
+                });
+            });
+            
+            // Despesas pagas (via logs de despesa)
+            STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO').forEach(l => {
+                const exp = STATE.expenses.find(e => String(e.id) === String(l.productName));
+                extrato.push({ 
+                    type: 'out', 
+                    date: l.date, 
+                    title: exp ? exp.item : 'Despesa', 
+                    desc: l.note || '-', 
+                    val: l.totalValue, 
+                    uid: l.uid,
+                    refId: l.productName
+                });
+            });
+
+            const startDate = document.getElementById('fin-ext-start')?.value;
+            const endDate = document.getElementById('fin-ext-end')?.value;
+            
+            if(startDate) extrato = extrato.filter(i => new Date(i.date) >= new Date(startDate + 'T00:00:00'));
+            if(endDate) extrato = extrato.filter(i => new Date(i.date) <= new Date(endDate + 'T23:59:59'));
+            
+            extrato.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            extBody.innerHTML = extrato.length ? extrato.map(i => `
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+                    <div class="flex-1 pr-2">
+                        <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${formatDate(i.date)}</span>
+                        <h4 class="text-xs font-bold text-slate-700 leading-tight">${i.title}</h4>
+                        <p class="text-[10px] text-slate-500 truncate mt-0.5">${i.desc}</p>
+                    </div>
+                    <div class="flex flex-col items-end gap-1.5">
+                        <span class="font-black text-sm ${i.type === 'in' ? 'text-green-600' : 'text-red-600'}">${i.type === 'in' ? '+' : '-'} ${formatMoney(i.val)}</span>
+                        <button onclick="${i.type === 'in' ? `estornarRecebimento('${i.uid}')` : `estornarDespesaLog('${i.refId}')`}" class="text-[9px] font-bold text-slate-400 uppercase bg-slate-50 border border-slate-200 py-1 px-2 rounded active:bg-red-50 active:text-red-500">Estornar</button>
+                    </div>
+                </div>
+            `).join('') : `<div class="text-center text-slate-400 text-xs py-4">Nenhuma movimentação no período.</div>`;
+
+            lucide.createIcons();
+        }
+
+        function openBaixaReceita(id, total, paid) {
+            document.getElementById('rec-id').value = id;
+            document.getElementById('rec-total-lbl').innerText = formatMoney(total);
+            document.getElementById('rec-pending-lbl').innerText = formatMoney(total - paid);
+            document.getElementById('rec-pay-val').value = '';
+            document.getElementById('modal-receivable-edit').classList.remove('hidden');
+        }
+
+        async function saveReceivableEdit() {
+            const id = document.getElementById('rec-id').value;
+            const method = document.getElementById('rec-method').value;
+            const payVal = Number(document.getElementById('rec-pay-val').value) || 0;
+            
+            if(payVal <= 0) return showToast("Insira um valor maior que zero", true);
+            showLoading(true);
+
+            try {
+                const rowsToUpdate = STATE.logs.filter(l => String(l.id) === String(id) && (l.type === 'venda' || l.type === 'receita'));
+                if(!rowsToUpdate.length) throw new Error("Registro não encontrado");
+
+                let orderTotal = rowsToUpdate.reduce((acc, r) => acc + r.totalValue, 0);
+                let orderPaid = rowsToUpdate.reduce((acc, r) => Math.max(acc, r.paidValue), 0);
+                let newOrderPaid = orderPaid + payVal;
+                let finStatus = newOrderPaid >= orderTotal ? 'PAGO' : (newOrderPaid > 0 ? 'PARCIAL' : 'PENDENTE');
+
+                for(let row of rowsToUpdate) {
+                    await sb.from('logs').update({ 
+                        valor_pago: newOrderPaid, 
+                        status_financeiro: finStatus 
+                    }).eq('uid', row.uid);
+                }
+
+                const newLogId = getNextId(STATE.logs);
+                await sb.from('logs').insert([{
+                    id: newLogId, 
+                    tipo: 'recebimento', 
+                    produto_nome: 'Baixa de Conta', 
+                    quantidade: 0,
+                    data: getHojeLocalStr(), 
+                    observacao: 'Ref Lanc #' + id, 
+                    valor_total: payVal,
+                    cliente_nome: rowsToUpdate[0].clientName, 
+                    forma_pagamento: method,
+                    status: 'ATIVO', 
+                    status_financeiro: 'PAGO', 
+                    valor_pago: payVal,
+                    uid: gerarUid()
+                }]);
+
+                document.getElementById('modal-receivable-edit').classList.add('hidden');
+                showToast("Baixa registrada!");
+                await loadData();
+            } catch(err) {
+                showLoading(false);
+                showToast("Erro: " + err.message, true);
+                console.error(err);
+            }
+        }
+
+        async function estornarRecebimento(uid) {
+            if(!confirm("Estornar este recebimento? O valor voltará para 'A Receber'.")) return;
+            showLoading(true);
+
+            try {
+                const recLog = STATE.logs.find(l => l.uid === uid && l.type === 'recebimento');
+                if(!recLog) throw new Error("Log não encontrado");
+
+                const match = recLog.note.match(/#(\d+)/);
+                if(!match) throw new Error("ID não identificado");
+                const parentId = match[1];
+                const valorEstorno = recLog.totalValue;
+
+                await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', uid);
+
+                const rowsToUpdate = STATE.logs.filter(l => String(l.id) === String(parentId) && (l.type === 'venda' || l.type === 'receita'));
+                for(let row of rowsToUpdate) {
+                    let novoPago = Math.max(0, row.paidValue - valorEstorno);
+                    let novoStatus = novoPago === 0 ? 'PENDENTE' : (novoPago < row.totalValue ? 'PARCIAL' : 'PAGO');
+                    await sb.from('logs').update({ valor_pago: novoPago, status_financeiro: novoStatus }).eq('uid', row.uid);
+                }
+
+                showToast("Estorno concluído!");
+                await loadData();
+            } catch (err) {
+                showLoading(false);
+                showToast("Erro: " + err.message, true);
+            }
+        }
+
+        function openEditExpense(id) {
+            const exp = STATE.expenses.find(e => String(e.id) === String(id));
+            if(!exp) return;
+            
+            document.getElementById('exp-id').value = exp.id;
+            document.getElementById('exp-item').value = exp.item;
+            document.getElementById('exp-provider').value = exp.provider || '';
+            document.getElementById('exp-cost').value = exp.cost;
+            try { document.getElementById('exp-date').value = exp.date.split('T')[0]; } catch(e){}
+            document.getElementById('exp-note').value = exp.note ? exp.note.replace(`Fornecedor: ${exp.provider} | `, '').trim() : '';
+            document.getElementById('modal-expense').classList.remove('hidden');
+        }
+
+        async function saveExpense() {
+            const idVal = document.getElementById('exp-id').value;
+            const isNew = !idVal;
+            
+            const item = document.getElementById('exp-item').value;
+            const provider = document.getElementById('exp-provider').value.trim();
+            const cost = parseFloat(document.getElementById('exp-cost').value) || 0;
+            const date = document.getElementById('exp-date').value || getHojeLocalStr();
+            const noteBase = document.getElementById('exp-note').value.trim();
+            
+            if(!item || !cost) return showToast("Preencha categoria e valor", true);
+            showLoading(true);
+
+            const finalNote = provider ? `Fornecedor: ${provider}${noteBase ? ' | ' + noteBase : ''}` : noteBase;
+
+            const payload = {
+                item: item, quantidade: 1, unidade: 'Un',
+                custo: cost, data: date, observacao: finalNote, status: 'PENDENTE'
+            };
+
+            let error;
+            if (isNew) {
+                payload.id = getNextId(STATE.expenses);
+                const res = await sb.from('despesas').insert([payload]);
+                error = res.error;
+            } else {
+                const res = await sb.from('despesas').update(payload).eq('id', idVal);
+                error = res.error;
+            }
+
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+
+            document.getElementById('exp-id').value = "";
+            document.getElementById('exp-provider').value = "";
+            document.getElementById('exp-cost').value = ""; 
+            document.getElementById('exp-note').value = "";
+            document.getElementById('modal-expense').classList.add('hidden');
+            
+            showToast(isNew ? "Despesa Lançada (Pendente)!" : "Despesa Atualizada!");
+            loadData();
+        }
+
+        async function payExpense(id) {
+            if(!confirm("Confirmar a baixa desta despesa? O valor sairá do caixa agora.")) return;
+            showLoading(true);
+            
+            const exp = STATE.expenses.find(e => String(e.id) === String(id));
+            if(!exp) { showLoading(false); return showToast("Erro: Despesa não encontrada", true); }
+            if(exp.status === 'PAGO') { showLoading(false); return showToast("Esta despesa já foi paga!", true); }
+            
+            const { error: err1 } = await sb.from('despesas').update({ status: 'PAGO' }).eq('id', id);
+            if(err1) { showLoading(false); return showToast("Erro ao baixar: " + err1.message, true); }
+            
+            const newLogId = getNextId(STATE.logs);
+            const { error: err2 } = await sb.from('logs').insert([{
+                id: newLogId, tipo: 'despesa', produto_nome: String(id), quantidade: exp.quantity,
+                data: getHojeLocalStr(), 
+                observacao: (exp.note ? exp.note + ' | ' : '') + 'Ref Despesa #' + exp.id, 
+                valor_total: exp.cost, status: 'ATIVO',
+                status_financeiro: 'PAGO', valor_pago: exp.cost,
+                uid: gerarUid()
+            }]);
+            
+            if(err2) { showLoading(false); return showToast("Erro ao gerar log de caixa: " + err2.message, true); }
+            
+            showToast("Despesa baixada com sucesso!");
+            loadData();
+        }
+
+        async function estornarDespesaLog(id) {
+            if(!confirm("Estornar o pagamento desta despesa? Ela voltará a ficar PENDENTE no caixa.")) return;
+            showLoading(true);
+            try {
+                await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', id);
+                const logParaEstornar = STATE.logs.find(l => l.type === 'despesa' && String(l.productName) === String(id));
+                if (logParaEstornar) {
+                    await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', logParaEstornar.uid);
+                }
+                showToast("Pagamento estornado!");
+                loadData();
+            } catch(e) {
+                showLoading(false);
+                showToast("Erro: " + e.message, true);
+            }
+        }
+
+        // ==================== DEMAIS FUNÇÕES (ORÇAMENTOS, PRODUTOS, CLIENTES) ====================
+        // (Mantidas exatamente como estavam no código original)
+        
+        function openNewQuote() {
+            clearCart();
+            document.getElementById('view-pos').classList.remove('hidden');
+            document.getElementById('view-pos').classList.add('flex');
+            renderCart();
+        }
+
+        function closeNewQuote() {
+            document.getElementById('view-pos').classList.add('hidden');
+            document.getElementById('view-pos').classList.remove('flex');
+        }
+
+        function toggleCustomAddress() {
+            const check = document.getElementById('pos-custom-address-check').checked;
+            const input = document.getElementById('pos-custom-address');
+            if(check) {
+                input.classList.remove('hidden');
+                input.focus();
+            } else {
+                input.classList.add('hidden');
+                input.value = '';
+            }
+        }
+
+        function toggleCustomObs() {
+            const check = document.getElementById('pos-custom-obs-check').checked;
+            const input = document.getElementById('pos-custom-obs');
+            if(check) {
+                input.classList.remove('hidden');
+                input.focus();
+            } else {
+                input.classList.add('hidden');
+                input.value = '';
+            }
+        }
+
+        function calculateTotal() {
+            const sub = CART.reduce((a,b)=>a+(b.qty * b.price), 0);
+            const type = document.getElementById('pos-discount-type').value;
+            const val = parseFloat(document.getElementById('pos-discount').value) || 0;
+            let disc = (type === '%') ? (sub * (val/100)) : val;
+            return { sub, disc, total: Math.max(0, sub - disc) };
+        }
+
+        function renderCart() {
+            const box = document.getElementById('pos-cart-items');
+            document.getElementById('edit-mode-indicator').style.display = CURRENT_QUOTE_ID ? 'inline-block' : 'none';
+            
+            if(!CART.length) { 
+                box.innerHTML='<p class="text-center text-slate-400 my-4 text-sm font-bold">Nenhum item adicionado</p>'; 
+                document.getElementById('pos-total-display').innerText=formatMoney(0); 
+                document.getElementById('cart-count').innerText='0'; 
+                return; 
+            }
+            
+            const totals = calculateTotal();
+            
+            box.innerHTML = CART.map((i, idx) => `
+                <div class="bg-white p-3 border rounded-xl flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <span class="font-bold text-sm text-slate-800 leading-tight pr-2">${i.name}</span>
+                        <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 bg-red-50 p-1.5 rounded-lg active:scale-95 transition-transform"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="flex justify-between items-center mt-1">
+                        <div class="flex items-center gap-2">
+                            <input type="number" value="${i.qty}" step="0.1" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-16 p-2 border rounded-lg bg-slate-50 text-center text-sm font-bold focus:border-indigo-500 outline-none" title="Qtd">
+                            <span class="text-slate-400 text-xs font-bold">x</span>
+                            <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-20 p-2 border rounded-lg bg-slate-50 text-center text-sm font-bold focus:border-indigo-500 outline-none" title="Unit.">
+                        </div>
+                        <div class="font-black text-slate-800 text-base">${formatMoney(i.total)}</div>
+                    </div>
+                </div>`).join('');
+                
+            document.getElementById('pos-total-display').innerText = formatMoney(totals.total);
+            document.getElementById('cart-count').innerText = CART.length;
+            lucide.createIcons();
+        }
+
+        function updateCartItem(idx, field, value) {
+            const item = CART[idx];
+            if(field === 'qty') item.qty = parseFloat(value) || 0;
+            else if (field === 'price') item.price = parseFloat(value) || 0;
+            item.total = item.qty * item.price;
+            renderCart();
+        }
+
+        function clearCart() { 
+            CART=[]; 
+            CURRENT_QUOTE_ID=null; 
+            document.getElementById('pos-discount').value=0; 
+            
+            document.getElementById('pos-client').value = '';
+            document.getElementById('pos-client-btn').querySelector('span').innerText = 'Consumidor Final';
+            
+            document.getElementById('pos-custom-address-check').checked = false;
+            document.getElementById('pos-custom-address').classList.add('hidden');
+            document.getElementById('pos-custom-address').value = '';
+
+            document.getElementById('pos-custom-obs-check').checked = false;
+            document.getElementById('pos-custom-obs').classList.add('hidden');
+            document.getElementById('pos-custom-obs').value = '';
+            
+            renderCart(); 
+        }
+
+        function openPosProductModal() {
+            document.getElementById('pos-product-modal').classList.remove('hidden');
+            document.getElementById('pos-product-modal').classList.add('flex');
+            document.getElementById('pos-modal-search').value = '';
+            renderPosProductModal();
+        }
+
+        function closePosProductModal() { 
+            document.getElementById('pos-product-modal').classList.add('hidden');
+            document.getElementById('pos-product-modal').classList.remove('flex');
+        }
+
+        function renderPosProductModal() {
+            const term = document.getElementById('pos-modal-search').value.toLowerCase();
+            const grid = document.getElementById('pos-modal-grid');
+            if(!grid) return;
+
+            const sortedProducts = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
+
+            grid.innerHTML = sortedProducts.filter(p=>p.name.toLowerCase().includes(term)).map(p => {
+                return `
+                <div class="p-3 border rounded-xl bg-white flex flex-col gap-2">
+                    <div class="flex justify-between">
+                        <h4 class="font-bold text-sm text-slate-800 leading-tight">${p.name}</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded h-max ${p.available<=0?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700'} font-bold">Disp: ${p.available}</span>
+                    </div>
+                    <div class="flex items-center justify-between mt-1">
+                        <span class="text-indigo-600 font-black text-lg">${formatMoney(p.price)}</span>
+                        <div class="flex gap-2">
+                            <input type="number" id="qty-modal-${p.id}" value="1" min="0.1" step="0.1" class="w-16 p-2 border rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-indigo-600 bg-slate-50">
+                            <button onclick="addModalToCart('${p.id}')" class="bg-indigo-600 text-white p-2 rounded-lg font-bold shadow-md shadow-indigo-200 active:scale-95 transition-transform"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function addModalToCart(id) {
+            const p = STATE.products.find(x=>x.id==id);
+            const qtyInput = document.getElementById(`qty-modal-${id}`);
+            const qty = parseFloat(qtyInput.value) || 1;
+            
+            if(p) {
+                const existing = CART.find(x=>x.prodId==id);
+                if(existing) { 
+                    existing.qty += qty; 
+                    existing.total = existing.qty * existing.price; 
+                } else { 
+                    CART.push({prodId:p.id, name:p.name, price:p.price, qty:qty, total:p.price * qty}); 
+                }
+                renderCart();
+                qtyInput.value = "1";
+                showToast(p.name + " adicionado!");
+            }
+        }
+
+        function openPosClientModal() {
+            document.getElementById('pos-client-modal').classList.remove('hidden');
+            document.getElementById('pos-client-modal').classList.add('flex');
+            document.getElementById('pos-client-modal-search').value = '';
+            renderPosClientModal();
+        }
+
+        function closePosClientModal() {
+            document.getElementById('pos-client-modal').classList.add('hidden');
+            document.getElementById('pos-client-modal').classList.remove('flex');
+        }
+
+        function renderPosClientModal() {
+            const term = document.getElementById('pos-client-modal-search').value.toLowerCase();
+            const grid = document.getElementById('pos-client-modal-grid');
+            if(!grid) return;
+
+            const sortedClients = (STATE.clients||[]).slice().sort((a, b) => a.name.localeCompare(b.name));
+
+            let filtered = sortedClients;
+            if (term) {
+                filtered = filtered.filter(c => 
+                    c.name.toLowerCase().includes(term) || 
+                    (c.doc && c.doc.includes(term)) || 
+                    (c.phone && c.phone.includes(term))
+                );
+            }
+
+            grid.innerHTML = filtered.slice(0, 50).map(c => {
+                return `
+                <div class="p-4 border rounded-xl bg-white flex items-center justify-between" onclick="selectPosClient('${c.id}', '${c.name.replace(/'/g, "\\'")}')">
+                    <div class="flex flex-col flex-1 truncate">
+                        <h4 class="font-bold text-sm text-slate-800 truncate">${c.name}</h4>
+                        <span class="text-[11px] text-slate-500 font-medium mt-0.5">Doc: ${c.doc || '-'} | Tel: ${c.phone || '-'}</span>
+                    </div>
+                    <button class="bg-indigo-50 text-indigo-600 p-2 rounded-full"><i data-lucide="check" class="w-5 h-5"></i></button>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function selectPosClient(id, name) {
+            document.getElementById('pos-client').value = id;
+            document.getElementById('pos-client-btn').querySelector('span').innerText = name;
+            closePosClientModal();
+            showToast(name !== 'Consumidor Final' ? `Cliente: ${name}` : "Consumidor Final");
+        }
+
+       async function saveQuote() {
+            if(!CART.length) return showToast("Adicione produtos primeiro!", true);
+            showLoading(true);
+
+            const type = document.getElementById('pos-discount-type').value;
+            const valTyped = parseFloat(document.getElementById('pos-discount').value) || 0;
+            
+            const cliId = document.getElementById('pos-client').value;
+            const clientName = STATE.clients.find(c=>c.id==cliId)?.name || "Consumidor Final";
+            
+            const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
+            const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
+            
+            const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
+            const obs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
+
+            const date = new Date().toISOString();
+            const budgetId = CURRENT_QUOTE_ID || getNextId(STATE.logs, STATE.quotes);
+
+            if(CURRENT_QUOTE_ID) await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
+
+            let quotesToInsert = CART.map(item => ({
+                id: budgetId, tipo: 'orcamento', produto_nome: item.name, quantidade: item.qty,
+                data: date, observacao: obs, valor_total: item.total, cliente_nome: clientName, 
+                forma_pagamento: document.getElementById('pos-payment').value, status: 'ABERTO', 
+                desconto: valTyped, status_financeiro: type, 
+                endereco_entrega: deliveryAddr, status_entrega: '', qtd_entregue: 0, vencimento: date, valor_pago: 0
+            }));
+
+            const { error } = await sb.from('logs').insert(quotesToInsert);
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+
+            clearCart();
+            closeNewQuote();
+            showToast("Orçamento Salvo!");
+            await loadData();
+        }
+
+        function loadQuoteToCart(id) {
+            let q = STATE.quotes.find(x => String(x.id) === String(id));
+            if(!q) q = STATE.sales.find(x => String(x.id) === String(id));
+            if(!q) return;
+            
+            CART = JSON.parse(JSON.stringify(q.items));
+            CURRENT_QUOTE_ID = q.id; 
+            
+            const clientSelectBtn = document.getElementById('pos-client-btn').querySelector('span');
+            const clientObj = STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
+            
+            if(clientObj) {
+                document.getElementById('pos-client').value = clientObj.id;
+                clientSelectBtn.innerText = clientObj.name;
+            } else {
+                document.getElementById('pos-client').value = '';
+                clientSelectBtn.innerText = q.clientName || 'Consumidor Final';
+            }
+            
+            document.getElementById('pos-payment').value = q.paymentMethod || 'Dinheiro';
+            document.getElementById('pos-discount-type').value = q.discountType || '$';
+
+            if(q.discountType === '%') {
+                document.getElementById('pos-discount').value = q.total > 0 ? ((Number(q.discount) / q.total) * 100).toFixed(2) : 0;
+            } else {
+                document.getElementById('pos-discount').value = q.discount || 0;
+            }
+
+            if(q.deliveryAddress) {
+                document.getElementById('pos-custom-address-check').checked = true;
+                document.getElementById('pos-custom-address').classList.remove('hidden');
+                document.getElementById('pos-custom-address').value = q.deliveryAddress;
+            } else {
+                document.getElementById('pos-custom-address-check').checked = false;
+                document.getElementById('pos-custom-address').classList.add('hidden');
+                document.getElementById('pos-custom-address').value = '';
+            }
+
+            if(q.observacao) {
+                document.getElementById('pos-custom-obs-check').checked = true;
+                document.getElementById('pos-custom-obs').classList.remove('hidden');
+                document.getElementById('pos-custom-obs').value = q.observacao;
+            } else {
+                document.getElementById('pos-custom-obs-check').checked = false;
+                document.getElementById('pos-custom-obs').classList.add('hidden');
+                document.getElementById('pos-custom-obs').value = '';
+            }
+
+            document.getElementById('view-pos').classList.remove('hidden');
+            document.getElementById('view-pos').classList.add('flex');
+            renderCart();
+            showToast(`Editando Registro #${q.id}`);
+        }
+
+        async function updateQuoteStatus(id, newStatus) {
+            showLoading(true);
+            const { error } = await sb.from('logs').update({ status: newStatus }).eq('id', id).eq('tipo', 'orcamento');
+            if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+            const quote = STATE.quotes.find(q => String(q.id) === String(id));
+            if (quote) quote.status = newStatus;
+            showLoading(false);
+            showToast("Status Atualizado!");
+            renderQuotesList(); 
+        }
+
+        async function deleteQuote(id) {
+            if(!confirm("Excluir este orçamento definitivamente?")) return;
+            showLoading(true);
+            const { error } = await sb.from('logs').delete().eq('id', id).eq('tipo', 'orcamento');
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+            showToast("Orçamento Excluído!");
+            loadData();
+        }
+
+       async function shareQuote(id) {
+            let q = STATE.quotes.find(x => String(x.id) === String(id));
+            const isVenda = !q;
+            if (!q) q = STATE.sales.find(x => String(x.id) === String(id));
+            if (!q) return;
+            
+            showLoading(true);
+
+            const clientName = q.clientName || 'Consumidor Final';
+            const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+
+            let itemsParaRender = q.items;
+            let valorDesconto = Number(q.absoluteDiscount) || 0;
+
+            if (isVenda) {
+                const netTotal = q.items.reduce((acc, i) => acc + i.total, 0);
+                const grossTotal = netTotal + valorDesconto;
+                const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
+                itemsParaRender = q.items.map(i => ({
+                    name: i.name,
+                    qty: i.qty,
+                    price: i.qty > 0 ? (i.total * fator / i.qty) : 0,
+                    total: i.total * fator
+                }));
+            }
+
+            let subtotal = 0;
+            const itemsHtml = itemsParaRender.map((i) => {
+                const itemTotal = i.qty * i.price;
+                subtotal += itemTotal;
+                return `
+                    <tr>
+                        <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
+                        <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
+                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
+                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
+                    </tr>`;
+            }).join('');
+
+            const finalTotal = subtotal - valorDesconto;
+            const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
+            const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV'
+                            ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+            const tituloDoc = isVenda ? "PEDIDO DE VENDA" : "ORÇAMENTO";
+
+            const htmlString = `
+                <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
+                    
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
+                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
+                    </div>
+
+                    <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                        <tr>
+                            <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
+                                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
+                            </td>
+                            <td valign="middle" style="padding-left: 15px;">
+                                <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
+                                <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
+                                <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                            </td>
+                            <td align="right" valign="top">
+                                <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">${tituloDoc}</h2>
+                                <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
+                                <div style="font-size: 11px;"><strong>Data:</strong> ${formatDate(q.date)}</div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
+                        <tr>
+                            <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
+                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                                    <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
+                                </div>
+                            </td>
+                            <td width="4%"></td>
+                            <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
+                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                                    <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
+                        <thead>
+                            <tr>
+                                <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px;">Descrição</th>
+                                <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 50px;">Qtd</th>
+                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Unit.</th>
+                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
+                    </table>
+
+                    <table width="100%" style="margin-top: 10px;">
+                        <tr>
+                            <td valign="top" style="padding-right: 30px;">
+                                <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
+                                    <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
+                                    <div style="font-size: 10px; color: #334155;">${obsText}</div>
+                                </div>
+                            </td>
+                            <td width="250" valign="top">
+                                <table width="100%" style="font-size: 11px; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
+                                        <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
+                                    </tr>
+                                    ${valorDesconto > 0 ? `
+                                    <tr>
+                                        <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
+                                        <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(valorDesconto)}</td>
+                                    </tr>` : ''}
+                                    <tr>
+                                        <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">TOTAL A PAGAR:</td>
+                                        <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">${formatMoney(finalTotal)}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+
+            const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+            const opt = {
+                margin: 10,
+                filename: filename,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            try {
+                setTimeout(async () => {
+                    try {
+                        const pdfBlob = await html2pdf().set(opt).from(htmlString).output('blob');
+
+                        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                title: `${tituloDoc} #${q.id}`,
+                                text: `Olá ${clientName}, segue o documento solicitado.`,
+                                files: [file]
+                            });
+                            showLoading(false);
+                        } else {
+                            await html2pdf().set(opt).from(htmlString).save();
+                            showLoading(false);
+                            showToast("PDF Baixado! Seu celular não suporta envio direto.");
+                        }
+                    } catch (err) {
+                        console.error("Erro PDF", err);
+                        showLoading(false);
+                        showToast("Falha ao gerar o PDF", true);
+                    }
+                }, 500);
+            } catch (err) {
+                showLoading(false);
+                showToast("Falha ao gerar o PDF", true);
+            }
+        }
+
+        function setDocType(type) {
+            currentDocType = type;
+            const btnOrc = document.getElementById('tab-orcamentos');
+            const btnVen = document.getElementById('tab-vendas');
+            const statusFilter = document.getElementById('quote-status-filter');
+
+            if(type === 'orcamento') {
+                btnOrc.className = "flex-1 py-2 rounded-lg text-sm font-black bg-white text-indigo-600 shadow-sm transition-all";
+                btnVen.className = "flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
+                statusFilter.style.display = 'block';
+            } else {
+                btnVen.className = "flex-1 py-2 rounded-lg text-sm font-black bg-white text-emerald-600 shadow-sm transition-all";
+                btnOrc.className = "flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
+                statusFilter.style.display = 'none'; 
+            }
+            renderQuotesList();
+        }
+
+        async function estornarVenda(id) {
+            if(!confirm("Tem certeza que deseja estornar esta VENDA para ORÇAMENTO? Os produtos retornarão ao estoque!")) return;
+            showLoading(true);
+            
+            const sale = STATE.sales.find(s => String(s.id) === String(id));
+            if (!sale) { showLoading(false); return; }
+
+            try {
+                for (let item of sale.items) {
+                    const prod = STATE.products.find(p => p.name === item.name);
+                    if(prod) {
+                        const novoEstoque = Number(prod.stock) + Number(item.qty);
+                        await sb.from('produtos').update({ estoque_fisico: novoEstoque }).eq('id', prod.id);
+                    }
+                }
+
+                const { error } = await sb.from('logs').update({ tipo: 'orcamento', status: 'ABERTO' }).eq('id', id).eq('tipo', 'venda');
+                if(error) throw error;
+                
+                showToast("Venda Estornada com sucesso!");
+                await loadData(); 
+                setDocType('orcamento'); 
+            } catch(e) {
+                showLoading(false);
+                showToast("Erro: " + e.message, true);
+            }
+        }
+
+        async function duplicarParaOrcamento(id) {
+            if(!confirm("Duplicar esta venda como um novo ORÇAMENTO em aberto?")) return;
+            showLoading(true);
+
+            const sale = STATE.sales.find(s => String(s.id) === String(id));
+            if (!sale) { showLoading(false); return; }
+
+            try {
+                const logsToCopy = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
+                const newId = getNextId(STATE.logs, STATE.quotes);
+                const date = new Date().toISOString();
+
+                const newLogs = logsToCopy.map(l => ({
+                    id: newId,
+                    tipo: 'orcamento',
+                    produto_nome: l.productName,
+                    quantidade: l.quantity,
+                    data: date,
+                    observacao: l.note,
+                    valor_total: l.totalValue,
+                    cliente_nome: l.clientName,
+                    forma_pagamento: l.paymentMethod || 'Dinheiro',
+                    status: 'ABERTO',
+                    desconto: sale.discount || 0,
+                    status_financeiro: sale.discountType || '$',
+                    endereco_entrega: sale.deliveryAddress || '',
+                    status_entrega: '',
+                    qtd_entregue: 0,
+                    vencimento: date,
+                    valor_pago: 0
+                }));
+
+                const { error } = await sb.from('logs').insert(newLogs);
+                if(error) throw error;
+
+                showToast("Duplicado com Sucesso!");
+                await loadData();
+                setDocType('orcamento');
+            } catch(e) {
+                showLoading(false);
+                showToast("Erro ao duplicar: " + e.message, true);
+            }
+        }
+
+        function renderQuotesList() {
+            const list = document.getElementById('quotes-list');
+            if(!list) return;
+
+            const term = document.getElementById('quote-search')?.value.toLowerCase() || '';
+            const statusFilter = document.getElementById('quote-status-filter')?.value || '';
+
+            let baseList = currentDocType === 'orcamento' ? (STATE.quotes || []) : (STATE.sales || []);
+            let filteredList = baseList.slice().reverse();
+
+            if (term) filteredList = filteredList.filter(q => q.clientName && q.clientName.toLowerCase().includes(term));
+            if (currentDocType === 'orcamento' && statusFilter) filteredList = filteredList.filter(q => q.status === statusFilter);
+
+            if(!filteredList.length) { 
+                list.innerHTML=`<div class="text-center p-10 text-slate-400 font-bold">Nenhum registro encontrado.</div>`; 
+                return; 
+            }
+            
+            list.innerHTML = filteredList.map(q => {
+                
+                const valorDesconto = Number(q.absoluteDiscount) || 0;
+                const valorLiquido = currentDocType === 'venda' ? q.total : Math.max(0, q.total - valorDesconto);
+                
+                if (currentDocType === 'orcamento') {
+                    let bgBorderClass = "bg-white border-slate-200";
+                    let badgeClass = "bg-slate-100 text-slate-600";
+                    
+                    if (q.status === 'APROVADO') { bgBorderClass = "bg-emerald-50 border-emerald-300"; badgeClass = "bg-emerald-200 text-emerald-800"; }
+                    else if (q.status === 'PERDIDO') { bgBorderClass = "bg-red-50 border-red-300"; badgeClass = "bg-red-200 text-red-800"; }
+                    else if (q.status === 'EM NEGOCIAÇÃO') { bgBorderClass = "bg-indigo-50 border-indigo-300"; badgeClass = "bg-indigo-200 text-indigo-800"; }
+
+                    return `
+                    <div class="p-4 rounded-2xl border mb-1 shadow-sm ${bgBorderClass}">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <div class="font-black text-slate-800 text-lg">#${q.id}</div>
+                                <div class="text-[11px] font-bold text-slate-500"><i data-lucide="calendar" class="inline w-3 h-3"></i> ${formatDate(q.date)}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-black text-xl text-slate-800">${formatMoney(valorLiquido)}</div>
+                                <select onchange="updateQuoteStatus('${q.id}', this.value)" class="mt-2 py-1 px-2 rounded-lg text-xs font-bold outline-none border border-transparent appearance-none text-center w-full ${badgeClass}">
+                                    <option value="ABERTO" ${q.status === 'ABERTO' ? 'selected' : ''}>Em Aberto</option>
+                                    <option value="EM NEGOCIAÇÃO" ${q.status === 'EM NEGOCIAÇÃO' ? 'selected' : ''}>Negociando</option>
+                                    <option value="APROVADO" ${q.status === 'APROVADO' ? 'selected' : ''}>Aprovado</option>
+                                    <option value="PERDIDO" ${q.status === 'PERDIDO' ? 'selected' : ''}>Perdido</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-4 bg-white/60 p-3 rounded-xl border border-white/50">
+                            <div class="font-bold text-sm text-slate-800 flex items-center gap-1 mb-1"><i data-lucide="user" class="w-4 h-4 text-slate-400"></i> ${q.clientName}</div>
+                        </div>
+                        <div class="flex gap-2 justify-end mt-2">
+                            <button onclick="shareQuote('${q.id}')" class="flex-1 p-2 bg-green-100 border border-slate-300 text-slate-700 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
+                                <i data-lucide="share-2" class="w-4 h-4"></i> Enviar
+                            </button>
+                            <button onclick="loadQuoteToCart('${q.id}')" class="flex-1 p-2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i> Editar
+                            </button>
+                            <button onclick="deleteQuote('${q.id}')" class="w-10 p-2 bg-white border border-red-200 text-red-500 rounded-xl flex justify-center items-center shadow-sm active:scale-95 transition-transform" title="Excluir">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>`;
+                } else {
+                    return `
+                    <div class="p-4 rounded-2xl border mb-1 shadow-sm bg-slate-50 border-slate-200">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <div class="font-black text-slate-800 text-lg flex items-center gap-1"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i> #${q.id}</div>
+                                <div class="text-[11px] font-bold text-slate-500"><i data-lucide="calendar" class="inline w-3 h-3"></i> ${formatDate(q.date)}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-black text-xl text-emerald-600">${formatMoney(valorLiquido)}</div>
+                                <span class="mt-1 inline-block bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase">${q.paymentMethod || 'Pago'}</span>
+                            </div>
+                        </div>
+                        <div class="mb-4 bg-white p-3 rounded-xl border border-slate-200">
+                            <div class="font-bold text-sm text-slate-800 flex items-center gap-1 mb-1"><i data-lucide="user" class="w-4 h-4 text-slate-400"></i> ${q.clientName}</div>
+                        </div>
+                        <div class="flex gap-2 justify-end mt-2">
+                            <button onclick="shareQuote('${q.id}')" class="flex-1 p-2 bg-green-100 border border-green-300 text-green-700 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
+                                <i data-lucide="share-2" class="w-4 h-4"></i> Enviar
+                            </button>
+                            <button onclick="duplicarParaOrcamento('${q.id}')" class="flex-1 p-2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
+                                <i data-lucide="copy" class="w-4 h-4"></i> Duplicar
+                            </button>
+                        </div>
+                    </div>`;
+                }
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function showDailyReport() {
+            showLoading(true);
+            const dataHojeLocal = new Date().toLocaleDateString('pt-BR');
+            let totalVendas = 0; let descontos = 0; let pagamentosMap = {}; let rowsHtml = '';
+            
+            const todaySales = STATE.sales.filter(s => {
+                if (!s.date) return false;
+                const dataLogLocal = new Date(s.date).toLocaleDateString('pt-BR');
+                return dataLogLocal === dataHojeLocal && s.status !== 'CANCELADO';
+            });
+
+            todaySales.forEach(s => {
+                const descValor = Number(s.absoluteDiscount) || 0;
+                const valorFinal = s.total;
+
+                totalVendas += valorFinal;
+                descontos += descValor;
+                
+                const pgto = s.paymentMethod;
+                if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
+                pagamentosMap[pgto] += valorFinal;
+                
+                rowsHtml += `
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2 flex flex-col gap-1">
+                        <div class="flex justify-between items-start">
+                            <span class="font-bold text-sm text-slate-800">#${s.id} - ${s.clientName}</span>
+                            <span class="font-black text-emerald-600">${formatMoney(valorFinal)}</span>
+                        </div>
+                        <span class="text-[11px] text-slate-500 font-bold uppercase bg-slate-100 w-max px-2 py-0.5 rounded">${s.paymentMethod}</span>
+                    </div>
+                `;
+            });
+
+            let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `
+                <div class="flex justify-between items-center border-b border-dashed border-slate-300 py-2">
+                    <span class="text-sm font-medium text-slate-600">${metodo}</span>
+                    <span class="text-sm font-bold text-slate-800">${formatMoney(valor)}</span>
+                </div>
+            `).join('');
+
+            if (todaySales.length === 0) {
+                rowsHtml = '<div class="text-center p-6 text-slate-400 font-bold">Nenhuma venda registrada hoje.</div>';
+            }
+
+            const el = document.getElementById('report-result-content');
+            el.innerHTML = `
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
+                        <h3 class="font-black text-xl text-emerald-600 mb-1">FATURAMENTO DIÁRIO</h3>
+                        <p class="text-xs font-bold text-slate-500">${dataHojeLocal}</p>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="font-bold text-slate-700 mb-2 uppercase text-xs">Vendas do Dia</h4>
+                        ${rowsHtml}
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4">
+                        <h4 class="font-bold text-slate-700 mb-3 border-b pb-2 uppercase text-xs">Métodos de Pagamento</h4>
+                        ${pgtoRowsHtml}
+                    </div>
+                    <div class="bg-slate-900 p-5 rounded-2xl shadow-lg mb-8 text-white">
+                        <h4 class="font-bold text-slate-400 mb-3 uppercase text-xs">Resumo do Dia</h4>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm">Qtd. Vendas:</span>
+                            <span class="text-sm font-bold">${todaySales.length}</span>
+                        </div>
+                        <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
+                            <span class="font-black text-lg">LÍQUIDO:</span>
+                            <span class="font-black text-2xl text-emerald-400">${formatMoney(totalVendas)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            showLoading(false);
+            document.getElementById('view-report-result').classList.remove('hidden');
+            document.getElementById('view-report-result').classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function openPeriodReportModal() {
+            const hoje = new Date();
+            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+            document.getElementById('rep-per-start').value = toLocalYYYYMMDD(primeiroDia);
+            document.getElementById('rep-per-end').value = toLocalYYYYMMDD(ultimoDia);
+            document.getElementById('rep-per-payment').value = 'Todos';
+            document.getElementById('rep-per-client').value = '';
+            document.getElementById('modal-period-report').classList.remove('hidden');
+        }
+
+        function closePeriodReportModal() {
+            document.getElementById('modal-period-report').classList.add('hidden');
+        }
+
+        function closeReportView() {
+            const reportView = document.getElementById('view-report-result');
+            const reportContent = document.getElementById('report-result-content');
+            
+            if (reportView) {
+                reportView.classList.remove('flex');
+                reportView.classList.add('hidden');
+            }
+            if (reportContent) reportContent.innerHTML = '';
+        }
+
+        function showPeriodReport() {
+            showLoading(true);
+            const start = document.getElementById('rep-per-start').value;
+            const end = document.getElementById('rep-per-end').value;
+            const payment = document.getElementById('rep-per-payment').value;
+            const client = document.getElementById('rep-per-client').value.toLowerCase().trim();
+
+            let filteredSales = STATE.sales.filter(s => s.status !== 'CANCELADO');
+
+            if (start) {
+                const startD = new Date(start + "T00:00:00");
+                filteredSales = filteredSales.filter(s => new Date(s.date) >= startD);
+            }
+            if (end) {
+                const endD = new Date(end + "T23:59:59");
+                filteredSales = filteredSales.filter(s => new Date(s.date) <= endD);
+            }
+            if (payment !== 'Todos') filteredSales = filteredSales.filter(s => s.paymentMethod === payment);
+            if (client) filteredSales = filteredSales.filter(s => s.clientName.toLowerCase().includes(client));
+
+            filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            if (filteredSales.length === 0) {
+                showLoading(false);
+                return showToast("Nenhuma venda encontrada.", true);
+            }
+
+            let totalLiquido = 0; let totalDescontos = 0; let pagamentosMap = {};
+            let rowsHtml = filteredSales.map(s => {
+                const descValor = Number(s.absoluteDiscount) || 0;
+                const valorFinal = s.total;
+
+                totalLiquido += valorFinal; 
+                totalDescontos += descValor;
+                const pgto = s.paymentMethod;
+                if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
+                pagamentosMap[pgto] += valorFinal;
+
+                return `
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2 flex flex-col gap-1">
+                        <div class="flex justify-between items-start">
+                            <span class="font-bold text-sm text-slate-800">#${s.id} - ${s.clientName}</span>
+                            <span class="font-black text-emerald-600">${formatMoney(valorFinal)}</span>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <span class="text-[10px] text-slate-400 font-bold"><i data-lucide="calendar" class="inline w-3 h-3"></i> ${formatDate(s.date)}</span>
+                            <span class="text-[10px] text-slate-500 font-bold uppercase bg-slate-100 px-2 py-0.5 rounded">${s.paymentMethod}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            let pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `
+                <div class="flex justify-between items-center border-b border-dashed border-slate-300 py-2">
+                    <span class="text-sm font-medium text-slate-600">${metodo}</span>
+                    <span class="text-sm font-bold text-slate-800">${formatMoney(valor)}</span>
+                </div>
+            `).join('');
+
+            const filtroTexto = `${start ? formatDate(start) : 'Início'} até ${end ? formatDate(end) : 'Hoje'} <br> Pgto: ${payment} ${client ? '| Cliente: ' + client : ''}`;
+            const el = document.getElementById('report-result-content');
+            el.innerHTML = `
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
+                        <h3 class="font-black text-xl text-indigo-600 mb-2">VENDAS POR PERÍODO</h3>
+                        <div class="bg-indigo-50 p-2 rounded-lg text-[11px] font-bold text-indigo-800">${filtroTexto}</div>
+                    </div>
+                    <div class="mb-4">
+                        <h4 class="font-bold text-slate-700 mb-2 uppercase text-xs">Vendas Filtradas</h4>
+                        ${rowsHtml}
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4">
+                        <h4 class="font-bold text-slate-700 mb-3 border-b pb-2 uppercase text-xs">Métodos de Pagamento</h4>
+                        ${pgtoRowsHtml}
+                    </div>
+                    <div class="bg-slate-900 p-5 rounded-2xl shadow-lg mb-8 text-white">
+                        <h4 class="font-bold text-slate-400 mb-3 uppercase text-xs">Resumo do Período</h4>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm">Qtd. Vendas:</span>
+                            <span class="text-sm font-bold">${filteredSales.length}</span>
+                        </div>
+                        <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
+                            <span class="font-black text-lg">LÍQUIDO:</span>
+                            <span class="font-black text-2xl text-indigo-400">${formatMoney(totalLiquido)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            showLoading(false);
+            closePeriodReportModal();
+            document.getElementById('view-report-result').classList.remove('hidden');
+            document.getElementById('view-report-result').classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function renderProducts() {
+            const list = document.getElementById('prod-list');
+            if(!list) return;
+
+            const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
+            const catFilter = document.getElementById('prod-category')?.value || '';
+            const catSelect = document.getElementById('prod-category');
+            
+            if (catSelect) {
+                const currentVal = catSelect.value;
+                catSelect.innerHTML = '<option value="">Todas as Categorias</option>';
+                const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
+                categoriasUnicas.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    catSelect.appendChild(option);
+                });
+                catSelect.value = currentVal;
+            }
+
+            let filtered = STATE.products.slice();
+            if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
+            if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="p-10 text-center text-slate-400 font-bold">Nenhum produto cadastrado.</div>';
+                return;
+            }
+
+            list.innerHTML = filtered.map(p => `
+            <div class="bg-white p-4 rounded-2xl border shadow-sm flex items-center justify-between mb-1">
+                <div class="flex flex-col flex-1 mr-2 overflow-hidden">
+                    <h4 class="font-black text-slate-800 text-sm truncate mb-1">${p.name}</h4>
+                    <span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded w-max uppercase">${p.category || 'Geral'}</span>
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                    <span class="font-black text-orange-500 text-lg">${formatMoney(p.price)}</span>
+                    <span class="text-[10px] text-slate-400 font-bold">Estoque: <span class="${p.available <= 0 ? 'text-red-500' : 'text-emerald-500'}">${p.available}</span></span>
+                </div>
+                <button onclick="openProductForm('${p.id}')" class="ml-4 p-3 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-200 active:scale-95 transition">
+                    <i data-lucide="edit-3" class="w-5 h-5"></i>
+                </button>
+            </div>`).join('');
+            lucide.createIcons(); 
+        }
+
+        function openProductForm(id) { 
+            document.getElementById('prod-form-container').classList.remove('hidden'); 
+            if(id) { 
+                const p = STATE.products.find(x => x.id == id); 
+                document.getElementById('prd-id').value = p.id; 
+                document.getElementById('prd-name').value = p.name; 
+                document.getElementById('prd-cat').value = p.category || ''; 
+                document.getElementById('prd-price').value = p.price; 
+                document.getElementById('prd-cost').value = p.cost || ''; 
+                document.getElementById('prd-stock').value = p.stock; 
+            } else { 
+                document.getElementById('prd-id').value = ''; 
+                document.getElementById('prd-name').value = ''; 
+                document.getElementById('prd-cat').value = ''; 
+                document.getElementById('prd-price').value = ''; 
+                document.getElementById('prd-cost').value = ''; 
+                document.getElementById('prd-stock').value = ''; 
+            } 
+        }
+
+        async function saveProduct(e) {
+            e.preventDefault();
+            showLoading(true);
+            const isNew = !document.getElementById('prd-id').value;
+            const newId = isNew ? getNextId(STATE.products) : document.getElementById('prd-id').value;
+
+            const payload = {
+                id: newId, nome: document.getElementById('prd-name').value, categoria: document.getElementById('prd-cat').value,
+                preco: parseFloat(document.getElementById('prd-price').value), 
+                custo: parseFloat(document.getElementById('prd-cost').value) || 0,
+                estoque_fisico: parseFloat(document.getElementById('prd-stock').value),
+                estoque_comprometido: isNew ? 0 : STATE.products.find(p=>p.id==newId).committed
+            };
+
+            const { error } = await sb.from('produtos').upsert(payload);
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+
+            document.getElementById('prod-form-container').classList.add('hidden');
+            showToast("Produto Salvo!");
+            loadData();
+        }
+
+        function renderClients() {
+            const list = document.getElementById('clients-list');
+            if(!list) return;
+            
+            const term = document.getElementById('cli-search')?.value.toLowerCase() || '';
+            let filtered = STATE.clients || [];
+
+            if (term) {
+                filtered = filtered.filter(c => 
+                    c.name.toLowerCase().includes(term) || 
+                    (c.phone && c.phone.toLowerCase().includes(term)) || 
+                    (c.doc && c.doc.toLowerCase().includes(term))
+                );
+            }
+
+            const sliced = filtered.slice(0, 150);
+
+            if (sliced.length === 0) {
+                list.innerHTML = '<div class="p-10 text-center text-slate-400 font-bold">Nenhum cliente encontrado.</div>';
+                return;
+            }
+
+            list.innerHTML = sliced.map(c => {
+                let num = c.phone ? c.phone.replace(/\D/g, '') : '';
+                if (num.length >= 10 && !num.startsWith('55')) num = '55' + num;
+                const zapLink = num ? `https://wa.me/${num}` : '#';
+                const hasZap = num.length >= 10;
+                
+                const zapClass = hasZap ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-slate-50 text-slate-300 pointer-events-none';
+
+                return `
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-1">
+                    <div class="flex flex-col flex-1 truncate mr-3">
+                        <span class="font-bold text-sm text-slate-800 truncate">${c.name}</span>
+                        <span class="text-[11px] text-slate-500 font-medium mt-0.5">${c.phone || 'Sem telefone'}</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <a href="${zapLink}" ${hasZap ? 'target="_blank"' : ''} class="w-10 h-10 flex items-center justify-center rounded-full transition-colors active:scale-95 ${zapClass}" title="WhatsApp">
+                            <i data-lucide="message-circle" class="w-5 h-5"></i>
+                        </a>
+                        <button onclick="openClientForm('${c.id}')" class="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full transition-colors active:scale-95" title="Editar">
+                            <i data-lucide="edit-3" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function openClientForm(id) { 
+            document.getElementById('client-form-container').classList.remove('hidden'); 
+            if(id) {
+                const c = STATE.clients.find(x => String(x.id) === String(id));
+                if(c) {
+                    document.getElementById('cli-id').value = c.id;
+                    document.getElementById('cli-name').value = c.name;
+                    document.getElementById('cli-phone').value = c.phone;
+                    document.getElementById('cli-doc').value = c.doc;
+                    document.getElementById('cli-addr').value = c.address;
+                }
+            } else {
+                document.getElementById('cli-id').value = '';
+                document.getElementById('cli-name').value = '';
+                document.getElementById('cli-phone').value = '';
+                document.getElementById('cli-doc').value = '';
+                document.getElementById('cli-addr').value = '';
+            }
+        }
+
+        async function saveClient(e) {
+            e.preventDefault();
+            showLoading(true);
+            const isNew = !document.getElementById('cli-id').value;
+            const newId = isNew ? getNextId(STATE.clients) : document.getElementById('cli-id').value;
+
+            const payload = {
+                id: newId, nome: document.getElementById('cli-name').value, telefone: document.getElementById('cli-phone').value,
+                documento: document.getElementById('cli-doc').value, endereco: document.getElementById('cli-addr').value
+            };
+
+            const { error } = await sb.from('clientes').upsert(payload);
+            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+            
+            document.getElementById('client-form-container').classList.add('hidden');
+            showToast("Cliente Salvo!");
+            loadData();
+        }
+
+        function fazerLogout() {
+            localStorage.removeItem('rv_user');
+            window.location.replace('index.html');
+        }
+    </script>
+  </body>
+</html>
