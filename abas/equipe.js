@@ -165,11 +165,11 @@ function renderEquipe(forceRefresh = false) {
             <td class="p-4">
                 <div class="flex items-center justify-center gap-1 flex-wrap">
                     <button onclick="openFechamento('${f.id}')" class="p-2 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200" title="Calcular Fechamento"><i data-lucide="calculator" class="w-4 h-4"></i></button>
+                    <button onclick="openValeModal('${f.id}')" class="p-2 bg-amber-100 text-amber-700 rounded" title="Lançar Vale"><i data-lucide="banknote" class="w-4 h-4"></i></button>
                     <button onclick="alert('Contrato em breve')" class="p-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200" title="Contrato"><i data-lucide="file-text" class="w-4 h-4"></i></button>
                     <button onclick="openFuncionarioForm('${f.id}')" class="p-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200" title="Editar"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
                     <button onclick="toggleFuncionarioStatus('${f.id}', ${f.ativo})" class="p-2 ${f.ativo ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'} rounded" title="${f.ativo ? 'Desativar' : 'Ativar'}"><i data-lucide="${f.ativo ? 'ban' : 'check-circle'}" class="w-4 h-4"></i></button>
-                    <button onclick="openValeModal('${f.id}')" class="p-2 bg-amber-100 text-amber-700 rounded" title="Lançar Vale"><i data-lucide="banknote" class="w-4 h-4"></i></button>
-                    <button onclick="efetuarPagamento('${f.id}')" class="p-2 bg-indigo-100 text-indigo-700 rounded" title="Efetuar Pagamento"><i data-lucide="dollar-sign" class="w-4 h-4"></i></button>
+                    <!--<button onclick="efetuarPagamento('${f.id}')" class="p-2 bg-indigo-100 text-indigo-700 rounded" title="Efetuar Pagamento"><i data-lucide="dollar-sign" class="w-4 h-4"></i></button>-->
                     <a href="${whatsappLink}" target="_blank" class="p-2 bg-green-100 text-green-600 rounded ${!f.telefone ? 'opacity-50 pointer-events-none' : ''}" title="WhatsApp"><i data-lucide="message-circle" class="w-4 h-4"></i></a>
                 </div>
             </td>
