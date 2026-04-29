@@ -1348,15 +1348,23 @@
 
         async function loadData() {
             try {
-                const [resProd, resCli, resLog, resDesp, resConf] = await Promise.all([
+                const [resProd, resCli, resLog, resDesp, resConf, resFunc, resVales, resPag, resDiarias] = await Promise.all([
                     fetchAllRecords('produtos'),
                     fetchAllRecords('clientes'),
                     fetchAllRecords('logs'),
                     fetchAllRecords('despesas'),
+                  fetchAllRecords('rvp_funcionarios'),
+                  fetchAllRecords('rvp_vales'),
+                  fetchAllRecords('rvp_pagamentos'),
+                  fetchAllRecords('rvp_diarias'),
+                  
                     sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
                 ]);
 
-          
+              STATE.funcionarios = resFunc.data || [];
+              STATE.vales = resVales.data || [];
+              STATE.pagamentos = resPag.data || [];
+              STATE.diarias = resDiarias.data || [];
                 STATE.products = (resProd.data || []).map(p => ({
                     id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
                     cost: Number(p.custo) || 0,
