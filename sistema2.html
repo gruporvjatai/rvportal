@@ -4,11 +4,16 @@
     <base target="_top">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ERP - RV PORTAL</title>
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="abas/equipe.js"></script>
 
     <script>
         // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
@@ -162,6 +167,7 @@
         <button onclick="navigate('equipe')" id="nav-equipe" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="users"></i> <span class="font-medium text-sm">Equipe</span></button>
         <button onclick="navigate('prod')" id="nav-prod" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="package"></i> <span class="font-medium text-sm">Produtos</span></button>
         <button onclick="navigate('production')" id="nav-production" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="pie-chart"></i> <span class="font-medium text-sm">Relatórios</span></button>
+        <div class="border-t border-slate-700 my-2 pt-2"></div>
         <button onclick="navigate('users')" id="nav-users" class="nav-btn w-full hidden flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="shield"></i> <span class="font-medium text-sm">Usuários (Admin)</span></button>
        </nav>
       <div class="p-3 border-t border-slate-800"> <button onclick="fazerLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-900/30 transition-all"><i data-lucide="log-out"></i> <span class="font-medium text-sm">Sair</span></button> </div>
@@ -507,6 +513,175 @@
           </div>
       </div>
 
+      <!-- ======================================================================== EQUIPE ======================================================== -->
+
+
+
+
+      <div id="view-equipe" class="hidden-section">
+          <div class="flex justify-between items-center mb-4">
+              <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-emerald-600"></i> Equipe</h2>
+              <button onclick="openFuncionarioForm()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><i data-lucide="user-plus"></i> Novo Funcionário</button>
+          </div>
+      
+          <div class="mb-4 bg-white p-4 rounded-xl shadow-sm border flex flex-wrap gap-3 items-end">
+              <div class="flex-1 min-w-[200px]">
+                  <label class="block text-xs font-bold text-slate-500 mb-1">Buscar</label>
+                  <div class="relative">
+                      <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-400 w-4 h-4"></i>
+                      <input type="text" id="equipe-search" placeholder="Nome, telefone ou documento..." class="w-full pl-10 p-2 border rounded outline-none focus:border-indigo-600 text-sm" onkeyup="renderEquipe()">
+                  </div>
+              </div>
+              <div class="w-40">
+                  <label class="block text-xs font-bold text-slate-500 mb-1">Status</label>
+                  <select id="equipe-status-filter" class="w-full p-2 border rounded text-sm" onchange="renderEquipe()">
+                      <option value="ativos">Ativos</option>
+                      <option value="todos">Todos</option>
+                      <option value="inativos">Inativos</option>
+                  </select>
+              </div>
+              <div class="w-36">
+                  <label class="block text-xs font-bold text-slate-500 mb-1">Data Início</label>
+                  <input type="date" id="equipe-data-inicio" class="w-full p-2 border rounded text-sm" onchange="renderEquipe()">
+              </div>
+              <div class="w-36">
+                  <label class="block text-xs font-bold text-slate-500 mb-1">Data Fim</label>
+                  <input type="date" id="equipe-data-fim" class="w-full p-2 border rounded text-sm" onchange="renderEquipe()">
+              </div>
+              <button onclick="renderEquipe(true)" class="bg-slate-200 hover:bg-slate-300 p-2 rounded text-slate-700 h-10 w-10 flex items-center justify-center" title="Atualizar">
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              </button>
+              <button onclick="imprimirFolhaEquipe()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded text-sm font-bold h-10 flex items-center gap-2">
+                  <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Folha
+              </button>
+          </div>
+      
+          <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+              <div class="overflow-x-auto">
+                  <table class="w-full text-sm text-left">
+                      <thead class="bg-slate-50 text-slate-700">
+                        <tr>
+                            <th class="p-4">Funcionário</th>
+                            <th class="p-4">Tipo</th>
+                            <th class="p-4">Contato</th>
+                            <th class="p-4">Admissão</th>
+                            <th class="p-4 text-right">Valor Calculado</th>
+                            <th class="p-4 text-right">Vales</th>
+                            <th class="p-4 text-center">Status</th>
+                            <th class="p-4 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                      <tbody id="equipe-list" class="divide-y"></tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
+
+      <!-- Modal de Recibo (impressão) -->
+      <div id="recibo-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                  <h3 class="font-bold text-lg">Recibo de Pagamento</h3>
+                  <button onclick="document.getElementById('recibo-modal').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+              </div>
+              <div class="p-4 overflow-y-auto flex-1 bg-white" id="recibo-conteudo"></div>
+              <div class="p-4 border-t bg-slate-50 flex gap-2">
+                  <button onclick="document.getElementById('recibo-modal').classList.add('hidden')" class="flex-1 py-2 bg-slate-200 rounded font-bold">Fechar</button>
+                  <button onclick="imprimirRecibo()" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+              </div>
+          </div>
+      </div>
+
+      <!-- Modal de Fechamento Diarista -->
+      <div id="diarista-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                  <h3 class="font-bold text-lg" id="diarista-titulo">Fechamento Diarista</h3>
+                  <button onclick="document.getElementById('diarista-modal').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+              </div>
+              <div class="p-4 border-b bg-white">
+                  <div class="flex flex-wrap gap-3 items-end">
+                      <div>
+                          <label class="block text-xs font-bold">Data</label>
+                          <input type="date" id="diar-data" class="p-2 border rounded">
+                      </div>
+                      <div>
+                          <label class="block text-xs font-bold">Quant. Dias</label>
+                          <input type="number" id="diar-qtd" value="1" step="0.5" class="p-2 border rounded w-24">
+                      </div>
+                      <div>
+                          <label class="block text-xs font-bold">Valor Unit.</label>
+                          <input type="number" id="diar-valor" step="0.01" class="p-2 border rounded w-28">
+                      </div>
+                      <button onclick="adicionarDiaria()" class="bg-emerald-600 text-white px-4 py-2 rounded font-bold">Adicionar</button>
+                  </div>
+              </div>
+              <div class="p-4 overflow-y-auto flex-1" id="diar-lista"></div>
+              <div class="p-4 border-t bg-slate-50 flex justify-between items-center">
+                  <div class="flex gap-3 items-center">
+                      <div>
+                          <label class="block text-xs font-bold">Desconto/Adicional</label>
+                          <input type="number" id="diar-ajuste" step="0.01" value="0" class="p-2 border rounded w-28">
+                      </div>
+                      <div class="flex items-center gap-2">
+                          <input type="checkbox" id="diar-falta" class="w-4 h-4">
+                          <label for="diar-falta" class="text-xs font-bold">Falta (desconta 1 dia)</label>
+                      </div>
+                  </div>
+                  <button onclick="gerarReciboDiaria()" class="bg-indigo-600 text-white px-6 py-2 rounded font-bold"><i data-lucide="receipt" class="w-4 h-4 inline"></i> Recibo</button>
+              </div>
+          </div>
+      </div>
+
+
+      <!-- Modal de Fechamento Produção -->
+      <div id="producao-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                  <h3 class="font-bold text-lg" id="producao-titulo">Fechamento Produção</h3>
+                  <button onclick="document.getElementById('producao-modal').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+              </div>
+              <div class="p-4 border-b bg-white">
+                  <div class="flex flex-wrap gap-3 items-end">
+                      <div>
+                          <label class="block text-xs font-bold">Data</label>
+                          <input type="date" id="prod-data" class="p-2 border rounded">
+                      </div>
+                      <div>
+                          <label class="block text-xs font-bold">Tipo</label>
+                          <select id="prod-tipo" class="p-2 border rounded">
+                              <option value="Unidade">Unidade</option>
+                              <option value="M²">M²</option>
+                              <option value="Hora">Hora</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label class="block text-xs font-bold">Quantidade</label>
+                          <input type="number" id="prod-qtd" step="0.01" class="p-2 border rounded w-24">
+                      </div>
+                      <div>
+                          <label class="block text-xs font-bold">Valor Unit.</label>
+                          <input type="number" id="prod-valor" step="0.01" class="p-2 border rounded w-28">
+                      </div>
+                      <button onclick="adicionarProducao()" class="bg-emerald-600 text-white px-4 py-2 rounded font-bold">Adicionar</button>
+                  </div>
+              </div>
+              <div class="p-4 overflow-y-auto flex-1" id="prod-lista"></div>
+              <div class="p-4 border-t bg-slate-50 flex justify-between items-center">
+                  <div>
+                      <label class="block text-xs font-bold">Ajuste (Desconto/Adicional)</label>
+                      <input type="number" id="prod-ajuste" step="0.01" value="0" class="p-2 border rounded w-28">
+                  </div>
+                  <button onclick="gerarReciboProducao()" class="bg-indigo-600 text-white px-6 py-2 rounded font-bold"><i data-lucide="receipt" class="w-4 h-4 inline"></i> Recibo</button>
+              </div>
+          </div>
+      </div>
+
+
+      
+
+       <!-- ======================================================================== EQUIPE ======================================================== -->
+
       <div id="view-prod" class="hidden-section">
           <div class="flex justify-between items-center mb-4">
               <h2 class="text-2xl font-bold text-slate-800">Produtos</h2>
@@ -527,71 +702,7 @@
               </table>
           </div>
       </div>
-
-<!-- ========================================= EQUIPE ===================================================-->
-      
-
-      <div id="view-equipe" class="hidden-section">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-emerald-600"></i> Equipe</h2>
-            <button onclick="openFuncionarioForm()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><i data-lucide="user-plus"></i> Novo Funcionário</button>
-        </div>
-    
-        <div class="mb-4 bg-white p-4 rounded-xl shadow-sm border flex flex-wrap gap-3 items-end">
-            <div class="flex-1 min-w-[200px]">
-                <label class="block text-xs font-bold text-slate-500 mb-1">Buscar</label>
-                <div class="relative">
-                    <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-400 w-4 h-4"></i>
-                    <input type="text" id="equipe-search" placeholder="Nome, telefone ou documento..." class="w-full pl-10 p-2 border rounded outline-none focus:border-indigo-600 text-sm" onkeyup="renderEquipe()">
-                </div>
-            </div>
-            <div class="w-40">
-                <label class="block text-xs font-bold text-slate-500 mb-1">Status</label>
-                <select id="equipe-status-filter" class="w-full p-2 border rounded text-sm" onchange="renderEquipe()">
-                    <option value="ativos">Ativos</option>
-                    <option value="todos">Todos</option>
-                    <option value="inativos">Inativos</option>
-                </select>
-            </div>
-            <div class="w-36">
-                <label class="block text-xs font-bold text-slate-500 mb-1">Data Início</label>
-                <input type="date" id="equipe-data-inicio" class="w-full p-2 border rounded text-sm" onchange="renderEquipe()">
-            </div>
-            <div class="w-36">
-                <label class="block text-xs font-bold text-slate-500 mb-1">Data Fim</label>
-                <input type="date" id="equipe-data-fim" class="w-full p-2 border rounded text-sm" onchange="renderEquipe()">
-            </div>
-            <button onclick="renderEquipe(true)" class="bg-slate-200 hover:bg-slate-300 p-2 rounded text-slate-700 h-10 w-10 flex items-center justify-center" title="Atualizar">
-                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-            </button>
-            <button onclick="imprimirFolhaEquipe()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded text-sm font-bold h-10 flex items-center gap-2">
-                <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Folha
-            </button>
-        </div>
-    
-        <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-50 text-slate-700">
-                        <tr>
-                            <th class="p-4">Funcionário</th>
-                            <th class="p-4">Tipo</th>
-                            <th class="p-4">Contato</th>
-                            <th class="p-4">Admissão</th>
-                            <th class="p-4 text-center">Status</th>
-                            <th class="p-4 text-center">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="equipe-list" class="divide-y"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-      
-
-      
 <!-- ========================================= RELATORIOS ===================================================-->
-      
       <div id="view-production" class="hidden-section w-full h-[calc(100vh-120px)] flex flex-col">
           <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
               <i data-lucide="pie-chart"></i> Relatórios
@@ -724,27 +835,7 @@
 
     <div id="print-area" class="print-only"></div>
 
-    <!--<div id="pos-product-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-10">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
-            <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
-                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="package-search" class="text-emerald-600"></i> Selecionar Produto</h3>
-                <button onclick="closePosProductModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
-            </div>
-            <div class="p-4 border-b">
-                <div class="relative w-full">
-                    <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-5 h-5"></i>
-                    <input type="text" id="pos-modal-search" placeholder="Digite o nome do produto..." class="w-full pl-10 p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600" onkeyup="renderPosProductModal()">
-                </div>
-            </div>
-            <div class="flex-1 overflow-y-auto p-4 bg-slate-100/50">
-                <div id="pos-modal-grid" class="flex flex-col gap-2"></div>
-            </div>
-            <div class="p-4 border-t bg-slate-50 rounded-b-2xl">
-                <button onclick="closePosProductModal()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition">Fechar</button>
-            </div>
-        </div>
-    </div>-->
-
+   
     <div id="pos-product-modal" class="hidden fixed inset-0 bg-slate-900/75 z-50 flex items-start justify-center p-4 pt-10">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
             <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
@@ -765,28 +856,6 @@
             </div>
         </div>
     </div>
-<!--=============================================================================================================================================================================-->
-    <!--<div id="pos-client-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-10">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
-            <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
-                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-emerald-600"></i> Selecionar Cliente</h3>
-                <button onclick="closePosClientModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
-            </div>
-            <div class="p-4 border-b">
-                <div class="relative w-full">
-                    <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-5 h-5"></i>
-                    <input type="text" id="pos-client-modal-search" placeholder="Buscar cliente por nome, telefone ou documento..." class="w-full pl-10 p-3 border-2 border-slate-200 rounded-xl font-bold outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600" onkeyup="renderPosClientModal()">
-                </div>
-            </div>
-            <div class="flex-1 overflow-y-auto p-4 bg-slate-100/50">
-                <div id="pos-client-modal-grid" class="flex flex-col gap-2"></div>
-            </div>
-            <div class="p-4 border-t bg-slate-50 rounded-b-2xl flex flex-col gap-2">
-                <button onclick="selectPosClient('', 'Consumidor Final')" class="w-full py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">Remover Cliente (Consumidor Final)</button>
-                <button onclick="closePosClientModal()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl transition">Cancelar</button>
-            </div>
-        </div>
-    </div>-->
 
     <div id="pos-client-modal" class="hidden fixed inset-0 bg-slate-900/75 z-50 flex items-start justify-center p-4 pt-10">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
@@ -1069,83 +1138,75 @@
     </div>
 </div>
 
-    
+ <!-- ======================================================================== MODAL EQUIPE ======================================================== -->
 
-
-    <!-- ========================================= MODAIS DE EQUIPE  ===================================================-->
-
-<!-- =========== cadastro/edição funcionarios =============-->
-      
 
     <div id="funcionario-form-container" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <form onsubmit="saveFuncionario(event)" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2"><i data-lucide="user-plus" class="text-emerald-600"></i> Dados do Funcionário</h3>
-            <input type="hidden" id="func-id">
-            <div class="space-y-3">
-                <input type="text" id="func-nome" required placeholder="Nome Completo" class="w-full p-2 border rounded">
-                <input type="text" id="func-telefone" placeholder="Telefone" class="w-full p-2 border rounded">
-                <input type="text" id="func-documento" placeholder="CPF" class="w-full p-2 border rounded">
-                <input type="text" id="func-endereco" placeholder="Endereço" class="w-full p-2 border rounded">
-                <input type="date" id="func-data-admissao" class="w-full p-2 border rounded">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 mb-1">Tipo de Remuneração</label>
-                    <select id="func-tipo" class="w-full p-2 border rounded" onchange="toggleTipoRemuneracao()">
-                        <option value="mensal">Mensal (Salário Fixo)</option>
-                        <option value="diaria">Diarista (Valor por Dia)</option>
-                        <option value="producao">Produção (Valor por Unidade)</option>
-                    </select>
-                </div>
-                <div id="func-valor-mensal-container">
-                    <input type="number" id="func-valor-mensal" step="0.01" placeholder="Salário Mensal (R$)" class="w-full p-2 border rounded">
-                </div>
-                <div id="func-valor-diaria-container" class="hidden">
-                    <input type="number" id="func-valor-diaria" step="0.01" placeholder="Valor da Diária (R$)" class="w-full p-2 border rounded">
-                </div>
-                <div id="func-valor-producao-container" class="hidden">
-                    <input type="number" id="func-valor-producao" step="0.01" placeholder="Valor por Produção (R$)" class="w-full p-2 border rounded">
-                </div>
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="func-ativo" checked class="w-4 h-4"> <label for="func-ativo">Funcionário Ativo</label>
-                </div>
+    <form onsubmit="saveFuncionario(event)" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+        <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2"><i data-lucide="user-plus" class="text-emerald-600"></i> Dados do Funcionário</h3>
+        <input type="hidden" id="func-id">
+        <div class="space-y-3">
+            <input type="text" id="func-nome" required placeholder="Nome Completo" class="w-full p-2 border rounded">
+            <input type="text" id="func-telefone" placeholder="Telefone" class="w-full p-2 border rounded">
+            <input type="text" id="func-documento" placeholder="CPF" class="w-full p-2 border rounded">
+            <input type="text" id="func-endereco" placeholder="Endereço" class="w-full p-2 border rounded">
+            <input type="date" id="func-data-admissao" class="w-full p-2 border rounded">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Tipo de Remuneração</label>
+                <select id="func-tipo" class="w-full p-2 border rounded" onchange="toggleTipoRemuneracao()">
+                    <option value="mensal">Mensal (Salário Fixo)</option>
+                    <option value="diaria">Diarista (Valor por Dia)</option>
+                    <option value="producao">Produção (Valor por Unidade)</option>
+                </select>
             </div>
-            <div class="flex gap-2 mt-6">
-                <button type="button" onclick="closeFuncionarioForm()" class="flex-1 p-2 bg-slate-200 rounded font-bold">Cancelar</button>
-                <button type="submit" class="flex-1 p-2 bg-indigo-700 text-white rounded font-bold">Salvar</button>
+            <div id="func-valor-mensal-container">
+                <input type="number" id="func-valor-mensal" step="0.01" placeholder="Salário Mensal (R$)" class="w-full p-2 border rounded">
             </div>
-        </form>
-    </div>
-    
-<!-- =========== Modal de Lançamento de Vale =============-->
-
+            <div id="func-valor-diaria-container" class="hidden">
+                <input type="number" id="func-valor-diaria" step="0.01" placeholder="Valor da Diária (R$)" class="w-full p-2 border rounded">
+            </div>
+            <div id="func-valor-producao-container" class="hidden">
+                <input type="number" id="func-valor-producao" step="0.01" placeholder="Valor por Produção (R$)" class="w-full p-2 border rounded">
+            </div>
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="func-ativo" checked class="w-4 h-4"> <label for="func-ativo">Funcionário Ativo</label>
+            </div>
+        </div>
+        <div class="flex gap-2 mt-6">
+            <button type="button" onclick="closeFuncionarioForm()" class="flex-1 p-2 bg-slate-200 rounded font-bold">Cancelar</button>
+            <button type="submit" class="flex-1 p-2 bg-indigo-700 text-white rounded font-bold">Salvar</button>
+        </div>
+    </form>
+</div>
 
     <div id="vale-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 class="font-bold text-lg mb-4">Lançar Vale / Adiantamento</h3>
-            <input type="hidden" id="vale-func-id">
-            <div class="space-y-3">
-                <div><label class="block text-xs font-bold">Data</label><input type="date" id="vale-data" class="w-full p-2 border rounded"></div>
-                <div><label class="block text-xs font-bold">Valor (R$)</label><input type="number" id="vale-valor" step="0.01" class="w-full p-2 border rounded"></div>
-                <div><label class="block text-xs font-bold">Observação</label><input type="text" id="vale-obs" class="w-full p-2 border rounded"></div>
-            </div>
-            <div class="flex gap-2 mt-6">
-                <button type="button" onclick="closeValeModal()" class="flex-1 p-2 bg-slate-200 rounded">Cancelar</button>
-                <button onclick="salvarVale()" class="flex-1 p-2 bg-indigo-700 text-white rounded">Salvar</button>
-            </div>
+    <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+        <h3 class="font-bold text-lg mb-4">Lançar Vale / Adiantamento</h3>
+        <input type="hidden" id="vale-func-id">
+        <div class="space-y-3">
+            <div><label class="block text-xs font-bold">Data</label><input type="date" id="vale-data" class="w-full p-2 border rounded"></div>
+            <div><label class="block text-xs font-bold">Valor (R$)</label><input type="number" id="vale-valor" step="0.01" class="w-full p-2 border rounded"></div>
+            <div><label class="block text-xs font-bold">Observação</label><input type="text" id="vale-obs" class="w-full p-2 border rounded"></div>
+        </div>
+        <div class="flex gap-2 mt-6">
+            <button type="button" onclick="closeValeModal()" class="flex-1 p-2 bg-slate-200 rounded">Cancelar</button>
+            <button onclick="salvarVale()" class="flex-1 p-2 bg-indigo-700 text-white rounded">Salvar</button>
         </div>
     </div>
-
-    <!-- =========== Modal de Fechamento (Conteúdo Dinâmico) =============-->
+</div>
 
     <div id="fechamento-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
-                <h3 class="font-bold text-lg" id="fechamento-titulo">Fechamento</h3>
-                <button onclick="closeFechamentoModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
-            </div>
-            <div class="p-4 overflow-y-auto flex-1" id="fechamento-conteudo"></div>
-            <div class="p-4 border-t bg-slate-50 flex gap-2" id="fechamento-actions"></div>
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+            <h3 class="font-bold text-lg" id="fechamento-titulo">Fechamento</h3>
+            <button onclick="closeFechamentoModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
         </div>
+        <div class="p-4 overflow-y-auto flex-1" id="fechamento-conteudo"></div>
+        <div class="p-4 border-t bg-slate-50 flex gap-2" id="fechamento-actions"></div>
     </div>
+</div>
+
+     <!-- ======================================================================== EQUIPE ======================================================== -->
     
 
 <script>
@@ -1166,8 +1227,9 @@
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
         let STATE = { 
-              products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], custoMaterialB10: 0, funcionarios: [], vales: [], pagamentos: [], diarias: [], configPadrao: {}  };
-  
+             products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], custoMaterialB10: 0,
+             funcionarios: [], vales: [], pagamentos: [], diarias: [], configPadrao: {}
+        };
         let CART = [];
         let CURRENT_QUOTE_ID = null; 
 
@@ -1179,26 +1241,47 @@
             }
         };
 
-        function navigate(viewId) {
-            document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
-            const target = document.getElementById('view-' + viewId);
-            if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-emerald-700', 'text-white', 'shadow-lg'));
-            const activeBtn = document.getElementById('nav-' + viewId);
-            if(activeBtn) activeBtn.classList.add('bg-emerald-700', 'text-white', 'shadow-lg');
-            
-            if(viewId === 'dash') renderDashboard();
-            if(viewId === 'pos') renderRecentHistory(); 
-            if(viewId === 'quotes') renderQuotesList();
-            if(viewId === 'expedition') renderExpedition();
-            if(viewId === 'fin') renderFinance();
-            if(viewId === 'clients') renderClients();
-            if(viewId === 'equipe') renderEquipe();
-            if(viewId === 'prod') renderProducts();
-            if(viewId === 'production') renderProductionSelect();
-            if(viewId === 'users') renderUsers();             
-            lucide.createIcons();
+       
+
+  function navigate(viewId) {
+    document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
+    const target = document.getElementById('view-' + viewId);
+    if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-emerald-700', 'text-white', 'shadow-lg'));
+    const activeBtn = document.getElementById('nav-' + viewId);
+    if(activeBtn) activeBtn.classList.add('bg-emerald-700', 'text-white', 'shadow-lg');
+    
+    // ===== INÍCIO DA ALTERAÇÃO: PREENCHER DATAS PADRÃO NA ABA FINANCEIRO =====
+    if(viewId === 'fin') {
+        const range = getCurrentMonthRange();
+        // Só preenche se o campo estiver vazio (para não sobrescrever escolhas do usuário)
+        if (!document.getElementById('rec-start').value) {
+            document.getElementById('rec-start').value = range.start;
         }
+        if (!document.getElementById('rec-end').value) {
+            document.getElementById('rec-end').value = range.end;
+        }
+        if (!document.getElementById('exp-start').value) {
+            document.getElementById('exp-start').value = range.start;
+        }
+        if (!document.getElementById('exp-end').value) {
+            document.getElementById('exp-end').value = range.end;
+        }
+    }
+    // ===== FIM DA ALTERAÇÃO =====
+    
+    if(viewId === 'dash') renderDashboard();
+    if(viewId === 'pos') renderRecentHistory(); 
+    if(viewId === 'quotes') renderQuotesList();
+    if(viewId === 'expedition') renderExpedition();
+    if(viewId === 'fin') renderFinance();
+    if(viewId === 'clients') renderClients();
+    if(viewId === 'equipe') renderEquipe();
+    if(viewId === 'prod') renderProducts();
+    if(viewId === 'production') renderProductionSelect();
+    if(viewId === 'users') renderUsers(); 
+    lucide.createIcons();
+}
 
         function formatMoney(val) { return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
         
@@ -1223,6 +1306,18 @@
             t.className=`fixed top-5 right-5 px-6 py-3 rounded-lg shadow-xl text-white font-medium z-50 ${isError?'bg-red-600':'bg-slate-800'}`; 
             t.style.display='block'; 
             setTimeout(()=>t.style.display='none',3000); 
+        }
+
+
+    // Retorna o primeiro e último dia do mês atual no formato ISO local (yyyy-mm-dd)
+        function getCurrentMonthRange() {
+            const hoje = new Date();
+            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+            return {
+                start: getLocalISODate(primeiroDia),
+                end: getLocalISODate(ultimoDia)
+            };
         }
 
         // ====== 5. CARREGAMENTO DO BANCO ======
@@ -1253,14 +1348,14 @@
             return { data: allRecords };
         }
 
-        async function loadData() {
+         async function loadData() {
             try {
                 const [resProd, resCli, resLog, resDesp, resConf] = await Promise.all([
                     fetchAllRecords('produtos'),
                     fetchAllRecords('clientes'),
                     fetchAllRecords('logs'),
                     fetchAllRecords('despesas'),
-                    sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
+                    //sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
                 ]);
 
                 const [resFunc, resVales, resPag, resDiarias] = await Promise.all([
@@ -1321,7 +1416,7 @@
                     cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
                 }));
 
-                STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
+                //STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
 
                 if (dadosUsuario.nivel === 'admin') {
                     const navUsersBtn = document.getElementById('nav-users');
@@ -2155,11 +2250,12 @@
                     <td class="p-3 text-right text-sm text-green-700 font-bold">${formatMoney(r.valorFinal)}</td>
                     <td class="p-3 text-center flex gap-1 justify-center">
                         <button onclick="reprintSale('${r.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Imprimir"><i data-lucide="printer" width="14"></i></button>
+                        <button onclick="downloadSalePDF('${r.id}')" class="text-slate-600 hover:text-blue-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Baixar PDF"><i data-lucide="download" width="14"></i></button>
                         <button onclick="duplicateSaleToQuote('${r.id}')" class="text-amber-500 hover:text-amber-700 bg-white border border-amber-200 p-2 rounded shadow-sm" title="Duplicar para Orçamento"><i data-lucide="copy" width="14"></i></button>
                         <button onclick="cancelSaleToQuote('${r.id}')" class="text-red-500 hover:text-red-700 bg-white border border-red-200 p-2 rounded shadow-sm" title="Estornar para Orçamento"><i data-lucide="rotate-ccw" width="14"></i></button>
                     </td>
                 </tr>`;
-            }).join(''); 
+            }).join('');
             lucide.createIcons();
         }
 
@@ -2572,164 +2668,169 @@
         // ==========================================
         // RENDER FINANCEIRO - COMPARAÇÕES REVISADAS
         // ==========================================
-        function renderFinance() {
-            const salesMap = {};
-            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
-                if(!salesMap[l.id]) {
-                    salesMap[l.id] = { 
-                        id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date, 
-                        clientName: l.clientName, payment: l.paymentMethod, dueDate: l.dueDate,
-                        desc: l.type === 'receita' ? l.productName : `Venda #${l.id}`
-                    };
-                }
-                salesMap[l.id].val += Number(l.totalValue) || 0;
-                salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
-            });
-            let salesArr = Object.values(salesMap);
-
-            const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
-                           salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
-            
-            const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
-            
-            document.getElementById('fin-income').innerText = formatMoney(income);
-            document.getElementById('fin-expenses').innerText = formatMoney(expenses);
-            document.getElementById('fin-balance').innerText = formatMoney(income - expenses);
-
-            const termRec = document.getElementById('rec-search')?.value.toLowerCase() || '';
-            const statusRec = document.getElementById('rec-status')?.value || '';
-            const startRec = document.getElementById('rec-start')?.value;
-            const endRec = document.getElementById('rec-end')?.value;
-
-            const hojeLocalStr = getHojeLocalStr();
-
-            let filteredRec = salesArr;
-            
-            if(termRec) filteredRec = filteredRec.filter(r => (r.clientName && r.clientName.toLowerCase().includes(termRec)) || (r.desc && r.desc.toLowerCase().includes(termRec)) || String(r.id).includes(termRec));
-            if(statusRec === 'PAGOS') filteredRec = filteredRec.filter(r => r.status === 'PAGO');
-            if(statusRec === 'ABERTOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] >= hojeLocalStr);
-            if(statusRec === 'VENCIDOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] < hojeLocalStr);
-            if(startRec) filteredRec = filteredRec.filter(r => (r.dueDate||'').split('T')[0] >= startRec);
-            if(endRec) filteredRec = filteredRec.filter(r => (r.dueDate||'').split('T')[0] <= endRec);
-            
-            filteredRec.sort((a,b) => (a.dueDate||'').localeCompare(b.dueDate||''));
-
-            const recBody = document.getElementById('fin-receivables-list');
-            if(filteredRec.length === 0) {
-                recBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
-            } else {
-                const totalValRec = filteredRec.reduce((acc, r) => acc + r.val, 0);
-                const totalPaidRec = filteredRec.reduce((acc, r) => acc + r.paid, 0);
-                const totalRestRec = totalValRec - totalPaidRec;
-
-                const rowsHtml = filteredRec.map(r => {
-                    const dataVencStr = (r.dueDate||'').split('T')[0];
-                    const isVencido = dataVencStr < hojeLocalStr && r.status !== 'PAGO';
-                    const corFundo = isVencido ? 'bg-red-50/50' : (r.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : '');
-                    const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
-                    const rest = r.val - r.paid;
-
-                    return `<tr class="hover:bg-slate-100 ${corFundo} transition">
-                        <td class="p-3 text-xs border-r border-slate-100">
-                            <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(r.dueDate)} ${avisoVenc}</div>
-                            <div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${r.payment || '-'}</div>
-                        </td>
-                        <td class="p-3 border-r border-slate-100">
-                            <div class="font-bold text-slate-800 text-xs">${r.clientName}</div>
-                            <div class="text-[10px] text-slate-500 truncate w-32" title="${r.desc}">${r.desc}</div>
-                        </td>
-                        <td class="p-3 border-r border-slate-100">
-                            <div class="font-bold text-slate-800 text-sm">${formatMoney(r.val)}</div>
-                            ${r.status !== 'PAGO' && r.paid > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoney(rest)}</div>` : ''}
-                        </td>
-                        <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                            ${r.status !== 'PAGO' ? 
-                            `<button onclick="openEditReceivable('${r.id}', ${r.val}, ${r.paid}, '${r.dueDate}', '${r.payment}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-3 rounded shadow flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> BAIXAR</button>
-                             <button onclick="excluirReceitaPendente('${r.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` 
-                            : 
-                            `<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> PAGO</span>
-                             <button onclick="estornarRecebimento('${r.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>`
-                            }
-                        </td>
-                    </tr>`;
-                }).join('');
-
-                const totalRowHtml = `<tr class="bg-indigo-50 border-t-2 border-indigo-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                    <td colspan="2" class="p-3 text-right font-bold text-indigo-900 text-xs uppercase">Totais da Pesquisa:</td>
-                    <td class="p-3 font-black text-indigo-700 text-sm border-r border-indigo-200">
-                        ${formatMoney(totalValRec)}
-                    </td>
-                    <td class="p-3 bg-indigo-50"></td>
-                </tr>`;
-
-                recBody.innerHTML = rowsHtml + totalRowHtml;
-            }
-
-            // CONTAS A PAGAR
-            let filteredExp = STATE.expenses.slice();
-            const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
-            const statusExp = document.getElementById('exp-status')?.value || '';
-            const startExp = document.getElementById('exp-start')?.value;
-            const endExp = document.getElementById('exp-end')?.value;
-
-            if(termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
-            if(statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
-            if(startExp) filteredExp = filteredExp.filter(e => (e.date||'').split('T')[0] >= startExp);
-            if(endExp) filteredExp = filteredExp.filter(e => (e.date||'').split('T')[0] <= endExp);
-            
-            filteredExp.sort((a,b) => (a.date||'').localeCompare(b.date||''));
-
-            const expBody = document.getElementById('fin-expense-history-list');
-            if(filteredExp.length === 0) {
-                expBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
-            } else {
-                const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost, 0);
-
-                const rowsHtmlExp = filteredExp.map(e => {
-                    const dataVencStr = (e.date||'').split('T')[0];
-                    const isVencido = dataVencStr < hojeLocalStr && e.status !== 'PAGO';
-                    const corFundo = isVencido ? 'bg-red-50/50' : (e.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : 'bg-orange-50/30');
-                    const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
-
-                    let providerVal = e.note || '-';
-                    if (providerVal.startsWith('Fornecedor:')) providerVal = providerVal.replace('Fornecedor:', '').trim();
-
-                    return `<tr class="hover:bg-slate-100 ${corFundo} transition">
-                        <td class="p-3 text-xs border-r border-slate-100">
-                            <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)} ${avisoVenc}</div>
-                        </td>
-                        <td class="p-3 border-r border-slate-100">
-                            <div class="font-bold text-slate-800 text-xs">${e.item}</div>
-                            <div class="text-[10px] text-slate-500 truncate w-32" title="${providerVal}">${providerVal}</div>
-                        </td>
-                        <td class="p-3 border-r border-slate-100">
-                            <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>
-                        </td>
-                        <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                            ${e.status !== 'PAGO' ? `
-                                <button onclick="openEditExpense('${e.id}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="payExpense('${e.id}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
-                                <button onclick="excluirDespesa('${e.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                            ` : `
-                                <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
-                                <button onclick="estornarDespesaLog('${e.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3 inline"></i></button>
-                            `}
-                        </td>
-                    </tr>`;
-                }).join('');
-
-                const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                    <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
-                    <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
-                    <td class="p-3 bg-red-50"></td>
-                </tr>`;
-
-                expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
-            }
-
-            lucide.createIcons();
+       function renderFinance() {
+    const salesMap = {};
+    STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+        if(!salesMap[l.id]) {
+            salesMap[l.id] = { 
+                id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date, 
+                clientName: l.clientName, payment: l.paymentMethod, dueDate: l.dueDate,
+                desc: l.type === 'receita' ? l.productName : `Venda #${l.id}`
+            };
         }
+        salesMap[l.id].val += Number(l.totalValue) || 0;
+        salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
+    });
+    let salesArr = Object.values(salesMap);
 
+    const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
+                   salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+    
+    const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
+    
+    document.getElementById('fin-income').innerText = formatMoney(income);
+    document.getElementById('fin-expenses').innerText = formatMoney(expenses);
+    document.getElementById('fin-balance').innerText = formatMoney(income - expenses);
+
+    const termRec = document.getElementById('rec-search')?.value.toLowerCase() || '';
+    const statusRec = document.getElementById('rec-status')?.value || '';
+    const startRec = document.getElementById('rec-start')?.value;
+    const endRec = document.getElementById('rec-end')?.value;
+
+    const hojeLocalStr = getHojeLocalStr();
+
+    let filteredRec = salesArr;
+    
+    if(termRec) filteredRec = filteredRec.filter(r => (r.clientName && r.clientName.toLowerCase().includes(termRec)) || (r.desc && r.desc.toLowerCase().includes(termRec)) || String(r.id).includes(termRec));
+    if(statusRec === 'PAGOS') filteredRec = filteredRec.filter(r => r.status === 'PAGO');
+    if(statusRec === 'ABERTOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] >= hojeLocalStr);
+    if(statusRec === 'VENCIDOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] < hojeLocalStr);
+    if(startRec) filteredRec = filteredRec.filter(r => (r.dueDate||'').split('T')[0] >= startRec);
+    if(endRec) filteredRec = filteredRec.filter(r => (r.dueDate||'').split('T')[0] <= endRec);
+    
+    // ===== ALTERAÇÃO: ordenação invertida (mais recentes primeiro) =====
+    filteredRec.sort((a,b) => (b.dueDate||'').localeCompare(a.dueDate||''));
+    // ===== FIM DA ALTERAÇÃO =====
+
+    const recBody = document.getElementById('fin-receivables-list');
+    if(filteredRec.length === 0) {
+        recBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
+    } else {
+        const totalValRec = filteredRec.reduce((acc, r) => acc + r.val, 0);
+        const totalPaidRec = filteredRec.reduce((acc, r) => acc + r.paid, 0);
+        const totalRestRec = totalValRec - totalPaidRec;
+
+        const rowsHtml = filteredRec.map(r => {
+            const dataVencStr = (r.dueDate||'').split('T')[0];
+            const isVencido = dataVencStr < hojeLocalStr && r.status !== 'PAGO';
+            const corFundo = isVencido ? 'bg-red-50/50' : (r.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : '');
+            const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
+            const rest = r.val - r.paid;
+
+            return `<tr class="hover:bg-slate-100 ${corFundo} transition">
+                <td class="p-3 text-xs border-r border-slate-100">
+                    <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(r.dueDate)} ${avisoVenc}</div>
+                    <div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${r.payment || '-'}</div>
+                </td>
+                <td class="p-3 border-r border-slate-100">
+                    <div class="font-bold text-slate-800 text-xs">${r.clientName}</div>
+                    <div class="text-[10px] text-slate-500 truncate w-32" title="${r.desc}">${r.desc}</div>
+                </td>
+                <td class="p-3 border-r border-slate-100">
+                    <div class="font-bold text-slate-800 text-sm">${formatMoney(r.val)}</div>
+                    ${r.status !== 'PAGO' && r.paid > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoney(rest)}</div>` : ''}
+                </td>
+                <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
+                    ${r.status !== 'PAGO' ? 
+                    `<button onclick="openEditReceivable('${r.id}', ${r.val}, ${r.paid}, '${r.dueDate}', '${r.payment}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-3 rounded shadow flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> BAIXAR</button>
+                     <button onclick="excluirReceitaPendente('${r.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` 
+                    : 
+                    `<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> PAGO</span>
+                     <button onclick="estornarRecebimento('${r.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>`
+                    }
+                </td>
+            </tr>`;
+        }).join('');
+
+        const totalRowHtml = `<tr class="bg-indigo-50 border-t-2 border-indigo-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            <td colspan="2" class="p-3 text-right font-bold text-indigo-900 text-xs uppercase">Totais da Pesquisa:</td>
+            <td class="p-3 font-black text-indigo-700 text-sm border-r border-indigo-200">
+                ${formatMoney(totalValRec)}
+            </td>
+            <td class="p-3 bg-indigo-50"></td>
+        </tr>`;
+
+        recBody.innerHTML = rowsHtml + totalRowHtml;
+    }
+
+    // CONTAS A PAGAR
+    let filteredExp = STATE.expenses.slice();
+    const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
+    const statusExp = document.getElementById('exp-status')?.value || '';
+    const startExp = document.getElementById('exp-start')?.value;
+    const endExp = document.getElementById('exp-end')?.value;
+
+    if(termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
+    if(statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
+    if(startExp) filteredExp = filteredExp.filter(e => (e.date||'').split('T')[0] >= startExp);
+    if(endExp) filteredExp = filteredExp.filter(e => (e.date||'').split('T')[0] <= endExp);
+    
+    // ===== ALTERAÇÃO: ordenação invertida (mais recentes primeiro) =====
+    filteredExp.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    // ===== FIM DA ALTERAÇÃO =====
+
+    const expBody = document.getElementById('fin-expense-history-list');
+    if(filteredExp.length === 0) {
+        expBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
+    } else {
+        const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost, 0);
+
+        const rowsHtmlExp = filteredExp.map(e => {
+            const dataVencStr = (e.date||'').split('T')[0];
+            const isVencido = dataVencStr < hojeLocalStr && e.status !== 'PAGO';
+            const corFundo = isVencido ? 'bg-red-50/50' : (e.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : 'bg-orange-50/30');
+            const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
+
+            let providerVal = e.note || '-';
+            if (providerVal.startsWith('Fornecedor:')) providerVal = providerVal.replace('Fornecedor:', '').trim();
+
+            return `<tr class="hover:bg-slate-100 ${corFundo} transition">
+                <td class="p-3 text-xs border-r border-slate-100">
+                    <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)} ${avisoVenc}</div>
+                </td>
+                <td class="p-3 border-r border-slate-100">
+                    <div class="font-bold text-slate-800 text-xs">${e.item}</div>
+                    <div class="text-[10px] text-slate-500 truncate w-32" title="${providerVal}">${providerVal}</div>
+                </td>
+                <td class="p-3 border-r border-slate-100">
+                    <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>
+                </td>
+                <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
+                    ${e.status !== 'PAGO' ? `
+                        <button onclick="openEditExpense('${e.id}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
+                        <button onclick="payExpense('${e.id}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
+                        <button onclick="excluirDespesa('${e.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    ` : `
+                        <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
+                        <button onclick="estornarDespesaLog('${e.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3 inline"></i></button>
+                    `}
+                </td>
+            </tr>`;
+        }).join('');
+
+        const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
+            <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
+            <td class="p-3 bg-red-50"></td>
+        </tr>`;
+
+        expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
+    }
+
+    lucide.createIcons();
+}
+
+  
         function openEditReceivable(id, total, paid, due, method) {
             document.getElementById('rec-id').value = id;
             document.getElementById('rec-total-lbl').innerText = formatMoney(total);
@@ -3907,8 +4008,171 @@ function closePosHistoryModal() {
     document.getElementById('pos-history-modal').classList.add('hidden');
 }
 
+  // Localize esta função existente:
+function closePosHistoryModal() {
+    document.getElementById('pos-history-modal').classList.add('hidden');
+}
 
+// ADICIONE O CÓDIGO ABAIXO LOGO DEPOIS DELA:
+
+async function downloadSalePDF(id) {
+    // Fecha o modal antes de gerar o PDF
+    closePosHistoryModal();
+    
+    const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
+    if(!items.length) {
+        showToast("Venda não encontrada", true);
+        return;
+    }
+    showLoading(true);
+    
+    // Reconstruir totais considerando desconto (mesma lógica do reprintSale)
+    const totalDiscount = items[0].discount || 0;
+    const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
+    const grossTotal = netTotal + totalDiscount;
+    const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
+    
+    const clientName = items[0].clientName || 'Consumidor Final';
+    const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+    
+    let subtotal = 0;
+    const itemsHtml = items.map((i, index) => {
+        const grossItemTotal = i.totalValue * fator;
+        const unitPrice = i.quantity > 0 ? (grossItemTotal / i.quantity) : 0;
+        const itemTotal = grossItemTotal;
+        subtotal += itemTotal;
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        return `
+            <tr style="background-color: ${bgColor};">
+                <td style="border-bottom: 1px solid #000; padding: 8px;">${i.productName}</td>
+                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.quantity}</td>
+                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(unitPrice)}</td>
+                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
+            </tr>`;
+    }).join('');
+    
+    const discount = totalDiscount;
+    const finalTotal = subtotal - discount;
+    const addressToShow = items[0].deliveryAddress ? `ENTREGA: ${items[0].deliveryAddress}` : (cli.address || 'Não informado');
+    const obsText = items[0].note && items[0].note !== 'Venda PDV' && items[0].note !== 'Pronta Entrega PDV' ? items[0].note : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    const paymentMethod = items[0].paymentMethod || 'Não informado';
+    
+    const htmlString = `
+        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
+            
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
+                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
+            </div>
+
+            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                <tr>
+                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
+                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
+                    </td>
+                    <td valign="middle" style="padding-left: 15px;">
+                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
+                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
+                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                    </td>
+                    <td align="right" valign="top">
+                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">PEDIDO DE VENDA</h2>
+                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${id}</div>
+                        <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(items[0].date).toLocaleDateString('pt-BR')}</div>
+                    </td>
+                </tr>
+            </table>
+
+            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
+                <tr>
+                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
+                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                            <strong>${cli.name}</strong><br>
+                            ${cli.doc || ''}<br>
+                            ${cli.phone || ''}<br>
+                            ${addressToShow}
+                        </div>
+                    </td>
+                    <td width="4%"></td>
+                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
+                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                            <strong>Forma:</strong> ${paymentMethod}<br>
+                            <strong>Vendedor:</strong> RV PORTAL
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
+                <thead>
+                    <tr>
+                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
+                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
+                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
+                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+            </table>
+
+            <table width="100%" style="margin-top: 10px;">
+                <tr>
+                    <td valign="top" style="padding-right: 30px;">
+                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
+                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
+                            <div style="font-size: 10px; color: #334155;">${obsText}</div>
+                        </div>
+                    </td>
+                    <td width="250" valign="top">
+                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
+                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
+                            </tr>
+                            ${discount > 0 ? `
+                            <tr>
+                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
+                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td>
+                            </tr>` : ''}
+                            <tr>
+                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
+                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+            
+        </div>
+    `;
+
+    setTimeout(() => {
+        const opt = {
+            margin:       10, 
+            filename:     `RV PORTAL - ${clientName} - Venda ${id}.pdf`,
+            image:        { type: 'jpeg', quality: 1 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                letterRendering: true 
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(htmlString).save().then(() => {
+            showLoading(false);
+            showToast("PDF Baixado com Sucesso!");
+        }).catch(err => {
+            console.error("Erro PDF:", err);
+            showLoading(false);
+            showToast("Erro ao gerar PDF", true);
+        });
+    }, 500);
+}
   
     </script> 
+    <script src="abas/equipe.js"></script>
   </body>
 </html>
