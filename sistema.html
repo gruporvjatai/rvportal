@@ -1039,7 +1039,7 @@
             }
         };
 
-        function navigate(viewId) {
+       /* function navigate(viewId) {
             document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
             const target = document.getElementById('view-' + viewId);
             if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
@@ -1057,7 +1057,46 @@
             if(viewId === 'production') renderProductionSelect();
             if(viewId === 'users') renderUsers(); 
             lucide.createIcons();
+        }*/
+
+  function navigate(viewId) {
+    document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
+    const target = document.getElementById('view-' + viewId);
+    if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-emerald-700', 'text-white', 'shadow-lg'));
+    const activeBtn = document.getElementById('nav-' + viewId);
+    if(activeBtn) activeBtn.classList.add('bg-emerald-700', 'text-white', 'shadow-lg');
+    
+    // ===== INÍCIO DA ALTERAÇÃO: PREENCHER DATAS PADRÃO NA ABA FINANCEIRO =====
+    if(viewId === 'fin') {
+        const range = getCurrentMonthRange();
+        // Só preenche se o campo estiver vazio (para não sobrescrever escolhas do usuário)
+        if (!document.getElementById('rec-start').value) {
+            document.getElementById('rec-start').value = range.start;
         }
+        if (!document.getElementById('rec-end').value) {
+            document.getElementById('rec-end').value = range.end;
+        }
+        if (!document.getElementById('exp-start').value) {
+            document.getElementById('exp-start').value = range.start;
+        }
+        if (!document.getElementById('exp-end').value) {
+            document.getElementById('exp-end').value = range.end;
+        }
+    }
+    // ===== FIM DA ALTERAÇÃO =====
+    
+    if(viewId === 'dash') renderDashboard();
+    if(viewId === 'pos') renderRecentHistory(); 
+    if(viewId === 'quotes') renderQuotesList();
+    if(viewId === 'expedition') renderExpedition();
+    if(viewId === 'fin') renderFinance();
+    if(viewId === 'clients') renderClients();
+    if(viewId === 'prod') renderProducts();
+    if(viewId === 'production') renderProductionSelect();
+    if(viewId === 'users') renderUsers(); 
+    lucide.createIcons();
+}
 
         function formatMoney(val) { return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
         
@@ -1082,6 +1121,18 @@
             t.className=`fixed top-5 right-5 px-6 py-3 rounded-lg shadow-xl text-white font-medium z-50 ${isError?'bg-red-600':'bg-slate-800'}`; 
             t.style.display='block'; 
             setTimeout(()=>t.style.display='none',3000); 
+        }
+
+
+    // Retorna o primeiro e último dia do mês atual no formato ISO local (yyyy-mm-dd)
+        function getCurrentMonthRange() {
+            const hoje = new Date();
+            const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+            return {
+                start: getLocalISODate(primeiroDia),
+                end: getLocalISODate(ultimoDia)
+            };
         }
 
         // ====== 5. CARREGAMENTO DO BANCO ======
@@ -2420,164 +2471,169 @@
         // ==========================================
         // RENDER FINANCEIRO - COMPARAÇÕES REVISADAS
         // ==========================================
-        function renderFinance() {
-            const salesMap = {};
-            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
-                if(!salesMap[l.id]) {
-                    salesMap[l.id] = { 
-                        id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date, 
-                        clientName: l.clientName, payment: l.paymentMethod, dueDate: l.dueDate,
-                        desc: l.type === 'receita' ? l.productName : `Venda #${l.id}`
-                    };
-                }
-                salesMap[l.id].val += Number(l.totalValue) || 0;
-                salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
-            });
-            let salesArr = Object.values(salesMap);
-
-            const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
-                           salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
-            
-            const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
-            
-            document.getElementById('fin-income').innerText = formatMoney(income);
-            document.getElementById('fin-expenses').innerText = formatMoney(expenses);
-            document.getElementById('fin-balance').innerText = formatMoney(income - expenses);
-
-            const termRec = document.getElementById('rec-search')?.value.toLowerCase() || '';
-            const statusRec = document.getElementById('rec-status')?.value || '';
-            const startRec = document.getElementById('rec-start')?.value;
-            const endRec = document.getElementById('rec-end')?.value;
-
-            const hojeLocalStr = getHojeLocalStr();
-
-            let filteredRec = salesArr;
-            
-            if(termRec) filteredRec = filteredRec.filter(r => (r.clientName && r.clientName.toLowerCase().includes(termRec)) || (r.desc && r.desc.toLowerCase().includes(termRec)) || String(r.id).includes(termRec));
-            if(statusRec === 'PAGOS') filteredRec = filteredRec.filter(r => r.status === 'PAGO');
-            if(statusRec === 'ABERTOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] >= hojeLocalStr);
-            if(statusRec === 'VENCIDOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] < hojeLocalStr);
-            if(startRec) filteredRec = filteredRec.filter(r => (r.dueDate||'').split('T')[0] >= startRec);
-            if(endRec) filteredRec = filteredRec.filter(r => (r.dueDate||'').split('T')[0] <= endRec);
-            
-            filteredRec.sort((a,b) => (a.dueDate||'').localeCompare(b.dueDate||''));
-
-            const recBody = document.getElementById('fin-receivables-list');
-            if(filteredRec.length === 0) {
-                recBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
-            } else {
-                const totalValRec = filteredRec.reduce((acc, r) => acc + r.val, 0);
-                const totalPaidRec = filteredRec.reduce((acc, r) => acc + r.paid, 0);
-                const totalRestRec = totalValRec - totalPaidRec;
-
-                const rowsHtml = filteredRec.map(r => {
-                    const dataVencStr = (r.dueDate||'').split('T')[0];
-                    const isVencido = dataVencStr < hojeLocalStr && r.status !== 'PAGO';
-                    const corFundo = isVencido ? 'bg-red-50/50' : (r.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : '');
-                    const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
-                    const rest = r.val - r.paid;
-
-                    return `<tr class="hover:bg-slate-100 ${corFundo} transition">
-                        <td class="p-3 text-xs border-r border-slate-100">
-                            <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(r.dueDate)} ${avisoVenc}</div>
-                            <div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${r.payment || '-'}</div>
-                        </td>
-                        <td class="p-3 border-r border-slate-100">
-                            <div class="font-bold text-slate-800 text-xs">${r.clientName}</div>
-                            <div class="text-[10px] text-slate-500 truncate w-32" title="${r.desc}">${r.desc}</div>
-                        </td>
-                        <td class="p-3 border-r border-slate-100">
-                            <div class="font-bold text-slate-800 text-sm">${formatMoney(r.val)}</div>
-                            ${r.status !== 'PAGO' && r.paid > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoney(rest)}</div>` : ''}
-                        </td>
-                        <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                            ${r.status !== 'PAGO' ? 
-                            `<button onclick="openEditReceivable('${r.id}', ${r.val}, ${r.paid}, '${r.dueDate}', '${r.payment}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-3 rounded shadow flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> BAIXAR</button>
-                             <button onclick="excluirReceitaPendente('${r.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` 
-                            : 
-                            `<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> PAGO</span>
-                             <button onclick="estornarRecebimento('${r.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>`
-                            }
-                        </td>
-                    </tr>`;
-                }).join('');
-
-                const totalRowHtml = `<tr class="bg-indigo-50 border-t-2 border-indigo-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                    <td colspan="2" class="p-3 text-right font-bold text-indigo-900 text-xs uppercase">Totais da Pesquisa:</td>
-                    <td class="p-3 font-black text-indigo-700 text-sm border-r border-indigo-200">
-                        ${formatMoney(totalValRec)}
-                    </td>
-                    <td class="p-3 bg-indigo-50"></td>
-                </tr>`;
-
-                recBody.innerHTML = rowsHtml + totalRowHtml;
-            }
-
-            // CONTAS A PAGAR
-            let filteredExp = STATE.expenses.slice();
-            const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
-            const statusExp = document.getElementById('exp-status')?.value || '';
-            const startExp = document.getElementById('exp-start')?.value;
-            const endExp = document.getElementById('exp-end')?.value;
-
-            if(termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
-            if(statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
-            if(startExp) filteredExp = filteredExp.filter(e => (e.date||'').split('T')[0] >= startExp);
-            if(endExp) filteredExp = filteredExp.filter(e => (e.date||'').split('T')[0] <= endExp);
-            
-            filteredExp.sort((a,b) => (a.date||'').localeCompare(b.date||''));
-
-            const expBody = document.getElementById('fin-expense-history-list');
-            if(filteredExp.length === 0) {
-                expBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
-            } else {
-                const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost, 0);
-
-                const rowsHtmlExp = filteredExp.map(e => {
-                    const dataVencStr = (e.date||'').split('T')[0];
-                    const isVencido = dataVencStr < hojeLocalStr && e.status !== 'PAGO';
-                    const corFundo = isVencido ? 'bg-red-50/50' : (e.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : 'bg-orange-50/30');
-                    const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
-
-                    let providerVal = e.note || '-';
-                    if (providerVal.startsWith('Fornecedor:')) providerVal = providerVal.replace('Fornecedor:', '').trim();
-
-                    return `<tr class="hover:bg-slate-100 ${corFundo} transition">
-                        <td class="p-3 text-xs border-r border-slate-100">
-                            <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)} ${avisoVenc}</div>
-                        </td>
-                        <td class="p-3 border-r border-slate-100">
-                            <div class="font-bold text-slate-800 text-xs">${e.item}</div>
-                            <div class="text-[10px] text-slate-500 truncate w-32" title="${providerVal}">${providerVal}</div>
-                        </td>
-                        <td class="p-3 border-r border-slate-100">
-                            <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>
-                        </td>
-                        <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                            ${e.status !== 'PAGO' ? `
-                                <button onclick="openEditExpense('${e.id}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-                                <button onclick="payExpense('${e.id}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
-                                <button onclick="excluirDespesa('${e.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                            ` : `
-                                <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
-                                <button onclick="estornarDespesaLog('${e.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3 inline"></i></button>
-                            `}
-                        </td>
-                    </tr>`;
-                }).join('');
-
-                const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                    <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
-                    <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
-                    <td class="p-3 bg-red-50"></td>
-                </tr>`;
-
-                expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
-            }
-
-            lucide.createIcons();
+       function renderFinance() {
+    const salesMap = {};
+    STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+        if(!salesMap[l.id]) {
+            salesMap[l.id] = { 
+                id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date, 
+                clientName: l.clientName, payment: l.paymentMethod, dueDate: l.dueDate,
+                desc: l.type === 'receita' ? l.productName : `Venda #${l.id}`
+            };
         }
+        salesMap[l.id].val += Number(l.totalValue) || 0;
+        salesMap[l.id].paid = Math.max(salesMap[l.id].paid, Number(l.paidValue) || 0);
+    });
+    let salesArr = Object.values(salesMap);
 
+    const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
+                   salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+    
+    const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
+    
+    document.getElementById('fin-income').innerText = formatMoney(income);
+    document.getElementById('fin-expenses').innerText = formatMoney(expenses);
+    document.getElementById('fin-balance').innerText = formatMoney(income - expenses);
+
+    const termRec = document.getElementById('rec-search')?.value.toLowerCase() || '';
+    const statusRec = document.getElementById('rec-status')?.value || '';
+    const startRec = document.getElementById('rec-start')?.value;
+    const endRec = document.getElementById('rec-end')?.value;
+
+    const hojeLocalStr = getHojeLocalStr();
+
+    let filteredRec = salesArr;
+    
+    if(termRec) filteredRec = filteredRec.filter(r => (r.clientName && r.clientName.toLowerCase().includes(termRec)) || (r.desc && r.desc.toLowerCase().includes(termRec)) || String(r.id).includes(termRec));
+    if(statusRec === 'PAGOS') filteredRec = filteredRec.filter(r => r.status === 'PAGO');
+    if(statusRec === 'ABERTOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] >= hojeLocalStr);
+    if(statusRec === 'VENCIDOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] < hojeLocalStr);
+    if(startRec) filteredRec = filteredRec.filter(r => (r.dueDate||'').split('T')[0] >= startRec);
+    if(endRec) filteredRec = filteredRec.filter(r => (r.dueDate||'').split('T')[0] <= endRec);
+    
+    // ===== ALTERAÇÃO: ordenação invertida (mais recentes primeiro) =====
+    filteredRec.sort((a,b) => (b.dueDate||'').localeCompare(a.dueDate||''));
+    // ===== FIM DA ALTERAÇÃO =====
+
+    const recBody = document.getElementById('fin-receivables-list');
+    if(filteredRec.length === 0) {
+        recBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
+    } else {
+        const totalValRec = filteredRec.reduce((acc, r) => acc + r.val, 0);
+        const totalPaidRec = filteredRec.reduce((acc, r) => acc + r.paid, 0);
+        const totalRestRec = totalValRec - totalPaidRec;
+
+        const rowsHtml = filteredRec.map(r => {
+            const dataVencStr = (r.dueDate||'').split('T')[0];
+            const isVencido = dataVencStr < hojeLocalStr && r.status !== 'PAGO';
+            const corFundo = isVencido ? 'bg-red-50/50' : (r.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : '');
+            const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
+            const rest = r.val - r.paid;
+
+            return `<tr class="hover:bg-slate-100 ${corFundo} transition">
+                <td class="p-3 text-xs border-r border-slate-100">
+                    <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(r.dueDate)} ${avisoVenc}</div>
+                    <div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${r.payment || '-'}</div>
+                </td>
+                <td class="p-3 border-r border-slate-100">
+                    <div class="font-bold text-slate-800 text-xs">${r.clientName}</div>
+                    <div class="text-[10px] text-slate-500 truncate w-32" title="${r.desc}">${r.desc}</div>
+                </td>
+                <td class="p-3 border-r border-slate-100">
+                    <div class="font-bold text-slate-800 text-sm">${formatMoney(r.val)}</div>
+                    ${r.status !== 'PAGO' && r.paid > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoney(rest)}</div>` : ''}
+                </td>
+                <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
+                    ${r.status !== 'PAGO' ? 
+                    `<button onclick="openEditReceivable('${r.id}', ${r.val}, ${r.paid}, '${r.dueDate}', '${r.payment}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-3 rounded shadow flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> BAIXAR</button>
+                     <button onclick="excluirReceitaPendente('${r.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` 
+                    : 
+                    `<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> PAGO</span>
+                     <button onclick="estornarRecebimento('${r.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>`
+                    }
+                </td>
+            </tr>`;
+        }).join('');
+
+        const totalRowHtml = `<tr class="bg-indigo-50 border-t-2 border-indigo-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            <td colspan="2" class="p-3 text-right font-bold text-indigo-900 text-xs uppercase">Totais da Pesquisa:</td>
+            <td class="p-3 font-black text-indigo-700 text-sm border-r border-indigo-200">
+                ${formatMoney(totalValRec)}
+            </td>
+            <td class="p-3 bg-indigo-50"></td>
+        </tr>`;
+
+        recBody.innerHTML = rowsHtml + totalRowHtml;
+    }
+
+    // CONTAS A PAGAR
+    let filteredExp = STATE.expenses.slice();
+    const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
+    const statusExp = document.getElementById('exp-status')?.value || '';
+    const startExp = document.getElementById('exp-start')?.value;
+    const endExp = document.getElementById('exp-end')?.value;
+
+    if(termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
+    if(statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
+    if(startExp) filteredExp = filteredExp.filter(e => (e.date||'').split('T')[0] >= startExp);
+    if(endExp) filteredExp = filteredExp.filter(e => (e.date||'').split('T')[0] <= endExp);
+    
+    // ===== ALTERAÇÃO: ordenação invertida (mais recentes primeiro) =====
+    filteredExp.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+    // ===== FIM DA ALTERAÇÃO =====
+
+    const expBody = document.getElementById('fin-expense-history-list');
+    if(filteredExp.length === 0) {
+        expBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
+    } else {
+        const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost, 0);
+
+        const rowsHtmlExp = filteredExp.map(e => {
+            const dataVencStr = (e.date||'').split('T')[0];
+            const isVencido = dataVencStr < hojeLocalStr && e.status !== 'PAGO';
+            const corFundo = isVencido ? 'bg-red-50/50' : (e.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : 'bg-orange-50/30');
+            const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
+
+            let providerVal = e.note || '-';
+            if (providerVal.startsWith('Fornecedor:')) providerVal = providerVal.replace('Fornecedor:', '').trim();
+
+            return `<tr class="hover:bg-slate-100 ${corFundo} transition">
+                <td class="p-3 text-xs border-r border-slate-100">
+                    <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)} ${avisoVenc}</div>
+                </td>
+                <td class="p-3 border-r border-slate-100">
+                    <div class="font-bold text-slate-800 text-xs">${e.item}</div>
+                    <div class="text-[10px] text-slate-500 truncate w-32" title="${providerVal}">${providerVal}</div>
+                </td>
+                <td class="p-3 border-r border-slate-100">
+                    <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>
+                </td>
+                <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
+                    ${e.status !== 'PAGO' ? `
+                        <button onclick="openEditExpense('${e.id}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
+                        <button onclick="payExpense('${e.id}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
+                        <button onclick="excluirDespesa('${e.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                    ` : `
+                        <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
+                        <button onclick="estornarDespesaLog('${e.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3 inline"></i></button>
+                    `}
+                </td>
+            </tr>`;
+        }).join('');
+
+        const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
+            <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
+            <td class="p-3 bg-red-50"></td>
+        </tr>`;
+
+        expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
+    }
+
+    lucide.createIcons();
+}
+
+  
         function openEditReceivable(id, total, paid, due, method) {
             document.getElementById('rec-id').value = id;
             document.getElementById('rec-total-lbl').innerText = formatMoney(total);
