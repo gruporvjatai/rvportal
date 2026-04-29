@@ -1358,10 +1358,8 @@
                   fetchAllRecords('rvp_funcionarios'),
                   fetchAllRecords('rvp_vales'),
                   fetchAllRecords('rvp_pagamentos'),
-                  fetchAllRecords('rvp_diarias'),
-                  
-                    sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
-                ]);
+                  fetchAllRecords('rvp_diarias'),             
+                 ]);
 
               STATE.funcionarios = resFunc.data || [];
               STATE.vales = resVales.data || [];
