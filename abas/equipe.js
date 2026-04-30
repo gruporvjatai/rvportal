@@ -118,6 +118,90 @@ async function salvarVale() {
     loadData();
 }
 
+async function salvarValeERecibo() {
+    const funcId = document.getElementById('vale-func-id').value;
+    const data = document.getElementById('vale-data').value;
+    const valor = parseFloat(document.getElementById('vale-valor').value);
+    const obs = document.getElementById('vale-obs').value;
+    if (!funcId || !data || !valor) return showToast("Preencha todos os campos", true);
+    
+    // Salvar o vale (reaproveita a lógica, mas sem fechar o modal ainda)
+    showLoading(true);
+    const newId = getNextId(STATE.vales);
+    const { error } = await sb.from('rvp_vales').insert([{
+        id: newId,
+        funcionario_id: funcId,
+        data,
+        valor,
+        observacao: obs
+    }]);
+    if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+    
+    closeValeModal();
+    showToast("Vale lançado!");
+    await loadData();  // recarrega dados para ter o vale registrado
+    
+    // Gerar recibo
+    gerarReciboVale(funcId, data, valor, obs);
+}
+
+function gerarReciboVale(funcId, data, valor, obs) {
+    const func = STATE.funcionarios.find(f => f.id == funcId);
+    if (!func) return;
+    
+    const html = `
+    <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+        <!-- Cabeçalho -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height: 60px;">
+            <div style="text-align: right;">
+                <h1 style="margin:0; font-size: 18px; color: #059669;">RV PORTAL MADEIRAS</h1>
+                <p style="margin:2px 0; font-size: 12px;">CNPJ: 30.942.123/0001-02</p>
+                <p style="margin:2px 0; font-size: 12px;">(64) 3636-4861 | Jataí - GO</p>
+            </div>
+        </div>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="margin:0; font-size: 20px;">RECIBO DE VALE / ADIANTAMENTO</h2>
+            <p style="font-size: 12px; color: #555;">1ª via - Empresa</p>
+        </div>
+        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
+            <table style="width: 100%; font-size: 14px;">
+                <tr><td style="padding: 5px 0;"><strong>Funcionário:</strong></td><td>${func.nome}</td></tr>
+                <tr><td style="padding: 5px 0;"><strong>Data:</strong></td><td>${formatDate(data)}</td></tr>
+                <tr><td style="padding: 5px 0;"><strong>Valor:</strong></td><td style="font-weight: bold;">${formatMoney(valor)}</td></tr>
+                <tr><td style="padding: 5px 0;"><strong>Observação:</strong></td><td>${obs || '-'}</td></tr>
+            </table>
+            <p style="margin-top: 20px; font-size: 12px;">Recebido em: ${new Date().toLocaleDateString('pt-BR')}</p>
+            <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
+                <div>_______________________________<br><small>Responsável RV Portal</small></div>
+            </div>
+        </div>
+        <!-- Linha pontilhada para corte -->
+        <div style="border-top: 2px dashed #aaa; margin: 20px 0;"></div>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="margin:0; font-size: 20px;">RECIBO DE VALE / ADIANTAMENTO</h2>
+            <p style="font-size: 12px; color: #555;">2ª via - Funcionário</p>
+        </div>
+        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px;">
+            <table style="width: 100%; font-size: 14px;">
+                <tr><td style="padding: 5px 0;"><strong>Funcionário:</strong></td><td>${func.nome}</td></tr>
+                <tr><td style="padding: 5px 0;"><strong>Data:</strong></td><td>${formatDate(data)}</td></tr>
+                <tr><td style="padding: 5px 0;"><strong>Valor:</strong></td><td style="font-weight: bold;">${formatMoney(valor)}</td></tr>
+                <tr><td style="padding: 5px 0;"><strong>Observação:</strong></td><td>${obs || '-'}</td></tr>
+            </table>
+            <p style="margin-top: 20px; font-size: 12px;">Recebido em: ${new Date().toLocaleDateString('pt-BR')}</p>
+            <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
+                <div>_______________________________<br><small>Responsável RV Portal</small></div>
+            </div>
+        </div>
+    </div>`;
+    
+    document.getElementById('print-area').innerHTML = html;
+    setTimeout(() => window.print(), 300);
+}
+
 // ========== NOVAS FUNÇÕES DE FECHAMENTO ==========
 
 let producaoItemsTemp = [];
@@ -396,40 +480,43 @@ async function estornarPagamentoMensal(funcId) {
     if (!func) return;
     const mesInput = document.getElementById('fech-mes').value;
     if (!mesInput) return showToast("Selecione o mês", true);
-    if (!confirm(`Deseja realmente estornar o pagamento de ${func.nome} referente ao mês ${mesInput}? Isso removerá a despesa e o registro de pagamento.`)) return;
+    if (!confirm(`Deseja realmente estornar o pagamento de ${func.nome} referente ao mês ${mesInput}? Isso removerá TODAS as despesas e registros de pagamento deste mês.`)) return;
 
     showLoading(true);
     const [ano, mes] = mesInput.split('-').map(Number);
     const primeiroDia = new Date(ano, mes-1, 1).toISOString().split('T')[0];
     const ultimoDia = new Date(ano, mes, 0).toISOString().split('T')[0];
 
-    // Buscar despesa vinculada (filtrar por item começando com "Pagamento - nome" e data dentro do mês, ou por funcionario_id)
-    const despesas = STATE.expenses.filter(e => 
-        e.item.startsWith(`Pagamento - ${func.nome}`) &&
-        e.data >= primeiroDia && e.data <= ultimoDia &&
-        e.status === 'PENDENTE' // apenas pendentes; se já pago, pode estornar igual?
-    );
-    
-    // Se preferir estornar mesmo que já pago, descomente abaixo e altere status.
-    for (let d of despesas) {
-        await sb.from('despesas').delete().eq('id', d.id);   // remove a despesa
-        // Se tiver log de baixa, também remover (mas vamos simplificar)
+    try {
+        // 1. Remover despesas (qualquer status) do funcionário no período
+        const despesasParaRemover = STATE.expenses.filter(e => {
+            return e.item === `Pagamento - ${func.nome}` &&
+                   e.data >= primeiroDia &&
+                   e.data <= ultimoDia;
+        });
+        for (let d of despesasParaRemover) {
+            await sb.from('despesas').delete().eq('id', d.id);
+        }
+
+        // 2. Remover registros de pagamento histórico (rvp_pagamentos)
+        const pagamentosParaRemover = STATE.pagamentos.filter(p => {
+            return p.funcionario_id == funcId &&
+                   p.data_pagamento >= primeiroDia &&
+                   p.data_pagamento <= ultimoDia &&
+                   p.observacao && p.observacao.includes(`Salário mensal ${mesInput}`);
+        });
+        for (let p of pagamentosParaRemover) {
+            await sb.from('rvp_pagamentos').delete().eq('id', p.id);
+        }
+
+        // 3. Recarregar dados
+        await loadData();
+        closeFechamentoModal();
+        showToast("Estorno realizado com sucesso!");
+    } catch (err) {
+        showLoading(false);
+        showToast("Erro ao estornar: " + err.message, true);
     }
-
-    // Remover registro de pagamento histórico
-    const pagamentos = STATE.pagamentos.filter(p => 
-        p.funcionario_id == funcId && 
-        p.data_pagamento >= primeiroDia && p.data_pagamento <= ultimoDia
-    );
-    for (let p of pagamentos) {
-        await sb.from('rvp_pagamentos').delete().eq('id', p.id);
-    }
-
-    // Opcional: estornar vales? O usuário não pediu, então mantemos.
-
-    showToast("Pagamento estornado com sucesso!");
-    closeFechamentoModal();
-    await loadData();
 }
 
 // ========== RECIBOS (versão profissional com 2 vias em A4, logo e linha tracejada) ==========
@@ -619,44 +706,65 @@ function gerarReciboProducao(funcId) {
 
 // ========== IMPRIMIR FOLHA DE PAGAMENTOS PENDENTES ==========
 async function imprimirFolhaEquipe() {
-    // Buscar despesas pendentes que são pagamentos (item começando com "Pagamento - ")
-    const despesasPendentes = STATE.expenses.filter(e => e.status === 'PENDENTE' && e.item.startsWith('Pagamento - '));
-    if (despesasPendentes.length === 0) return showToast("Nenhum pagamento pendente encontrado.", true);
-    
+    // Buscar despesas pendentes cujo item começa com "Pagamento - "
+    const despesasPendentes = STATE.expenses.filter(e => {
+        return e.status === 'PENDENTE' && e.item.startsWith('Pagamento - ');
+    });
+
+    if (despesasPendentes.length === 0) {
+        return showToast("Nenhum pagamento pendente encontrado.", true);
+    }
+
+    // Montar linhas da tabela
     const rows = despesasPendentes.map(d => {
-        const nome = d.item.replace('Pagamento - ', '');
+        const nome = d.item.replace('Pagamento - ', '').trim();
         const func = STATE.funcionarios.find(f => f.nome === nome);
         const tipo = func ? func.tipo_remuneracao : '-';
         const pix = func ? func.chave_pix || '-' : '-';
         const referencia = d.observacao ? d.observacao.split(' | PIX:')[0] : '-';
+        const valor = Number(d.custo) || 0;
         return `
             <tr>
                 <td>${nome}</td>
                 <td>${tipo}</td>
                 <td>${referencia}</td>
-                <td>${formatMoney(d.custo)}</td>
+                <td style="text-align:right;">${formatMoney(valor)}</td>
                 <td>${pix}</td>
             </tr>
         `;
     }).join('');
-    
-    const total = despesasPendentes.reduce((s, d) => s + d.custo, 0);
+
+    const total = despesasPendentes.reduce((s, d) => s + (Number(d.custo) || 0), 0);
+
     const html = `
-    <div style="font-family: Arial; padding: 20px; max-width: 800px; margin: auto;">
+    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: auto;">
         <div style="text-align: center; margin-bottom: 20px;">
-            <h2>RV PORTAL MADEIRAS</h2>
-            <p>Folha de Pagamentos Pendentes</p>
+            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height: 60px; display: block; margin: 0 auto;">
+            <h2 style="margin: 5px 0; color: #059669;">RV PORTAL MADEIRAS</h2>
+            <p style="font-size: 14px;">Folha de Pagamentos Pendentes</p>
         </div>
-        <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse;">
-            <thead>
-                <tr><th>Funcionário</th><th>Tipo</th><th>Referência</th><th>Valor</th><th>PIX</th></tr>
+        <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse; font-size: 13px;">
+            <thead style="background: #f2f2f2;">
+                <tr>
+                    <th>Funcionário</th>
+                    <th>Tipo</th>
+                    <th>Referência</th>
+                    <th style="text-align:right;">Valor</th>
+                    <th>Chave PIX</th>
+                </tr>
             </thead>
             <tbody>${rows}</tbody>
-            <tfoot>
-                <tr><td colspan="4" align="right"><strong>Total</strong></td><td><strong>${formatMoney(total)}</strong></td></tr>
+            <tfoot style="background: #e6f7e6;">
+                <tr>
+                    <td colspan="3" style="text-align:right;"><strong>Total</strong></td>
+                    <td style="text-align:right; font-weight:bold;">${formatMoney(total)}</td>
+                    <td></td>
+                </tr>
             </tfoot>
         </table>
+        <p style="margin-top: 20px; font-size: 11px; text-align: center;">Emitido em ${new Date().toLocaleString('pt-BR')}</p>
     </div>`;
+
     document.getElementById('print-area').innerHTML = html;
     setTimeout(() => window.print(), 300);
 }
