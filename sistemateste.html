@@ -545,15 +545,22 @@
                   <input type="date" id="equipe-data-inicio" class="w-full p-2 border rounded text-sm" onchange="renderEquipe()">
               </div>
               <div class="w-36">
+                  <label class="block text-xs font-bold text-slate-500 mb-1">Data Início</label>
+                  <input type="date" id="equipe-data-inicio" class="w-full p-2 border rounded text-sm" onchange="renderEquipe()">
+              </div>
+              <div class="w-36">
                   <label class="block text-xs font-bold text-slate-500 mb-1">Data Fim</label>
                   <input type="date" id="equipe-data-fim" class="w-full p-2 border rounded text-sm" onchange="renderEquipe()">
               </div>
+              <button onclick="limparFiltrosEquipe()" class="bg-red-100 hover:bg-red-200 p-2 rounded text-red-700 h-10 w-10 flex items-center justify-center" title="Limpar filtros">
+                  <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
               <button onclick="renderEquipe(true)" class="bg-slate-200 hover:bg-slate-300 p-2 rounded text-slate-700 h-10 w-10 flex items-center justify-center" title="Atualizar">
                   <i data-lucide="refresh-cw" class="w-4 h-4"></i>
               </button>
               <button onclick="imprimirFolhaEquipe()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded text-sm font-bold h-10 flex items-center gap-2">
                   <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Folha
-              </button>            
+              </button>          
           </div>
       
           <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -563,8 +570,7 @@
                           <tr>
                             <th class="p-4">Funcionário</th>
                             <th class="p-4">Tipo</th>
-                            <th class="p-4">Contato</th>
-                            <th class="p-4">Admissão</th>
+                            <th class="p-4">Contato</th>                            
                             <th class="p-4 text-right">Vales (mês)</th>
                             <th class="p-4 text-right">Falta Pagar (mês)</th>
                             <th class="p-4 text-center">Status</th>
@@ -1151,8 +1157,8 @@
             <input type="text" id="func-documento" placeholder="CPF" class="w-full p-2 border rounded">
             <input type="text" id="func-endereco" placeholder="Endereço" class="w-full p-2 border rounded">
             <div>
-              <label class="block text-xs font-bold text-slate-500 mb-1">Chave PIX</label>
-              <input type="text" id="func-pix" placeholder="PIX (CPF/CNPJ/e-mail/telefone)" class="w-full p-2 border rounded">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Chave PIX</label>
+                <input type="text" id="func-pix" placeholder="CPF/CNPJ/E-mail/Telefone" class="w-full p-2 border rounded">
             </div>
             <input type="date" id="func-data-admissao" class="w-full p-2 border rounded">
             <div>
@@ -1314,7 +1320,7 @@
     if(viewId === 'equipe') renderEquipe();
     if(viewId === 'prod') renderProducts();
     if(viewId === 'production') renderProductionSelect();
-    if(viewId === 'users') renderUsers(); 
+    if(viewId === 'users') renderUsers();    
     lucide.createIcons();
 }
 
