@@ -207,6 +207,7 @@ function gerarReciboVale(funcId, data, valor, obs) {
 let producaoItemsTemp = [];
 
 function openFechamento(funcId) {
+    modalFuncId = funcId;
     const func = STATE.funcionarios.find(f => String(f.id) === String(funcId));
     if (!func) return;
     const modal = document.getElementById('fechamento-modal');
@@ -239,15 +240,27 @@ function openFechamento(funcId) {
                         <span class="text-gray-500">Salário base</span><br>
                         <strong>${formatMoney(salario)}</strong>
                     </div>
-                    <div class="bg-red-50 p-3 rounded">
-                        <span class="text-red-600">Total em vales</span><br>
-                        <strong>${formatMoney(totalVales)}</strong>
+                    <div class="bg-red-50 p-3 rounded flex justify-between items-start">
+                        <div>
+                            <span class="text-red-600">Total em vales</span><br>
+                            <strong>${formatMoney(totalVales)}</strong>
+                        </div>
+                        ${totalVales > 0 ? `<button onclick="estornarTodosValesMes('${funcId}')" class="text-xs bg-red-200 hover:bg-red-300 text-red-800 px-2 py-1 rounded font-bold" title="Estornar todos os vales deste mês"><i data-lucide="trash-2" class="w-3 h-3 inline"></i> Estornar</button>` : ''}
                     </div>
                 </div>
                 <div class="bg-green-50 p-4 rounded-lg">
                     <span class="text-green-800 font-bold text-lg">Líquido a Pagar: ${formatMoney(liquido)}</span>
                 </div>
-                ${valesMes.length ? `<details class="text-xs"><summary>Detalhes dos vales</summary><ul class="list-disc pl-5">${valesMes.map(v => `<li>${formatDate(v.data)} - ${formatMoney(v.valor)} ${v.observacao ? '('+v.observacao+')' : ''}</li>`).join('')}</ul></details>` : ''}
+                ${valesMes.length ? `
+                <details class="text-xs">
+                    <summary>Detalhes dos vales (${valesMes.length})</summary>
+                    <ul class="list-disc pl-5 space-y-1">
+                        ${valesMes.map(v => `<li class="flex justify-between items-center">
+                            <span>${formatDate(v.data)} - ${formatMoney(v.valor)} ${v.observacao ? '('+v.observacao+')' : ''}</span>
+                            <button onclick="estornarVale('${v.id}')" class="text-red-500 hover:text-red-700 ml-2" title="Estornar este vale"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i></button>
+                        </li>`).join('')}
+                    </ul>
+                </details>` : ''}
             </div>
         `;
         actions.innerHTML = `
@@ -877,3 +890,50 @@ document.addEventListener('DOMContentLoaded', () => {
         definirDatasPadrao();
     }
 });
+
+
+// Estornar um vale específico
+let modalFuncId = null;
+async function estornarVale(valeId) {
+    if (!confirm("Deseja realmente estornar (remover) este vale?")) return;
+    showLoading(true);
+    const { error } = await sb.from('rvp_vales').delete().eq('id', valeId);
+    if (error) {
+        showLoading(false);
+        return showToast("Erro ao estornar vale: " + error.message, true);
+    }
+    await loadData();
+    showToast("Vale estornado com sucesso!");
+    // Recarregar o modal de fechamento com os novos dados
+    const funcId = document.getElementById('vale-func-id')?.value; // pegar do contexto? não, precisamos do funcId do modal atual
+    // Para simplificar, vamos recarregar a página de equipe – mas melhor é reabrir o modal se ele estiver aberto.
+    if (document.getElementById('fechamento-modal') && !document.getElementById('fechamento-modal').classList.contains('hidden')) {
+        // Pegar o id do funcionário do título do modal? Melhor armazenar em variável global.
+        // Vamos definir uma variável global modalFuncId quando abrir o modal.
+        if (typeof modalFuncId !== 'undefined' && modalFuncId) {
+            openFechamento(modalFuncId);
+        }
+    }
+}
+
+// Estornar todos os vales do mês atual
+async function estornarTodosValesMes(funcId) {
+    if (!confirm("ATENÇÃO: Isso removerá TODOS os vales deste funcionário no mês exibido. Continuar?")) return;
+    const mesInput = document.getElementById('fech-mes').value;
+    if (!mesInput) return showToast("Mês não definido", true);
+    const [ano, mes] = mesInput.split('-').map(Number);
+    const primeiroDia = new Date(ano, mes-1, 1).toISOString().split('T')[0];
+    const ultimoDia = new Date(ano, mes, 0).toISOString().split('T')[0];
+    showLoading(true);
+    const { error } = await sb.from('rvp_vales').delete()
+        .eq('funcionario_id', funcId)
+        .gte('data', primeiroDia)
+        .lte('data', ultimoDia);
+    if (error) {
+        showLoading(false);
+        return showToast("Erro ao estornar vales: " + error.message, true);
+    }
+    await loadData();
+    showToast("Todos os vales do mês foram estornados!");
+    openFechamento(funcId);
+}
