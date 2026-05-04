@@ -204,12 +204,17 @@ function gerarReciboVale(funcId, data, valor, obs) {
 
 // ========== NOVAS FUNÇÕES DE FECHAMENTO ==========
 
-let producaoItemsTemp = [];
+// ========== DECLARAÇÃO GLOBAL (adicione no início do equipe.js, se ainda não existir) ==========
+let modalFuncId = null;
 
+// ========== FUNÇÃO PRINCIPAL DE FECHAMENTO ==========
 function openFechamento(funcId) {
-    modalFuncId = funcId;
     const func = STATE.funcionarios.find(f => String(f.id) === String(funcId));
     if (!func) return;
+
+    // Guardar o id para uso em callbacks (ex.: estornar vales)
+    modalFuncId = funcId;
+
     const modal = document.getElementById('fechamento-modal');
     document.getElementById('fechamento-titulo').innerText = `Fechamento - ${func.nome}`;
     const conteudo = document.getElementById('fechamento-conteudo');
@@ -221,11 +226,18 @@ function openFechamento(funcId) {
     const primeiroDia = new Date(anoAtual, mesAtual, 1).toISOString().split('T')[0];
     const ultimoDia = new Date(anoAtual, mesAtual + 1, 0).toISOString().split('T')[0];
     
+    /* ============ MENSAL ============ */
     if (func.tipo_remuneracao === 'mensal') {
-        const valesMes = STATE.vales.filter(v => v.funcionario_id == funcId && v.data >= primeiroDia && v.data <= ultimoDia);
+        // Buscar vales do mês
+        const valesMes = STATE.vales.filter(v => 
+            v.funcionario_id == funcId && 
+            v.data >= primeiroDia && 
+            v.data <= ultimoDia
+        );
         const totalVales = valesMes.reduce((s, v) => s + Number(v.valor), 0);
         const salario = func.valor_mensal || 0;
         const liquido = salario - totalVales;
+
         conteudo.innerHTML = `
             <div class="space-y-4">
                 <div class="flex gap-4 items-end">
@@ -245,7 +257,12 @@ function openFechamento(funcId) {
                             <span class="text-red-600">Total em vales</span><br>
                             <strong>${formatMoney(totalVales)}</strong>
                         </div>
-                        ${totalVales > 0 ? `<button onclick="estornarTodosValesMes('${funcId}')" class="text-xs bg-red-200 hover:bg-red-300 text-red-800 px-2 py-1 rounded font-bold" title="Estornar todos os vales deste mês"><i data-lucide="trash-2" class="w-3 h-3 inline"></i> Estornar</button>` : ''}
+                        ${totalVales > 0 ? `
+                        <button onclick="estornarTodosValesMes('${funcId}')" 
+                                class="text-xs bg-red-200 hover:bg-red-300 text-red-800 px-2 py-1 rounded font-bold"
+                                title="Estornar todos os vales deste mês">
+                            <i data-lucide="trash-2" class="w-3 h-3 inline"></i> Estornar
+                        </button>` : ''}
                     </div>
                 </div>
                 <div class="bg-green-50 p-4 rounded-lg">
@@ -255,22 +272,39 @@ function openFechamento(funcId) {
                 <details class="text-xs">
                     <summary>Detalhes dos vales (${valesMes.length})</summary>
                     <ul class="list-disc pl-5 space-y-1">
-                        ${valesMes.map(v => `<li class="flex justify-between items-center">
+                        ${valesMes.map(v => `
+                        <li class="flex justify-between items-center">
                             <span>${formatDate(v.data)} - ${formatMoney(v.valor)} ${v.observacao ? '('+v.observacao+')' : ''}</span>
-                            <button onclick="estornarVale('${v.id}')" class="text-red-500 hover:text-red-700 ml-2" title="Estornar este vale"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i></button>
+                            <button onclick="estornarVale('${v.id}')" class="text-red-500 hover:text-red-700 ml-2" title="Estornar este vale">
+                                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                            </button>
                         </li>`).join('')}
                     </ul>
                 </details>` : ''}
             </div>
         `;
+
         actions.innerHTML = `
-            <button onclick="estornarPagamentoMensal('${funcId}')" class="flex-1 py-2 bg-red-100 text-red-700 rounded font-bold text-sm"><i data-lucide="rotate-ccw" class="w-4 h-4 inline"></i> Estornar</button>
-            <button onclick="gerarReciboMensal('${funcId}')" class="flex-1 py-2 bg-indigo-600 text-white rounded font-bold text-sm"><i data-lucide="printer" class="w-4 h-4 inline"></i> Recibo</button>
-            <button onclick="lancarPagamentoMensal('${funcId}')" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold text-sm"><i data-lucide="check-circle" class="w-4 h-4 inline"></i> Lançar Pagamento</button>
-            <button onclick="closeFechamentoModal()" class="flex-1 py-2 bg-slate-200 rounded font-bold text-sm">Cancelar</button>
+            <button onclick="estornarPagamentoMensal('${funcId}')" class="flex-1 py-2 bg-red-100 text-red-700 rounded font-bold text-sm">
+                <i data-lucide="rotate-ccw" class="w-4 h-4 inline"></i> Estornar Pagto
+            </button>
+            <button onclick="gerarReciboMensal('${funcId}')" class="flex-1 py-2 bg-indigo-600 text-white rounded font-bold text-sm">
+                <i data-lucide="printer" class="w-4 h-4 inline"></i> Recibo
+            </button>
+            <button onclick="lancarPagamentoMensal('${funcId}')" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold text-sm">
+                <i data-lucide="check-circle" class="w-4 h-4 inline"></i> Lançar Pagamento
+            </button>
+            <button onclick="closeFechamentoModal()" class="flex-1 py-2 bg-slate-200 rounded font-bold text-sm">
+                Cancelar
+            </button>
         `;
-    } else if (func.tipo_remuneracao === 'diaria') {
-        const ultimosPag = STATE.pagamentos.filter(p => p.funcionario_id == funcId).sort((a,b) => b.data_pagamento.localeCompare(a.data_pagamento));
+    }
+
+    /* ============ DIARISTA ============ */
+    else if (func.tipo_remuneracao === 'diaria') {
+        const ultimosPag = STATE.pagamentos
+            .filter(p => p.funcionario_id == funcId)
+            .sort((a,b) => b.data_pagamento.localeCompare(a.data_pagamento));
         let dataInicio = primeiroDia;
         if (ultimosPag.length) {
             const dt = new Date(ultimosPag[0].data_pagamento + 'T00:00:00');
@@ -278,10 +312,15 @@ function openFechamento(funcId) {
             dataInicio = dt.toISOString().split('T')[0];
         }
         const dataFim = getHojeLocalStr();
-        const diariasReg = STATE.diarias.filter(d => d.funcionario_id == funcId && d.data >= dataInicio && d.data <= dataFim);
+        const diariasReg = STATE.diarias.filter(d => 
+            d.funcionario_id == funcId && 
+            d.data >= dataInicio && 
+            d.data <= dataFim
+        );
         const totalDias = diariasReg.length;
         const valorDiaria = func.valor_diaria || 0;
         const total = totalDias * valorDiaria;
+
         conteudo.innerHTML = `
             <div class="space-y-4">
                 <div class="flex gap-4 items-end">
@@ -308,15 +347,32 @@ function openFechamento(funcId) {
                 <div class="bg-green-50 p-4 rounded-lg text-lg font-bold text-green-800" id="fech-di-total">Total: ${formatMoney(total)}</div>
             </div>
         `;
+
         actions.innerHTML = `
-            <button onclick="gerarReciboDiaria('${funcId}')" class="flex-1 py-2 bg-indigo-600 text-white rounded font-bold text-sm"><i data-lucide="printer" class="w-4 h-4 inline"></i> Recibo</button>
-            <button onclick="lancarPagamentoDiaria('${funcId}')" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold text-sm"><i data-lucide="check-circle" class="w-4 h-4 inline"></i> Lançar Pagamento</button>
-            <button onclick="closeFechamentoModal()" class="flex-1 py-2 bg-slate-200 rounded font-bold text-sm">Cancelar</button>
+            <button onclick="gerarReciboDiaria('${funcId}')" class="flex-1 py-2 bg-indigo-600 text-white rounded font-bold text-sm">
+                <i data-lucide="printer" class="w-4 h-4 inline"></i> Recibo
+            </button>
+            <button onclick="lancarPagamentoDiaria('${funcId}')" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold text-sm">
+                <i data-lucide="check-circle" class="w-4 h-4 inline"></i> Lançar Pagamento
+            </button>
+            <button onclick="closeFechamentoModal()" class="flex-1 py-2 bg-slate-200 rounded font-bold text-sm">
+                Cancelar
+            </button>
         `;
-    } else if (func.tipo_remuneracao === 'producao') {
+    }
+
+    /* ============ PRODUÇÃO ============ */
+    else if (func.tipo_remuneracao === 'producao') {
         producaoItemsTemp = [];
-        const producoesMes = STATE.producoes ? STATE.producoes.filter(p => p.funcionario_id == funcId && p.data >= primeiroDia && p.data <= ultimoDia) : [];
+        const producoesMes = STATE.producoes 
+            ? STATE.producoes.filter(p => 
+                p.funcionario_id == funcId && 
+                p.data >= primeiroDia && 
+                p.data <= ultimoDia
+              ) 
+            : [];
         let totalProducao = producoesMes.reduce((s, p) => s + Number(p.valor_total), 0);
+
         conteudo.innerHTML = `
             <div class="space-y-4">
                 <div class="flex gap-4 items-end">
@@ -324,7 +380,9 @@ function openFechamento(funcId) {
                         <label class="text-xs font-bold">Mês/Ano</label>
                         <input type="month" id="fech-prod-mes" value="${anoAtual}-${String(mesAtual+1).padStart(2,'0')}" class="border rounded p-2">
                     </div>
-                    <button onclick="adicionarItemProducaoModal()" class="p-2 bg-emerald-600 text-white rounded flex items-center gap-1 text-sm"><i data-lucide="plus" class="w-4 h-4"></i> Adicionar Item</button>
+                    <button onclick="adicionarItemProducaoModal()" class="p-2 bg-emerald-600 text-white rounded flex items-center gap-1 text-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Adicionar Item
+                    </button>
                 </div>
                 <div id="fech-prod-lista" class="space-y-2 max-h-60 overflow-y-auto">
                     ${producoesMes.map(p => `
@@ -339,12 +397,20 @@ function openFechamento(funcId) {
                 <div class="bg-green-50 p-4 rounded-lg text-lg font-bold text-green-800" id="fech-prod-total">Total: ${formatMoney(totalProducao)}</div>
             </div>
         `;
+
         actions.innerHTML = `
-            <button onclick="gerarReciboProducao('${funcId}')" class="flex-1 py-2 bg-indigo-600 text-white rounded font-bold text-sm"><i data-lucide="printer" class="w-4 h-4 inline"></i> Recibo</button>
-            <button onclick="lancarPagamentoProducao('${funcId}')" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold text-sm"><i data-lucide="check-circle" class="w-4 h-4 inline"></i> Lançar Pagamento</button>
-            <button onclick="closeFechamentoModal()" class="flex-1 py-2 bg-slate-200 rounded font-bold text-sm">Cancelar</button>
+            <button onclick="gerarReciboProducao('${funcId}')" class="flex-1 py-2 bg-indigo-600 text-white rounded font-bold text-sm">
+                <i data-lucide="printer" class="w-4 h-4 inline"></i> Recibo
+            </button>
+            <button onclick="lancarPagamentoProducao('${funcId}')" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold text-sm">
+                <i data-lucide="check-circle" class="w-4 h-4 inline"></i> Lançar Pagamento
+            </button>
+            <button onclick="closeFechamentoModal()" class="flex-1 py-2 bg-slate-200 rounded font-bold text-sm">
+                Cancelar
+            </button>
         `;
     }
+
     modal.classList.remove('hidden');
     lucide.createIcons();
 }
