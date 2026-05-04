@@ -1,4 +1,4 @@
-// equipe.js – Gestão de Equipe (v3 – correções e melhorias)
+// equipe.js – Gestão de Equipe (v3.0 – correções e melhorias)
 (function () {
   'use strict';
 
