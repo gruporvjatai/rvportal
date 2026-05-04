@@ -1,4 +1,4 @@
-// gerencial.js – Centro de Custos e Resultado Simplificado (v4 – ajuste na aba 1)
+// gerencial.js – Centro de Custos e Resultado Simplificado (v5 – % na Aba 2)
 (function () {
   'use strict';
 
@@ -134,7 +134,7 @@
     `;
   }
 
-  // ---------- HTML da Aba 2 (inalterada) ----------
+  // ---------- HTML da Aba 2 (com percentuais) ----------
   function getResultadoSimplificadoHTML() {
     return `
       <div class="space-y-6">
@@ -147,17 +147,32 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-sm">
-            <p class="text-xs font-bold text-green-800 uppercase">Total de Entradas (Vendas)</p>
-            <h3 id="ger-res-entradas" class="text-2xl font-bold text-green-700 mt-1">R$ 0,00</h3>
+          <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-sm flex flex-col justify-between">
+            <div>
+              <p class="text-xs font-bold text-green-800 uppercase">Total de Entradas (Vendas)</p>
+              <h3 id="ger-res-entradas" class="text-2xl font-bold text-green-700 mt-1">R$ 0,00</h3>
+            </div>
+            <div class="mt-2 text-xs text-green-700/70">
+              Representa 100% da base
+            </div>
           </div>
-          <div class="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm">
-            <p class="text-xs font-bold text-red-800 uppercase">Total de Saídas (Despesas)</p>
-            <h3 id="ger-res-saidas" class="text-2xl font-bold text-red-600 mt-1">R$ 0,00</h3>
+          <div class="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col justify-between">
+            <div>
+              <p class="text-xs font-bold text-red-800 uppercase">Total de Saídas (Despesas)</p>
+              <h3 id="ger-res-saidas" class="text-2xl font-bold text-red-600 mt-1">R$ 0,00</h3>
+            </div>
+            <div id="ger-res-saidas-pct" class="mt-2 text-xs text-red-600/70">
+              Custo: 0% das entradas
+            </div>
           </div>
-          <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm">
-            <p class="text-xs font-bold text-indigo-800 uppercase">Lucro (Entradas - Saídas)</p>
-            <h3 id="ger-res-lucro" class="text-2xl font-bold text-indigo-600 mt-1">R$ 0,00</h3>
+          <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm flex flex-col justify-between">
+            <div>
+              <p class="text-xs font-bold text-indigo-800 uppercase">Lucro (Entradas - Saídas)</p>
+              <h3 id="ger-res-lucro" class="text-2xl font-bold text-indigo-600 mt-1">R$ 0,00</h3>
+            </div>
+            <div id="ger-res-lucro-pct" class="mt-2 text-xs text-indigo-600/70">
+              Margem: 0%
+            </div>
           </div>
         </div>
 
@@ -190,7 +205,6 @@
     const mesInput = document.getElementById('ger-mes');
     if (mesInput) mesInput.value = mesAtual;
 
-    // Botão aplicar
     const btnAplicar = document.getElementById('ger-aplicar-centro');
     if (btnAplicar) {
       btnAplicar.addEventListener('click', carregarCentroCustos);
@@ -237,7 +251,6 @@
     const salario = parseFloat(document.getElementById('ger-salario')?.value) || 0;
     const outrosOp = parseFloat(document.getElementById('ger-outros-op')?.value) || 0;
 
-    // Filtrar vendas do período
     const vendasPeriodo = STATE.logs.filter(l =>
       l.type === 'venda' && l.status !== 'CANCELADO' &&
       l.date >= dataInicio && l.date <= dataFim + 'T23:59:59'
@@ -262,18 +275,12 @@
     }
     if (semDados) semDados.classList.add('hidden');
 
-    // Agrupar por produto
     const mapa = {};
     vendas.forEach(v => {
       const nome = v.productName;
       if (!mapa[nome]) {
         const prod = STATE.products.find(p => p.name === nome);
-        mapa[nome] = {
-          nome,
-          qtd: 0,
-          receita: 0,
-          custoUnit: prod ? prod.cost : 0
-        };
+        mapa[nome] = { nome, qtd: 0, receita: 0, custoUnit: prod ? prod.cost : 0 };
       }
       mapa[nome].qtd += v.quantity;
       mapa[nome].receita += v.totalValue;
@@ -283,7 +290,6 @@
       ...p,
       custoTotal: p.custoUnit * p.qtd
     }));
-    // Ordenar alfabeticamente
     produtos.sort((a, b) => a.nome.localeCompare(b.nome));
 
     const receitaTotal = produtos.reduce((s, p) => s + p.receita, 0);
@@ -291,16 +297,13 @@
     const impostoTotal = receitaTotal * (impPerc / 100);
     const freteTotal = receitaTotal * (fretePerc / 100);
 
-    // Calcular por produto (sem rateio operacional)
     produtos.forEach(p => {
-      const proporcaoReceita = receitaTotal > 0 ? p.receita / receitaTotal : 0;
       p.imposto = p.receita * (impPerc / 100);
       p.frete = p.receita * (fretePerc / 100);
       p.lucroBruto = p.receita - p.custoTotal - p.imposto - p.frete;
       p.margemBruta = p.receita > 0 ? (p.lucroBruto / p.receita) * 100 : 0;
     });
 
-    // Tabela
     if (tbody) {
       tbody.innerHTML = produtos.map(p => `
         <tr class="hover:bg-slate-50 border-b">
@@ -316,10 +319,9 @@
       `).join('');
     }
 
-    // Rodapé da tabela (totais dos produtos)
+    const totalLucroBruto = receitaTotal - custoTotal - impostoTotal - freteTotal;
+    const margemBrutaTotal = receitaTotal > 0 ? (totalLucroBruto / receitaTotal) * 100 : 0;
     if (rodape) {
-      const totalLucroBruto = receitaTotal - custoTotal - impostoTotal - freteTotal;
-      const margemBrutaTotal = receitaTotal > 0 ? (totalLucroBruto / receitaTotal) * 100 : 0;
       rodape.innerHTML = `
         <tr>
           <td class="p-3" colspan="2">TOTAIS</td>
@@ -333,13 +335,12 @@
       `;
     }
 
-    // Resumo com os custos operacionais manuais
-    if (resumo) {
-      const lucroBruto = receitaTotal - custoTotal - impostoTotal - freteTotal;
-      const totalOperacional = salario + outrosOp;
-      const lucroLiquido = lucroBruto - totalOperacional;
-      const margemLiquida = receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
+    const lucroBruto = receitaTotal - custoTotal - impostoTotal - freteTotal;
+    const totalOperacional = salario + outrosOp;
+    const lucroLiquido = lucroBruto - totalOperacional;
+    const margemLiquida = receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
 
+    if (resumo) {
       resumo.innerHTML = `
         <div class="flex justify-between"><span>Receita Bruta:</span><span class="font-bold">${formatMoney(receitaTotal)}</span></div>
         <div class="flex justify-between"><span>Custo de Compra:</span><span>${formatMoney(custoTotal)}</span></div>
@@ -381,10 +382,25 @@
 
     const lucro = receitaTotal - despesaTotal;
 
+    // Atualiza os cards com valores e percentuais
     document.getElementById('ger-res-entradas').innerText = formatMoney(receitaTotal);
     document.getElementById('ger-res-saidas').innerText = formatMoney(despesaTotal);
     document.getElementById('ger-res-lucro').innerText = formatMoney(lucro);
 
+    // Percentuais
+    const custoPct = receitaTotal > 0 ? (despesaTotal / receitaTotal) * 100 : 0;
+    const lucroPct = receitaTotal > 0 ? (lucro / receitaTotal) * 100 : 0;
+
+    const saidasPctEl = document.getElementById('ger-res-saidas-pct');
+    if (saidasPctEl) {
+      saidasPctEl.innerHTML = `Custo: <strong>${custoPct.toFixed(2)}%</strong> das entradas`;
+    }
+    const lucroPctEl = document.getElementById('ger-res-lucro-pct');
+    if (lucroPctEl) {
+      lucroPctEl.innerHTML = `Margem: <strong>${lucroPct.toFixed(2)}%</strong>`;
+    }
+
+    // Produtos vendidos (ordenados alfabeticamente)
     const mapaProd = {};
     vendas.forEach(v => {
       if (!mapaProd[v.productName]) {
@@ -414,6 +430,7 @@
         </tr>
       `;
     }
+
     lucide.createIcons();
   }
 
