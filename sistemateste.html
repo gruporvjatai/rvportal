@@ -163,6 +163,7 @@
         <button onclick="navigate('quotes')" id="nav-quotes" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="folder-open"></i> <span class="font-medium text-sm">Orçamentos</span></button>
         <button onclick="navigate('fin')" id="nav-fin" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="bar-chart-3"></i> <span class="font-medium text-sm">Financeiro</span></button>
         <div class="border-t border-slate-700 my-2 pt-2"></div>
+        <button onclick="navigate('equipe')" id="nav-equipe"class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="users"></i> <span class="font-medium text-sm">Equipe</span></button>
         <button onclick="navigate('clients')" id="nav-clients" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="users"></i> <span class="font-medium text-sm">Clientes</span></button>
         <button onclick="navigate('prod')" id="nav-prod" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="package"></i> <span class="font-medium text-sm">Produtos</span></button>
         <button onclick="navigate('production')" id="nav-production" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="pie-chart"></i> <span class="font-medium text-sm">Relatórios</span></button>
@@ -667,7 +668,8 @@
     </div>
       
     </main>
-
+    
+    <div id="view-equipe" class="hidden-section"></div>
     <div id="print-area" class="print-only"></div>
 
     <!--<div id="pos-product-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-10">
@@ -1044,26 +1046,7 @@
             }
         };
 
-       /* function navigate(viewId) {
-            document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
-            const target = document.getElementById('view-' + viewId);
-            if(target) { target.classList.remove('hidden-section'); target.classList.add('active-section'); }
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('bg-emerald-700', 'text-white', 'shadow-lg'));
-            const activeBtn = document.getElementById('nav-' + viewId);
-            if(activeBtn) activeBtn.classList.add('bg-emerald-700', 'text-white', 'shadow-lg');
-            
-            if(viewId === 'dash') renderDashboard();
-            if(viewId === 'pos') renderRecentHistory(); 
-            if(viewId === 'quotes') renderQuotesList();
-            if(viewId === 'expedition') renderExpedition();
-            if(viewId === 'fin') renderFinance();
-            if(viewId === 'clients') renderClients();
-            if(viewId === 'prod') renderProducts();
-            if(viewId === 'production') renderProductionSelect();
-            if(viewId === 'users') renderUsers(); 
-            lucide.createIcons();
-        }*/
-
+    
   function navigate(viewId) {
     document.querySelectorAll('div[id^="view-"]').forEach(el => { el.classList.add('hidden-section'); el.classList.remove('active-section'); });
     const target = document.getElementById('view-' + viewId);
@@ -1096,6 +1079,7 @@
     if(viewId === 'quotes') renderQuotesList();
     if(viewId === 'expedition') renderExpedition();
     if(viewId === 'fin') renderFinance();
+    if (viewId === 'equipe') { if (typeof renderEquipe === 'function') renderEquipe(); }
     if(viewId === 'clients') renderClients();
     if(viewId === 'prod') renderProducts();
     if(viewId === 'production') renderProductionSelect();
@@ -3982,6 +3966,7 @@ async function downloadSalePDF(id) {
 }
   
     </script> 
+    <script src="abas/equipe.js"></script>
     <script src="abas/gerencial.js"></script>
   </body>
 </html>
