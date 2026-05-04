@@ -1,9 +1,10 @@
-// equipe.js – Gestão de Equipe (Folhas de Pagamento e Cadastro)
+// equipe.js – Gestão de Equipe (v3 – correções e melhorias)
 (function () {
   'use strict';
 
-  let subAbaAtiva = 'lancamentos';
+  let subAbaAtiva = 'lancamentos'; // 'lancamentos' | 'cadastro'
 
+  // Aguarda carregamento do sistema principal
   window.addEventListener('load', function () {
     const originalNavigate = window.navigate;
     window.navigate = function (viewId) {
@@ -12,12 +13,19 @@
     };
   });
 
+  // Garantia de funções disponíveis
+  function safeCall(fn) {
+    if (typeof fn === 'function') fn();
+  }
+
+  // ========== RENDERIZAÇÃO PRINCIPAL ==========
   function renderEquipe() {
     const container = document.getElementById('view-equipe');
     if (!container) return;
 
     container.innerHTML = `
       <div class="space-y-4 p-4">
+        <!-- Sub-abas -->
         <div class="flex bg-white rounded-xl shadow-sm border p-1 gap-1 w-fit">
           <button id="eq-tab-lancamentos" onclick="alternarSubAbaEquipe('lancamentos')"
             class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all
@@ -31,6 +39,7 @@
           </button>
         </div>
 
+        <!-- Container das sub-abas -->
         <div id="eq-aba-lancamentos" class="${subAbaAtiva === 'lancamentos' ? '' : 'hidden'}">
           ${getLancamentosHTML()}
         </div>
@@ -40,9 +49,11 @@
       </div>
     `;
 
-    if (subAbaAtiva === 'lancamentos') carregarLancamentos();
-    else carregarCadastro();
-
+    if (subAbaAtiva === 'lancamentos') {
+      safeCall(carregarLancamentos);
+    } else {
+      safeCall(carregarCadastro);
+    }
     lucide.createIcons();
     window.alternarSubAbaEquipe = alternarSubAbaEquipe;
   }
@@ -55,7 +66,8 @@
   // ========== HTML DAS SUB-ABAS ==========
   function getLancamentosHTML() {
     return `
-      <div class="space-y-4">
+      <div class="space-y-6">
+        <!-- Cabeçalho -->
         <div class="flex justify-between items-center">
           <h2 class="text-xl font-bold text-slate-800 flex gap-2 items-center">
             <i data-lucide="file-text" class="text-emerald-600"></i> Folhas de Pagamento
@@ -73,6 +85,7 @@
           </div>
         </div>
 
+        <!-- Filtro de mês -->
         <div class="flex items-center gap-3 bg-white p-3 rounded-xl border shadow-sm">
           <label class="text-xs font-bold text-slate-600">Mês Referência:</label>
           <input type="month" id="eq-filtro-mes" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none" />
@@ -80,6 +93,7 @@
           <button onclick="document.getElementById('eq-filtro-mes').value=''; carregarLancamentos()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold">Limpar</button>
         </div>
 
+        <!-- Tabela de folhas -->
         <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
@@ -96,6 +110,26 @@
                 </tr>
               </thead>
               <tbody id="eq-lista-folhas" class="divide-y"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Vales lançados -->
+        <div class="bg-white rounded-xl border shadow-sm overflow-hidden mt-4">
+          <div class="p-3 bg-slate-50 border-b flex justify-between items-center">
+            <h3 class="font-bold text-slate-700 text-sm"><i data-lucide="minus-circle" class="w-4 h-4 inline mr-1 text-amber-600"></i> Vales Lançados</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-slate-100 text-slate-700">
+                <tr>
+                  <th class="p-3">Funcionário</th>
+                  <th class="p-3">Mês Ref.</th>
+                  <th class="p-3 text-right">Valor</th>
+                  <th class="p-3 text-center">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="eq-lista-vales" class="divide-y"></tbody>
             </table>
           </div>
         </div>
@@ -146,7 +180,7 @@
     `;
   }
 
-  // ========== CRIAÇÃO DE FOLHA (mantido igual, com ajuste para salvar despesa_id) ==========
+  // ========== MODAL CRIAR FOLHA ==========
   function abrirModalCriarFolha() {
     const mesRef = document.getElementById('eq-filtro-mes')?.value || new Date().toISOString().slice(0,7);
     carregarEquipeParaFolha(mesRef);
@@ -262,7 +296,7 @@
     carregarLancamentos();
   }
 
-  // ========== VALE (mantido) ==========
+  // ========== MODAL VALE ==========
   async function abrirModalVale() {
     const mesRef = document.getElementById('eq-filtro-mes')?.value || new Date().toISOString().slice(0,7);
     const { data: equipe } = await sb.from('equipe').select('*').eq('ativo', true);
@@ -327,41 +361,74 @@
     if (error) return alert('Erro ao carregar folhas.');
 
     const tbody = document.getElementById('eq-lista-folhas');
-    if (folhas.length === 0) {
+    if (!folhas || folhas.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-400">Nenhuma folha encontrada.</td></tr>';
-      return;
+    } else {
+      tbody.innerHTML = folhas.map(f => `
+        <tr class="border-b hover:bg-slate-50">
+          <td class="p-3 font-bold">${f.equipe?.nome || '–'}</td>
+          <td class="p-3">${f.tipo}</td>
+          <td class="p-3">${f.mes_referencia}</td>
+          <td class="p-3 text-center">${formatMoney(f.salario_base)}</td>
+          <td class="p-3 text-center text-red-600">-${formatMoney(f.vales_total)}</td>
+          <td class="p-3 text-center font-bold text-emerald-700">${formatMoney(f.valor_pago)}</td>
+          <td class="p-3 text-center">
+            <span class="px-2 py-1 rounded text-xs font-bold ${f.status === 'PAGO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${f.status}</span>
+          </td>
+          <td class="p-3 text-center flex gap-2 justify-center">
+            <button onclick="imprimirFolha('${f.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border p-1.5 rounded shadow-sm" title="Imprimir Recibo"><i data-lucide="printer" class="w-4 h-4"></i></button>
+            ${f.status === 'PENDENTE' ? `<button onclick="baixarFolha('${f.id}')" class="text-green-600 hover:text-green-800 bg-white border p-1.5 rounded shadow-sm" title="Pagar"><i data-lucide="check-circle" class="w-4 h-4"></i></button>` : ''}
+            <button onclick="excluirFolha('${f.id}')" class="text-red-500 hover:text-red-700 bg-white border p-1.5 rounded shadow-sm" title="Excluir/Estornar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </td>
+        </tr>
+      `).join('');
     }
 
-    tbody.innerHTML = folhas.map(f => `
-      <tr class="border-b hover:bg-slate-50">
-        <td class="p-3 font-bold">${f.equipe?.nome || '–'}</td>
-        <td class="p-3">${f.tipo}</td>
-        <td class="p-3">${f.mes_referencia}</td>
-        <td class="p-3 text-center">${formatMoney(f.salario_base)}</td>
-        <td class="p-3 text-center text-red-600">-${formatMoney(f.vales_total)}</td>
-        <td class="p-3 text-center font-bold text-emerald-700">${formatMoney(f.valor_pago)}</td>
-        <td class="p-3 text-center">
-          <span class="px-2 py-1 rounded text-xs font-bold ${f.status === 'PAGO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${f.status}</span>
-        </td>
-        <td class="p-3 text-center flex gap-2 justify-center">
-          <button onclick="imprimirFolha('${f.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border p-1.5 rounded shadow-sm" title="Imprimir Recibo"><i data-lucide="printer" class="w-4 h-4"></i></button>
-          ${f.status === 'PENDENTE' ? `<button onclick="baixarFolha('${f.id}')" class="text-green-600 hover:text-green-800 bg-white border p-1.5 rounded shadow-sm" title="Pagar"><i data-lucide="check-circle" class="w-4 h-4"></i></button>` : ''}
-          <button onclick="excluirFolha('${f.id}')" class="text-red-500 hover:text-red-700 bg-white border p-1.5 rounded shadow-sm" title="Excluir/Estornar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-        </td>
-      </tr>
-    `).join('');
+    // Carregar vales (nova lista)
+    const { data: vales, error: errVales } = await sb.from('vales').select('*, equipe(nome)')
+      .order('data', { ascending: false });
+    if (mesFiltro) {
+      // filtrar vales pelo mes
+      const valesFiltrados = (vales||[]).filter(v => v.mes_referencia === mesFiltro);
+      preencherTabelaVales(valesFiltrados);
+    } else {
+      preencherTabelaVales(vales || []);
+    }
+
     lucide.createIcons();
   }
 
-  // ========== BAIXAR FOLHA (lançar no financeiro) ==========
+  function preencherTabelaVales(vales) {
+    const tbody = document.getElementById('eq-lista-vales');
+    if (!vales.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400">Nenhum vale lançado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = vales.map(v => `
+      <tr class="border-b hover:bg-slate-50">
+        <td class="p-3 font-medium">${v.equipe?.nome || '–'}</td>
+        <td class="p-3">${v.mes_referencia}</td>
+        <td class="p-3 text-right font-bold text-red-600">${formatMoney(v.valor)}</td>
+        <td class="p-3 text-center">
+          <button onclick="excluirVale('${v.id}')" class="text-red-500 hover:text-red-700 bg-white border p-1.5 rounded shadow-sm" title="Excluir Vale"><i data-lucide="x-circle" class="w-4 h-4"></i></button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // ========== AÇÕES ==========
   window.baixarFolha = async function(id) {
     if (!confirm('Confirmar pagamento desta folha? Isso lançará uma despesa no financeiro.')) return;
     const { data: folha } = await sb.from('folhas').select('*, equipe(*)').eq('id', id).single();
     if (!folha) return alert('Folha não encontrada.');
 
     const descricao = `Salário ${folha.equipe.nome} (${folha.mes_referencia})`;
-    // Criar despesa
-    const { data: despesaCriada, error: errDesp } = await sb.from('despesas').insert([{
+
+    // Gerar ID único para despesa usando getNextId (global)
+    const novoIdDespesa = window.getNextId ? window.getNextId(STATE.expenses) : Math.floor(Math.random() * 1000000);
+
+    const { error: errDesp } = await sb.from('despesas').insert([{
+      id: novoIdDespesa,
       item: 'Salário',
       quantidade: 1,
       unidade: 'Un',
@@ -369,16 +436,17 @@
       data: new Date().toISOString(),
       observacao: descricao,
       status: 'PAGO'
-    }]).select().single();
+    }]);
 
     if (errDesp) return alert('Erro ao lançar despesa: ' + errDesp.message);
 
-    // Salvar referência da despesa na folha e atualizar status
-    await sb.from('folhas').update({ status: 'PAGO', despesa_id: despesaCriada.id }).eq('id', id);
+    // Atualizar folha com status e despesa_id
+    await sb.from('folhas').update({ status: 'PAGO', despesa_id: novoIdDespesa }).eq('id', id);
 
-    // Lançar log no financeiro (para aparecer em caixa)
+    // Log financeiro
+    const novoLogId = window.getNextId ? window.getNextId(STATE.logs) : Math.floor(Math.random() * 1000000);
     await sb.from('logs').insert([{
-      id: Math.floor(Math.random() * 1000000),
+      id: novoLogId,
       tipo: 'despesa',
       produto_nome: 'Salário',
       quantidade: 1,
@@ -394,20 +462,19 @@
     carregarLancamentos();
   };
 
-  // ========== EXCLUIR / ESTORNAR FOLHA ==========
   window.excluirFolha = async function(id) {
     const { data: folha } = await sb.from('folhas').select('*').eq('id', id).single();
     if (!folha) return;
 
     if (folha.status === 'PAGO' && folha.despesa_id) {
-      if (!confirm('Esta folha já foi paga. Deseja estorná-la? A despesa correspondente também será removida.')) return;
-      // Remover despesa e log
+      if (!confirm('Esta folha já foi paga. Deseja estorná-la? A despesa será removida.')) return;
+      // Remover despesa e log vinculados
       await sb.from('despesas').delete().eq('id', folha.despesa_id);
       await sb.from('logs').delete().like('observacao', `Salário ${folha.equipe?.nome || ''}%`).eq('valor_total', folha.valor_pago);
     } else if (folha.status === 'PAGO') {
       if (!confirm('Esta folha está marcada como PAGA, mas não possui vínculo de despesa. Deseja excluí-la mesmo assim?')) return;
     } else {
-      if (!confirm('Tem certeza que deseja excluir esta folha pendente?')) return;
+      if (!confirm('Deseja excluir esta folha pendente?')) return;
     }
 
     await sb.from('folhas').delete().eq('id', id);
@@ -415,14 +482,20 @@
     carregarLancamentos();
   };
 
-  // ========== IMPRIMIR RECIBO INDIVIDUAL (PROFISSIONAL) ==========
+  window.excluirVale = async function(id) {
+    if (!confirm('Excluir este vale?')) return;
+    await sb.from('vales').delete().eq('id', id);
+    alert('Vale excluído.');
+    carregarLancamentos();
+  };
+
+  // ========== IMPRESSÃO RECIBO INDIVIDUAL ==========
   window.imprimirFolha = async function(id) {
     const { data: folha } = await sb.from('folhas').select('*, equipe(*)').eq('id', id).single();
     if (!folha) return;
 
     const corpo = `
       <div style="font-family: 'Helvetica', sans-serif; padding: 30px; max-width: 700px; margin: auto; border: 1px solid #ccc; background: #fff;">
-        <!-- Cabeçalho -->
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 15px; margin-bottom: 25px;">
           <div style="display: flex; align-items: center; gap: 15px;">
             <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 70px;" alt="Logo">
@@ -438,7 +511,6 @@
           </div>
         </div>
 
-        <!-- Dados do funcionário -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
           <div>
             <strong>Funcionário:</strong> ${folha.equipe.nome}<br>
@@ -455,12 +527,10 @@
           </div>
         </div>
 
-        <!-- Mensagem -->
         <div style="border: 1px dashed #94a3b8; padding: 12px; border-radius: 6px; background: #f8fafc; margin-bottom: 25px; font-size: 0.9em;">
           Recebemos de RV PORTAL MADEIRAS a importância acima referente ao pagamento do mês de <strong>${folha.mes_referencia}</strong>.
         </div>
 
-        <!-- Assinatura -->
         <div style="margin-top: 60px; text-align: center;">
           <div style="width: 50%; border-top: 1px solid #000; margin: 0 auto 5px auto;"></div>
           <span style="font-weight: bold; font-size: 0.85em;">Assinatura do Funcionário</span>
@@ -471,7 +541,6 @@
         </div>
       </div>
     `;
-
     const janela = window.open('', '_blank', 'width=800,height=600');
     janela.document.write(corpo);
     janela.document.close();
@@ -486,9 +555,8 @@
       return;
     }
 
-    const { data: folhas, error } = await sb.from('folhas').select('*, equipe(*)').eq('mes_referencia', mesRef).order('equipe(nome)');
-    if (error) return alert('Erro ao carregar folhas do mês.');
-    if (folhas.length === 0) {
+    const { data: folhas } = await sb.from('folhas').select('*, equipe(*)').eq('mes_referencia', mesRef).order('equipe(nome)');
+    if (!folhas || folhas.length === 0) {
       alert('Nenhuma folha encontrada para este mês.');
       return;
     }
@@ -549,14 +617,46 @@
         </div>
       </div>
     `;
-
     const janela = window.open('', '_blank', 'width=850,height=700');
     janela.document.write(corpo);
     janela.document.close();
     janela.print();
   };
 
-  // ========== CADASTRO (mantido) ==========
+  // ========== CADASTRO DE FUNCIONÁRIOS ==========
+  async function carregarCadastro() {
+    const tipoFiltro = document.getElementById('eq-filtro-tipo')?.value;
+    let query = sb.from('equipe').select('*').order('nome');
+    if (tipoFiltro) query = query.eq('tipo', tipoFiltro);
+
+    const { data, error } = await query;
+    if (error) return alert('Erro ao carregar equipe.');
+
+    const tbody = document.getElementById('eq-lista-funcionarios');
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">Nenhum funcionário encontrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.map(f => `
+      <tr class="border-b hover:bg-slate-50">
+        <td class="p-3 font-bold">${f.nome}</td>
+        <td class="p-3">${f.tipo}</td>
+        <td class="p-3 text-center">${f.valor_mensal ? formatMoney(f.valor_mensal) : '–'}</td>
+        <td class="p-3 text-center">${f.valor_diaria ? formatMoney(f.valor_diaria) : '–'}</td>
+        <td class="p-3 text-sm">${f.chave_pix || '–'}</td>
+        <td class="p-3 text-center">
+          <span class="px-2 py-1 rounded text-xs font-bold ${f.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}">${f.ativo ? 'Ativo' : 'Inativo'}</span>
+        </td>
+        <td class="p-3 text-center flex gap-2 justify-center">
+          <button onclick="editarFuncionario('${f.id}')" class="text-indigo-600 hover:text-indigo-800 bg-white border p-1.5 rounded shadow-sm"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+          <button onclick="alternarStatusFuncionario('${f.id}')" class="text-slate-600 hover:text-red-600 bg-white border p-1.5 rounded shadow-sm"><i data-lucide="power" class="w-4 h-4"></i></button>
+        </td>
+      </tr>
+    `).join('');
+    lucide.createIcons();
+  }
+
   window.abrirModalFuncionario = function(id = null) {
     const titulo = id ? 'Editar Funcionário' : 'Novo Funcionário';
     let html = `
@@ -674,6 +774,7 @@
   window.imprimirFolhaGeral = imprimirFolhaGeral;
   window.baixarFolha = baixarFolha;
   window.excluirFolha = excluirFolha;
+  window.excluirVale = excluirVale;
   window.carregarLancamentos = carregarLancamentos;
   window.carregarCadastro = carregarCadastro;
 })();
