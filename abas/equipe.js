@@ -417,50 +417,83 @@
   }
 
   // ========== AÇÕES ==========
-  window.baixarFolha = async function(id) {
+ window.baixarFolha = async function(id) {
     if (!confirm('Confirmar pagamento desta folha? Isso lançará uma despesa no financeiro.')) return;
-    const { data: folha } = await sb.from('folhas').select('*, equipe(*)').eq('id', id).single();
-    if (!folha) return alert('Folha não encontrada.');
+
+    // Buscar a folha com dados da equipe
+    const { data: folha, error: errFolha } = await sb.from('folhas')
+        .select('*, equipe(*)')
+        .eq('id', id)
+        .single();
+
+    if (errFolha || !folha) return alert('Folha não encontrada.');
+
+    // Obter referências globais (garantir que existem)
+    if (typeof STATE === 'undefined' || !STATE.expenses || !STATE.logs) {
+        return alert('Erro: dados do sistema não carregados. Recarregue a página.');
+    }
+    if (typeof getNextId !== 'function') {
+        return alert('Erro: função getNextId não disponível.');
+    }
 
     const descricao = `Salário ${folha.equipe.nome} (${folha.mes_referencia})`;
+    const novoIdDespesa = getNextId(STATE.expenses); // ID único para despesas
 
-    // Gerar ID único para despesa usando getNextId (global)
-    const novoIdDespesa = window.getNextId ? window.getNextId(STATE.expenses) : Math.floor(Math.random() * 1000000);
-
+    // 1. Inserir a despesa (já paga)
     const { error: errDesp } = await sb.from('despesas').insert([{
-      id: novoIdDespesa,
-      item: 'Salário',
-      quantidade: 1,
-      unidade: 'Un',
-      custo: folha.valor_pago,
-      data: new Date().toISOString(),
-      observacao: descricao,
-      status: 'PAGO'
+        id: novoIdDespesa,          // 🔥 ESSENCIAL: sem isso o banco reclama
+        item: 'Salário',
+        quantidade: 1,
+        unidade: 'Un',
+        custo: folha.valor_pago,
+        data: new Date().toISOString(),
+        observacao: descricao,
+        status: 'PAGO'
     }]);
 
-    if (errDesp) return alert('Erro ao lançar despesa: ' + errDesp.message);
+    if (errDesp) {
+        console.error('Erro ao inserir despesa:', errDesp);
+        return alert('Erro ao lançar despesa: ' + errDesp.message);
+    }
 
-    // Atualizar folha com status e despesa_id
-    await sb.from('folhas').update({ status: 'PAGO', despesa_id: novoIdDespesa }).eq('id', id);
+    // 2. Atualizar a folha para PAGO e vincular a despesa
+    await sb.from('folhas').update({
+        status: 'PAGO',
+        despesa_id: novoIdDespesa
+    }).eq('id', id);
 
-    // Log financeiro
-    const novoLogId = window.getNextId ? window.getNextId(STATE.logs) : Math.floor(Math.random() * 1000000);
-    await sb.from('logs').insert([{
-      id: novoLogId,
-      tipo: 'despesa',
-      produto_nome: 'Salário',
-      quantidade: 1,
-      data: new Date().toISOString(),
-      observacao: descricao,
-      valor_total: folha.valor_pago,
-      status: 'ATIVO',
-      status_financeiro: 'PAGO',
-      valor_pago: folha.valor_pago
+    // 3. Inserir log financeiro (para aparecer no caixa)
+    const novoIdLog = getNextId(STATE.logs);
+    const { error: errLog } = await sb.from('logs').insert([{
+        id: novoIdLog,
+        tipo: 'despesa',
+        produto_nome: 'Salário',
+        quantidade: 1,
+        data: new Date().toISOString(),
+        observacao: descricao,
+        valor_total: folha.valor_pago,
+        status: 'ATIVO',
+        status_financeiro: 'PAGO',
+        valor_pago: folha.valor_pago
     }]);
 
-    alert('Pagamento registrado com sucesso!');
+    if (errLog) {
+        console.error('Erro ao gerar log financeiro:', errLog);
+        // Não desfaz a despesa, apenas avisa
+        alert('Despesa registrada, mas houve erro ao gerar o log financeiro. Atualize a página.');
+    } else {
+        alert('Pagamento registrado com sucesso!');
+    }
+
+    // Recarregar a lista de folhas
     carregarLancamentos();
-  };
+
+    // Atualizar STATE global para refletir a nova despesa (opcional, mas recomendado)
+    if (typeof loadData === 'function') {
+        // Se quiser recarregar todo o STATE, chame loadData() (mais pesado)
+        // Por enquanto, não faremos para manter desempenho.
+    }
+};
 
   window.excluirFolha = async function(id) {
     const { data: folha } = await sb.from('folhas').select('*').eq('id', id).single();
