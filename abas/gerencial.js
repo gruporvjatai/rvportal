@@ -1,10 +1,9 @@
-// gerencial.js – Centro de Custos e Resultado Simplificado (v5 – % na Aba 2)
+// gerencial.js – Centro de Custos e Resultado Simplificado (v6 – com botão de impressão)
 (function () {
   'use strict';
 
   let subAbaAtiva = 'centro-custos'; // 'centro-custos' | 'resultado-simplificado'
 
-  // Aguarda carregamento do sistema
   window.addEventListener('load', function () {
     const originalNavigate = window.navigate;
     window.navigate = function (viewId) {
@@ -61,8 +60,18 @@
   function getCentroCustosHTML() {
     return `
       <div class="space-y-6">
+        <!-- Cabeçalho com botão imprimir -->
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="calculator" class="text-emerald-600"></i> Centro de Custos
+          </h2>
+          <button onclick="imprimirAba('centro-custos')" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2 no-print">
+            <i data-lucide="printer" class="w-4 h-4"></i> Imprimir
+          </button>
+        </div>
+
         <!-- Filtro de período -->
-        <div class="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl shadow-sm border">
+        <div class="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl shadow-sm border no-print">
           <span class="text-xs font-bold text-slate-600">Período:</span>
           <input type="month" id="ger-mes" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none" />
           <span class="text-xs text-slate-400">ou</span>
@@ -74,7 +83,7 @@
         </div>
 
         <!-- Configurações de cálculo -->
-        <div class="bg-white p-4 rounded-xl shadow-sm border space-y-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm border space-y-4 no-print">
           <div class="flex flex-wrap gap-6 items-end">
             <div>
               <label class="block text-xs font-bold text-slate-500">Imposto (% sobre receita)</label>
@@ -100,45 +109,58 @@
           <p class="text-xs text-slate-400 italic">* Os valores de Salário e Outros serão deduzidos apenas no resumo geral, sem rateio por produto.</p>
         </div>
 
-        <!-- Resumo -->
-        <div class="bg-white p-4 rounded-xl shadow-sm border">
-          <h3 class="font-bold text-slate-700 mb-2"><i data-lucide="dollar-sign" class="w-4 inline"></i> Resumo do Período</h3>
-          <div id="ger-resumo-centro" class="space-y-1 text-sm"></div>
-        </div>
-
-        <!-- Tabela de produtos (sem desp. operacional) -->
-        <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-              <thead class="bg-slate-800 text-white">
-                <tr>
-                  <th class="p-3">Produto</th>
-                  <th class="p-3 text-center">Qtd</th>
-                  <th class="p-3 text-right">Receita Bruta</th>
-                  <th class="p-3 text-right">Custo Compra</th>
-                  <th class="p-3 text-right">Impostos</th>
-                  <th class="p-3 text-right">Frete</th>
-                  <th class="p-3 text-right">Lucro Bruto</th>
-                  <th class="p-3 text-right">Margem Bruta</th>
-                </tr>
-              </thead>
-              <tbody id="ger-tabela-produtos" class="divide-y"></tbody>
-              <tfoot id="ger-total-rodape" class="bg-slate-50 font-bold"></tfoot>
-            </table>
+        <!-- Área de impressão da Aba 1 (todo conteúdo visível será impresso) -->
+        <div id="ger-print-area-centro">
+          <!-- Resumo -->
+          <div class="bg-white p-4 rounded-xl shadow-sm border">
+            <h3 class="font-bold text-slate-700 mb-2"><i data-lucide="dollar-sign" class="w-4 inline"></i> Resumo do Período</h3>
+            <div id="ger-resumo-centro" class="space-y-1 text-sm"></div>
           </div>
-          <div id="ger-sem-dados" class="hidden p-8 text-center text-slate-400 font-medium">
-            Nenhum produto vendido no período selecionado.
+
+          <!-- Tabela de produtos (sem desp. operacional) -->
+          <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-slate-800 text-white">
+                  <tr>
+                    <th class="p-3">Produto</th>
+                    <th class="p-3 text-center">Qtd</th>
+                    <th class="p-3 text-right">Receita Bruta</th>
+                    <th class="p-3 text-right">Custo Compra</th>
+                    <th class="p-3 text-right">Impostos</th>
+                    <th class="p-3 text-right">Frete</th>
+                    <th class="p-3 text-right">Lucro Bruto</th>
+                    <th class="p-3 text-right">Margem Bruta</th>
+                  </tr>
+                </thead>
+                <tbody id="ger-tabela-produtos" class="divide-y"></tbody>
+                <tfoot id="ger-total-rodape" class="bg-slate-50 font-bold"></tfoot>
+              </table>
+            </div>
+            <div id="ger-sem-dados" class="hidden p-8 text-center text-slate-400 font-medium">
+              Nenhum produto vendido no período selecionado.
+            </div>
           </div>
         </div>
       </div>
     `;
   }
 
-  // ---------- HTML da Aba 2 (com percentuais) ----------
+  // ---------- HTML da Aba 2 ----------
   function getResultadoSimplificadoHTML() {
     return `
       <div class="space-y-6">
-        <div class="flex items-center gap-4 bg-white p-4 rounded-xl shadow-sm border">
+        <!-- Cabeçalho com botão imprimir -->
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="trending-up" class="text-emerald-600"></i> Resultado Simplificado
+          </h2>
+          <button onclick="imprimirAba('resultado-simplificado')" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2 no-print">
+            <i data-lucide="printer" class="w-4 h-4"></i> Imprimir
+          </button>
+        </div>
+
+        <div class="flex items-center gap-4 bg-white p-4 rounded-xl shadow-sm border no-print">
           <span class="text-sm font-bold text-slate-600">Período:</span>
           <input type="month" id="ger-res-mes" class="p-2 border rounded-lg text-sm" />
           <button onclick="carregarResultadoSimplificado()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-bold text-sm shadow">
@@ -146,52 +168,56 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-sm flex flex-col justify-between">
-            <div>
-              <p class="text-xs font-bold text-green-800 uppercase">Total de Entradas (Vendas)</p>
-              <h3 id="ger-res-entradas" class="text-2xl font-bold text-green-700 mt-1">R$ 0,00</h3>
+        <div id="ger-print-area-resultado">
+          <!-- Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-sm flex flex-col justify-between">
+              <div>
+                <p class="text-xs font-bold text-green-800 uppercase">Total de Entradas (Vendas)</p>
+                <h3 id="ger-res-entradas" class="text-2xl font-bold text-green-700 mt-1">R$ 0,00</h3>
+              </div>
+              <div class="mt-2 text-xs text-green-700/70">
+                Representa 100% da base
+              </div>
             </div>
-            <div class="mt-2 text-xs text-green-700/70">
-              Representa 100% da base
+            <div class="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col justify-between">
+              <div>
+                <p class="text-xs font-bold text-red-800 uppercase">Total de Saídas (Despesas)</p>
+                <h3 id="ger-res-saidas" class="text-2xl font-bold text-red-600 mt-1">R$ 0,00</h3>
+              </div>
+              <div id="ger-res-saidas-pct" class="mt-2 text-xs text-red-600/70">
+                Custo: 0% das entradas
+              </div>
+            </div>
+            <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm flex flex-col justify-between">
+              <div>
+                <p class="text-xs font-bold text-indigo-800 uppercase">Lucro (Entradas - Saídas)</p>
+                <h3 id="ger-res-lucro" class="text-2xl font-bold text-indigo-600 mt-1">R$ 0,00</h3>
+              </div>
+              <div id="ger-res-lucro-pct" class="mt-2 text-xs text-indigo-600/70">
+                Margem: 0%
+              </div>
             </div>
           </div>
-          <div class="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm flex flex-col justify-between">
-            <div>
-              <p class="text-xs font-bold text-red-800 uppercase">Total de Saídas (Despesas)</p>
-              <h3 id="ger-res-saidas" class="text-2xl font-bold text-red-600 mt-1">R$ 0,00</h3>
-            </div>
-            <div id="ger-res-saidas-pct" class="mt-2 text-xs text-red-600/70">
-              Custo: 0% das entradas
-            </div>
-          </div>
-          <div class="bg-indigo-50 p-5 rounded-xl border border-indigo-100 shadow-sm flex flex-col justify-between">
-            <div>
-              <p class="text-xs font-bold text-indigo-800 uppercase">Lucro (Entradas - Saídas)</p>
-              <h3 id="ger-res-lucro" class="text-2xl font-bold text-indigo-600 mt-1">R$ 0,00</h3>
-            </div>
-            <div id="ger-res-lucro-pct" class="mt-2 text-xs text-indigo-600/70">
-              Margem: 0%
-            </div>
-          </div>
-        </div>
 
-        <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div class="p-4 font-bold text-slate-700 border-b bg-slate-50">
-            <i data-lucide="package" class="w-4 inline mr-1"></i> Produtos Vendidos no Período
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-              <thead class="bg-slate-100 text-slate-700">
-                <tr>
-                  <th class="p-3">Produto</th>
-                  <th class="p-3 text-center">Quantidade</th>
-                  <th class="p-3 text-right">Valor Total</th>
-                </tr>
-              </thead>
-              <tbody id="ger-res-produtos-lista" class="divide-y"></tbody>
-              <tfoot id="ger-res-produtos-total" class="bg-slate-50 font-bold"></tfoot>
-            </table>
+          <!-- Produtos vendidos -->
+          <div class="bg-white rounded-xl border shadow-sm overflow-hidden mt-6">
+            <div class="p-4 font-bold text-slate-700 border-b bg-slate-50">
+              <i data-lucide="package" class="w-4 inline mr-1"></i> Produtos Vendidos no Período
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-slate-100 text-slate-700">
+                  <tr>
+                    <th class="p-3">Produto</th>
+                    <th class="p-3 text-center">Quantidade</th>
+                    <th class="p-3 text-right">Valor Total</th>
+                  </tr>
+                </thead>
+                <tbody id="ger-res-produtos-lista" class="divide-y"></tbody>
+                <tfoot id="ger-res-produtos-total" class="bg-slate-50 font-bold"></tfoot>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -382,12 +408,10 @@
 
     const lucro = receitaTotal - despesaTotal;
 
-    // Atualiza os cards com valores e percentuais
     document.getElementById('ger-res-entradas').innerText = formatMoney(receitaTotal);
     document.getElementById('ger-res-saidas').innerText = formatMoney(despesaTotal);
     document.getElementById('ger-res-lucro').innerText = formatMoney(lucro);
 
-    // Percentuais
     const custoPct = receitaTotal > 0 ? (despesaTotal / receitaTotal) * 100 : 0;
     const lucroPct = receitaTotal > 0 ? (lucro / receitaTotal) * 100 : 0;
 
@@ -400,7 +424,6 @@
       lucroPctEl.innerHTML = `Margem: <strong>${lucroPct.toFixed(2)}%</strong>`;
     }
 
-    // Produtos vendidos (ordenados alfabeticamente)
     const mapaProd = {};
     vendas.forEach(v => {
       if (!mapaProd[v.productName]) {
@@ -433,6 +456,55 @@
 
     lucide.createIcons();
   }
+
+  // ============ FUNÇÃO DE IMPRESSÃO ============
+  window.imprimirAba = function(aba) {
+    let printElement;
+    if (aba === 'centro-custos') {
+      printElement = document.getElementById('ger-print-area-centro');
+    } else if (aba === 'resultado-simplificado') {
+      printElement = document.getElementById('ger-print-area-resultado');
+    }
+    if (!printElement) return;
+
+    const originalContents = document.body.innerHTML;
+    const printContents = printElement.innerHTML;
+
+    // Cria uma folha de estilo temporária para impressão
+    const style = document.createElement('style');
+    style.textContent = `
+      body { 
+        background: white; 
+        font-family: 'Segoe UI', sans-serif; 
+        color: #1e293b; 
+        padding: 20px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .bg-white { background-color: #fff !important; }
+      .bg-slate-800 { background-color: #1e293b !important; }
+      .bg-slate-50 { background-color: #f8fafc !important; }
+      .bg-green-50 { background-color: #f0fdf4 !important; }
+      .bg-red-50 { background-color: #fef2f2 !important; }
+      .bg-indigo-50 { background-color: #eef2ff !important; }
+      table { width: 100%; border-collapse: collapse; }
+      th { background-color: #1e293b; color: white; padding: 8px; text-align: left; }
+      td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+      .text-right { text-align: right; }
+      .text-center { text-align: center; }
+      .font-bold { font-weight: bold; }
+    `;
+
+    document.body.innerHTML = '';
+    document.body.appendChild(style);
+    document.body.innerHTML += printContents;
+
+    window.print();
+
+    // Restaura a página original
+    document.body.innerHTML = originalContents;
+    window.location.reload(); // Necessário para reativar os scripts da página
+  };
 
   // Expor funções globais
   window.carregarCentroCustos = carregarCentroCustos;
