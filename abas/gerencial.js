@@ -1,4 +1,4 @@
-// gerencial.js – Centro de Custos e Resultado Simplificado (v3 – corrigido)
+// gerencial.js – Centro de Custos e Resultado Simplificado (v4 – ajuste na aba 1)
 (function () {
   'use strict';
 
@@ -43,7 +43,6 @@
       </div>
     `;
 
-    // Inicializa componentes da sub-aba ativa
     if (subAbaAtiva === 'centro-custos') {
       inicializarCentroCustos();
     } else {
@@ -58,7 +57,7 @@
     renderGerencial();
   }
 
-  // ---------- HTML das sub-abas ----------
+  // ---------- HTML da Aba 1 (Centro de Custos) ----------
   function getCentroCustosHTML() {
     return `
       <div class="space-y-6">
@@ -87,13 +86,18 @@
               <input type="number" id="ger-frete-percent" value="0" step="0.01" min="0" max="100"
                 class="w-28 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none" />
             </div>
-            <div class="flex flex-col gap-1">
-              <span class="text-xs font-bold text-slate-500">Despesas Operacionais (rateio)</span>
-              <div id="ger-categorias-op" class="flex flex-wrap gap-2 items-center">
-                <!-- checkboxes populados dinamicamente -->
-              </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500">Salário Total (R$)</label>
+              <input type="number" id="ger-salario" value="0" step="0.01" min="0"
+                class="w-36 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500">Outros Custos Operac. (R$)</label>
+              <input type="number" id="ger-outros-op" value="0" step="0.01" min="0"
+                class="w-36 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none" />
             </div>
           </div>
+          <p class="text-xs text-slate-400 italic">* Os valores de Salário e Outros serão deduzidos apenas no resumo geral, sem rateio por produto.</p>
         </div>
 
         <!-- Resumo -->
@@ -102,7 +106,7 @@
           <div id="ger-resumo-centro" class="space-y-1 text-sm"></div>
         </div>
 
-        <!-- Tabela de produtos -->
+        <!-- Tabela de produtos (sem desp. operacional) -->
         <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
@@ -114,9 +118,8 @@
                   <th class="p-3 text-right">Custo Compra</th>
                   <th class="p-3 text-right">Impostos</th>
                   <th class="p-3 text-right">Frete</th>
-                  <th class="p-3 text-right">Desp. Operac.</th>
-                  <th class="p-3 text-right">Lucro Líquido</th>
-                  <th class="p-3 text-right">Margem</th>
+                  <th class="p-3 text-right">Lucro Bruto</th>
+                  <th class="p-3 text-right">Margem Bruta</th>
                 </tr>
               </thead>
               <tbody id="ger-tabela-produtos" class="divide-y"></tbody>
@@ -131,10 +134,10 @@
     `;
   }
 
+  // ---------- HTML da Aba 2 (inalterada) ----------
   function getResultadoSimplificadoHTML() {
     return `
       <div class="space-y-6">
-        <!-- Filtro de período -->
         <div class="flex items-center gap-4 bg-white p-4 rounded-xl shadow-sm border">
           <span class="text-sm font-bold text-slate-600">Período:</span>
           <input type="month" id="ger-res-mes" class="p-2 border rounded-lg text-sm" />
@@ -143,7 +146,6 @@
           </button>
         </div>
 
-        <!-- Resumo entradas/saídas -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-sm">
             <p class="text-xs font-bold text-green-800 uppercase">Total de Entradas (Vendas)</p>
@@ -159,7 +161,6 @@
           </div>
         </div>
 
-        <!-- Produtos vendidos (sem custo) -->
         <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
           <div class="p-4 font-bold text-slate-700 border-b bg-slate-50">
             <i data-lucide="package" class="w-4 inline mr-1"></i> Produtos Vendidos no Período
@@ -195,7 +196,6 @@
       btnAplicar.addEventListener('click', carregarCentroCustos);
     }
 
-    // Carrega dados iniciais
     carregarCentroCustos();
   }
 
@@ -208,9 +208,8 @@
     carregarResultadoSimplificado();
   }
 
-  // ============ CARREGAMENTO DOS DADOS ============
+  // ============ CARREGAMENTO DOS DADOS (Aba 1) ============
   async function carregarCentroCustos() {
-    // Obter período
     const mesInput = document.getElementById('ger-mes');
     const inicioCustom = document.getElementById('ger-data-inicio');
     const fimCustom = document.getElementById('ger-data-fim');
@@ -225,7 +224,6 @@
       const ultimoDia = new Date(ano, mes, 0).getDate();
       dataFim = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
     } else {
-      // fallback: mês atual
       const hoje = new Date();
       const ano = hoje.getFullYear();
       const mes = String(hoje.getMonth() + 1).padStart(2, '0');
@@ -236,10 +234,8 @@
 
     const impostoPerc = parseFloat(document.getElementById('ger-imposto')?.value) || 0;
     const fretePerc = parseFloat(document.getElementById('ger-frete-percent')?.value) || 0;
-
-    // Categorias de despesas selecionadas
-    const checkboxes = document.querySelectorAll('#ger-categorias-op input[type="checkbox"]:checked');
-    const categoriasSelecionadas = Array.from(checkboxes).map(cb => cb.value);
+    const salario = parseFloat(document.getElementById('ger-salario')?.value) || 0;
+    const outrosOp = parseFloat(document.getElementById('ger-outros-op')?.value) || 0;
 
     // Filtrar vendas do período
     const vendasPeriodo = STATE.logs.filter(l =>
@@ -247,32 +243,11 @@
       l.date >= dataInicio && l.date <= dataFim + 'T23:59:59'
     );
 
-    // Popular checkboxes de categorias (todas as despesas do período)
-    const despesasPeriodo = STATE.expenses.filter(d => d.date >= dataInicio && d.date <= dataFim);
-    const catsUnicas = [...new Set(despesasPeriodo.map(d => d.item))].sort();
-    const container = document.getElementById('ger-categorias-op');
-    if (container) {
-      // Manter seleção anterior se possível
-      const selecionadasAtuais = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-      container.innerHTML = catsUnicas.map(cat => `
-        <label class="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full text-xs font-bold text-slate-700 cursor-pointer select-none">
-          <input type="checkbox" value="${cat}" class="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500" ${selecionadasAtuais.includes(cat) || selecionadasAtuais.length === 0 ? 'checked' : ''} />
-          ${cat}
-        </label>
-      `).join('');
-
-      // Se não havia nenhuma seleção anterior, marcar todas (comportamento padrão)
-      if (selecionadasAtuais.length === 0) {
-        container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
-      }
-    }
-
-    // Atualizar tabela e resumo
-    atualizarCentroCustos(vendasPeriodo, impostoPerc, fretePerc, categoriasSelecionadas, dataInicio, dataFim);
+    atualizarCentroCustos(vendasPeriodo, impostoPerc, fretePerc, salario, outrosOp);
     lucide.createIcons();
   }
 
-  function atualizarCentroCustos(vendas, impPerc, fretePerc, catsSelecionadas, inicio, fim) {
+  function atualizarCentroCustos(vendas, impPerc, fretePerc, salario, outrosOp) {
     const tbody = document.getElementById('ger-tabela-produtos');
     const rodape = document.getElementById('ger-total-rodape');
     const semDados = document.getElementById('ger-sem-dados');
@@ -304,36 +279,26 @@
       mapa[nome].receita += v.totalValue;
     });
 
-    // Ordenar alfabeticamente
     let produtos = Object.values(mapa).map(p => ({
       ...p,
       custoTotal: p.custoUnit * p.qtd
     }));
+    // Ordenar alfabeticamente
     produtos.sort((a, b) => a.nome.localeCompare(b.nome));
 
     const receitaTotal = produtos.reduce((s, p) => s + p.receita, 0);
+    const custoTotal = produtos.reduce((s, p) => s + p.custoTotal, 0);
+    const impostoTotal = receitaTotal * (impPerc / 100);
+    const freteTotal = receitaTotal * (fretePerc / 100);
 
-    // Despesas operacionais selecionadas
-    const despesasPeriodo = STATE.expenses.filter(d =>
-      d.date >= inicio && d.date <= fim && catsSelecionadas.includes(d.item)
-    );
-    const totalDespOper = despesasPeriodo.reduce((s, d) => s + d.cost, 0);
-
-    // Rateio
+    // Calcular por produto (sem rateio operacional)
     produtos.forEach(p => {
-      const proporcao = receitaTotal > 0 ? p.receita / receitaTotal : 0;
+      const proporcaoReceita = receitaTotal > 0 ? p.receita / receitaTotal : 0;
       p.imposto = p.receita * (impPerc / 100);
       p.frete = p.receita * (fretePerc / 100);
-      p.despOper = totalDespOper * proporcao;
-      p.lucroLiquido = p.receita - p.custoTotal - p.imposto - p.frete - p.despOper;
-      p.margem = p.receita > 0 ? (p.lucroLiquido / p.receita) * 100 : 0;
+      p.lucroBruto = p.receita - p.custoTotal - p.imposto - p.frete;
+      p.margemBruta = p.receita > 0 ? (p.lucroBruto / p.receita) * 100 : 0;
     });
-
-    const totalCusto = produtos.reduce((s, p) => s + p.custoTotal, 0);
-    const totalImposto = receitaTotal * (impPerc / 100);
-    const totalFrete = receitaTotal * (fretePerc / 100);
-    const totalLucro = produtos.reduce((s, p) => s + p.lucroLiquido, 0);
-    const totalMargem = receitaTotal > 0 ? (totalLucro / receitaTotal) * 100 : 0;
 
     // Tabela
     if (tbody) {
@@ -345,43 +310,54 @@
           <td class="p-3 text-right text-slate-600">${formatMoney(p.custoTotal)}</td>
           <td class="p-3 text-right text-orange-600">${formatMoney(p.imposto)}</td>
           <td class="p-3 text-right text-blue-600">${formatMoney(p.frete)}</td>
-          <td class="p-3 text-right text-purple-600">${formatMoney(p.despOper)}</td>
-          <td class="p-3 text-right font-bold ${p.lucroLiquido >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(p.lucroLiquido)}</td>
-          <td class="p-3 text-right font-medium ${p.margem >= 0 ? 'text-emerald-600' : 'text-red-500'}">${p.margem.toFixed(2)}%</td>
+          <td class="p-3 text-right font-bold ${p.lucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(p.lucroBruto)}</td>
+          <td class="p-3 text-right font-medium ${p.margemBruta >= 0 ? 'text-emerald-600' : 'text-red-500'}">${p.margemBruta.toFixed(2)}%</td>
         </tr>
       `).join('');
     }
 
+    // Rodapé da tabela (totais dos produtos)
     if (rodape) {
+      const totalLucroBruto = receitaTotal - custoTotal - impostoTotal - freteTotal;
+      const margemBrutaTotal = receitaTotal > 0 ? (totalLucroBruto / receitaTotal) * 100 : 0;
       rodape.innerHTML = `
         <tr>
           <td class="p-3" colspan="2">TOTAIS</td>
           <td class="p-3 text-right text-green-700 text-base">${formatMoney(receitaTotal)}</td>
-          <td class="p-3 text-right text-slate-600 text-base">${formatMoney(totalCusto)}</td>
-          <td class="p-3 text-right text-orange-600 text-base">${formatMoney(totalImposto)}</td>
-          <td class="p-3 text-right text-blue-600 text-base">${formatMoney(totalFrete)}</td>
-          <td class="p-3 text-right text-purple-600 text-base">${formatMoney(totalDespOper)}</td>
-          <td class="p-3 text-right font-bold text-base ${totalLucro >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(totalLucro)}</td>
-          <td class="p-3 text-right font-bold text-base ${totalMargem >= 0 ? 'text-emerald-600' : 'text-red-500'}">${totalMargem.toFixed(2)}%</td>
+          <td class="p-3 text-right text-slate-600 text-base">${formatMoney(custoTotal)}</td>
+          <td class="p-3 text-right text-orange-600 text-base">${formatMoney(impostoTotal)}</td>
+          <td class="p-3 text-right text-blue-600 text-base">${formatMoney(freteTotal)}</td>
+          <td class="p-3 text-right font-bold text-base ${totalLucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(totalLucroBruto)}</td>
+          <td class="p-3 text-right font-bold text-base ${margemBrutaTotal >= 0 ? 'text-emerald-600' : 'text-red-500'}">${margemBrutaTotal.toFixed(2)}%</td>
         </tr>
       `;
     }
 
-    // Resumo
+    // Resumo com os custos operacionais manuais
     if (resumo) {
+      const lucroBruto = receitaTotal - custoTotal - impostoTotal - freteTotal;
+      const totalOperacional = salario + outrosOp;
+      const lucroLiquido = lucroBruto - totalOperacional;
+      const margemLiquida = receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
+
       resumo.innerHTML = `
         <div class="flex justify-between"><span>Receita Bruta:</span><span class="font-bold">${formatMoney(receitaTotal)}</span></div>
-        <div class="flex justify-between"><span>Custo de Compra:</span><span>${formatMoney(totalCusto)}</span></div>
-        <div class="flex justify-between"><span>Impostos:</span><span>${formatMoney(totalImposto)}</span></div>
-        <div class="flex justify-between"><span>Frete:</span><span>${formatMoney(totalFrete)}</span></div>
-        <div class="flex justify-between"><span>Desp. Operacionais:</span><span>${formatMoney(totalDespOper)}</span></div>
-        <div class="flex justify-between border-t pt-1 mt-1 text-base"><span>Lucro Líquido:</span><span class="font-black ${totalLucro >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(totalLucro)}</span></div>
-        <div class="flex justify-between text-xs"><span>Margem Líquida:</span><span class="font-bold">${totalMargem.toFixed(2)}%</span></div>
+        <div class="flex justify-between"><span>Custo de Compra:</span><span>${formatMoney(custoTotal)}</span></div>
+        <div class="flex justify-between"><span>Impostos:</span><span>${formatMoney(impostoTotal)}</span></div>
+        <div class="flex justify-between"><span>Frete:</span><span>${formatMoney(freteTotal)}</span></div>
+        <div class="flex justify-between border-t pt-1 mt-1"><span class="font-semibold">Lucro Bruto:</span><span class="font-bold ${lucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(lucroBruto)}</span></div>
+        <div class="flex justify-between text-xs"><span>Margem Bruta:</span><span class="font-bold">${(receitaTotal > 0 ? (lucroBruto / receitaTotal) * 100 : 0).toFixed(2)}%</span></div>
+        <div class="flex justify-between mt-3 pt-2 border-t border-dashed"><span>Salário Total:</span><span class="text-red-600">- ${formatMoney(salario)}</span></div>
+        <div class="flex justify-between"><span>Outros Custos:</span><span class="text-red-600">- ${formatMoney(outrosOp)}</span></div>
+        <div class="flex justify-between border-t pt-1 mt-1 text-base"><span class="font-bold">Lucro Líquido:</span><span class="font-black ${lucroLiquido >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(lucroLiquido)}</span></div>
+        <div class="flex justify-between text-xs"><span>Margem Líquida:</span><span class="font-bold">${margemLiquida.toFixed(2)}%</span></div>
       `;
     }
+
     lucide.createIcons();
   }
 
+  // ============ CARREGAMENTO DOS DADOS (Aba 2) ============
   function carregarResultadoSimplificado() {
     const mesInput = document.getElementById('ger-res-mes');
     if (!mesInput) return;
@@ -394,14 +370,12 @@
     const ultimoDia = new Date(ano, mes, 0).getDate();
     const dataFim = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
 
-    // Vendas
     const vendas = STATE.logs.filter(l =>
       l.type === 'venda' && l.status !== 'CANCELADO' &&
       l.date >= dataInicio && l.date <= dataFim + 'T23:59:59'
     );
     const receitaTotal = vendas.reduce((s, v) => s + v.totalValue, 0);
 
-    // Despesas
     const despesas = STATE.expenses.filter(d => d.date >= dataInicio && d.date <= dataFim);
     const despesaTotal = despesas.reduce((s, d) => s + d.cost, 0);
 
@@ -411,7 +385,6 @@
     document.getElementById('ger-res-saidas').innerText = formatMoney(despesaTotal);
     document.getElementById('ger-res-lucro').innerText = formatMoney(lucro);
 
-    // Produtos vendidos (ordenados alfabeticamente)
     const mapaProd = {};
     vendas.forEach(v => {
       if (!mapaProd[v.productName]) {
