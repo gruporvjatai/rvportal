@@ -1,4 +1,4 @@
-// gerencial.js – Centro de Custos e Resultado Simplificado (v2)
+// gerencial.js – Centro de Custos e Resultado Simplificado (v3 – corrigido)
 (function () {
   'use strict';
 
@@ -13,7 +13,6 @@
     };
   });
 
-  // ============ RENDERIZAÇÃO PRINCIPAL ============
   function renderGerencial() {
     const container = document.getElementById('view-gerencial');
     if (!container) return;
@@ -44,15 +43,16 @@
       </div>
     `;
 
-    // Inicialização dos componentes da sub-aba ativa
-    if (subAbaAtiva === 'centro-custos') carregarCentroCustos();
-    else carregarResultadoSimplificado();
-
+    // Inicializa componentes da sub-aba ativa
+    if (subAbaAtiva === 'centro-custos') {
+      inicializarCentroCustos();
+    } else {
+      inicializarResultadoSimplificado();
+    }
     lucide.createIcons();
-    window.alternarSubAba = alternarSubAba; // expõe global
+    window.alternarSubAba = alternarSubAba;
   }
 
-  // ============ ALTERNAR SUB-ABA ============
   function alternarSubAba(novaAba) {
     subAbaAtiva = novaAba;
     renderGerencial();
@@ -62,7 +62,19 @@
   function getCentroCustosHTML() {
     return `
       <div class="space-y-6">
-        <!-- Configurações -->
+        <!-- Filtro de período -->
+        <div class="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl shadow-sm border">
+          <span class="text-xs font-bold text-slate-600">Período:</span>
+          <input type="month" id="ger-mes" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none" />
+          <span class="text-xs text-slate-400">ou</span>
+          <div class="flex items-center gap-2">
+            <input type="date" id="ger-data-inicio" class="p-2 border rounded-lg text-xs focus:ring-2 focus:ring-emerald-600 outline-none" placeholder="Início" />
+            <input type="date" id="ger-data-fim" class="p-2 border rounded-lg text-xs focus:ring-2 focus:ring-emerald-600 outline-none" placeholder="Fim" />
+          </div>
+          <button id="ger-aplicar-centro" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">Aplicar</button>
+        </div>
+
+        <!-- Configurações de cálculo -->
         <div class="bg-white p-4 rounded-xl shadow-sm border space-y-4">
           <div class="flex flex-wrap gap-6 items-end">
             <div>
@@ -78,12 +90,9 @@
             <div class="flex flex-col gap-1">
               <span class="text-xs font-bold text-slate-500">Despesas Operacionais (rateio)</span>
               <div id="ger-categorias-op" class="flex flex-wrap gap-2 items-center">
-                <!-- checkboxes serão populados dinamicamente -->
+                <!-- checkboxes populados dinamicamente -->
               </div>
             </div>
-            <button onclick="carregarCentroCustos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow self-end">
-              <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-1"></i> Atualizar
-            </button>
           </div>
         </div>
 
@@ -125,7 +134,7 @@
   function getResultadoSimplificadoHTML() {
     return `
       <div class="space-y-6">
-        <!-- Filtro de período (simples) -->
+        <!-- Filtro de período -->
         <div class="flex items-center gap-4 bg-white p-4 rounded-xl shadow-sm border">
           <span class="text-sm font-bold text-slate-600">Período:</span>
           <input type="month" id="ger-res-mes" class="p-2 border rounded-lg text-sm" />
@@ -173,11 +182,35 @@
     `;
   }
 
-  // ============ FUNÇÕES DE CARREGAMENTO ============
-  // --- Centro de Custos ---
-  async function carregarCentroCustos() {
-    // Período (usamos mês atual como padrão se não houver customizado)
+  // ============ INICIALIZAÇÃO ============
+  function inicializarCentroCustos() {
     const hoje = new Date();
+    const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+    const mesInput = document.getElementById('ger-mes');
+    if (mesInput) mesInput.value = mesAtual;
+
+    // Botão aplicar
+    const btnAplicar = document.getElementById('ger-aplicar-centro');
+    if (btnAplicar) {
+      btnAplicar.addEventListener('click', carregarCentroCustos);
+    }
+
+    // Carrega dados iniciais
+    carregarCentroCustos();
+  }
+
+  function inicializarResultadoSimplificado() {
+    const mesInput = document.getElementById('ger-res-mes');
+    if (mesInput) {
+      const hoje = new Date();
+      mesInput.value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+    }
+    carregarResultadoSimplificado();
+  }
+
+  // ============ CARREGAMENTO DOS DADOS ============
+  async function carregarCentroCustos() {
+    // Obter período
     const mesInput = document.getElementById('ger-mes');
     const inicioCustom = document.getElementById('ger-data-inicio');
     const fimCustom = document.getElementById('ger-data-fim');
@@ -193,42 +226,49 @@
       dataFim = `${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
     } else {
       // fallback: mês atual
-      const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
-      document.getElementById('ger-mes').value = `${hoje.getFullYear()}-${mesAtual}`;
-      dataInicio = `${hoje.getFullYear()}-${mesAtual}-01`;
-      const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-      dataFim = `${hoje.getFullYear()}-${mesAtual}-${String(ultimoDia).padStart(2, '0')}`;
+      const hoje = new Date();
+      const ano = hoje.getFullYear();
+      const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+      dataInicio = `${ano}-${mes}-01`;
+      const ultimoDia = new Date(ano, hoje.getMonth() + 1, 0).getDate();
+      dataFim = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`;
     }
 
     const impostoPerc = parseFloat(document.getElementById('ger-imposto')?.value) || 0;
     const fretePerc = parseFloat(document.getElementById('ger-frete-percent')?.value) || 0;
 
-    // Obter categorias de despesas selecionadas
+    // Categorias de despesas selecionadas
     const checkboxes = document.querySelectorAll('#ger-categorias-op input[type="checkbox"]:checked');
     const categoriasSelecionadas = Array.from(checkboxes).map(cb => cb.value);
 
-    // Filtrar vendas
+    // Filtrar vendas do período
     const vendasPeriodo = STATE.logs.filter(l =>
       l.type === 'venda' && l.status !== 'CANCELADO' &&
       l.date >= dataInicio && l.date <= dataFim + 'T23:59:59'
     );
 
-    // Resumo e tabela
-    atualizarCentroCustos(vendasPeriodo, impostoPerc, fretePerc, categoriasSelecionadas, dataInicio, dataFim);
-
-    // Popular checkboxes de categorias de despesas do período
+    // Popular checkboxes de categorias (todas as despesas do período)
     const despesasPeriodo = STATE.expenses.filter(d => d.date >= dataInicio && d.date <= dataFim);
     const catsUnicas = [...new Set(despesasPeriodo.map(d => d.item))].sort();
     const container = document.getElementById('ger-categorias-op');
     if (container) {
+      // Manter seleção anterior se possível
+      const selecionadasAtuais = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
       container.innerHTML = catsUnicas.map(cat => `
         <label class="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-full text-xs font-bold text-slate-700 cursor-pointer select-none">
-          <input type="checkbox" value="${cat}" class="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500" checked />
+          <input type="checkbox" value="${cat}" class="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500" ${selecionadasAtuais.includes(cat) || selecionadasAtuais.length === 0 ? 'checked' : ''} />
           ${cat}
         </label>
       `).join('');
+
+      // Se não havia nenhuma seleção anterior, marcar todas (comportamento padrão)
+      if (selecionadasAtuais.length === 0) {
+        container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+      }
     }
 
+    // Atualizar tabela e resumo
+    atualizarCentroCustos(vendasPeriodo, impostoPerc, fretePerc, categoriasSelecionadas, dataInicio, dataFim);
     lucide.createIcons();
   }
 
@@ -264,10 +304,12 @@
       mapa[nome].receita += v.totalValue;
     });
 
-    const produtos = Object.values(mapa).map(p => ({
+    // Ordenar alfabeticamente
+    let produtos = Object.values(mapa).map(p => ({
       ...p,
       custoTotal: p.custoUnit * p.qtd
     }));
+    produtos.sort((a, b) => a.nome.localeCompare(b.nome));
 
     const receitaTotal = produtos.reduce((s, p) => s + p.receita, 0);
 
@@ -287,14 +329,13 @@
       p.margem = p.receita > 0 ? (p.lucroLiquido / p.receita) * 100 : 0;
     });
 
-    // Totais
     const totalCusto = produtos.reduce((s, p) => s + p.custoTotal, 0);
     const totalImposto = receitaTotal * (impPerc / 100);
     const totalFrete = receitaTotal * (fretePerc / 100);
     const totalLucro = produtos.reduce((s, p) => s + p.lucroLiquido, 0);
     const totalMargem = receitaTotal > 0 ? (totalLucro / receitaTotal) * 100 : 0;
 
-    // Render tabela
+    // Tabela
     if (tbody) {
       tbody.innerHTML = produtos.map(p => `
         <tr class="hover:bg-slate-50 border-b">
@@ -338,18 +379,15 @@
         <div class="flex justify-between text-xs"><span>Margem Líquida:</span><span class="font-bold">${totalMargem.toFixed(2)}%</span></div>
       `;
     }
-
     lucide.createIcons();
   }
 
-  // --- Resultado Simplificado ---
   function carregarResultadoSimplificado() {
     const mesInput = document.getElementById('ger-res-mes');
     if (!mesInput) return;
     const hoje = new Date();
     if (!mesInput.value) {
-      const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
-      mesInput.value = `${hoje.getFullYear()}-${mesAtual}`;
+      mesInput.value = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
     }
     const [ano, mes] = mesInput.value.split('-');
     const dataInicio = `${ano}-${mes}-01`;
@@ -363,7 +401,7 @@
     );
     const receitaTotal = vendas.reduce((s, v) => s + v.totalValue, 0);
 
-    // Despesas (todas do período, independentemente de pagas)
+    // Despesas
     const despesas = STATE.expenses.filter(d => d.date >= dataInicio && d.date <= dataFim);
     const despesaTotal = despesas.reduce((s, d) => s + d.cost, 0);
 
@@ -373,7 +411,7 @@
     document.getElementById('ger-res-saidas').innerText = formatMoney(despesaTotal);
     document.getElementById('ger-res-lucro').innerText = formatMoney(lucro);
 
-    // Produtos vendidos (agrupados)
+    // Produtos vendidos (ordenados alfabeticamente)
     const mapaProd = {};
     vendas.forEach(v => {
       if (!mapaProd[v.productName]) {
@@ -382,7 +420,8 @@
       mapaProd[v.productName].qtd += v.quantity;
       mapaProd[v.productName].valor += v.totalValue;
     });
-    const produtos = Object.values(mapaProd);
+    const produtos = Object.values(mapaProd).sort((a, b) => a.nome.localeCompare(b.nome));
+
     const tbody = document.getElementById('ger-res-produtos-lista');
     const tfoot = document.getElementById('ger-res-produtos-total');
     if (tbody) {
@@ -402,7 +441,6 @@
         </tr>
       `;
     }
-
     lucide.createIcons();
   }
 
