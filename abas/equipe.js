@@ -1,1005 +1,581 @@
-// ========== FUNÇÕES DA EQUIPE ==========================================================================================================================================
+// equipe.js – Gestão de Equipe (Folhas de Pagamento e Cadastro)
+(function () {
+  'use strict';
 
-function toggleTipoRemuneracao() {
-    const tipo = document.getElementById('func-tipo').value;
-    document.getElementById('func-valor-mensal-container').classList.toggle('hidden', tipo !== 'mensal');
-    document.getElementById('func-valor-diaria-container').classList.toggle('hidden', tipo !== 'diaria');
-    document.getElementById('func-valor-producao-container').classList.toggle('hidden', tipo !== 'producao');
-}
+  let subAbaAtiva = 'lancamentos'; // 'lancamentos' ou 'cadastro'
 
-function openFuncionarioForm(id = null) {
-    document.getElementById('funcionario-form-container').classList.remove('hidden');
-    if (id) {
-        const f = STATE.funcionarios.find(x => String(x.id) === String(id));
-        if (f) {
-            document.getElementById('func-id').value = f.id;
-            document.getElementById('func-nome').value = f.nome;
-            document.getElementById('func-telefone').value = f.telefone || '';
-            document.getElementById('func-documento').value = f.documento || '';
-            document.getElementById('func-endereco').value = f.endereco || '';
-            document.getElementById('func-data-admissao').value = f.data_admissao || '';
-            document.getElementById('func-tipo').value = f.tipo_remuneracao;
-            document.getElementById('func-valor-mensal').value = f.valor_mensal || '';
-            document.getElementById('func-valor-diaria').value = f.valor_diaria || '';
-            document.getElementById('func-valor-producao').value = f.valor_producao || '';
-            document.getElementById('func-pix').value = f.chave_pix || '';
-            document.getElementById('func-ativo').checked = f.ativo;
-            toggleTipoRemuneracao();
-        }
-    } else {
-        document.getElementById('func-id').value = '';
-        document.getElementById('func-nome').value = '';
-        document.getElementById('func-telefone').value = '';
-        document.getElementById('func-documento').value = '';
-        document.getElementById('func-endereco').value = '';
-        document.getElementById('func-data-admissao').value = '';
-        document.getElementById('func-tipo').value = 'mensal';
-        document.getElementById('func-valor-mensal').value = STATE.configPadrao.salario_mensal_padrao || '';
-        document.getElementById('func-valor-diaria').value = STATE.configPadrao.valor_diaria_padrao || '';
-        document.getElementById('func-valor-producao').value = STATE.configPadrao.valor_producao_padrao || '';
-        document.getElementById('func-pix').value = '';
-        document.getElementById('func-ativo').checked = true;
-        toggleTipoRemuneracao();
-    }
-}
+  // Aguarda carregamento do sistema principal
+  window.addEventListener('load', function () {
+    const originalNavigate = window.navigate;
+    window.navigate = function (viewId) {
+      originalNavigate(viewId);
+      if (viewId === 'equipe') renderEquipe();
+    };
+  });
 
-function closeFuncionarioForm() {
-    document.getElementById('funcionario-form-container').classList.add('hidden');
-}
+  // ========== RENDERIZAÇÃO PRINCIPAL ==========
+  function renderEquipe() {
+    const container = document.getElementById('view-equipe');
+    if (!container) return;
 
-async function saveFuncionario(e) {
-    e.preventDefault();
+    container.innerHTML = `
+      <div class="space-y-4 p-4">
+        <!-- Sub-abas -->
+        <div class="flex bg-white rounded-xl shadow-sm border p-1 gap-1 w-fit">
+          <button id="eq-tab-lancamentos" onclick="alternarSubAbaEquipe('lancamentos')"
+            class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all
+            ${subAbaAtiva === 'lancamentos' ? 'bg-emerald-600 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-100'}">
+            <i data-lucide="file-text" class="inline w-4 h-4 mr-1"></i> Lançamentos
+          </button>
+          <button id="eq-tab-cadastro" onclick="alternarSubAbaEquipe('cadastro')"
+            class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all
+            ${subAbaAtiva === 'cadastro' ? 'bg-emerald-600 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-100'}">
+            <i data-lucide="users" class="inline w-4 h-4 mr-1"></i> Cadastro
+          </button>
+        </div>
+
+        <!-- Container das sub-abas -->
+        <div id="eq-aba-lancamentos" class="${subAbaAtiva === 'lancamentos' ? '' : 'hidden'}">
+          ${getLancamentosHTML()}
+        </div>
+        <div id="eq-aba-cadastro" class="${subAbaAtiva === 'cadastro' ? '' : 'hidden'}">
+          ${getCadastroHTML()}
+        </div>
+      </div>
+    `;
+
+    if (subAbaAtiva === 'lancamentos') carregarLancamentos();
+    else carregarCadastro();
+
+    lucide.createIcons();
+    window.alternarSubAbaEquipe = alternarSubAbaEquipe;
+  }
+
+  function alternarSubAbaEquipe(nova) {
+    subAbaAtiva = nova;
+    renderEquipe();
+  }
+
+  // ========== HTML DAS SUB-ABAS ==========
+  function getLancamentosHTML() {
+    return `
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-bold text-slate-800 flex gap-2 items-center">
+            <i data-lucide="file-text" class="text-emerald-600"></i> Folhas de Pagamento
+          </h2>
+          <div class="flex gap-2">
+            <button onclick="abrirModalVale()" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
+              <i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Vale
+            </button>
+            <button onclick="abrirModalCriarFolha()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i> Criar Folha
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtro -->
+        <div class="flex items-center gap-3 bg-white p-3 rounded-xl border shadow-sm">
+          <label class="text-xs font-bold text-slate-600">Mês Referência:</label>
+          <input type="month" id="eq-filtro-mes" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none" />
+          <button onclick="carregarLancamentos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">Filtrar</button>
+          <button onclick="document.getElementById('eq-filtro-mes').value=''; carregarLancamentos()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold">Limpar</button>
+        </div>
+
+        <!-- Tabela de folhas -->
+        <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-slate-800 text-white">
+                <tr>
+                  <th class="p-3">Funcionário</th>
+                  <th class="p-3">Tipo</th>
+                  <th class="p-3">Mês Ref.</th>
+                  <th class="p-3 text-center">Base</th>
+                  <th class="p-3 text-center">Vales</th>
+                  <th class="p-3 text-center">Líquido</th>
+                  <th class="p-3 text-center">Status</th>
+                  <th class="p-3 text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="eq-lista-folhas" class="divide-y"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function getCadastroHTML() {
+    return `
+      <div class="space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-xl font-bold text-slate-800 flex gap-2 items-center">
+            <i data-lucide="users" class="text-emerald-600"></i> Equipe
+          </h2>
+          <button onclick="abrirModalFuncionario()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2">
+            <i data-lucide="user-plus" class="w-4 h-4"></i> Cadastrar Novo
+          </button>
+        </div>
+
+        <!-- Filtro -->
+        <div class="flex items-center gap-3 bg-white p-3 rounded-xl border shadow-sm">
+          <label class="text-xs font-bold text-slate-600">Tipo:</label>
+          <select id="eq-filtro-tipo" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none" onchange="carregarCadastro()">
+            <option value="">Todos</option>
+            <option value="Mensal">Fixo Mensal</option>
+            <option value="Diarista">Diarista</option>
+          </select>
+        </div>
+
+        <!-- Tabela de funcionários -->
+        <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-slate-800 text-white">
+                <tr>
+                  <th class="p-3">Nome</th>
+                  <th class="p-3">Tipo</th>
+                  <th class="p-3 text-center">Valor Mensal</th>
+                  <th class="p-3 text-center">Valor Diária</th>
+                  <th class="p-3">Chave PIX</th>
+                  <th class="p-3 text-center">Status</th>
+                  <th class="p-3 text-center">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="eq-lista-funcionarios" class="divide-y"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ========== MODAIS ==========
+  // Modal Criar Folha
+  function abrirModalCriarFolha() {
+    const mesRef = document.getElementById('eq-filtro-mes')?.value || new Date().toISOString().slice(0,7);
+    carregarEquipeParaFolha(mesRef);
+  }
+
+  async function carregarEquipeParaFolha(mesRef) {
     showLoading(true);
-    const isNew = !document.getElementById('func-id').value;
-    const newId = isNew ? getNextId(STATE.funcionarios) : document.getElementById('func-id').value;
-    const tipo = document.getElementById('func-tipo').value;
+    // Buscar equipe ativa
+    const { data: equipe } = await sb.from('equipe').select('*').eq('ativo', true);
+    // Buscar vales do mês
+    const { data: vales } = await sb.from('vales').select('*').eq('mes_referencia', mesRef);
+    const valesMap = {};
+    (vales||[]).forEach(v => { valesMap[v.equipe_id] = (valesMap[v.equipe_id]||0) + v.valor; });
+
+    let html = `
+      <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" id="modal-folha">
+        <div class="bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[85vh]">
+          <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
+            <h3 class="font-bold text-lg text-slate-800"><i data-lucide="file-plus" class="inline w-5 h-5 text-emerald-600 mr-1"></i> Criar Folha – ${mesRef}</h3>
+            <button onclick="document.getElementById('modal-folha').remove()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+          </div>
+          <div class="p-4 overflow-y-auto flex-1">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-100 text-slate-700">
+                <tr>
+                  <th class="p-2 text-left">Funcionário</th>
+                  <th class="p-2 text-center">Tipo</th>
+                  <th class="p-2 text-center">Salário Base</th>
+                  <th class="p-2 text-center">Vales</th>
+                  <th class="p-2 text-center">Dias Trab.</th>
+                  <th class="p-2 text-center">Valor Líquido (editável)</th>
+                </tr>
+              </thead>
+              <tbody>`;
+    equipe.forEach(f => {
+      const vales = valesMap[f.id] || 0;
+      let base = 0;
+      if (f.tipo === 'Mensal') base = f.valor_mensal || 0;
+      else if (f.tipo === 'Diarista') base = (f.valor_diaria || 0) * 0; // dias a preencher
+      const liquido = base - vales;
+      html += `
+        <tr class="border-b">
+          <td class="p-2 font-bold">${f.nome}</td>
+          <td class="p-2 text-center">${f.tipo}</td>
+          <td class="p-2 text-center">${formatMoney(base)}</td>
+          <td class="p-2 text-center text-red-600">-${formatMoney(vales)}</td>
+          <td class="p-2 text-center">
+            ${f.tipo === 'Diarista' ? `<input type="number" id="dias-${f.id}" value="0" min="0" class="w-16 p-1 border rounded text-center text-sm" onchange="recalcularFolhaItem('${f.id}')">` : '–'}
+          </td>
+          <td class="p-2 text-center">
+            <input type="number" id="liquido-${f.id}" value="${liquido.toFixed(2)}" step="0.01" class="w-24 p-1 border rounded text-center font-bold text-emerald-700 text-sm" />
+          </td>
+        </tr>`;
+    });
+    html += `</tbody></table></div>
+          <div class="p-4 border-t bg-slate-50 rounded-b-2xl flex gap-2">
+            <button onclick="document.getElementById('modal-folha').remove()" class="flex-1 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg font-bold text-slate-700">Cancelar</button>
+            <button onclick="salvarFolha('${mesRef}')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow">Salvar Folha</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    lucide.createIcons();
+    showLoading(false);
+  }
+
+  window.recalcularFolhaItem = function(id) {
+    const dias = parseFloat(document.getElementById(`dias-${id}`)?.value) || 0;
+    const valDiaria = parseFloat(document.querySelector(`#modal-folha tr[data-id="${id}"]`)?.dataset.diaria) || 0;
+    const vales = parseFloat(document.querySelector(`#modal-folha tr[data-id="${id}"]`)?.dataset.vales) || 0;
+    const base = dias * valDiaria;
+    const liquido = base - vales;
+    const inputLiq = document.getElementById(`liquido-${id}`);
+    if (inputLiq) inputLiq.value = liquido.toFixed(2);
+  };
+
+  async function salvarFolha(mesRef) {
+    showLoading(true);
+    const equipe = await sb.from('equipe').select('*').eq('ativo', true);
+    const vales = await sb.from('vales').select('*').eq('mes_referencia', mesRef);
+    const valesMap = {};
+    (vales.data||[]).forEach(v => { valesMap[v.equipe_id] = (valesMap[v.equipe_id]||0) + v.valor; });
+
+    const folhas = [];
+    equipe.data.forEach(f => {
+      const valesTotal = valesMap[f.id] || 0;
+      const liquidoEl = document.getElementById(`liquido-${f.id}`);
+      if (!liquidoEl) return;
+      const valorPago = parseFloat(liquidoEl.value) || 0;
+      let dias = 0;
+      if (f.tipo === 'Diarista') {
+        dias = parseInt(document.getElementById(`dias-${f.id}`)?.value) || 0;
+      }
+      folhas.push({
+        equipe_id: f.id,
+        mes_referencia: mesRef,
+        tipo: f.tipo,
+        salario_base: f.tipo === 'Mensal' ? (f.valor_mensal || 0) : (f.valor_diaria || 0) * dias,
+        vales_total: valesTotal,
+        valor_pago: valorPago,
+        status: 'PENDENTE',
+        dias_trabalhados: dias,
+        chave_pix: f.chave_pix,
+        data_criacao: new Date().toISOString()
+      });
+    });
+
+    const { error } = await sb.from('folhas').insert(folhas);
+    if (error) { showLoading(false); alert('Erro ao salvar folha: ' + error.message); return; }
+
+    document.getElementById('modal-folha')?.remove();
+    showLoading(false);
+    alert('Folha criada com sucesso!');
+    carregarLancamentos();
+  }
+
+  // Modal Lançar Vale
+  async function abrirModalVale() {
+    const mesRef = document.getElementById('eq-filtro-mes')?.value || new Date().toISOString().slice(0,7);
+    const { data: equipe } = await sb.from('equipe').select('*').eq('ativo', true);
+    let options = equipe.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+
+    const html = `
+      <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" id="modal-vale">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+          <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
+            <h3 class="font-bold text-lg"><i data-lucide="minus-circle" class="inline w-5 h-5 text-amber-600 mr-1"></i>Lançar Vale</h3>
+            <button onclick="document.getElementById('modal-vale').remove()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+          </div>
+          <div class="p-4 space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Funcionário</label>
+              <select id="vale-funcionario" class="w-full p-2 border rounded-lg text-sm">${options}</select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Valor (R$)</label>
+              <input type="number" id="vale-valor" step="0.01" class="w-full p-2 border rounded-lg text-sm font-bold text-red-600" placeholder="0.00">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Mês Referência</label>
+              <input type="month" id="vale-mes" value="${mesRef}" class="w-full p-2 border rounded-lg text-sm">
+            </div>
+          </div>
+          <div class="p-4 border-t bg-slate-50 flex gap-2 rounded-b-2xl">
+            <button onclick="document.getElementById('modal-vale').remove()" class="flex-1 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg font-bold">Cancelar</button>
+            <button onclick="salvarVale()" class="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold shadow">Salvar</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    lucide.createIcons();
+  }
+
+  async function salvarVale() {
+    const funcId = document.getElementById('vale-funcionario')?.value;
+    const valor = parseFloat(document.getElementById('vale-valor')?.value);
+    const mes = document.getElementById('vale-mes')?.value;
+    if (!funcId || isNaN(valor) || !mes) return alert('Preencha todos os campos.');
+
+    const { error } = await sb.from('vales').insert([{
+      equipe_id: funcId,
+      valor,
+      mes_referencia: mes,
+      data: new Date().toISOString()
+    }]);
+    if (error) return alert('Erro: ' + error.message);
+    document.getElementById('modal-vale')?.remove();
+    alert('Vale lançado!');
+    carregarLancamentos();
+  }
+
+  // Listagem de folhas
+  async function carregarLancamentos() {
+    const mesFiltro = document.getElementById('eq-filtro-mes')?.value;
+    let query = sb.from('folhas').select('*, equipe(*)').order('mes_referencia', { ascending: false });
+    if (mesFiltro) query = query.eq('mes_referencia', mesFiltro);
+
+    const { data: folhas, error } = await query;
+    if (error) return alert('Erro ao carregar folhas.');
+
+    const tbody = document.getElementById('eq-lista-folhas');
+    if (folhas.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-slate-400">Nenhuma folha encontrada.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = folhas.map(f => `
+      <tr class="border-b hover:bg-slate-50">
+        <td class="p-3 font-bold">${f.equipe?.nome || '–'}</td>
+        <td class="p-3">${f.tipo}</td>
+        <td class="p-3">${f.mes_referencia}</td>
+        <td class="p-3 text-center">${formatMoney(f.salario_base)}</td>
+        <td class="p-3 text-center text-red-600">-${formatMoney(f.vales_total)}</td>
+        <td class="p-3 text-center font-bold text-emerald-700">${formatMoney(f.valor_pago)}</td>
+        <td class="p-3 text-center">
+          <span class="px-2 py-1 rounded text-xs font-bold ${f.status === 'PAGO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${f.status}</span>
+        </td>
+        <td class="p-3 text-center flex gap-2 justify-center">
+          <button onclick="imprimirFolha('${f.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border p-1.5 rounded shadow-sm" title="Imprimir"><i data-lucide="printer" class="w-4 h-4"></i></button>
+          ${f.status === 'PENDENTE' ? `<button onclick="baixarFolha('${f.id}')" class="text-green-600 hover:text-green-800 bg-white border p-1.5 rounded shadow-sm" title="Pagar"><i data-lucide="check-circle" class="w-4 h-4"></i></button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+    lucide.createIcons();
+  }
+
+  // Baixar folha (lançar no financeiro)
+  window.baixarFolha = async function(id) {
+    if (!confirm('Confirmar pagamento desta folha? Isso lançará uma despesa no financeiro.')) return;
+    const { data: folha } = await sb.from('folhas').select('*, equipe(*)').eq('id', id).single();
+    if (!folha) return alert('Folha não encontrada.');
+
+    // Criar despesa
+    const descricao = `Salário ${folha.equipe.nome} (${folha.mes_referencia})`;
+    const { error: errDesp } = await sb.from('despesas').insert([{
+      item: 'Salário',
+      quantidade: 1,
+      unidade: 'Un',
+      custo: folha.valor_pago,
+      data: new Date().toISOString(),
+      observacao: descricao,
+      status: 'PAGO' // já vai pago
+    }]);
+    if (errDesp) return alert('Erro ao lançar despesa: ' + errDesp.message);
+
+    // Atualizar folha para PAGO
+    await sb.from('folhas').update({ status: 'PAGO' }).eq('id', id);
+
+    // Lançar log de despesa (para aparecer no financeiro)
+    await sb.from('logs').insert([{
+      id: Math.floor(Math.random() * 1000000),
+      tipo: 'despesa',
+      produto_nome: 'Salário',
+      quantidade: 1,
+      data: new Date().toISOString(),
+      observacao: descricao,
+      valor_total: folha.valor_pago,
+      status: 'ATIVO',
+      status_financeiro: 'PAGO',
+      valor_pago: folha.valor_pago
+    }]);
+
+    alert('Pagamento registrado com sucesso!');
+    carregarLancamentos();
+    // Se quiser atualizar financeiro em tempo real, chame renderFinance() se disponível
+  };
+
+  // Imprimir folha
+  window.imprimirFolha = async function(id) {
+    const { data: folha } = await sb.from('folhas').select('*, equipe(*)').eq('id', id).single();
+    if (!folha) return;
+
+    const conteudo = `
+      <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; border: 1px solid #ccc;">
+        <h2 style="color: #059669;">RV PORTAL MADEIRAS</h2>
+        <h3>Comprovante de Pagamento</h3>
+        <p><strong>Funcionário:</strong> ${folha.equipe.nome}</p>
+        <p><strong>Mês Referência:</strong> ${folha.mes_referencia}</p>
+        <p><strong>Tipo:</strong> ${folha.tipo}</p>
+        ${folha.tipo === 'Diarista' ? `<p><strong>Dias Trabalhados:</strong> ${folha.dias_trabalhados}</p>` : ''}
+        <p><strong>Salário Base:</strong> ${formatMoney(folha.salario_base)}</p>
+        <p><strong>Vales Descontados:</strong> ${formatMoney(folha.vales_total)}</p>
+        <p><strong>Valor Líquido:</strong> <span style="font-size: 1.2em; font-weight: bold;">${formatMoney(folha.valor_pago)}</span></p>
+        ${folha.chave_pix ? `<p><strong>Chave PIX:</strong> ${folha.chave_pix}</p>` : ''}
+        <p style="margin-top: 30px;">Assinatura: ___________________________</p>
+      </div>
+    `;
+    const janela = window.open('', '_blank', 'width=600,height=500');
+    janela.document.write(conteudo);
+    janela.document.close();
+    janela.print();
+  };
+
+  // ========== CADASTRO DE FUNCIONÁRIOS ==========
+  async function carregarCadastro() {
+    const tipoFiltro = document.getElementById('eq-filtro-tipo')?.value;
+    let query = sb.from('equipe').select('*').order('nome');
+    if (tipoFiltro) query = query.eq('tipo', tipoFiltro);
+
+    const { data, error } = await query;
+    if (error) return alert('Erro ao carregar equipe.');
+
+    const tbody = document.getElementById('eq-lista-funcionarios');
+    if (data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">Nenhum funcionário encontrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.map(f => `
+      <tr class="border-b hover:bg-slate-50">
+        <td class="p-3 font-bold">${f.nome}</td>
+        <td class="p-3">${f.tipo}</td>
+        <td class="p-3 text-center">${f.valor_mensal ? formatMoney(f.valor_mensal) : '–'}</td>
+        <td class="p-3 text-center">${f.valor_diaria ? formatMoney(f.valor_diaria) : '–'}</td>
+        <td class="p-3 text-sm">${f.chave_pix || '–'}</td>
+        <td class="p-3 text-center">
+          <span class="px-2 py-1 rounded text-xs font-bold ${f.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}">${f.ativo ? 'Ativo' : 'Inativo'}</span>
+        </td>
+        <td class="p-3 text-center flex gap-2 justify-center">
+          <button onclick="editarFuncionario('${f.id}')" class="text-indigo-600 hover:text-indigo-800 bg-white border p-1.5 rounded shadow-sm"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+          <button onclick="alternarStatusFuncionario('${f.id}')" class="text-slate-600 hover:text-red-600 bg-white border p-1.5 rounded shadow-sm"><i data-lucide="power" class="w-4 h-4"></i></button>
+        </td>
+      </tr>
+    `).join('');
+    lucide.createIcons();
+  }
+
+  window.abrirModalFuncionario = function(id = null) {
+    // Se id, carregar dados para edição
+    const titulo = id ? 'Editar Funcionário' : 'Novo Funcionário';
+    let html = `
+      <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" id="modal-func">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+          <div class="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-2xl">
+            <h3 class="font-bold text-lg">${titulo}</h3>
+            <button onclick="document.getElementById('modal-func').remove()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+          </div>
+          <div class="p-4 space-y-3">
+            <input type="hidden" id="func-id" value="${id || ''}">
+            <div>
+              <label class="block text-xs font-bold text-slate-600">Nome</label>
+              <input type="text" id="func-nome" class="w-full p-2 border rounded-lg text-sm" placeholder="Nome completo">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600">Tipo</label>
+              <select id="func-tipo" class="w-full p-2 border rounded-lg text-sm" onchange="toggleCamposValor()">
+                <option value="Mensal">Fixo Mensal</option>
+                <option value="Diarista">Diarista</option>
+              </select>
+            </div>
+            <div id="campo-mensal">
+              <label class="block text-xs font-bold text-slate-600">Salário Mensal (R$)</label>
+              <input type="number" id="func-valor-mensal" step="0.01" class="w-full p-2 border rounded-lg text-sm" placeholder="0.00">
+            </div>
+            <div id="campo-diaria" class="hidden">
+              <label class="block text-xs font-bold text-slate-600">Valor Diária (R$)</label>
+              <input type="number" id="func-valor-diaria" step="0.01" class="w-full p-2 border rounded-lg text-sm" placeholder="0.00">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600">Chave PIX</label>
+              <input type="text" id="func-pix" class="w-full p-2 border rounded-lg text-sm" placeholder="Chave PIX (CPF/Telefone/E-mail)">
+            </div>
+          </div>
+          <div class="p-4 border-t bg-slate-50 flex gap-2 rounded-b-2xl">
+            <button onclick="document.getElementById('modal-func').remove()" class="flex-1 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg font-bold">Cancelar</button>
+            <button onclick="salvarFuncionario()" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow">Salvar</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    lucide.createIcons();
+    if (id) preencherFormFuncionario(id);
+  };
+
+  window.toggleCamposValor = function() {
+    const tipo = document.getElementById('func-tipo')?.value;
+    document.getElementById('campo-mensal').classList.toggle('hidden', tipo !== 'Mensal');
+    document.getElementById('campo-diaria').classList.toggle('hidden', tipo !== 'Diarista');
+  };
+
+  async function preencherFormFuncionario(id) {
+    const { data } = await sb.from('equipe').select('*').eq('id', id).single();
+    if (!data) return;
+    document.getElementById('func-id').value = data.id;
+    document.getElementById('func-nome').value = data.nome;
+    document.getElementById('func-tipo').value = data.tipo;
+    document.getElementById('func-valor-mensal').value = data.valor_mensal || '';
+    document.getElementById('func-valor-diaria').value = data.valor_diaria || '';
+    document.getElementById('func-pix').value = data.chave_pix || '';
+    toggleCamposValor();
+  }
+
+  window.salvarFuncionario = async function() {
+    const id = document.getElementById('func-id')?.value;
+    const nome = document.getElementById('func-nome')?.value.trim();
+    const tipo = document.getElementById('func-tipo')?.value;
+    const valorMensal = parseFloat(document.getElementById('func-valor-mensal')?.value) || 0;
+    const valorDiaria = parseFloat(document.getElementById('func-valor-diaria')?.value) || 0;
+    const pix = document.getElementById('func-pix')?.value.trim();
+
+    if (!nome) return alert('Nome obrigatório.');
 
     const payload = {
-        id: newId,
-        nome: document.getElementById('func-nome').value,
-        telefone: document.getElementById('func-telefone').value,
-        documento: document.getElementById('func-documento').value,
-        endereco: document.getElementById('func-endereco').value,
-        data_admissao: document.getElementById('func-data-admissao').value,
-        tipo_remuneracao: tipo,
-        valor_mensal: tipo === 'mensal' ? parseFloat(document.getElementById('func-valor-mensal').value) || 0 : null,
-        valor_diaria: tipo === 'diaria' ? parseFloat(document.getElementById('func-valor-diaria').value) || 0 : null,
-        valor_producao: tipo === 'producao' ? parseFloat(document.getElementById('func-valor-producao').value) || 0 : null,
-        chave_pix: document.getElementById('func-pix').value,
-        ativo: document.getElementById('func-ativo').checked
+      nome,
+      tipo,
+      valor_mensal: tipo === 'Mensal' ? valorMensal : null,
+      valor_diaria: tipo === 'Diarista' ? valorDiaria : null,
+      chave_pix: pix,
+      ativo: true
     };
 
-    const { error } = await sb.from('rvp_funcionarios').upsert(payload);
-    if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
-
-    closeFuncionarioForm();
-    showToast("Funcionário salvo!");
-    loadData();
-}
-
-async function toggleFuncionarioStatus(id, currentStatus) {
-    if (!confirm(currentStatus ? "Desativar funcionário?" : "Reativar funcionário?")) return;
-    showLoading(true);
-    const { error } = await sb.from('rvp_funcionarios').update({ ativo: !currentStatus }).eq('id', id);
-    if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
-    showToast(currentStatus ? "Funcionário desativado" : "Funcionário reativado");
-    loadData();
-}
-
-function openValeModal(funcId) {
-    document.getElementById('vale-func-id').value = funcId;
-    document.getElementById('vale-data').value = getHojeLocalStr();
-    document.getElementById('vale-valor').value = '';
-    document.getElementById('vale-obs').value = '';
-    document.getElementById('vale-modal').classList.remove('hidden');
-}
-
-function closeValeModal() {
-    document.getElementById('vale-modal').classList.add('hidden');
-}
-
-async function salvarVale() {
-    const funcId = document.getElementById('vale-func-id').value;
-    const data = document.getElementById('vale-data').value;
-    const valor = parseFloat(document.getElementById('vale-valor').value);
-    if (!funcId || !data || !valor) return showToast("Preencha todos os campos", true);
-    showLoading(true);
-    const newId = getNextId(STATE.vales);
-    const { error } = await sb.from('rvp_vales').insert([{
-        id: newId,
-        funcionario_id: funcId,
-        data,
-        valor,
-        observacao: document.getElementById('vale-obs').value
-    }]);
-    if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
-    closeValeModal();
-    showToast("Vale lançado!");
-    loadData();
-}
-
-async function salvarValeERecibo() {
-    const funcId = document.getElementById('vale-func-id').value;
-    const data = document.getElementById('vale-data').value;
-    const valor = parseFloat(document.getElementById('vale-valor').value);
-    const obs = document.getElementById('vale-obs').value;
-    if (!funcId || !data || !valor) return showToast("Preencha todos os campos", true);
-    
-    // Salvar o vale (reaproveita a lógica, mas sem fechar o modal ainda)
-    showLoading(true);
-    const newId = getNextId(STATE.vales);
-    const { error } = await sb.from('rvp_vales').insert([{
-        id: newId,
-        funcionario_id: funcId,
-        data,
-        valor,
-        observacao: obs
-    }]);
-    if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
-    
-    closeValeModal();
-    showToast("Vale lançado!");
-    await loadData();  // recarrega dados para ter o vale registrado
-    
-    // Gerar recibo
-    gerarReciboVale(funcId, data, valor, obs);
-}
-
-function gerarReciboVale(funcId, data, valor, obs) {
-    const func = STATE.funcionarios.find(f => f.id == funcId);
-    if (!func) return;
-    
-    const html = `
-    <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
-        <!-- Cabeçalho -->
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height: 60px;">
-            <div style="text-align: right;">
-                <h1 style="margin:0; font-size: 18px; color: #059669;">RV PORTAL MADEIRAS</h1>
-                <p style="margin:2px 0; font-size: 12px;">CNPJ: 30.942.123/0001-02</p>
-                <p style="margin:2px 0; font-size: 12px;">(64) 3636-4861 | Jataí - GO</p>
-            </div>
-        </div>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="margin:0; font-size: 20px;">RECIBO DE VALE / ADIANTAMENTO</h2>
-            <p style="font-size: 12px; color: #555;">1ª via - Empresa</p>
-        </div>
-        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
-            <table style="width: 100%; font-size: 14px;">
-                <tr><td style="padding: 5px 0;"><strong>Funcionário:</strong></td><td>${func.nome}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Data:</strong></td><td>${formatDate(data)}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Valor:</strong></td><td style="font-weight: bold;">${formatMoney(valor)}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Observação:</strong></td><td>${obs || '-'}</td></tr>
-            </table>
-            <p style="margin-top: 20px; font-size: 12px;">Recebido em: ${new Date().toLocaleDateString('pt-BR')}</p>
-            <div style="margin-top: 30px; display: flex; justify-content: space-between;">
-                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
-                <div>_______________________________<br><small>Responsável RV Portal</small></div>
-            </div>
-        </div>
-        <!-- Linha pontilhada para corte -->
-        <div style="border-top: 2px dashed #aaa; margin: 20px 0;"></div>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="margin:0; font-size: 20px;">RECIBO DE VALE / ADIANTAMENTO</h2>
-            <p style="font-size: 12px; color: #555;">2ª via - Funcionário</p>
-        </div>
-        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px;">
-            <table style="width: 100%; font-size: 14px;">
-                <tr><td style="padding: 5px 0;"><strong>Funcionário:</strong></td><td>${func.nome}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Data:</strong></td><td>${formatDate(data)}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Valor:</strong></td><td style="font-weight: bold;">${formatMoney(valor)}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Observação:</strong></td><td>${obs || '-'}</td></tr>
-            </table>
-            <p style="margin-top: 20px; font-size: 12px;">Recebido em: ${new Date().toLocaleDateString('pt-BR')}</p>
-            <div style="margin-top: 30px; display: flex; justify-content: space-between;">
-                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
-                <div>_______________________________<br><small>Responsável RV Portal</small></div>
-            </div>
-        </div>
-    </div>`;
-    
-    document.getElementById('print-area').innerHTML = html;
-    setTimeout(() => window.print(), 300);
-}
-
-// ========== NOVAS FUNÇÕES DE FECHAMENTO ==========
-
-// ========== DECLARAÇÃO GLOBAL (adicione no início do equipe.js, se ainda não existir) ==========
-let modalFuncId = null;
-
-// ========== FUNÇÃO PRINCIPAL DE FECHAMENTO ==========
-function openFechamento(funcId) {
-    const func = STATE.funcionarios.find(f => String(f.id) === String(funcId));
-    if (!func) return;
-
-    // Guardar o id para uso em callbacks (ex.: estornar vales)
-    modalFuncId = funcId;
-
-    const modal = document.getElementById('fechamento-modal');
-    document.getElementById('fechamento-titulo').innerText = `Fechamento - ${func.nome}`;
-    const conteudo = document.getElementById('fechamento-conteudo');
-    const actions = document.getElementById('fechamento-actions');
-    
-    const hoje = new Date();
-    const mesAtual = hoje.getMonth();
-    const anoAtual = hoje.getFullYear();
-    const primeiroDia = new Date(anoAtual, mesAtual, 1).toISOString().split('T')[0];
-    const ultimoDia = new Date(anoAtual, mesAtual + 1, 0).toISOString().split('T')[0];
-    
-    /* ============ MENSAL ============ */
-    if (func.tipo_remuneracao === 'mensal') {
-        // Buscar vales do mês
-        const valesMes = STATE.vales.filter(v => 
-            v.funcionario_id == funcId && 
-            v.data >= primeiroDia && 
-            v.data <= ultimoDia
-        );
-        const totalVales = valesMes.reduce((s, v) => s + Number(v.valor), 0);
-        const salario = func.valor_mensal || 0;
-        const liquido = salario - totalVales;
-
-        conteudo.innerHTML = `
-            <div class="space-y-4">
-                <div class="flex gap-4 items-end">
-                    <div>
-                        <label class="text-xs font-bold">Período (mês/ano)</label>
-                        <input type="month" id="fech-mes" value="${anoAtual}-${String(mesAtual+1).padStart(2,'0')}" class="border rounded p-2">
-                    </div>
-                    <button onclick="atualizarFechamentoMensal('${funcId}')" class="p-2 bg-slate-200 rounded text-sm">Atualizar</button>
-                </div>
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div class="bg-gray-50 p-3 rounded">
-                        <span class="text-gray-500">Salário base</span><br>
-                        <strong>${formatMoney(salario)}</strong>
-                    </div>
-                    <div class="bg-red-50 p-3 rounded flex justify-between items-start">
-                        <div>
-                            <span class="text-red-600">Total em vales</span><br>
-                            <strong>${formatMoney(totalVales)}</strong>
-                        </div>
-                        ${totalVales > 0 ? `
-                        <button onclick="estornarTodosValesMes('${funcId}')" 
-                                class="text-xs bg-red-200 hover:bg-red-300 text-red-800 px-2 py-1 rounded font-bold"
-                                title="Estornar todos os vales deste mês">
-                            <i data-lucide="trash-2" class="w-3 h-3 inline"></i> Estornar
-                        </button>` : ''}
-                    </div>
-                </div>
-                <div class="bg-green-50 p-4 rounded-lg">
-                    <span class="text-green-800 font-bold text-lg">Líquido a Pagar: ${formatMoney(liquido)}</span>
-                </div>
-                ${valesMes.length ? `
-                <details class="text-xs">
-                    <summary>Detalhes dos vales (${valesMes.length})</summary>
-                    <ul class="list-disc pl-5 space-y-1">
-                        ${valesMes.map(v => `
-                        <li class="flex justify-between items-center">
-                            <span>${formatDate(v.data)} - ${formatMoney(v.valor)} ${v.observacao ? '('+v.observacao+')' : ''}</span>
-                            <button onclick="estornarVale('${v.id}')" class="text-red-500 hover:text-red-700 ml-2" title="Estornar este vale">
-                                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
-                            </button>
-                        </li>`).join('')}
-                    </ul>
-                </details>` : ''}
-            </div>
-        `;
-
-        actions.innerHTML = `
-            <button onclick="estornarPagamentoMensal('${funcId}')" class="flex-1 py-2 bg-red-100 text-red-700 rounded font-bold text-sm">
-                <i data-lucide="rotate-ccw" class="w-4 h-4 inline"></i> Estornar Pagto
-            </button>
-            <button onclick="gerarReciboMensal('${funcId}')" class="flex-1 py-2 bg-indigo-600 text-white rounded font-bold text-sm">
-                <i data-lucide="printer" class="w-4 h-4 inline"></i> Recibo
-            </button>
-            <button onclick="lancarPagamentoMensal('${funcId}')" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold text-sm">
-                <i data-lucide="check-circle" class="w-4 h-4 inline"></i> Lançar Pagamento
-            </button>
-            <button onclick="closeFechamentoModal()" class="flex-1 py-2 bg-slate-200 rounded font-bold text-sm">
-                Cancelar
-            </button>
-        `;
+    let error;
+    if (id) {
+      const { error: err } = await sb.from('equipe').update(payload).eq('id', id);
+      error = err;
+    } else {
+      const { error: err } = await sb.from('equipe').insert([payload]);
+      error = err;
     }
 
-    /* ============ DIARISTA ============ */
-    else if (func.tipo_remuneracao === 'diaria') {
-        const ultimosPag = STATE.pagamentos
-            .filter(p => p.funcionario_id == funcId)
-            .sort((a,b) => b.data_pagamento.localeCompare(a.data_pagamento));
-        let dataInicio = primeiroDia;
-        if (ultimosPag.length) {
-            const dt = new Date(ultimosPag[0].data_pagamento + 'T00:00:00');
-            dt.setDate(dt.getDate() + 1);
-            dataInicio = dt.toISOString().split('T')[0];
-        }
-        const dataFim = getHojeLocalStr();
-        const diariasReg = STATE.diarias.filter(d => 
-            d.funcionario_id == funcId && 
-            d.data >= dataInicio && 
-            d.data <= dataFim
-        );
-        const totalDias = diariasReg.length;
-        const valorDiaria = func.valor_diaria || 0;
-        const total = totalDias * valorDiaria;
+    if (error) return alert('Erro ao salvar: ' + error.message);
+    document.getElementById('modal-func')?.remove();
+    carregarCadastro();
+  };
 
-        conteudo.innerHTML = `
-            <div class="space-y-4">
-                <div class="flex gap-4 items-end">
-                    <div>
-                        <label class="text-xs font-bold">De</label>
-                        <input type="date" id="fech-di-inicio" value="${dataInicio}" class="border rounded p-2">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold">Até</label>
-                        <input type="date" id="fech-di-fim" value="${dataFim}" class="border rounded p-2">
-                    </div>
-                    <button onclick="atualizarFechamentoDiaria('${funcId}')" class="p-2 bg-slate-200 rounded text-sm">Atualizar</button>
-                </div>
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <label class="text-xs font-bold">Dias trabalhados</label>
-                        <input type="number" id="fech-di-dias" value="${totalDias}" class="w-full border rounded p-2" onchange="recalcularDiaria()">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold">Valor da diária (R$)</label>
-                        <input type="number" id="fech-di-valor" value="${valorDiaria}" step="0.01" class="w-full border rounded p-2" onchange="recalcularDiaria()">
-                    </div>
-                </div>
-                <div class="bg-green-50 p-4 rounded-lg text-lg font-bold text-green-800" id="fech-di-total">Total: ${formatMoney(total)}</div>
-            </div>
-        `;
+  window.editarFuncionario = function(id) {
+    abrirModalFuncionario(id);
+  };
 
-        actions.innerHTML = `
-            <button onclick="gerarReciboDiaria('${funcId}')" class="flex-1 py-2 bg-indigo-600 text-white rounded font-bold text-sm">
-                <i data-lucide="printer" class="w-4 h-4 inline"></i> Recibo
-            </button>
-            <button onclick="lancarPagamentoDiaria('${funcId}')" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold text-sm">
-                <i data-lucide="check-circle" class="w-4 h-4 inline"></i> Lançar Pagamento
-            </button>
-            <button onclick="closeFechamentoModal()" class="flex-1 py-2 bg-slate-200 rounded font-bold text-sm">
-                Cancelar
-            </button>
-        `;
-    }
+  window.alternarStatusFuncionario = async function(id) {
+    const { data } = await sb.from('equipe').select('ativo').eq('id', id).single();
+    const novo = !data.ativo;
+    await sb.from('equipe').update({ ativo: novo }).eq('id', id);
+    carregarCadastro();
+  };
 
-    /* ============ PRODUÇÃO ============ */
-    else if (func.tipo_remuneracao === 'producao') {
-        producaoItemsTemp = [];
-        const producoesMes = STATE.producoes 
-            ? STATE.producoes.filter(p => 
-                p.funcionario_id == funcId && 
-                p.data >= primeiroDia && 
-                p.data <= ultimoDia
-              ) 
-            : [];
-        let totalProducao = producoesMes.reduce((s, p) => s + Number(p.valor_total), 0);
-
-        conteudo.innerHTML = `
-            <div class="space-y-4">
-                <div class="flex gap-4 items-end">
-                    <div>
-                        <label class="text-xs font-bold">Mês/Ano</label>
-                        <input type="month" id="fech-prod-mes" value="${anoAtual}-${String(mesAtual+1).padStart(2,'0')}" class="border rounded p-2">
-                    </div>
-                    <button onclick="adicionarItemProducaoModal()" class="p-2 bg-emerald-600 text-white rounded flex items-center gap-1 text-sm">
-                        <i data-lucide="plus" class="w-4 h-4"></i> Adicionar Item
-                    </button>
-                </div>
-                <div id="fech-prod-lista" class="space-y-2 max-h-60 overflow-y-auto">
-                    ${producoesMes.map(p => `
-                        <div class="flex justify-between items-center border p-2 rounded">
-                            <div>
-                                <span class="font-bold">${p.descricao}</span> - ${p.quantidade} un x ${formatMoney(p.valor_unitario)}
-                            </div>
-                            <span class="font-bold text-emerald-600">${formatMoney(p.valor_total)}</span>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="bg-green-50 p-4 rounded-lg text-lg font-bold text-green-800" id="fech-prod-total">Total: ${formatMoney(totalProducao)}</div>
-            </div>
-        `;
-
-        actions.innerHTML = `
-            <button onclick="gerarReciboProducao('${funcId}')" class="flex-1 py-2 bg-indigo-600 text-white rounded font-bold text-sm">
-                <i data-lucide="printer" class="w-4 h-4 inline"></i> Recibo
-            </button>
-            <button onclick="lancarPagamentoProducao('${funcId}')" class="flex-1 py-2 bg-emerald-600 text-white rounded font-bold text-sm">
-                <i data-lucide="check-circle" class="w-4 h-4 inline"></i> Lançar Pagamento
-            </button>
-            <button onclick="closeFechamentoModal()" class="flex-1 py-2 bg-slate-200 rounded font-bold text-sm">
-                Cancelar
-            </button>
-        `;
-    }
-
-    modal.classList.remove('hidden');
-    lucide.createIcons();
-}
-
-function closeFechamentoModal() {
-    document.getElementById('fechamento-modal').classList.add('hidden');
-}
-
-async function atualizarFechamentoMensal(funcId) {
-    openFechamento(funcId);
-}
-
-function recalcularDiaria() {
-    const dias = parseInt(document.getElementById('fech-di-dias').value) || 0;
-    const valor = parseFloat(document.getElementById('fech-di-valor').value) || 0;
-    const total = dias * valor;
-    document.getElementById('fech-di-total').innerText = `Total: ${formatMoney(total)}`;
-}
-
-async function atualizarFechamentoDiaria(funcId) {
-    const inicio = document.getElementById('fech-di-inicio').value;
-    const fim = document.getElementById('fech-di-fim').value;
-    if (!inicio || !fim) return;
-    const diariasReg = STATE.diarias.filter(d => d.funcionario_id == funcId && d.data >= inicio && d.data <= fim);
-    const totalDias = diariasReg.length;
-    document.getElementById('fech-di-dias').value = totalDias;
-    recalcularDiaria();
-}
-
-// ========== PRODUÇÃO - Adicionar item ==========
-function adicionarItemProducaoModal() {
-    document.getElementById('producao-item-modal').classList.remove('hidden');
-    document.getElementById('prod-item-desc').value = '';
-    document.getElementById('prod-item-qtd').value = '';
-    document.getElementById('prod-item-valor').value = '';
-}
-
-function adicionarItemProducao() {
-    const desc = document.getElementById('prod-item-desc').value;
-    const qtd = parseFloat(document.getElementById('prod-item-qtd').value);
-    const valorUnit = parseFloat(document.getElementById('prod-item-valor').value);
-    if (!desc || !qtd || !valorUnit) return showToast("Preencha todos os campos", true);
-    producaoItemsTemp.push({ descricao: desc, quantidade: qtd, valor_unitario: valorUnit, valor_total: qtd * valorUnit });
-    document.getElementById('producao-item-modal').classList.add('hidden');
-    atualizarListaProducao();
-}
-
-function atualizarListaProducao() {
-    const listaDiv = document.getElementById('fech-prod-lista');
-    if (!listaDiv) return;
-    const total = producaoItemsTemp.reduce((s, p) => s + p.valor_total, 0);
-    listaDiv.innerHTML = producaoItemsTemp.map(p => `
-        <div class="flex justify-between items-center border p-2 rounded">
-            <div>
-                <span class="font-bold">${p.descricao}</span> - ${p.quantidade} un x ${formatMoney(p.valor_unitario)}
-            </div>
-            <span class="font-bold text-emerald-600">${formatMoney(p.valor_total)}</span>
-        </div>
-    `).join('');
-    document.getElementById('fech-prod-total').innerText = `Total: ${formatMoney(total)}`;
-}
-
-// ========== LANÇAR PAGAMENTO ==========
-async function lancarPagamentoMensal(funcId) {
-    await lancarPagamentoGenerico(funcId, 'mensal');
-}
-async function lancarPagamentoDiaria(funcId) {
-    await lancarPagamentoGenerico(funcId, 'diaria');
-}
-async function lancarPagamentoProducao(funcId) {
-    await lancarPagamentoGenerico(funcId, 'producao');
-}
-
-async function lancarPagamentoGenerico(funcId, tipo) {
-    const func = STATE.funcionarios.find(f => f.id == funcId);
-    if (!func) return;
-    let valor = 0;
-    let descricao = "";
-    const hoje = getHojeLocalStr();
-    if (tipo === 'mensal') {
-        const mesInput = document.getElementById('fech-mes').value;
-        const [ano, mes] = mesInput.split('-').map(Number);
-        const primeiroDia = new Date(ano, mes-1, 1).toISOString().split('T')[0];
-        const ultimoDia = new Date(ano, mes, 0).toISOString().split('T')[0];
-        const valesMes = STATE.vales.filter(v => v.funcionario_id == funcId && v.data >= primeiroDia && v.data <= ultimoDia);
-        const totalVales = valesMes.reduce((s, v) => s + Number(v.valor), 0);
-        valor = func.valor_mensal - totalVales;
-        descricao = `Salário mensal ${mesInput}${func.chave_pix ? ' | PIX: '+func.chave_pix : ''}`;
-    } else if (tipo === 'diaria') {
-        const dias = parseInt(document.getElementById('fech-di-dias').value) || 0;
-        const valorDiaria = parseFloat(document.getElementById('fech-di-valor').value) || 0;
-        valor = dias * valorDiaria;
-        const inicio = document.getElementById('fech-di-inicio').value;
-        const fim = document.getElementById('fech-di-fim').value;
-        descricao = `Diárias ${inicio} a ${fim}${func.chave_pix ? ' | PIX: '+func.chave_pix : ''}`;
-    } else if (tipo === 'producao') {
-        valor = producaoItemsTemp.reduce((s, p) => s + p.valor_total, 0);
-        descricao = `Produção mês ${document.getElementById('fech-prod-mes').value}${func.chave_pix ? ' | PIX: '+func.chave_pix : ''}`;
-        // Salvar itens de produção no banco
-        const newIdBase = getNextId(STATE.producoes || []);
-        const inserts = producaoItemsTemp.map((p, idx) => ({
-            id: newIdBase + idx,
-            funcionario_id: funcId,
-            data: hoje,
-            descricao: p.descricao,
-            quantidade: p.quantidade,
-            valor_unitario: p.valor_unitario,
-            valor_total: p.valor_total
-        }));
-        await sb.from('rvp_producao').insert(inserts);
-    }
-    if (valor <= 0) return showToast("Valor inválido para pagamento", true);
-    showLoading(true);
-    const despId = getNextId(STATE.expenses);
-    const { error } = await sb.from('despesas').insert([{
-        id: despId,
-        item: `Pagamento - ${func.nome}`,
-        quantidade: 1,
-        unidade: 'Un',
-        custo: valor,
-        data: hoje,
-        observacao: descricao,
-        status: 'PENDENTE',
-        funcionario_id: funcId     // caso tenha executado SQL extra
-    }]);
-    if (error) { showLoading(false); return showToast("Erro ao criar despesa: " + error.message, true); }
-    // Registrar pagamento histórico
-    const pagId = getNextId(STATE.pagamentos);
-    await sb.from('rvp_pagamentos').insert([{
-        id: pagId,
-        funcionario_id: funcId,
-        data_pagamento: hoje,
-        valor_total: valor,
-        descontos: 0,
-        valor_liquido: valor,
-        observacao: descricao
-    }]);
-    closeFechamentoModal();
-    showToast("Pagamento lançado como pendente!");
-    await loadData();
-}
-
-// ========== ESTORNAR PAGAMENTO MENSAL ==========
-async function estornarPagamentoMensal(funcId) {
-    const func = STATE.funcionarios.find(f => f.id == funcId);
-    if (!func) return;
-    const mesInput = document.getElementById('fech-mes').value;
-    if (!mesInput) return showToast("Selecione o mês", true);
-    if (!confirm(`Deseja realmente estornar o pagamento de ${func.nome} referente ao mês ${mesInput}? Isso removerá TODAS as despesas e registros de pagamento deste mês.`)) return;
-
-    showLoading(true);
-    const [ano, mes] = mesInput.split('-').map(Number);
-    const primeiroDia = new Date(ano, mes-1, 1).toISOString().split('T')[0];
-    const ultimoDia = new Date(ano, mes, 0).toISOString().split('T')[0];
-
-    try {
-        // 1. Remover despesas (qualquer status) do funcionário no período
-        const despesasParaRemover = STATE.expenses.filter(e => {
-            return e.item === `Pagamento - ${func.nome}` &&
-                   e.data >= primeiroDia &&
-                   e.data <= ultimoDia;
-        });
-        for (let d of despesasParaRemover) {
-            await sb.from('despesas').delete().eq('id', d.id);
-        }
-
-        // 2. Remover registros de pagamento histórico (rvp_pagamentos)
-        const pagamentosParaRemover = STATE.pagamentos.filter(p => {
-            return p.funcionario_id == funcId &&
-                   p.data_pagamento >= primeiroDia &&
-                   p.data_pagamento <= ultimoDia &&
-                   p.observacao && p.observacao.includes(`Salário mensal ${mesInput}`);
-        });
-        for (let p of pagamentosParaRemover) {
-            await sb.from('rvp_pagamentos').delete().eq('id', p.id);
-        }
-
-        // 3. Recarregar dados
-        await loadData();
-        closeFechamentoModal();
-        showToast("Estorno realizado com sucesso!");
-    } catch (err) {
-        showLoading(false);
-        showToast("Erro ao estornar: " + err.message, true);
-    }
-}
-
-// ========== RECIBOS (versão profissional com 2 vias em A4, logo e linha tracejada) ==========
-function gerarReciboMensal(funcId) {
-    const func = STATE.funcionarios.find(f => f.id == funcId);
-    const mesInput = document.getElementById('fech-mes').value;
-    const [ano, mes] = mesInput.split('-').map(Number);
-    const primeiroDia = new Date(ano, mes-1, 1).toISOString().split('T')[0];
-    const ultimoDia = new Date(ano, mes, 0).toISOString().split('T')[0];
-    const valesMes = STATE.vales.filter(v => v.funcionario_id == funcId && v.data >= primeiroDia && v.data <= ultimoDia);
-    const totalVales = valesMes.reduce((s, v) => s + Number(v.valor), 0);
-    const liquido = func.valor_mensal - totalVales;
-    
-    const html = `
-    <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; position: relative;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height: 60px;">
-            <div style="text-align: right;">
-                <h1 style="margin:0; font-size: 18px; color: #059669;">RV PORTAL MADEIRAS</h1>
-                <p style="margin:2px 0; font-size: 12px;">CNPJ: 30.942.123/0001-02</p>
-                <p style="margin:2px 0; font-size: 12px;">(64) 3636-4861 | Jataí - GO</p>
-            </div>
-        </div>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="margin:0; font-size: 20px;">RECIBO DE PAGAMENTO</h2>
-            <p style="font-size: 12px; color: #555;">1ª via - Empresa</p>
-        </div>
-        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
-            <table style="width: 100%; font-size: 14px;">
-                <tr><td style="padding: 5px 0;"><strong>Funcionário:</strong></td><td>${func.nome}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Período:</strong></td><td>${mesInput}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Salário Base:</strong></td><td>${formatMoney(func.valor_mensal)}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Vales/Descontos:</strong></td><td style="color: red;">- ${formatMoney(totalVales)}</td></tr>
-                <tr style="background: #f0fdf4;"><td style="padding: 5px 0;"><strong>Líquido a Pagar:</strong></td><td style="font-size: 16px; font-weight: bold; color: #059669;">${formatMoney(liquido)}</td></tr>
-            </table>
-            <p style="margin-top: 20px; font-size: 12px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-            <div style="margin-top: 30px; display: flex; justify-content: space-between;">
-                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
-                <div>_______________________________<br><small>Responsável RV Portal</small></div>
-            </div>
-        </div>
-
-        <!-- Linha pontilhada para corte -->
-        <div style="border-top: 2px dashed #aaa; margin: 20px 0;"></div>
-
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="margin:0; font-size: 20px;">RECIBO DE PAGAMENTO</h2>
-            <p style="font-size: 12px; color: #555;">2ª via - Funcionário</p>
-        </div>
-        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px;">
-            <table style="width: 100%; font-size: 14px;">
-                <tr><td style="padding: 5px 0;"><strong>Funcionário:</strong></td><td>${func.nome}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Período:</strong></td><td>${mesInput}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Salário Base:</strong></td><td>${formatMoney(func.valor_mensal)}</td></tr>
-                <tr><td style="padding: 5px 0;"><strong>Vales/Descontos:</strong></td><td style="color: red;">- ${formatMoney(totalVales)}</td></tr>
-                <tr style="background: #f0fdf4;"><td style="padding: 5px 0;"><strong>Líquido a Pagar:</strong></td><td style="font-size: 16px; font-weight: bold; color: #059669;">${formatMoney(liquido)}</td></tr>
-            </table>
-            <p style="margin-top: 20px; font-size: 12px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-            <div style="margin-top: 30px; display: flex; justify-content: space-between;">
-                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
-                <div>_______________________________<br><small>Responsável RV Portal</small></div>
-            </div>
-        </div>
-    </div>`;
-    closeFechamentoModal();  // fecha o modal antes de imprimir
-    const printArea = document.getElementById('print-area');
-    printArea.innerHTML = html;
-    setTimeout(() => window.print(), 300);
-}
-
-// Similar para diaria e producao, omitidos por brevidade mas seguem o mesmo padrão (utilize o modelo acima com as informações específicas)
-function gerarReciboDiaria(funcId) {
-    const func = STATE.funcionarios.find(f => f.id == funcId);
-    const dias = document.getElementById('fech-di-dias').value;
-    const valorDiaria = parseFloat(document.getElementById('fech-di-valor').value);
-    const total = dias * valorDiaria;
-    const inicio = document.getElementById('fech-di-inicio').value;
-    const fim = document.getElementById('fech-di-fim').value;
-    const html = `
-    <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height: 60px;">
-            <div style="text-align: right;">
-                <h1 style="margin:0; font-size: 18px; color: #059669;">RV PORTAL MADEIRAS</h1>
-                <p style="margin:2px 0; font-size: 12px;">CNPJ: 30.942.123/0001-02</p>
-                <p style="margin:2px 0; font-size: 12px;">(64) 3636-4861 | Jataí - GO</p>
-            </div>
-        </div>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="margin:0;">RECIBO DE PAGAMENTO</h2>
-            <p style="font-size: 12px;">1ª via - Empresa</p>
-        </div>
-        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
-            <table style="width:100%; font-size:14px;">
-                <tr><td><strong>Funcionário:</strong></td><td>${func.nome}</td></tr>
-                <tr><td><strong>Período:</strong></td><td>${inicio} a ${fim}</td></tr>
-                <tr><td><strong>Dias:</strong></td><td>${dias} x ${formatMoney(valorDiaria)}</td></tr>
-                <tr style="background:#f0fdf4;"><td><strong>Total:</strong></td><td style="font-size:16px;font-weight:bold;color:#059669;">${formatMoney(total)}</td></tr>
-            </table>
-            <p style="margin-top:20px; font-size:12px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-            <div style="margin-top:30px; display:flex; justify-content:space-between;">
-                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
-                <div>_______________________________<br><small>Responsável RV Portal</small></div>
-            </div>
-        </div>
-        <div style="border-top:2px dashed #aaa; margin:20px 0;"></div>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="margin:0;">RECIBO DE PAGAMENTO</h2>
-            <p style="font-size: 12px;">2ª via - Funcionário</p>
-        </div>
-        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px;">
-            <table style="width:100%; font-size:14px;">
-                <tr><td><strong>Funcionário:</strong></td><td>${func.nome}</td></tr>
-                <tr><td><strong>Período:</strong></td><td>${inicio} a ${fim}</td></tr>
-                <tr><td><strong>Dias:</strong></td><td>${dias} x ${formatMoney(valorDiaria)}</td></tr>
-                <tr style="background:#f0fdf4;"><td><strong>Total:</strong></td><td style="font-size:16px;font-weight:bold;color:#059669;">${formatMoney(total)}</td></tr>
-            </table>
-            <p style="margin-top:20px; font-size:12px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-            <div style="margin-top:30px; display:flex; justify-content:space-between;">
-                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
-                <div>_______________________________<br><small>Responsável RV Portal</small></div>
-            </div>
-        </div>
-    </div>`;
-    closeFechamentoModal();
-    document.getElementById('print-area').innerHTML = html;
-    setTimeout(() => window.print(), 300);
-}
-
-function gerarReciboProducao(funcId) {
-    const func = STATE.funcionarios.find(f => f.id == funcId);
-    const total = producaoItemsTemp.reduce((s, p) => s + p.valor_total, 0);
-    const mes = document.getElementById('fech-prod-mes').value;
-    let itensHtml = producaoItemsTemp.map(p => `<tr><td>${p.descricao}</td><td>${p.quantidade}</td><td>${formatMoney(p.valor_unitario)}</td><td>${formatMoney(p.valor_total)}</td></tr>`).join('');
-    const html = `
-    <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height: 60px;">
-            <div style="text-align: right;">
-                <h1 style="margin:0; font-size: 18px; color: #059669;">RV PORTAL MADEIRAS</h1>
-                <p style="margin:2px 0; font-size: 12px;">CNPJ: 30.942.123/0001-02</p>
-                <p style="margin:2px 0; font-size: 12px;">(64) 3636-4861 | Jataí - GO</p>
-            </div>
-        </div>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="margin:0;">RECIBO DE PAGAMENTO</h2>
-            <p style="font-size: 12px;">1ª via - Empresa</p>
-        </div>
-        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 30px;">
-            <p><strong>Funcionário:</strong> ${func.nome}</p>
-            <p><strong>Mês:</strong> ${mes}</p>
-            <table style="width:100%; border-collapse: collapse; margin:10px 0;">
-                <tr><th>Descrição</th><th>Qtd</th><th>Unit.</th><th>Total</th></tr>
-                ${itensHtml}
-            </table>
-            <p style="font-size:16px; font-weight:bold; color:#059669;">Total: ${formatMoney(total)}</p>
-            <p style="margin-top:20px; font-size:12px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-            <div style="margin-top:30px; display:flex; justify-content:space-between;">
-                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
-                <div>_______________________________<br><small>Responsável RV Portal</small></div>
-            </div>
-        </div>
-        <div style="border-top:2px dashed #aaa; margin:20px 0;"></div>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="margin:0;">RECIBO DE PAGAMENTO</h2>
-            <p style="font-size: 12px;">2ª via - Funcionário</p>
-        </div>
-        <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px;">
-            <p><strong>Funcionário:</strong> ${func.nome}</p>
-            <p><strong>Mês:</strong> ${mes}</p>
-            <table style="width:100%; border-collapse: collapse; margin:10px 0;">
-                <tr><th>Descrição</th><th>Qtd</th><th>Unit.</th><th>Total</th></tr>
-                ${itensHtml}
-            </table>
-            <p style="font-size:16px; font-weight:bold; color:#059669;">Total: ${formatMoney(total)}</p>
-            <p style="margin-top:20px; font-size:12px;">Data: ${new Date().toLocaleDateString('pt-BR')}</p>
-            <div style="margin-top:30px; display:flex; justify-content:space-between;">
-                <div>_______________________________<br><small>Assinatura do Funcionário</small></div>
-                <div>_______________________________<br><small>Responsável RV Portal</small></div>
-            </div>
-        </div>
-    </div>`;
-    closeFechamentoModal();
-    document.getElementById('print-area').innerHTML = html;
-    setTimeout(() => window.print(), 300);
-}
-
-// ========== IMPRIMIR FOLHA DE PAGAMENTOS PENDENTES ==========
-async function imprimirFolhaEquipe() {
-    // Buscar despesas pendentes cujo item começa com "Pagamento - "
-    const despesasPendentes = STATE.expenses.filter(e => {
-        return e.status === 'PENDENTE' && e.item.startsWith('Pagamento - ');
-    });
-
-    if (despesasPendentes.length === 0) {
-        return showToast("Nenhum pagamento pendente encontrado.", true);
-    }
-
-    // Montar linhas da tabela
-    const rows = despesasPendentes.map(d => {
-        const nome = d.item.replace('Pagamento - ', '').trim();
-        const func = STATE.funcionarios.find(f => f.nome === nome);
-        const tipo = func ? func.tipo_remuneracao : '-';
-        const pix = func ? func.chave_pix || '-' : '-';
-        const referencia = d.observacao ? d.observacao.split(' | PIX:')[0] : '-';
-        const valor = Number(d.custo) || 0;
-        return `
-            <tr>
-                <td>${nome}</td>
-                <td>${tipo}</td>
-                <td>${referencia}</td>
-                <td style="text-align:right;">${formatMoney(valor)}</td>
-                <td>${pix}</td>
-            </tr>
-        `;
-    }).join('');
-
-    const total = despesasPendentes.reduce((s, d) => s + (Number(d.custo) || 0), 0);
-
-    const html = `
-    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: auto;">
-        <div style="text-align: center; margin-bottom: 20px;">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height: 60px; display: block; margin: 0 auto;">
-            <h2 style="margin: 5px 0; color: #059669;">RV PORTAL MADEIRAS</h2>
-            <p style="font-size: 14px;">Folha de Pagamentos Pendentes</p>
-        </div>
-        <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse; font-size: 13px;">
-            <thead style="background: #f2f2f2;">
-                <tr>
-                    <th>Funcionário</th>
-                    <th>Tipo</th>
-                    <th>Referência</th>
-                    <th style="text-align:right;">Valor</th>
-                    <th>Chave PIX</th>
-                </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-            <tfoot style="background: #e6f7e6;">
-                <tr>
-                    <td colspan="3" style="text-align:right;"><strong>Total</strong></td>
-                    <td style="text-align:right; font-weight:bold;">${formatMoney(total)}</td>
-                    <td></td>
-                </tr>
-            </tfoot>
-        </table>
-        <p style="margin-top: 20px; font-size: 11px; text-align: center;">Emitido em ${new Date().toLocaleString('pt-BR')}</p>
-    </div>`;
-
-    document.getElementById('print-area').innerHTML = html;
-    setTimeout(() => window.print(), 300);
-}
-
-// ========== LIMPAR FILTROS E PADRONIZAR DATAS ==========
-function limparFiltrosEquipe() {
-    document.getElementById('equipe-search').value = '';
-    document.getElementById('equipe-status-filter').value = 'ativos';
-    definirDatasPadrao();
-    renderEquipe();
-}
-
-function definirDatasPadrao() {
-    const hoje = new Date();
-    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
-    document.getElementById('equipe-data-inicio').value = primeiroDia.toISOString().split('T')[0];
-    document.getElementById('equipe-data-fim').value = ultimoDia.toISOString().split('T')[0];
-}
-
-// ========== RENDER EQUIPE (com novas colunas, sem admissão e sem contrato) ==========
-function renderEquipe(forceRefresh = false) {
-    const tbody = document.getElementById('equipe-list');
-    if (!tbody) return;
-
-    // Se as datas estiverem vazias, preenche com mês atual
-    if (!document.getElementById('equipe-data-inicio').value) {
-        definirDatasPadrao();
-    }
-
-    let filtrado = [...STATE.funcionarios];
-
-    const search = document.getElementById('equipe-search')?.value.toLowerCase() || '';
-    const status = document.getElementById('equipe-status-filter')?.value;
-    const dataIni = document.getElementById('equipe-data-inicio')?.value;
-    const dataFim = document.getElementById('equipe-data-fim')?.value;
-
-    if (search) {
-        filtrado = filtrado.filter(f => 
-            f.nome.toLowerCase().includes(search) || 
-            (f.telefone && f.telefone.includes(search)) || 
-            (f.documento && f.documento.includes(search))
-        );
-    }
-    if (status === 'ativos') filtrado = filtrado.filter(f => f.ativo);
-    else if (status === 'inativos') filtrado = filtrado.filter(f => !f.ativo);
-    if (dataIni) filtrado = filtrado.filter(f => f.data_admissao >= dataIni);
-    if (dataFim) filtrado = filtrado.filter(f => f.data_admissao <= dataFim);
-
-    // Calcular vales do mês atual e valor a pagar (apenas para mensais)
-    const hoje = new Date();
-    const mesAtual = hoje.getMonth();
-    const anoAtual = hoje.getFullYear();
-    const primeiroDiaMes = new Date(anoAtual, mesAtual, 1).toISOString().split('T')[0];
-    const ultimoDiaMes = new Date(anoAtual, mesAtual + 1, 0).toISOString().split('T')[0];
-
-    filtrado = filtrado.map(f => {
-        let valesMes = 0;
-        let faltaPagar = '-';
-        if (f.tipo_remuneracao === 'mensal' && f.ativo) {
-            const vales = STATE.vales.filter(v => v.funcionario_id == f.id && v.data >= primeiroDiaMes && v.data <= ultimoDiaMes);
-            valesMes = vales.reduce((s, v) => s + Number(v.valor), 0);
-            const salario = Number(f.valor_mensal) || 0;
-            faltaPagar = salario - valesMes;
-        }
-        return { ...f, valesMes, faltaPagar };
-    });
-
-    filtrado.sort((a,b) => a.nome.localeCompare(b.nome));
-
-    if (filtrado.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhum funcionário encontrado.</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = filtrado.map(f => {
-        const tipoLabel = { mensal: 'Mensal', diaria: 'Diarista', producao: 'Produção' }[f.tipo_remuneracao] || f.tipo_remuneracao;
-        const statusBadge = f.ativo 
-            ? '<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Ativo</span>'
-            : '<span class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-bold">Inativo</span>';
-        
-        const whatsappLink = f.telefone ? `https://wa.me/55${f.telefone.replace(/\D/g,'')}` : '#';
-        
-        return `
-        <tr class="hover:bg-slate-50">
-            <td class="p-4 font-bold text-slate-700">${f.nome}</td>
-            <td class="p-4 text-xs uppercase">${tipoLabel}</td>
-            <td class="p-4 text-sm">${f.telefone || '-'}</td>
-            <td class="p-4 text-right font-mono">${f.tipo_remuneracao === 'mensal' ? formatMoney(f.valesMes) : '-'}</td>
-            <td class="p-4 text-right font-mono">${f.tipo_remuneracao === 'mensal' ? formatMoney(f.faltaPagar) : '-'}</td>
-            <td class="p-4 text-center">${statusBadge}</td>
-            <td class="p-4">
-                <div class="flex items-center justify-center gap-1 flex-wrap">
-                    <button onclick="openFechamento('${f.id}')" class="p-2 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 flex items-center gap-1" title="Calcular"><i data-lucide="calculator" class="w-4 h-4"></i> <span class="text-xs font-bold">Calcular</span></button>
-                    <button onclick="openValeModal('${f.id}')" class="p-2 bg-amber-100 text-amber-700 rounded flex items-center gap-1" title="Vale"><i data-lucide="banknote" class="w-4 h-4"></i> <span class="text-xs font-bold">Vale</span></button>
-                    <button onclick="openFuncionarioForm('${f.id}')" class="p-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200" title="Editar"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-                    <button onclick="toggleFuncionarioStatus('${f.id}', ${f.ativo})" class="p-2 ${f.ativo ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'} rounded" title="${f.ativo ? 'Desativar' : 'Ativar'}"><i data-lucide="${f.ativo ? 'ban' : 'check-circle'}" class="w-4 h-4"></i></button>
-                    <a href="${whatsappLink}" target="_blank" class="p-2 bg-green-100 text-green-600 rounded ${!f.telefone ? 'opacity-50 pointer-events-none' : ''}" title="WhatsApp"><i data-lucide="message-circle" class="w-4 h-4"></i></a>
-                </div>
-            </td>
-        </tr>`;
-    }).join('');
-    lucide.createIcons();
-}
-
-// Ao carregar a aba, definir datas padrão se não houver
-document.addEventListener('DOMContentLoaded', () => {
-    // Garantir que as datas sejam preenchidas ao abrir a aba pela primeira vez
-    if (document.getElementById('equipe-data-inicio') && !document.getElementById('equipe-data-inicio').value) {
-        definirDatasPadrao();
-    }
-});
-
-
-// Estornar um vale específico
-let modalFuncId = null;
-async function estornarVale(valeId) {
-    if (!confirm("Deseja realmente estornar (remover) este vale?")) return;
-    showLoading(true);
-    const { error } = await sb.from('rvp_vales').delete().eq('id', valeId);
-    if (error) {
-        showLoading(false);
-        return showToast("Erro ao estornar vale: " + error.message, true);
-    }
-    await loadData();
-    showToast("Vale estornado com sucesso!");
-    // Recarregar o modal de fechamento com os novos dados
-    const funcId = document.getElementById('vale-func-id')?.value; // pegar do contexto? não, precisamos do funcId do modal atual
-    // Para simplificar, vamos recarregar a página de equipe – mas melhor é reabrir o modal se ele estiver aberto.
-    if (document.getElementById('fechamento-modal') && !document.getElementById('fechamento-modal').classList.contains('hidden')) {
-        // Pegar o id do funcionário do título do modal? Melhor armazenar em variável global.
-        // Vamos definir uma variável global modalFuncId quando abrir o modal.
-        if (typeof modalFuncId !== 'undefined' && modalFuncId) {
-            openFechamento(modalFuncId);
-        }
-    }
-}
-
-// Estornar todos os vales do mês atual
-async function estornarTodosValesMes(funcId) {
-    if (!confirm("ATENÇÃO: Isso removerá TODOS os vales deste funcionário no mês exibido. Continuar?")) return;
-    const mesInput = document.getElementById('fech-mes').value;
-    if (!mesInput) return showToast("Mês não definido", true);
-    const [ano, mes] = mesInput.split('-').map(Number);
-    const primeiroDia = new Date(ano, mes-1, 1).toISOString().split('T')[0];
-    const ultimoDia = new Date(ano, mes, 0).toISOString().split('T')[0];
-    showLoading(true);
-    const { error } = await sb.from('rvp_vales').delete()
-        .eq('funcionario_id', funcId)
-        .gte('data', primeiroDia)
-        .lte('data', ultimoDia);
-    if (error) {
-        showLoading(false);
-        return showToast("Erro ao estornar vales: " + error.message, true);
-    }
-    await loadData();
-    showToast("Todos os vales do mês foram estornados!");
-    openFechamento(funcId);
-}
+  // Expor funções globais
+  window.abrirModalCriarFolha = abrirModalCriarFolha;
+  window.abrirModalVale = abrirModalVale;
+  window.salvarVale = salvarVale;
+  window.salvarFolha = salvarFolha;
+  window.imprimirFolha = imprimirFolha;
+  window.baixarFolha = baixarFolha;
+  window.carregarLancamentos = carregarLancamentos;
+  window.carregarCadastro = carregarCadastro;
+})();
