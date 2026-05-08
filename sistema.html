@@ -4267,141 +4267,135 @@ function openPartnerModal() {
 }
 function closePartnerModal() { document.getElementById('modal-partner-report').classList.add('hidden'); }
 
-  function printPartnerReport() {
-      const start = document.getElementById('rep-part-start').value;
-      const end = document.getElementById('rep-part-end').value;
-      const tipo = document.getElementById('rep-part-type').value;
-      if (!start || !end) return showToast("Selecione as datas", true);
-      showLoading(true);
-  
-      const vendasFiltradas = STATE.logs.filter(l => {
-          if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
-          const prod = STATE.products.find(p => p.name === l.productName);
-          return prod && prod.parceiro && l.date.split('T')[0] >= start && l.date.split('T')[0] <= end;
-      });
-  
-      if (vendasFiltradas.length === 0) { showLoading(false); return showToast("Nenhuma venda de parceiro neste período.", true); }
-  
-      if (tipo === 'metros') {
-          // Relatório agrupado por produto (já existente)
-          const agrupado = {};
-          vendasFiltradas.forEach(l => {
-              if (!agrupado[l.productName]) {
-                  agrupado[l.productName] = { nome: l.productName, metros: 0, valorVenda: 0, custo: 0 };
-              }
-              agrupado[l.productName].metros += Number(l.quantity) || 0;
-              agrupado[l.productName].valorVenda += Number(l.totalValue) || 0;
-              const prod = STATE.products.find(p => p.name === l.productName);
-              agrupado[l.productName].custo += prod ? (prod.cost || 0) * (Number(l.quantity) || 0) : 0;
-          });
-          const rows = Object.values(agrupado).map(i => `
-              <tr>
-                  <td>${i.nome}</td>
-                  <td style="text-align:right;">${i.metros.toFixed(2)} m</td>
-                  <td style="text-align:right;">${formatMoney(i.valorVenda)}</td>
-                  <td style="text-align:right;">${formatMoney(i.custo)}</td>
-                  <td style="text-align:right;">${formatMoney(i.valorVenda - i.custo)}</td>
-              </tr>`).join('');
-          const totais = {
-              venda: Object.values(agrupado).reduce((s,i) => s + i.valorVenda, 0),
-              custo: Object.values(agrupado).reduce((s,i) => s + i.custo, 0)
-          };
-          var html = `
-          <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
-              <div style="text-align:center; margin-bottom:20px;">
-                  <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
-                  <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
-                  <p style="font-size:14px;">Relatório de Vendas de Parceiro (Metros)</p>
-                  <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
-              </div>
-              <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:13px;">
-                  <thead style="background:#eee;">
-                      <tr><th>Produto</th><th>Metros</th><th>Venda</th><th>Custo</th><th>Lucro</th></tr>
-                  </thead>
-                  <tbody>${rows}</tbody>
-                  <tfoot style="background:#f0fdf4;">
-                      <tr style="font-weight:bold;">
-                          <td>TOTAL</td><td></td><td>${formatMoney(totais.venda)}</td><td>${formatMoney(totais.custo)}</td><td>${formatMoney(totais.venda - totais.custo)}</td>
-                      </tr>
-                  </tfoot>
-              </table>
-          </div>`;
-      } else {
-          // Relatório de acerto: lista cada venda com data, pgto, produtos e total
-          // Agrupar por venda (id) para não repetir
-          const vendasMap = {};
-          vendasFiltradas.forEach(l => {
-              if (!vendasMap[l.id]) {
-                  vendasMap[l.id] = {
-                      id: l.id,
-                      data: l.date,
-                      cliente: l.clientName,
-                      pagamento: l.paymentMethod,
-                      itens: [],
-                      totalVenda: 0
-                  };
-              }
-              vendasMap[l.id].itens.push({
-                  nome: l.productName,
-                  qtd: l.quantity,
-                  metragem: (l.note || '').match(/\d+ pçs de \d+(\.\d+)?m/)
-              });
-              vendasMap[l.id].totalVenda += Number(l.totalValue) || 0;
-          });
-  
-          const vendasArray = Object.values(vendasMap).sort((a,b) => new Date(a.data) - new Date(b.data));
-          let rowsHtml = '';
-          let totalGeral = 0;
-          vendasArray.forEach(v => {
-              const itensStr = v.itens.map(i => {
-                  return i.nome + ' ' + i.qtd + 'm';
-              }).join(', ');
-              rowsHtml += `
-                  <tr>
-                      <td>${formatDate(v.data)}</td>
-                      <td>#${v.id}</td>
-                      <td>${v.cliente}</td>
-                      <td>${v.pagamento}</td>
-                      <td style="font-size:11px;">${itensStr}</td>
-                      <td style="text-align:right;">${formatMoney(v.totalVenda)}</td>
-                  </tr>`;
-              totalGeral += v.totalVenda;
-          });
-  
-          var html = `
-          <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
-              <div style="text-align:center; margin-bottom:20px;">
-                  <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
-                  <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
-                  <p style="font-size:14px;">Relatório de Acerto – Parceiro</p>
-                  <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
-              </div>
-              <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:12px;">
-                  <thead style="background:#eee;">
-                      <tr>
-                          <th>Data</th>
-                          <th>Venda</th>
-                          <th>Cliente</th>
-                          <th>Forma Pgto</th>
-                          <th>Itens</th>
-                          <th style="text-align:right;">Valor Total</th>
-                      </tr>
-                  </thead>
-                  <tbody>${rowsHtml}</tbody>
-                  <tfoot style="background:#f0fdf4;">
-                      <tr style="font-weight:bold;">
-                          <td colspan="5">TOTAL GERAL</td>
-                          <td style="text-align:right;">${formatMoney(totalGeral)}</td>
-                      </tr>
-                  </tfoot>
-              </table>
-          </div>`;
-      }
-  
-      document.getElementById('print-area').innerHTML = html;
-      closePartnerModal();
-      showLoading(false);
-      setTimeout(() => window.print(), 500);
+ function printPartnerReport() {
+    const start = document.getElementById('rep-part-start').value;
+    const end = document.getElementById('rep-part-end').value;
+    const tipo = document.getElementById('rep-part-type').value;
+    if (!start || !end) return showToast("Selecione as datas", true);
+    showLoading(true);
+
+    const vendasFiltradas = STATE.logs.filter(l => {
+        if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
+        const prod = STATE.products.find(p => p.name === l.productName);
+        return prod && prod.parceiro && l.date.split('T')[0] >= start && l.date.split('T')[0] <= end;
+    });
+
+    if (vendasFiltradas.length === 0) { showLoading(false); return showToast("Nenhuma venda de parceiro neste período.", true); }
+
+    if (tipo === 'metros') {
+        // Relatório agrupado por produto (metragens e lucro)
+        const agrupado = {};
+        vendasFiltradas.forEach(l => {
+            if (!agrupado[l.productName]) {
+                agrupado[l.productName] = { nome: l.productName, metros: 0, valorVenda: 0, custo: 0 };
+            }
+            agrupado[l.productName].metros += Number(l.quantity) || 0;
+            agrupado[l.productName].valorVenda += Number(l.totalValue) || 0;
+            const prod = STATE.products.find(p => p.name === l.productName);
+            agrupado[l.productName].custo += prod ? (prod.cost || 0) * (Number(l.quantity) || 0) : 0;
+        });
+        const rows = Object.values(agrupado).map(i => `
+            <tr>
+                <td>${i.nome}</td>
+                <td style="text-align:right;">${i.metros.toFixed(2)} m</td>
+                <td style="text-align:right;">${formatMoney(i.valorVenda)}</td>
+                <td style="text-align:right;">${formatMoney(i.custo)}</td>
+                <td style="text-align:right;">${formatMoney(i.valorVenda - i.custo)}</td>
+            </tr>`).join('');
+        const totais = {
+            venda: Object.values(agrupado).reduce((s,i) => s + i.valorVenda, 0),
+            custo: Object.values(agrupado).reduce((s,i) => s + i.custo, 0)
+        };
+        var html = `
+        <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
+            <div style="text-align:center; margin-bottom:20px;">
+                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
+                <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
+                <p style="font-size:14px;">Relatório de Vendas de Parceiro (Metros)</p>
+                <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
+            </div>
+            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:13px;">
+                <thead style="background:#eee;">
+                    <tr><th>Produto</th><th>Metros</th><th>Venda</th><th>Custo</th><th>Lucro</th></tr>
+                </thead>
+                <tbody>${rows}</tbody>
+                <tfoot style="background:#f0fdf4;">
+                    <tr style="font-weight:bold;">
+                        <td>TOTAL</td><td></td><td>${formatMoney(totais.venda)}</td><td>${formatMoney(totais.custo)}</td><td>${formatMoney(totais.venda - totais.custo)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>`;
+    } else {
+        // Relatório de acerto: agrupa por venda + produto, somando metragem e valor de cada item
+        const agrupado = {};
+        vendasFiltradas.forEach(l => {
+            const chave = `${l.id}_${l.productName}`;
+            if (!agrupado[chave]) {
+                agrupado[chave] = {
+                    id: l.id,
+                    data: l.date,
+                    cliente: l.clientName,
+                    pagamento: l.paymentMethod,
+                    produto: l.productName,
+                    qtd: 0,
+                    valor: 0
+                };
+            }
+            agrupado[chave].qtd += Number(l.quantity) || 0;
+            agrupado[chave].valor += Number(l.totalValue) || 0;
+        });
+
+        const linhas = Object.values(agrupado).sort((a,b) => new Date(a.data) - new Date(b.data));
+        let rowsHtml = '';
+        let totalGeral = 0;
+        linhas.forEach(item => {
+            rowsHtml += `
+                <tr>
+                    <td>${formatDate(item.data)}</td>
+                    <td>#${item.id}</td>
+                    <td>${item.cliente}</td>
+                    <td>${item.pagamento}</td>
+                    <td>${item.produto} ${item.qtd}m</td>
+                    <td style="text-align:right;">${formatMoney(item.valor)}</td>
+                </tr>`;
+            totalGeral += item.valor;
+        });
+
+        var html = `
+        <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
+            <div style="text-align:center; margin-bottom:20px;">
+                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
+                <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
+                <p style="font-size:14px;">Relatório de Acerto – Parceiro</p>
+                <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
+            </div>
+            <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:12px;">
+                <thead style="background:#eee;">
+                    <tr>
+                        <th>Data</th>
+                        <th>Venda</th>
+                        <th>Cliente</th>
+                        <th>Forma Pgto</th>
+                        <th>Produto (Metros)</th>
+                        <th style="text-align:right;">Valor Total</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+                <tfoot style="background:#f0fdf4;">
+                    <tr style="font-weight:bold;">
+                        <td colspan="5">TOTAL GERAL</td>
+                        <td style="text-align:right;">${formatMoney(totalGeral)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>`;
+    }
+
+    document.getElementById('print-area').innerHTML = html;
+    closePartnerModal();
+    showLoading(false);
+    setTimeout(() => window.print(), 500);
 }
   
     </script> 
