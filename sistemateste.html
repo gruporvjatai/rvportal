@@ -2290,21 +2290,32 @@ function loadQuoteToCart(id) {
         const prod = STATE.products.find(p => p.name === item.name);
         const isPartner = prod ? prod.parceiro : false;
         let comprimento = 0, pecas = 0, qty = item.qty;
+        let obs = item.obs || '';
         
-        if (isPartner && item.obs) {
-            // Extrai a primeira parte (antes de " | ") que deve conter "XpçsYm"
-            const parts = item.obs.split(' | ');
-            const metragemPart = parts[0];
-            const match = metragemPart.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+        if (isPartner && obs) {
+            // Tenta extrair metragem mesmo sem separador (formato "XpçsYm")
+            const match = obs.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
             if (match) {
                 pecas = parseInt(match[1]) || 0;
                 comprimento = parseFloat(match[2]) || 0;
-                qty = pecas * comprimento; // total de metros
+                qty = pecas * comprimento;
+                // Remove a metragem da observação para não duplicar
+                obs = obs.replace(match[0], '').trim();
+                // Remove possível separador restante (" | " no início ou fim)
+                obs = obs.replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, '');
             }
-            // Se houver parte extra (observação geral), restaura apenas uma vez
-            if (parts.length > 1 && !customObsRestored) {
-                const extraObs = parts.slice(1).join(' | ');
-                document.getElementById('pos-custom-obs').value = extraObs;
+            
+            // Se ainda restou algo, é a observação extra; restaura apenas uma vez
+            if (obs && !customObsRestored) {
+                document.getElementById('pos-custom-obs').value = obs;
+                document.getElementById('pos-custom-obs-check').checked = true;
+                document.getElementById('pos-custom-obs-container').classList.remove('hidden');
+                customObsRestored = true;
+            }
+        } else if (!isPartner && obs) {
+            // Para itens não parceiros: a observação é comum (ex.: "Urgente")
+            if (!customObsRestored) {
+                document.getElementById('pos-custom-obs').value = obs;
                 document.getElementById('pos-custom-obs-check').checked = true;
                 document.getElementById('pos-custom-obs-container').classList.remove('hidden');
                 customObsRestored = true;
