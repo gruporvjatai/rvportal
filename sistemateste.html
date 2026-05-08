@@ -143,6 +143,21 @@
         .signature-orig { margin-top: 30px; text-align: center; font-size: 10px; }
         .signature-line-orig { width: 50%; border-top: 1px solid #000; margin: 0 auto 5px auto; }
       }
+
+
+
+      /* Remove as setinhas (spinners) dos inputs type="number" */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        
+        input[type="number"] {
+          -moz-appearance: textfield; /* Firefox */
+        }
+
+      
       .print-only { display: none; }
     </style>
   </head>
@@ -1036,6 +1051,13 @@
               <button onclick="closePartnerModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
           </div>
           <div class="p-6 space-y-4 overflow-y-auto">
+              <div>
+                  <label class="block text-sm font-bold text-slate-700 mb-1">Tipo de Relatório</label>
+                  <select id="rep-part-type" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-amber-600 outline-none bg-white">
+                      <option value="metros">Vendas (Metros e Lucro)</option>
+                      <option value="acerto">Acerto (Custo por Venda)</option>
+                  </select>
+              </div>
               <div class="grid grid-cols-2 gap-3">
                   <div>
                       <label class="block text-sm font-bold text-slate-700 mb-1">Data Inicial</label>
@@ -1394,7 +1416,13 @@
                 logsToInsert.push({
                     id: newSaleId, tipo: 'venda', produto_nome: item.name, quantidade: item.qty,
                     data: timestamp, 
-                    observacao: customObs ? customObs : (isProntaEntrega ? 'Pronta Entrega PDV' : 'Venda PDV'), 
+                    observacao: (() => {
+                          let baseObs = '';
+                          if (item.parceiro) baseObs = `${item.pecas} pçs de ${item.comprimento}m`;
+                          if (customObs) baseObs = baseObs ? baseObs + ' | ' + customObs : customObs;
+                          if (!baseObs) baseObs = isProntaEntrega ? 'Pronta Entrega PDV' : 'Venda PDV';
+                          return baseObs;
+                      })(),
                     valor_total: (item.total * fator),
                     cliente_nome: clientName, forma_pagamento: payment, status: 'ATIVO',
                     status_entrega: statusEntrega, qtd_entregue: qtdEntregue, desconto: totals.disc, // <-- ERRO CORRIGIDO AQUI
@@ -2289,7 +2317,12 @@
                     const percent = Math.min(100, (o.deliveredQty / o.totalQty) * 100);
                     const remain = o.totalQty - o.deliveredQty;
                     let status = o.deliveredQty > 0 ? 'PARCIAL' : 'PENDENTE';
-                    const itemsSummary = o.items.map(i => `${i.productName} (x${i.quantity})`).join(', ');
+                    const itemsSummary = o.items.map(i => {
+                        const metragem = (i.note || '').match(/\d+ pçs de \d+(\.\d+)?m/); // detecta "X pçs de Ym"
+                        let desc = i.productName;
+                        if (metragem) desc += ` <span class="text-[10px] text-slate-500">(${metragem[0]})</span>`;
+                        return desc;
+                    }).join(', ');
 
                     return `<tr class="hover:bg-slate-50 border-b">
                         <td class="p-4 text-center flex gap-2 justify-center">
@@ -2298,7 +2331,7 @@
                         </td>
                         <td class="p-4"><div class="font-black text-slate-700 text-sm">#${o.id}</div><div class="text-[10px] text-slate-400">${formatDate(o.date)}</div></td>
                         <td class="p-4 font-bold text-slate-700 truncate max-w-[150px]">${o.clientName}</td>
-                        <td class="p-4 text-xs text-slate-500 truncate max-w-[250px]" title="${itemsSummary}">${itemsSummary}</td>
+                        <td class="p-4 text-xs text-slate-500 truncate max-w-[250px]" title="${itemsSummary.replace(/<[^>]*>/g, '')}">${itemsSummary}</td>
                         <td class="p-4">
                             <div class="flex justify-between text-[10px] mb-1 font-bold uppercase"><span>Entregue: ${o.deliveredQty}/${o.totalQty}</span><span class="text-emerald-700">Falta: ${remain}</span></div>
                             <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden"><div class="bg-green-500 h-1.5 rounded-full" style="width: ${percent}%"></div></div>
@@ -2823,9 +2856,13 @@
             : (cli.address || '-');
 
             const rowsHtml = items.map(item => {
+                const metragem = (item.note || '').match(/\d+ pçs de \d+(\.\d+)?m/);
                 return `
                 <tr>
-                    <td style="border: 1px solid #000; padding: 10px; font-weight: bold;">${item.productName}</td>
+                    <td style="border: 1px solid #000; padding: 10px; font-weight: bold;">
+                        ${item.productName}
+                        ${metragem ? `<br><span style="font-size:10px; font-weight:normal;">${metragem[0]}</span>` : ''}
+                    </td>
                     <td style="border: 1px solid #000; padding: 10px; text-align: center; font-size: 14px; font-weight: bold;">${item.quantity}</td>
                     <td style="border: 1px solid #000; padding: 10px; text-align: center; width: 80px;">
                         <div style="width: 18px; height: 18px; border: 2px solid #334155; border-radius: 3px; margin: 0 auto;"></div>
@@ -4044,73 +4081,148 @@ function openPartnerModal() {
     const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
     document.getElementById('rep-part-start').value = getLocalISODate(primeiroDia);
     document.getElementById('rep-part-end').value = getLocalISODate(ultimoDia);
+    document.getElementById('rep-part-type').value = 'metros'; // volta para o padrão
     document.getElementById('modal-partner-report').classList.remove('hidden');
 }
 function closePartnerModal() { document.getElementById('modal-partner-report').classList.add('hidden'); }
 
-function printPartnerReport() {
-    const start = document.getElementById('rep-part-start').value;
-    const end = document.getElementById('rep-part-end').value;
-    if (!start || !end) return showToast("Selecione as datas", true);
-    showLoading(true);
-
-    // Filtrar logs de vendas de produtos parceiros no período
-    const vendasFiltradas = STATE.logs.filter(l => {
-        if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
-        const prod = STATE.products.find(p => p.name === l.productName);
-        return prod && prod.parceiro && l.date.split('T')[0] >= start && l.date.split('T')[0] <= end;
-    });
-
-    if (vendasFiltradas.length === 0) { showLoading(false); return showToast("Nenhuma venda de parceiro neste período.", true); }
-
-    const agrupado = {};
-    vendasFiltradas.forEach(l => {
-        if (!agrupado[l.productName]) {
-            agrupado[l.productName] = { nome: l.productName, metros: 0, valorVenda: 0, custo: 0 };
-        }
-        agrupado[l.productName].metros += Number(l.quantity) || 0;
-        agrupado[l.productName].valorVenda += Number(l.totalValue) || 0;
-        const prod = STATE.products.find(p => p.name === l.productName);
-        agrupado[l.productName].custo += prod ? (prod.cost || 0) * (Number(l.quantity) || 0) : 0;
-    });
-
-    const rows = Object.values(agrupado).map(i => `
-        <tr>
-            <td>${i.nome}</td>
-            <td style="text-align:right;">${i.metros.toFixed(2)} m</td>
-            <td style="text-align:right;">${formatMoney(i.valorVenda)}</td>
-            <td style="text-align:right;">${formatMoney(i.custo)}</td>
-            <td style="text-align:right;">${formatMoney(i.valorVenda - i.custo)}</td>
-        </tr>`).join('');
-
-    const totais = {
-        venda: Object.values(agrupado).reduce((s,i) => s + i.valorVenda, 0),
-        custo: Object.values(agrupado).reduce((s,i) => s + i.custo, 0)
-    };
-    const html = `
-    <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto; position:relative;">
-        <div style="text-align:center; margin-bottom:20px;">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
-            <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
-            <p style="font-size:14px;">Relatório de Vendas de Parceiro</p>
-            <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
-        </div>
-        <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:13px;">
-            <thead style="background:#eee;">
-                <tr><th>Produto</th><th>Metros</th><th>Venda</th><th>Custo</th><th>Lucro</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-            <tfoot style="background:#f0fdf4;">
-                <tr style="font-weight:bold;">
-                    <td>TOTAL</td><td></td><td>${formatMoney(totais.venda)}</td><td>${formatMoney(totais.custo)}</td><td>${formatMoney(totais.venda - totais.custo)}</td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>`;
-    document.getElementById('print-area').innerHTML = html;
-    closePartnerModal();
-    showLoading(false);
-    setTimeout(() => window.print(), 500);
+  function printPartnerReport() {
+      const start = document.getElementById('rep-part-start').value;
+      const end = document.getElementById('rep-part-end').value;
+      const tipo = document.getElementById('rep-part-type').value;
+      if (!start || !end) return showToast("Selecione as datas", true);
+      showLoading(true);
+  
+      const vendasFiltradas = STATE.logs.filter(l => {
+          if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
+          const prod = STATE.products.find(p => p.name === l.productName);
+          return prod && prod.parceiro && l.date.split('T')[0] >= start && l.date.split('T')[0] <= end;
+      });
+  
+      if (vendasFiltradas.length === 0) { showLoading(false); return showToast("Nenhuma venda de parceiro neste período.", true); }
+  
+      if (tipo === 'metros') {
+          // Relatório agrupado por produto (já existente)
+          const agrupado = {};
+          vendasFiltradas.forEach(l => {
+              if (!agrupado[l.productName]) {
+                  agrupado[l.productName] = { nome: l.productName, metros: 0, valorVenda: 0, custo: 0 };
+              }
+              agrupado[l.productName].metros += Number(l.quantity) || 0;
+              agrupado[l.productName].valorVenda += Number(l.totalValue) || 0;
+              const prod = STATE.products.find(p => p.name === l.productName);
+              agrupado[l.productName].custo += prod ? (prod.cost || 0) * (Number(l.quantity) || 0) : 0;
+          });
+          const rows = Object.values(agrupado).map(i => `
+              <tr>
+                  <td>${i.nome}</td>
+                  <td style="text-align:right;">${i.metros.toFixed(2)} m</td>
+                  <td style="text-align:right;">${formatMoney(i.valorVenda)}</td>
+                  <td style="text-align:right;">${formatMoney(i.custo)}</td>
+                  <td style="text-align:right;">${formatMoney(i.valorVenda - i.custo)}</td>
+              </tr>`).join('');
+          const totais = {
+              venda: Object.values(agrupado).reduce((s,i) => s + i.valorVenda, 0),
+              custo: Object.values(agrupado).reduce((s,i) => s + i.custo, 0)
+          };
+          var html = `
+          <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
+              <div style="text-align:center; margin-bottom:20px;">
+                  <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
+                  <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
+                  <p style="font-size:14px;">Relatório de Vendas de Parceiro (Metros)</p>
+                  <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
+              </div>
+              <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:13px;">
+                  <thead style="background:#eee;">
+                      <tr><th>Produto</th><th>Metros</th><th>Venda</th><th>Custo</th><th>Lucro</th></tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+                  <tfoot style="background:#f0fdf4;">
+                      <tr style="font-weight:bold;">
+                          <td>TOTAL</td><td></td><td>${formatMoney(totais.venda)}</td><td>${formatMoney(totais.custo)}</td><td>${formatMoney(totais.venda - totais.custo)}</td>
+                      </tr>
+                  </tfoot>
+              </table>
+          </div>`;
+      } else {
+          // Relatório de acerto: lista cada venda com data, pgto, produtos e total
+          // Agrupar por venda (id) para não repetir
+          const vendasMap = {};
+          vendasFiltradas.forEach(l => {
+              if (!vendasMap[l.id]) {
+                  vendasMap[l.id] = {
+                      id: l.id,
+                      data: l.date,
+                      cliente: l.clientName,
+                      pagamento: l.paymentMethod,
+                      itens: [],
+                      totalVenda: 0
+                  };
+              }
+              vendasMap[l.id].itens.push({
+                  nome: l.productName,
+                  qtd: l.quantity,
+                  metragem: (l.note || '').match(/\d+ pçs de \d+(\.\d+)?m/)
+              });
+              vendasMap[l.id].totalVenda += Number(l.totalValue) || 0;
+          });
+  
+          const vendasArray = Object.values(vendasMap).sort((a,b) => new Date(a.data) - new Date(b.data));
+          let rowsHtml = '';
+          let totalGeral = 0;
+          vendasArray.forEach(v => {
+              const itensStr = v.itens.map(i => {
+                  let extra = '';
+                  if (i.metragem) extra = ` (${i.metragem[0]})`;
+                  return i.nome + extra + ' ' + i.qtd + 'm';
+              }).join(', ');
+              rowsHtml += `
+                  <tr>
+                      <td>${formatDate(v.data)}</td>
+                      <td>#${v.id}</td>
+                      <td>${v.cliente}</td>
+                      <td>${v.pagamento}</td>
+                      <td style="font-size:11px;">${itensStr}</td>
+                      <td style="text-align:right;">${formatMoney(v.totalVenda)}</td>
+                  </tr>`;
+              totalGeral += v.totalVenda;
+          });
+  
+          var html = `
+          <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
+              <div style="text-align:center; margin-bottom:20px;">
+                  <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
+                  <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
+                  <p style="font-size:14px;">Relatório de Acerto – Parceiro</p>
+                  <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
+              </div>
+              <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:12px;">
+                  <thead style="background:#eee;">
+                      <tr>
+                          <th>Data</th>
+                          <th>Venda</th>
+                          <th>Cliente</th>
+                          <th>Forma Pgto</th>
+                          <th>Itens</th>
+                          <th style="text-align:right;">Valor Total</th>
+                      </tr>
+                  </thead>
+                  <tbody>${rowsHtml}</tbody>
+                  <tfoot style="background:#f0fdf4;">
+                      <tr style="font-weight:bold;">
+                          <td colspan="5">TOTAL GERAL</td>
+                          <td style="text-align:right;">${formatMoney(totalGeral)}</td>
+                      </tr>
+                  </tfoot>
+              </table>
+          </div>`;
+      }
+  
+      document.getElementById('print-area').innerHTML = html;
+      closePartnerModal();
+      showLoading(false);
+      setTimeout(() => window.print(), 500);
 }
   
     </script> 
