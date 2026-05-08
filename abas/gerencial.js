@@ -286,7 +286,7 @@
     lucide.createIcons();
   }
 
-  function atualizarCentroCustos(vendas, impPerc, fretePerc, salario, outrosOp) {
+ function atualizarCentroCustos(vendas, impPerc, fretePerc, salario, outrosOp) {
     const tbody = document.getElementById('ger-tabela-produtos');
     const rodape = document.getElementById('ger-total-rodape');
     const semDados = document.getElementById('ger-sem-dados');
@@ -304,22 +304,28 @@
     const mapa = {};
     vendas.forEach(v => {
         const nome = v.productName;
+        const qtd = Number(v.quantity) || 0;   // garante número
+        const receita = Number(v.totalValue) || 0;
         if (!mapa[nome]) {
             const prod = STATE.products.find(p => p.name === nome);
             mapa[nome] = {
                 nome,
                 qtd: 0,
                 receita: 0,
-                custoUnit: prod ? prod.cost : 0,
-                parceiro: prod ? prod.parceiro : false   // ⬅️ NOVO: identifica se é parceiro
+                custoUnit: prod ? (Number(prod.cost) || 0) : 0,
+                parceiro: prod ? Boolean(prod.parceiro) : false
             };
         }
-        mapa[nome].qtd += v.quantity;
-        mapa[nome].receita += v.totalValue;
+        mapa[nome].qtd += qtd;
+        mapa[nome].receita += receita;
     });
 
     let produtos = Object.values(mapa).map(p => ({
-        ...p,
+        nome: p.nome,
+        qtd: p.qtd,
+        receita: p.receita,
+        custoUnit: p.custoUnit,
+        parceiro: p.parceiro,
         custoTotal: p.custoUnit * p.qtd
     }));
     produtos.sort((a, b) => a.nome.localeCompare(b.nome));
@@ -327,7 +333,6 @@
     const receitaTotal = produtos.reduce((s, p) => s + p.receita, 0);
     const custoTotal = produtos.reduce((s, p) => s + p.custoTotal, 0);
 
-    // ⬅️ NOVO: calcula imposto e frete apenas para itens NÃO parceiros
     let impostoTotal = 0;
     let freteTotal = 0;
     produtos.forEach(p => {
@@ -348,7 +353,7 @@
         tbody.innerHTML = produtos.map(p => `
             <tr class="hover:bg-slate-50 border-b">
                 <td class="p-3 font-bold text-slate-700">${p.nome}</td>
-                <td class="p-3 text-center">${p.qty}</td>
+                <td class="p-3 text-center">${p.qtd}</td>
                 <td class="p-3 text-right text-green-700">${formatMoney(p.receita)}</td>
                 <td class="p-3 text-right text-slate-600">${formatMoney(p.custoTotal)}</td>
                 <td class="p-3 text-right text-orange-600">${formatMoney(p.imposto)}</td>
@@ -375,7 +380,7 @@
         `;
     }
 
-    const lucroBruto = totalLucroBruto; // já calculado
+    const lucroBruto = totalLucroBruto;
     const totalOperacional = salario + outrosOp;
     const lucroLiquido = lucroBruto - totalOperacional;
     const margemLiquida = receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
@@ -397,7 +402,6 @@
 
     lucide.createIcons();
 }
-
   // ============ CARREGAMENTO DOS DADOS (Aba 2) ============
   function carregarResultadoSimplificado() {
     const mesInput = document.getElementById('ger-res-mes');
