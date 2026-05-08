@@ -293,96 +293,110 @@
     const resumo = document.getElementById('ger-resumo-centro');
 
     if (!vendas.length) {
-      if (tbody) tbody.innerHTML = '';
-      if (rodape) rodape.innerHTML = '';
-      if (semDados) semDados.classList.remove('hidden');
-      if (resumo) resumo.innerHTML = '<p class="text-slate-400">Sem vendas no período.</p>';
-      return;
+        if (tbody) tbody.innerHTML = '';
+        if (rodape) rodape.innerHTML = '';
+        if (semDados) semDados.classList.remove('hidden');
+        if (resumo) resumo.innerHTML = '<p class="text-slate-400">Sem vendas no período.</p>';
+        return;
     }
     if (semDados) semDados.classList.add('hidden');
 
     const mapa = {};
     vendas.forEach(v => {
-      const nome = v.productName;
-      if (!mapa[nome]) {
-        const prod = STATE.products.find(p => p.name === nome);
-        mapa[nome] = { nome, qtd: 0, receita: 0, custoUnit: prod ? prod.cost : 0 };
-      }
-      mapa[nome].qtd += v.quantity;
-      mapa[nome].receita += v.totalValue;
+        const nome = v.productName;
+        if (!mapa[nome]) {
+            const prod = STATE.products.find(p => p.name === nome);
+            mapa[nome] = {
+                nome,
+                qtd: 0,
+                receita: 0,
+                custoUnit: prod ? prod.cost : 0,
+                parceiro: prod ? prod.parceiro : false   // ⬅️ NOVO: identifica se é parceiro
+            };
+        }
+        mapa[nome].qtd += v.quantity;
+        mapa[nome].receita += v.totalValue;
     });
 
     let produtos = Object.values(mapa).map(p => ({
-      ...p,
-      custoTotal: p.custoUnit * p.qtd
+        ...p,
+        custoTotal: p.custoUnit * p.qtd
     }));
     produtos.sort((a, b) => a.nome.localeCompare(b.nome));
 
     const receitaTotal = produtos.reduce((s, p) => s + p.receita, 0);
     const custoTotal = produtos.reduce((s, p) => s + p.custoTotal, 0);
-    const impostoTotal = receitaTotal * (impPerc / 100);
-    const freteTotal = receitaTotal * (fretePerc / 100);
 
+    // ⬅️ NOVO: calcula imposto e frete apenas para itens NÃO parceiros
+    let impostoTotal = 0;
+    let freteTotal = 0;
     produtos.forEach(p => {
-      p.imposto = p.receita * (impPerc / 100);
-      p.frete = p.receita * (fretePerc / 100);
-      p.lucroBruto = p.receita - p.custoTotal - p.imposto - p.frete;
-      p.margemBruta = p.receita > 0 ? (p.lucroBruto / p.receita) * 100 : 0;
+        if (p.parceiro) {
+            p.imposto = 0;
+            p.frete = 0;
+        } else {
+            p.imposto = p.receita * (impPerc / 100);
+            p.frete = p.receita * (fretePerc / 100);
+            impostoTotal += p.imposto;
+            freteTotal += p.frete;
+        }
+        p.lucroBruto = p.receita - p.custoTotal - p.imposto - p.frete;
+        p.margemBruta = p.receita > 0 ? (p.lucroBruto / p.receita) * 100 : 0;
     });
 
     if (tbody) {
-      tbody.innerHTML = produtos.map(p => `
-        <tr class="hover:bg-slate-50 border-b">
-          <td class="p-3 font-bold text-slate-700">${p.nome}</td>
-          <td class="p-3 text-center">${p.qtd}</td>
-          <td class="p-3 text-right text-green-700">${formatMoney(p.receita)}</td>
-          <td class="p-3 text-right text-slate-600">${formatMoney(p.custoTotal)}</td>
-          <td class="p-3 text-right text-orange-600">${formatMoney(p.imposto)}</td>
-          <td class="p-3 text-right text-blue-600">${formatMoney(p.frete)}</td>
-          <td class="p-3 text-right font-bold ${p.lucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(p.lucroBruto)}</td>
-          <td class="p-3 text-right font-medium ${p.margemBruta >= 0 ? 'text-emerald-600' : 'text-red-500'}">${p.margemBruta.toFixed(2)}%</td>
-        </tr>
-      `).join('');
+        tbody.innerHTML = produtos.map(p => `
+            <tr class="hover:bg-slate-50 border-b">
+                <td class="p-3 font-bold text-slate-700">${p.nome}</td>
+                <td class="p-3 text-center">${p.qty}</td>
+                <td class="p-3 text-right text-green-700">${formatMoney(p.receita)}</td>
+                <td class="p-3 text-right text-slate-600">${formatMoney(p.custoTotal)}</td>
+                <td class="p-3 text-right text-orange-600">${formatMoney(p.imposto)}</td>
+                <td class="p-3 text-right text-blue-600">${formatMoney(p.frete)}</td>
+                <td class="p-3 text-right font-bold ${p.lucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(p.lucroBruto)}</td>
+                <td class="p-3 text-right font-medium ${p.margemBruta >= 0 ? 'text-emerald-600' : 'text-red-500'}">${p.margemBruta.toFixed(2)}%</td>
+            </tr>
+        `).join('');
     }
 
     const totalLucroBruto = receitaTotal - custoTotal - impostoTotal - freteTotal;
     const margemBrutaTotal = receitaTotal > 0 ? (totalLucroBruto / receitaTotal) * 100 : 0;
     if (rodape) {
-      rodape.innerHTML = `
-        <tr>
-          <td class="p-3" colspan="2">TOTAIS</td>
-          <td class="p-3 text-right text-green-700 text-base">${formatMoney(receitaTotal)}</td>
-          <td class="p-3 text-right text-slate-600 text-base">${formatMoney(custoTotal)}</td>
-          <td class="p-3 text-right text-orange-600 text-base">${formatMoney(impostoTotal)}</td>
-          <td class="p-3 text-right text-blue-600 text-base">${formatMoney(freteTotal)}</td>
-          <td class="p-3 text-right font-bold text-base ${totalLucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(totalLucroBruto)}</td>
-          <td class="p-3 text-right font-bold text-base ${margemBrutaTotal >= 0 ? 'text-emerald-600' : 'text-red-500'}">${margemBrutaTotal.toFixed(2)}%</td>
-        </tr>
-      `;
+        rodape.innerHTML = `
+            <tr>
+                <td class="p-3" colspan="2">TOTAIS</td>
+                <td class="p-3 text-right text-green-700 text-base">${formatMoney(receitaTotal)}</td>
+                <td class="p-3 text-right text-slate-600 text-base">${formatMoney(custoTotal)}</td>
+                <td class="p-3 text-right text-orange-600 text-base">${formatMoney(impostoTotal)}</td>
+                <td class="p-3 text-right text-blue-600 text-base">${formatMoney(freteTotal)}</td>
+                <td class="p-3 text-right font-bold text-base ${totalLucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(totalLucroBruto)}</td>
+                <td class="p-3 text-right font-bold text-base ${margemBrutaTotal >= 0 ? 'text-emerald-600' : 'text-red-500'}">${margemBrutaTotal.toFixed(2)}%</td>
+            </tr>
+        `;
     }
 
-    const lucroBruto = receitaTotal - custoTotal - impostoTotal - freteTotal;
+    const lucroBruto = totalLucroBruto; // já calculado
     const totalOperacional = salario + outrosOp;
     const lucroLiquido = lucroBruto - totalOperacional;
     const margemLiquida = receitaTotal > 0 ? (lucroLiquido / receitaTotal) * 100 : 0;
 
     if (resumo) {
-      resumo.innerHTML = `
-        <div class="flex justify-between"><span>Receita Bruta:</span><span class="font-bold">${formatMoney(receitaTotal)}</span></div>
-        <div class="flex justify-between"><span>Custo de Compra:</span><span>${formatMoney(custoTotal)}</span></div>
-        <div class="flex justify-between"><span>Impostos:</span><span>${formatMoney(impostoTotal)}</span></div>
-        <div class="flex justify-between"><span>Frete:</span><span>${formatMoney(freteTotal)}</span></div>
-        <div class="flex justify-between border-t pt-1 mt-1"><span class="font-semibold">Lucro Bruto:</span><span class="font-bold ${lucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(lucroBruto)}</span></div>
-        <div class="flex justify-between text-xs"><span>Margem Bruta:</span><span class="font-bold">${(receitaTotal > 0 ? (lucroBruto / receitaTotal) * 100 : 0).toFixed(2)}%</span></div>
-        <div class="flex justify-between mt-3 pt-2 border-t border-dashed"><span>Salário Total:</span><span class="text-red-600">- ${formatMoney(salario)}</span></div>
-        <div class="flex justify-between"><span>Outros Custos:</span><span class="text-red-600">- ${formatMoney(outrosOp)}</span></div>
-        <div class="flex justify-between border-t pt-1 mt-1 text-base"><span class="font-bold">Lucro Líquido:</span><span class="font-black ${lucroLiquido >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(lucroLiquido)}</span></div>
-        <div class="flex justify-between text-xs"><span>Margem Líquida:</span><span class="font-bold">${margemLiquida.toFixed(2)}%</span></div>
-      `;
+        resumo.innerHTML = `
+            <div class="flex justify-between"><span>Receita Bruta:</span><span class="font-bold">${formatMoney(receitaTotal)}</span></div>
+            <div class="flex justify-between"><span>Custo de Compra:</span><span>${formatMoney(custoTotal)}</span></div>
+            <div class="flex justify-between"><span>Impostos:</span><span>${formatMoney(impostoTotal)}</span></div>
+            <div class="flex justify-between"><span>Frete:</span><span>${formatMoney(freteTotal)}</span></div>
+            <div class="flex justify-between border-t pt-1 mt-1"><span class="font-semibold">Lucro Bruto:</span><span class="font-bold ${lucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(lucroBruto)}</span></div>
+            <div class="flex justify-between text-xs"><span>Margem Bruta:</span><span class="font-bold">${(receitaTotal > 0 ? (lucroBruto / receitaTotal) * 100 : 0).toFixed(2)}%</span></div>
+            <div class="flex justify-between mt-3 pt-2 border-t border-dashed"><span>Salário Total:</span><span class="text-red-600">- ${formatMoney(salario)}</span></div>
+            <div class="flex justify-between"><span>Outros Custos:</span><span class="text-red-600">- ${formatMoney(outrosOp)}</span></div>
+            <div class="flex justify-between border-t pt-1 mt-1 text-base"><span class="font-bold">Lucro Líquido:</span><span class="font-black ${lucroLiquido >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(lucroLiquido)}</span></div>
+            <div class="flex justify-between text-xs"><span>Margem Líquida:</span><span class="font-bold">${margemLiquida.toFixed(2)}%</span></div>
+        `;
     }
 
     lucide.createIcons();
-  }
+}
 
   // ============ CARREGAMENTO DOS DADOS (Aba 2) ============
   function carregarResultadoSimplificado() {
