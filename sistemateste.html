@@ -3333,43 +3333,53 @@ function loadQuoteToCart(id) {
         }
 
           function reprintSale(id) {
-              const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
-              if(!items.length) return;
-              
-              const totalDiscount = items[0].discount || 0;
-              const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
-              const grossTotal = netTotal + totalDiscount;
-              const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
-              
-              const saleObj = {
-                  id: id, 
-                  date: items[0].date, 
-                  clientName: items[0].clientName, 
-                  paymentMethod: items[0].paymentMethod, 
-                  discount: totalDiscount,
-                  deliveryAddress: items[0].deliveryAddress,
-                  observacao: items[0].note,
-                  items: items.map(i => {
-                      const grossItemTotal = i.totalValue * fator;
-                      let metragem = '';
-                      if (i.note) {
-                          const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
-                          if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
-                      }
-                      return { 
-                          name: i.productName, 
-                          qty: i.quantity, 
-                          price: i.quantity > 0 ? (grossItemTotal / i.quantity) : 0, 
-                          total: grossItemTotal,
-                          metragem: metragem
-                      };
-                  })
-              };
-              
-              renderInvoice(saleObj, false); 
-              if (typeof closePosHistoryModal === 'function') closePosHistoryModal();
-              setTimeout(() => window.print(), 500);
-          }
+    const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
+    if(!items.length) return;
+    
+    const totalDiscount = items[0].discount || 0;
+    const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
+    const grossTotal = netTotal + totalDiscount;
+    const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
+    
+    // Extrai apenas a observação extra (após o pipe), removendo a metragem
+    let obsLimpa = '';
+    const rawObs = items[0].note || '';
+    if (rawObs.includes(' | ')) {
+        obsLimpa = rawObs.split(' | ').slice(1).join(' | ').trim();
+    } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+        // Se não tem metragem, usa a observação inteira
+        obsLimpa = rawObs;
+    }
+    
+    const saleObj = {
+        id: id, 
+        date: items[0].date, 
+        clientName: items[0].clientName, 
+        paymentMethod: items[0].paymentMethod, 
+        discount: totalDiscount,
+        deliveryAddress: items[0].deliveryAddress,
+        observacao: obsLimpa,  // <-- agora só a parte extra, sem a metragem
+        items: items.map(i => {
+            const grossItemTotal = i.totalValue * fator;
+            let metragem = '';
+            if (i.note) {
+                const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+                if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+            }
+            return { 
+                name: i.productName, 
+                qty: i.quantity, 
+                price: i.quantity > 0 ? (grossItemTotal / i.quantity) : 0, 
+                total: grossItemTotal,
+                metragem: metragem
+            };
+        })
+    };
+    
+    renderInvoice(saleObj, false); 
+    if (typeof closePosHistoryModal === 'function') closePosHistoryModal();
+    setTimeout(() => window.print(), 500);
+}
         function fazerLogout() {
             localStorage.removeItem('rv_user');
             window.location.replace('index.html');
