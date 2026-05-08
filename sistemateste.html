@@ -4173,9 +4173,7 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
           let totalGeral = 0;
           vendasArray.forEach(v => {
               const itensStr = v.itens.map(i => {
-                  let extra = '';
-                  if (i.metragem) extra = ` (${i.metragem[0]})`;
-                  return i.nome + extra + ' ' + i.qtd + 'm';
+                  return i.nome + ' ' + i.qtd + 'm';
               }).join(', ');
               rowsHtml += `
                   <tr>
