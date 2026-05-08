@@ -557,7 +557,15 @@
                   <p class="text-xs text-slate-500 font-medium">Filtre vendas por data, cliente ou método de pagamento.</p>
               </div>
 
-              <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 opacity-60 flex flex-col items-center text-center gap-3">
+            <div onclick="openPartnerModal()" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all flex flex-col items-center text-center gap-3">
+                <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
+                    <i data-lucide="users" class="w-7 h-7"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-lg">Vendas de Parceiro</h3>
+                <p class="text-xs text-slate-500 font-medium">Relatório de vendas de produtos de parceiros, com total de metros, valor de venda, custo e lucro.</p>
+            </div>
+
+              <!--<div class="bg-slate-50 p-6 rounded-xl border border-slate-200 opacity-60 flex flex-col items-center text-center gap-3">
                   <div class="w-14 h-14 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center">
                       <i data-lucide="trending-up" class="w-7 h-7"></i>
                   </div>
@@ -579,7 +587,7 @@
                   </div>
                   <h3 class="font-bold text-slate-700 text-lg">Curva ABC de Estoque</h3>
                   <span class="bg-slate-200 text-slate-500 text-[10px] font-bold uppercase px-2 py-1 rounded">Em Breve</span>
-              </div>
+              </div>-->
           </div>
       </div>
 
@@ -1017,6 +1025,37 @@
     </div>
 </div>
 
+
+    <!-- MODAL DE RELATORIO DO PARCEIRO================================================================================== -->
+
+
+    <div id="modal-partner-report" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+      <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+          <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+              <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="calendar-search" class="text-amber-600"></i> Relatório de Parceiro</h3>
+              <button onclick="closePartnerModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+          </div>
+          <div class="p-6 space-y-4 overflow-y-auto">
+              <div class="grid grid-cols-2 gap-3">
+                  <div>
+                      <label class="block text-sm font-bold text-slate-700 mb-1">Data Inicial</label>
+                      <input type="date" id="rep-part-start" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-amber-600 outline-none bg-white">
+                  </div>
+                  <div>
+                      <label class="block text-sm font-bold text-slate-700 mb-1">Data Final</label>
+                      <input type="date" id="rep-part-end" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-amber-600 outline-none bg-white">
+                  </div>
+              </div>
+          </div>
+          <div class="p-5 border-t bg-slate-50 flex gap-3">
+              <button onclick="closePartnerModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+              <button onclick="printPartnerReport()" class="flex-1 py-3 bg-amber-600 rounded-xl font-bold text-white hover:bg-amber-700 shadow-lg flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Gerar e Imprimir</button>
+          </div>
+      </div>
+  </div>
+
+    
+
 <script>
         // ====== 1. VERIFICAÇÃO DE LOGIN GLOBAL ======
         let dadosUsuario = null;
@@ -1163,11 +1202,14 @@
                     sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
                 ]);
 
-                STATE.products = (resProd.data || []).map(p => ({
+                 STATE.products = (resProd.data || []).map(p => ({
                     id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
                     cost: Number(p.custo) || 0,
                     stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
-                    available: Number(p.estoque_fisico) - Number(p.estoque_comprometido)
+                    available: Number(p.estoque_fisico) - Number(p.estoque_comprometido),
+                    parceiro: Boolean(p.produto_parceiro),
+                    fornecedor: p.fornecedor_parceiro || '',
+                    unidade: p.unidade_medida || 'un'
                 }));
 
                 STATE.clients = (resCli.data || []).map(c => ({
@@ -1329,21 +1371,23 @@
                 // Lógica corrigida para encontrar o produto pelo ID ou Nome
                 const prod = STATE.products.find(p => p.id == item.prodId || String(p.name).trim() === String(item.name).trim());
                 
-                if(prod) {
-                    let physical = Number(prod.stock) || 0;
-                    let committed = Number(prod.committed) || 0;
-                    let updatePayload = {};
-
-                    if (isProntaEntrega) {
-                        updatePayload = { estoque_fisico: Math.max(0, physical - Number(item.qty)) };
-                    } else {
-                        updatePayload = { estoque_comprometido: committed + Number(item.qty) };
+                if (prod) {
+                    // Só mexe no estoque se NÃO for parceiro
+                    if (!prod.parceiro) {
+                        let physical = Number(prod.stock) || 0;
+                        let committed = Number(prod.committed) || 0;
+                        let updatePayload = {};
+                
+                        if (isProntaEntrega) {
+                            updatePayload = { estoque_fisico: Math.max(0, physical - Number(item.qty)) };
+                        } else {
+                            updatePayload = { estoque_comprometido: committed + Number(item.qty) };
+                        }
+                
+                        const { error: errProd } = await sb.from('produtos').update(updatePayload).eq('id', prod.id);
+                        if(errProd) { showLoading(false); return showToast("Erro ao atualizar o estoque do produto.", true); }
                     }
-
-                    const { error: errProd } = await sb.from('produtos').update(updatePayload).eq('id', prod.id);
-                    if(errProd) { showLoading(false); return showToast("Erro ao atualizar o estoque do produto.", true); }
                 }
-
                 const statusEntrega = isProntaEntrega ? 'ENTREGUE' : 'PENDENTE';
                 const qtdEntregue = isProntaEntrega ? item.qty : 0;
 
@@ -1894,56 +1938,76 @@
             const term = document.getElementById('pos-modal-search').value.toLowerCase();
             const grid = document.getElementById('pos-modal-grid');
             if(!grid) return;
-
-            // 1. Pega os produtos e ordena
+        
             let filtered = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
-
-            // 2. Aplica o filtro da busca
-            if (term) {
-                filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
-            }
-
-            // 3. O SEGREDO AQUI: Limita a 50 produtos na tela por vez!
+            if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
             const sliced = filtered.slice(0, 50);
-
-            // 4. Desenha a tela apenas com os 50 primeiros
+        
             grid.innerHTML = sliced.map(p => {
+                const isPartner = p.parceiro;
                 return `
                 <div class="p-4 border border-slate-200 rounded-xl hover:shadow-md bg-white flex items-center justify-between group transition">
                     <div class="flex flex-col w-1/2">
                         <h4 class="font-black text-sm text-slate-800 truncate" title="${p.name}">${p.name}</h4>
-                        <span class="text-[10px] px-2 py-0.5 rounded mt-1 w-max ${p.available<=0?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700'} font-bold">Disp: ${p.available}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded mt-1 w-max ${isPartner ? 'bg-amber-100 text-amber-700' : (p.available<=0?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700')} font-bold">
+                            ${isPartner ? 'Parceiro' : 'Disp: '+p.available}
+                        </span>
                     </div>
                     <div class="flex items-center gap-3 w-1/2 justify-end">
-                        <span class="text-emerald-700 font-bold">${formatMoney(p.price)}</span>
-                        <input type="number" id="qty-modal-${p.id}" value="1" min="0.1" step="0.1" class="w-20 p-2 border rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50">
+                        <span class="text-emerald-700 font-bold">${formatMoney(p.price)}${isPartner ? '/m' : ''}</span>
+                        ${isPartner ? `
+                            <input type="number" id="comp-${p.id}" placeholder="Comp.(m)" step="0.01" min="0.01" class="w-16 p-1 border rounded text-xs bg-slate-50 text-center" title="Comprimento do metro linear">
+                            <input type="number" id="pecas-${p.id}" placeholder="Peças" step="1" min="1" class="w-14 p-1 border rounded text-xs bg-slate-50 text-center" title="Quantidade de peças">
+                        ` : `
+                            <input type="number" id="qty-modal-${p.id}" value="1" min="0.1" step="0.1" class="w-20 p-2 border rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50">
+                        `}
                         <button onclick="addModalToCart('${p.id}')" class="bg-slate-100 text-slate-700 hover:bg-emerald-600 hover:text-white p-2.5 rounded-lg transition" title="Adicionar">
                             <i data-lucide="plus" width="18"></i>
                         </button>
                     </div>
                 </div>`;
             }).join('');
-            
             lucide.createIcons();
         }
 
+  
         function addModalToCart(id) {
-            const p = STATE.products.find(x=>x.id==id);
-            const qtyInput = document.getElementById(`qty-modal-${id}`);
-            const qty = parseFloat(qtyInput.value) || 1;
-            
-            if(p) {
-                const existing = CART.find(x=>x.prodId==id);
-                if(existing) { 
-                    existing.qty += qty; 
-                    existing.total = existing.qty * existing.price; 
-                } else { 
-                    CART.push({prodId:p.id, name:p.name, price:p.price, qty:qty, total:p.price * qty}); 
+            const p = STATE.products.find(x => x.id == id);
+            if (!p) return;
+        
+            if (p.parceiro) {
+                const compInput = document.getElementById(`comp-${id}`);
+                const pecasInput = document.getElementById(`pecas-${id}`);
+                const comprimento = parseFloat(compInput?.value) || 0;
+                const pecas = parseInt(pecasInput?.value) || 0;
+                if (comprimento <= 0 || pecas <= 0) return showToast("Informe comprimento e quantidade de peças", true);
+        
+                const totalMetros = comprimento * pecas;
+                // Cria sempre uma nova linha (não agrupa)
+                CART.push({
+                    prodId: p.id, name: p.name, price: p.price,
+                    qty: totalMetros,      // total de metros lineares
+                    comprimento: comprimento,
+                    pecas: pecas,
+                    total: totalMetros * p.price,
+                    parceiro: true
+                });
+                if (compInput) compInput.value = '';
+                if (pecasInput) pecasInput.value = '';
+            } else {
+                // Produto de estoque (comportamento original)
+                const qtyInput = document.getElementById(`qty-modal-${id}`);
+                const qty = parseFloat(qtyInput?.value) || 1;
+                const existing = CART.find(x => x.prodId == id && !x.parceiro);
+                if (existing) {
+                    existing.qty += qty;
+                    existing.total = existing.qty * existing.price;
+                } else {
+                    CART.push({prodId: p.id, name: p.name, price: p.price, qty: qty, total: p.price * qty, parceiro: false});
                 }
-                renderCart();
-                qtyInput.value = "1";
-                showToast(p.name + " adicionado ao carrinho!");
+                if (qtyInput) qtyInput.value = "1";
             }
+            renderCart();
         }
 
         function updateCartItem(idx, field, value) {
@@ -1965,19 +2029,24 @@
             }
             const totals = calculateTotal();
             
-            box.innerHTML = CART.map((i,idx) => `
-                <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition">
-                    <div class="flex-1 min-w-0">
-                        <div class="text-[11px] font-bold text-slate-700 leading-tight truncate" title="${i.name}">${i.name}</div>
-                    </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                        <input type="number" value="${i.qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Qtd">
-                        <span class="text-slate-400 text-xs font-bold">x</span>
-                        <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Valor Unitário">
-                    </div>
-                    <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(i.total)}</div>
-                    <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
-                </div>`).join('');
+                box.innerHTML = CART.map((i,idx) => {
+                    let descExtra = '';
+                    if (i.parceiro) descExtra = `${i.pecas} pçs de ${i.comprimento}m (${i.qty}m)`;
+                    return `
+                    <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-bold text-slate-700 leading-tight truncate" title="${i.name}">${i.name}</div>
+                            ${descExtra ? `<div class="text-[10px] text-slate-500">${descExtra}</div>` : ''}
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <input type="number" value="${i.qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Quantidade total">
+                            <span class="text-slate-400 text-xs font-bold">x</span>
+                            <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Valor Unitário">
+                        </div>
+                        <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(i.total)}</div>
+                        <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
+                    </div>`;
+                }).join('');
                 
             document.getElementById('pos-total-display').innerText = formatMoney(totals.total);
             document.getElementById('cart-count').innerText = CART.length;
@@ -3963,6 +4032,85 @@ async function downloadSalePDF(id) {
             showToast("Erro ao gerar PDF", true);
         });
     }, 500);
+}
+
+
+  // FUNÇÕES DO PARCEIRO =============================================================
+
+  // Modal de relatório de parceiro
+function openPartnerModal() {
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    document.getElementById('rep-part-start').value = getLocalISODate(primeiroDia);
+    document.getElementById('rep-part-end').value = getLocalISODate(ultimoDia);
+    document.getElementById('modal-partner-report').classList.remove('hidden');
+}
+function closePartnerModal() { document.getElementById('modal-partner-report').classList.add('hidden'); }
+
+function printPartnerReport() {
+    const start = document.getElementById('rep-part-start').value;
+    const end = document.getElementById('rep-part-end').value;
+    if (!start || !end) return showToast("Selecione as datas", true);
+    showLoading(true);
+
+    // Filtrar logs de vendas de produtos parceiros no período
+    const vendasFiltradas = STATE.logs.filter(l => {
+        if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
+        const prod = STATE.products.find(p => p.name === l.productName);
+        return prod && prod.parceiro && l.date.split('T')[0] >= start && l.date.split('T')[0] <= end;
+    });
+
+    if (vendasFiltradas.length === 0) { showLoading(false); return showToast("Nenhuma venda de parceiro neste período.", true); }
+
+    const agrupado = {};
+    vendasFiltradas.forEach(l => {
+        if (!agrupado[l.productName]) {
+            agrupado[l.productName] = { nome: l.productName, metros: 0, valorVenda: 0, custo: 0 };
+        }
+        agrupado[l.productName].metros += Number(l.quantity) || 0;
+        agrupado[l.productName].valorVenda += Number(l.totalValue) || 0;
+        const prod = STATE.products.find(p => p.name === l.productName);
+        agrupado[l.productName].custo += prod ? (prod.cost || 0) * (Number(l.quantity) || 0) : 0;
+    });
+
+    const rows = Object.values(agrupado).map(i => `
+        <tr>
+            <td>${i.nome}</td>
+            <td style="text-align:right;">${i.metros.toFixed(2)} m</td>
+            <td style="text-align:right;">${formatMoney(i.valorVenda)}</td>
+            <td style="text-align:right;">${formatMoney(i.custo)}</td>
+            <td style="text-align:right;">${formatMoney(i.valorVenda - i.custo)}</td>
+        </tr>`).join('');
+
+    const totais = {
+        venda: Object.values(agrupado).reduce((s,i) => s + i.valorVenda, 0),
+        custo: Object.values(agrupado).reduce((s,i) => s + i.custo, 0)
+    };
+    const html = `
+    <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto; position:relative;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
+            <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
+            <p style="font-size:14px;">Relatório de Vendas de Parceiro</p>
+            <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
+        </div>
+        <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:13px;">
+            <thead style="background:#eee;">
+                <tr><th>Produto</th><th>Metros</th><th>Venda</th><th>Custo</th><th>Lucro</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+            <tfoot style="background:#f0fdf4;">
+                <tr style="font-weight:bold;">
+                    <td>TOTAL</td><td></td><td>${formatMoney(totais.venda)}</td><td>${formatMoney(totais.custo)}</td><td>${formatMoney(totais.venda - totais.custo)}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>`;
+    document.getElementById('print-area').innerHTML = html;
+    closePartnerModal();
+    showLoading(false);
+    setTimeout(() => window.print(), 500);
 }
   
     </script> 
