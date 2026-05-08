@@ -143,6 +143,21 @@
         .signature-orig { margin-top: 30px; text-align: center; font-size: 10px; }
         .signature-line-orig { width: 50%; border-top: 1px solid #000; margin: 0 auto 5px auto; }
       }
+
+
+
+      /* Remove as setinhas (spinners) dos inputs type="number" */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        
+        input[type="number"] {
+          -moz-appearance: textfield; /* Firefox */
+        }
+
+      
       .print-only { display: none; }
     </style>
   </head>
@@ -556,6 +571,14 @@
                   <h3 class="font-bold text-slate-800 text-lg">Vendas por Período</h3>
                   <p class="text-xs text-slate-500 font-medium">Filtre vendas por data, cliente ou método de pagamento.</p>
               </div>
+
+            <div onclick="openPartnerModal()" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all flex flex-col items-center text-center gap-3">
+                <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
+                    <i data-lucide="users" class="w-7 h-7"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-lg">Vendas de Parceiro</h3>
+                <p class="text-xs text-slate-500 font-medium">Relatório de vendas de produtos de parceiros, com total de metros, valor de venda, custo e lucro.</p>
+            </div>
 
               <!--<div class="bg-slate-50 p-6 rounded-xl border border-slate-200 opacity-60 flex flex-col items-center text-center gap-3">
                   <div class="w-14 h-14 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center">
@@ -1017,6 +1040,44 @@
     </div>
 </div>
 
+
+    <!-- MODAL DE RELATORIO DO PARCEIRO================================================================================== -->
+
+
+    <div id="modal-partner-report" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+      <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+          <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+              <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="calendar-search" class="text-amber-600"></i> Relatório de Parceiro</h3>
+              <button onclick="closePartnerModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+          </div>
+          <div class="p-6 space-y-4 overflow-y-auto">
+              <div>
+                  <label class="block text-sm font-bold text-slate-700 mb-1">Tipo de Relatório</label>
+                  <select id="rep-part-type" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-amber-600 outline-none bg-white">
+                      <option value="metros">Vendas (Metros e Lucro)</option>
+                      <option value="acerto">Acerto (Custo por Venda)</option>
+                  </select>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                  <div>
+                      <label class="block text-sm font-bold text-slate-700 mb-1">Data Inicial</label>
+                      <input type="date" id="rep-part-start" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-amber-600 outline-none bg-white">
+                  </div>
+                  <div>
+                      <label class="block text-sm font-bold text-slate-700 mb-1">Data Final</label>
+                      <input type="date" id="rep-part-end" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-amber-600 outline-none bg-white">
+                  </div>
+              </div>
+          </div>
+          <div class="p-5 border-t bg-slate-50 flex gap-3">
+              <button onclick="closePartnerModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+              <button onclick="printPartnerReport()" class="flex-1 py-3 bg-amber-600 rounded-xl font-bold text-white hover:bg-amber-700 shadow-lg flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Gerar e Imprimir</button>
+          </div>
+      </div>
+  </div>
+
+    
+
 <script>
         // ====== 1. VERIFICAÇÃO DE LOGIN GLOBAL ======
         let dadosUsuario = null;
@@ -1154,78 +1215,91 @@
         }
 
         async function loadData() {
-            try {
-                const [resProd, resCli, resLog, resDesp, resConf] = await Promise.all([
-                    fetchAllRecords('produtos'),
-                    fetchAllRecords('clientes'),
-                    fetchAllRecords('logs'),
-                    fetchAllRecords('despesas'),
-                    sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
-                ]);
+    try {
+        const [resProd, resCli, resLog, resDesp, resConf] = await Promise.all([
+            fetchAllRecords('produtos'),
+            fetchAllRecords('clientes'),
+            fetchAllRecords('logs'),
+            fetchAllRecords('despesas'),
+            sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
+        ]);
 
-                STATE.products = (resProd.data || []).map(p => ({
-                    id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
-                    cost: Number(p.custo) || 0,
-                    stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
-                    available: Number(p.estoque_fisico) - Number(p.estoque_comprometido)
-                }));
+        STATE.products = (resProd.data || []).map(p => ({
+            id: p.id, name: p.nome, category: p.categoria, price: Number(p.preco),
+            cost: Number(p.custo) || 0,
+            stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
+            available: Number(p.estoque_fisico) - Number(p.estoque_comprometido),
+            parceiro: Boolean(p.produto_parceiro),
+            fornecedor: p.fornecedor_parceiro || '',
+            unidade: p.unidade_medida || 'un'
+        }));
 
-                STATE.clients = (resCli.data || []).map(c => ({
-                    id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco
-                }));
+        STATE.clients = (resCli.data || []).map(c => ({
+            id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco
+        }));
 
-                STATE.logs = [];
-                const quotesMap = {};
-                
-                (resLog.data || []).forEach(l => {
-                    if (l.tipo === 'orcamento') {
-                        const qId = String(l.id);
-                        if(!quotesMap[qId]) {
-                            quotesMap[qId] = { 
-                                id: qId, date: l.data, clientName: l.cliente_nome, items: [], total: 0, 
-                                status: l.status || 'ABERTO', discount: Number(l.desconto), discountType: l.status_financeiro || '$', 
-                                paymentMethod: l.forma_pagamento, deliveryAddress: l.endereco_entrega, observacao: l.observacao
-                            };
-                        }
-                        const unitPrice = Number(l.quantidade) > 0 ? Number(l.valor_total) / Number(l.quantidade) : 0;
-                        quotesMap[qId].items.push({ name: l.produto_nome, qty: Number(l.quantidade), price: unitPrice, total: Number(l.valor_total), uid: l.uid });
-                        quotesMap[qId].total += Number(l.valor_total);
-                    } else {
-                        STATE.logs.push({
-                            uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
-                            date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
-                            clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
-                            deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
-                            discount: Number(l.desconto), finStatus: l.status_financeiro, dueDate: l.vencimento,
-                            paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
-                        });
-                    }
-                });
-                
-                STATE.quotes = Object.values(quotesMap).map(q => { q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); return q; });
-
-                STATE.expenses = (resDesp.data || []).map(e => ({
-                    id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
-                    cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
-                }));
-
-                STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
-
-                if (dadosUsuario.nivel === 'admin') {
-                    const navUsersBtn = document.getElementById('nav-users');
-                    if (navUsersBtn) navUsersBtn.classList.remove('hidden');
-                    const resUsers = await fetchAllRecords('usuarios');
-                    STATE.users = resUsers.data || [];
+        STATE.logs = [];
+        const quotesMap = {};
+        
+        (resLog.data || []).forEach(l => {
+            if (l.tipo === 'orcamento') {
+                const qId = String(l.id);
+                if(!quotesMap[qId]) {
+                    quotesMap[qId] = { 
+                        id: qId, date: l.data, clientName: l.cliente_nome, items: [], total: 0, 
+                        status: l.status || 'ABERTO', discount: Number(l.desconto), discountType: l.status_financeiro || '$', 
+                        paymentMethod: l.forma_pagamento, deliveryAddress: l.endereco_entrega, observacao: l.observacao
+                    };
                 }
-
-                onDataLoaded();
-            } catch (err) {
-                showLoading(false);
-                showToast("Erro ao conectar no banco: " + err.message, true);
-                console.error(err);
+                const unitPrice = Number(l.quantidade) > 0 ? Number(l.valor_total) / Number(l.quantidade) : 0;
+                quotesMap[qId].items.push({ 
+                    name: l.produto_nome, 
+                    qty: Number(l.quantidade), 
+                    price: unitPrice, 
+                    total: Number(l.valor_total), 
+                    uid: l.uid,
+                    obs: l.observacao
+                });
+                // 🔧 Correção: acumular o total do orçamento
+                quotesMap[qId].total += Number(l.valor_total);
+            } else {
+                STATE.logs.push({
+                    uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
+                    date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
+                    clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
+                    deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
+                    discount: Number(l.desconto), finStatus: l.status_financeiro, dueDate: l.vencimento,
+                    paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
+                });
             }
+        });
+        
+        STATE.quotes = Object.values(quotesMap).map(q => { 
+            q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); 
+            return q; 
+        });
+
+        STATE.expenses = (resDesp.data || []).map(e => ({
+            id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
+            cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
+        }));
+
+        STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
+
+        if (dadosUsuario.nivel === 'admin') {
+            const navUsersBtn = document.getElementById('nav-users');
+            if (navUsersBtn) navUsersBtn.classList.remove('hidden');
+            const resUsers = await fetchAllRecords('usuarios');
+            STATE.users = resUsers.data || [];
         }
 
+        onDataLoaded();
+    } catch (err) {
+        showLoading(false);
+        showToast("Erro ao conectar no banco: " + err.message, true);
+        console.error(err);
+    }
+}
 
         function onDataLoaded() {
             updateClientSelects();
@@ -1329,28 +1403,43 @@
                 // Lógica corrigida para encontrar o produto pelo ID ou Nome
                 const prod = STATE.products.find(p => p.id == item.prodId || String(p.name).trim() === String(item.name).trim());
                 
-                if(prod) {
-                    let physical = Number(prod.stock) || 0;
-                    let committed = Number(prod.committed) || 0;
-                    let updatePayload = {};
-
-                    if (isProntaEntrega) {
-                        updatePayload = { estoque_fisico: Math.max(0, physical - Number(item.qty)) };
-                    } else {
-                        updatePayload = { estoque_comprometido: committed + Number(item.qty) };
+                if (prod) {
+                    // Só mexe no estoque se NÃO for parceiro
+                    if (!prod.parceiro) {
+                        let physical = Number(prod.stock) || 0;
+                        let committed = Number(prod.committed) || 0;
+                        let updatePayload = {};
+                
+                        if (isProntaEntrega) {
+                            updatePayload = { estoque_fisico: Math.max(0, physical - Number(item.qty)) };
+                        } else {
+                            updatePayload = { estoque_comprometido: committed + Number(item.qty) };
+                        }
+                
+                        const { error: errProd } = await sb.from('produtos').update(updatePayload).eq('id', prod.id);
+                        if(errProd) { showLoading(false); return showToast("Erro ao atualizar o estoque do produto.", true); }
                     }
-
-                    const { error: errProd } = await sb.from('produtos').update(updatePayload).eq('id', prod.id);
-                    if(errProd) { showLoading(false); return showToast("Erro ao atualizar o estoque do produto.", true); }
                 }
-
                 const statusEntrega = isProntaEntrega ? 'ENTREGUE' : 'PENDENTE';
                 const qtdEntregue = isProntaEntrega ? item.qty : 0;
 
                 logsToInsert.push({
                     id: newSaleId, tipo: 'venda', produto_nome: item.name, quantidade: item.qty,
                     data: timestamp, 
-                    observacao: customObs ? customObs : (isProntaEntrega ? 'Pronta Entrega PDV' : 'Venda PDV'), 
+                    /*observacao: (() => {
+                          let baseObs = '';
+                          if (item.parceiro) baseObs = `${item.pecas} pçs de ${item.comprimento}m`;
+                          if (customObs) baseObs = baseObs ? baseObs + ' | ' + customObs : customObs;
+                          if (!baseObs) baseObs = isProntaEntrega ? 'Pronta Entrega PDV' : 'Venda PDV';
+                          return baseObs;
+                      })(),*/
+                      observacao: (() => {
+                        let metragem = '';
+                        if (item.parceiro) metragem = `${item.pecas}pçs${item.comprimento}m`;
+                        let obsCustom = customObs ? customObs.trim() : '';
+                        let partes = [metragem, obsCustom].filter(s => s);
+                        return partes.join(' | ');
+                    })(),
                     valor_total: (item.total * fator),
                     cliente_nome: clientName, forma_pagamento: payment, status: 'ATIVO',
                     status_entrega: statusEntrega, qtd_entregue: qtdEntregue, desconto: totals.disc, // <-- ERRO CORRIGIDO AQUI
@@ -1406,11 +1495,27 @@
             if(CURRENT_QUOTE_ID) await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
 
             let quotesToInsert = CART.map(item => ({
-                id: budgetId, tipo: 'orcamento', produto_nome: item.name, quantidade: item.qty,
-                data: date, observacao: obs, valor_total: item.total, cliente_nome: clientName, 
-                forma_pagamento: document.getElementById('pos-payment').value, status: 'ABERTO', 
-                desconto: totals.disc, status_financeiro: document.getElementById('pos-discount-type').value, 
-                endereco_entrega: deliveryAddr, status_entrega: '', qtd_entregue: 0, vencimento: date, valor_pago: 0
+              id: budgetId,
+              tipo: 'orcamento', 
+              produto_nome: item.name, 
+              quantidade: item.qty,
+              data: date, 
+              observacao: (() => {
+                    let metragem = '';
+                    if (item.parceiro) metragem = `${item.pecas}pçs${item.comprimento}m`;
+                    let partes = [metragem, obs].filter(s => s);
+                    return partes.join(' | ');
+                })(),
+              valor_total: item.total, 
+              cliente_nome: clientName, 
+              forma_pagamento: document.getElementById('pos-payment').value, status: 'ABERTO', 
+              desconto: totals.disc, 
+              status_financeiro: document.getElementById('pos-discount-type').value, 
+              endereco_entrega: deliveryAddr, 
+              status_entrega: '', 
+              qtd_entregue: 0, 
+              vencimento: date, 
+              valor_pago: 0
             }));
 
             const { error } = await sb.from('logs').insert(quotesToInsert);
@@ -1894,56 +1999,76 @@
             const term = document.getElementById('pos-modal-search').value.toLowerCase();
             const grid = document.getElementById('pos-modal-grid');
             if(!grid) return;
-
-            // 1. Pega os produtos e ordena
+        
             let filtered = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
-
-            // 2. Aplica o filtro da busca
-            if (term) {
-                filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
-            }
-
-            // 3. O SEGREDO AQUI: Limita a 50 produtos na tela por vez!
+            if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
             const sliced = filtered.slice(0, 50);
-
-            // 4. Desenha a tela apenas com os 50 primeiros
+        
             grid.innerHTML = sliced.map(p => {
+                const isPartner = p.parceiro;
                 return `
                 <div class="p-4 border border-slate-200 rounded-xl hover:shadow-md bg-white flex items-center justify-between group transition">
                     <div class="flex flex-col w-1/2">
                         <h4 class="font-black text-sm text-slate-800 truncate" title="${p.name}">${p.name}</h4>
-                        <span class="text-[10px] px-2 py-0.5 rounded mt-1 w-max ${p.available<=0?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700'} font-bold">Disp: ${p.available}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded mt-1 w-max ${isPartner ? 'bg-amber-100 text-amber-700' : (p.available<=0?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700')} font-bold">
+                            ${isPartner ? 'Parceiro' : 'Disp: '+p.available}
+                        </span>
                     </div>
                     <div class="flex items-center gap-3 w-1/2 justify-end">
-                        <span class="text-emerald-700 font-bold">${formatMoney(p.price)}</span>
-                        <input type="number" id="qty-modal-${p.id}" value="1" min="0.1" step="0.1" class="w-20 p-2 border rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50">
+                        <span class="text-emerald-700 font-bold">${formatMoney(p.price)}${isPartner ? '/m' : ''}</span>
+                        ${isPartner ? `
+                            <input type="number" id="comp-${p.id}" placeholder="Comp.(m)" step="0.01" min="0.01" class="w-16 p-1 border rounded text-xs bg-slate-50 text-center" title="Comprimento do metro linear">
+                            <input type="number" id="pecas-${p.id}" placeholder="Peças" step="1" min="1" class="w-14 p-1 border rounded text-xs bg-slate-50 text-center" title="Quantidade de peças">
+                        ` : `
+                            <input type="number" id="qty-modal-${p.id}" value="1" min="0.1" step="0.1" class="w-20 p-2 border rounded-lg text-center font-bold outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50">
+                        `}
                         <button onclick="addModalToCart('${p.id}')" class="bg-slate-100 text-slate-700 hover:bg-emerald-600 hover:text-white p-2.5 rounded-lg transition" title="Adicionar">
                             <i data-lucide="plus" width="18"></i>
                         </button>
                     </div>
                 </div>`;
             }).join('');
-            
             lucide.createIcons();
         }
 
+  
         function addModalToCart(id) {
-            const p = STATE.products.find(x=>x.id==id);
-            const qtyInput = document.getElementById(`qty-modal-${id}`);
-            const qty = parseFloat(qtyInput.value) || 1;
-            
-            if(p) {
-                const existing = CART.find(x=>x.prodId==id);
-                if(existing) { 
-                    existing.qty += qty; 
-                    existing.total = existing.qty * existing.price; 
-                } else { 
-                    CART.push({prodId:p.id, name:p.name, price:p.price, qty:qty, total:p.price * qty}); 
+            const p = STATE.products.find(x => x.id == id);
+            if (!p) return;
+        
+            if (p.parceiro) {
+                const compInput = document.getElementById(`comp-${id}`);
+                const pecasInput = document.getElementById(`pecas-${id}`);
+                const comprimento = parseFloat(compInput?.value) || 0;
+                const pecas = parseInt(pecasInput?.value) || 0;
+                if (comprimento <= 0 || pecas <= 0) return showToast("Informe comprimento e quantidade de peças", true);
+        
+                const totalMetros = comprimento * pecas;
+                // Cria sempre uma nova linha (não agrupa)
+                CART.push({
+                    prodId: p.id, name: p.name, price: p.price,
+                    qty: totalMetros,      // total de metros lineares
+                    comprimento: comprimento,
+                    pecas: pecas,
+                    total: totalMetros * p.price,
+                    parceiro: true
+                });
+                if (compInput) compInput.value = '';
+                if (pecasInput) pecasInput.value = '';
+            } else {
+                // Produto de estoque (comportamento original)
+                const qtyInput = document.getElementById(`qty-modal-${id}`);
+                const qty = parseFloat(qtyInput?.value) || 1;
+                const existing = CART.find(x => x.prodId == id && !x.parceiro);
+                if (existing) {
+                    existing.qty += qty;
+                    existing.total = existing.qty * existing.price;
+                } else {
+                    CART.push({prodId: p.id, name: p.name, price: p.price, qty: qty, total: p.price * qty, parceiro: false});
                 }
-                renderCart();
-                qtyInput.value = "1";
-                showToast(p.name + " adicionado ao carrinho!");
+                if (qtyInput) qtyInput.value = "1";
             }
+            renderCart();
         }
 
         function updateCartItem(idx, field, value) {
@@ -1965,19 +2090,24 @@
             }
             const totals = calculateTotal();
             
-            box.innerHTML = CART.map((i,idx) => `
-                <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition">
-                    <div class="flex-1 min-w-0">
-                        <div class="text-[11px] font-bold text-slate-700 leading-tight truncate" title="${i.name}">${i.name}</div>
-                    </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                        <input type="number" value="${i.qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Qtd">
-                        <span class="text-slate-400 text-xs font-bold">x</span>
-                        <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Valor Unitário">
-                    </div>
-                    <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(i.total)}</div>
-                    <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
-                </div>`).join('');
+                box.innerHTML = CART.map((i,idx) => {
+                    let descExtra = '';
+                    if (i.parceiro) descExtra = `${i.pecas} pçs de ${i.comprimento}m (${i.qty}m)`;
+                    return `
+                    <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-bold text-slate-700 leading-tight truncate" title="${i.name}">${i.name}</div>
+                            ${descExtra ? `<div class="text-[10px] text-slate-500">${descExtra}</div>` : ''}
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <input type="number" value="${i.qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Quantidade total">
+                            <span class="text-slate-400 text-xs font-bold">x</span>
+                            <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Valor Unitário">
+                        </div>
+                        <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(i.total)}</div>
+                        <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
+                    </div>`;
+                }).join('');
                 
             document.getElementById('pos-total-display').innerText = formatMoney(totals.total);
             document.getElementById('cart-count').innerText = CART.length;
@@ -2151,51 +2281,98 @@
             lucide.createIcons();
         }
 
-        function loadQuoteToCart(id) {
-            const q = STATE.quotes.find(x => x.id == id);
-            if(!q) return;
-            CART = JSON.parse(JSON.stringify(q.items));
-            CURRENT_QUOTE_ID = q.id; 
-            
-            const clientSelectBtn = document.getElementById('pos-client-btn').querySelector('span');
-            const clientObj = STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
-            if(clientObj) {
-                document.getElementById('pos-client').value = clientObj.id;
-                clientSelectBtn.innerText = clientObj.name;
-            } else {
-                document.getElementById('pos-client').value = '';
-                clientSelectBtn.innerText = q.clientName || 'Consumidor Final';
+function loadQuoteToCart(id) {
+    const q = STATE.quotes.find(x => x.id == id);
+    if(!q) return;
+    
+    let customObsRestored = false;
+    CART = q.items.map(item => {
+        const prod = STATE.products.find(p => p.name === item.name);
+        const isPartner = prod ? prod.parceiro : false;
+        let comprimento = 0, pecas = 0, qty = item.qty;
+        let obs = item.obs || '';
+        
+        if (isPartner && obs) {
+            // Tenta extrair metragem mesmo sem separador (formato "XpçsYm")
+            const match = obs.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+            if (match) {
+                pecas = parseInt(match[1]) || 0;
+                comprimento = parseFloat(match[2]) || 0;
+                qty = pecas * comprimento;
+                // Remove a metragem da observação para não duplicar
+                obs = obs.replace(match[0], '').trim();
+                // Remove possível separador restante (" | " no início ou fim)
+                obs = obs.replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, '');
             }
             
-            document.getElementById('pos-payment').value = q.paymentMethod || 'Dinheiro';
-            document.getElementById('pos-discount-type').value = q.discountType || '$';
-            document.getElementById('pos-discount').value = q.discount || 0;
-
-            if(q.deliveryAddress) {
-                document.getElementById('pos-custom-address-check').checked = true;
-                document.getElementById('pos-custom-address-container').classList.remove('hidden');
-                document.getElementById('pos-custom-address').value = q.deliveryAddress;
-            } else {
-                document.getElementById('pos-custom-address-check').checked = false;
-                document.getElementById('pos-custom-address-container').classList.add('hidden');
-                document.getElementById('pos-custom-address').value = '';
-            }
-
-            if(q.observacao) {
+            // Se ainda restou algo, é a observação extra; restaura apenas uma vez
+            if (obs && !customObsRestored) {
+                document.getElementById('pos-custom-obs').value = obs;
                 document.getElementById('pos-custom-obs-check').checked = true;
                 document.getElementById('pos-custom-obs-container').classList.remove('hidden');
-                document.getElementById('pos-custom-obs').value = q.observacao;
-            } else {
-                document.getElementById('pos-custom-obs-check').checked = false;
-                document.getElementById('pos-custom-obs-container').classList.add('hidden');
-                document.getElementById('pos-custom-obs').value = '';
+                customObsRestored = true;
             }
-
-            navigate('pos');
-            renderCart();
-            showToast(`Editando Orçamento #${q.id}`);
+        } else if (!isPartner && obs) {
+            // Para itens não parceiros: a observação é comum (ex.: "Urgente")
+            if (!customObsRestored) {
+                document.getElementById('pos-custom-obs').value = obs;
+                document.getElementById('pos-custom-obs-check').checked = true;
+                document.getElementById('pos-custom-obs-container').classList.remove('hidden');
+                customObsRestored = true;
+            }
         }
+        
+        return {
+            prodId: prod ? prod.id : null,
+            name: item.name,
+            price: item.price,
+            qty: qty,
+            comprimento: comprimento,
+            pecas: pecas,
+            total: item.total,
+            parceiro: isPartner
+        };
+    });
+    
+    CURRENT_QUOTE_ID = q.id; 
+    
+    // Cliente e configurações padrão do orçamento
+    const clientSelectBtn = document.getElementById('pos-client-btn').querySelector('span');
+    const clientObj = STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
+    if(clientObj) {
+        document.getElementById('pos-client').value = clientObj.id;
+        clientSelectBtn.innerText = clientObj.name;
+    } else {
+        document.getElementById('pos-client').value = '';
+        clientSelectBtn.innerText = q.clientName || 'Consumidor Final';
+    }
+    
+    document.getElementById('pos-payment').value = q.paymentMethod || 'Dinheiro';
+    document.getElementById('pos-discount-type').value = q.discountType || '$';
+    document.getElementById('pos-discount').value = q.discount || 0;
 
+    if(q.deliveryAddress) {
+        document.getElementById('pos-custom-address-check').checked = true;
+        document.getElementById('pos-custom-address-container').classList.remove('hidden');
+        document.getElementById('pos-custom-address').value = q.deliveryAddress;
+    } else {
+        document.getElementById('pos-custom-address-check').checked = false;
+        document.getElementById('pos-custom-address-container').classList.add('hidden');
+        document.getElementById('pos-custom-address').value = '';
+    }
+
+    if (!customObsRestored) {
+        document.getElementById('pos-custom-obs-check').checked = false;
+        document.getElementById('pos-custom-obs-container').classList.add('hidden');
+        document.getElementById('pos-custom-obs').value = '';
+    }
+
+    navigate('pos');
+    renderCart();
+    showToast(`Editando Orçamento #${q.id}`);
+}
+
+  
         function renderExpedition() {
             const tbody = document.getElementById('expedition-list');
             if(!tbody) return;
@@ -2220,7 +2397,14 @@
                     const percent = Math.min(100, (o.deliveredQty / o.totalQty) * 100);
                     const remain = o.totalQty - o.deliveredQty;
                     let status = o.deliveredQty > 0 ? 'PARCIAL' : 'PENDENTE';
-                    const itemsSummary = o.items.map(i => `${i.productName} (x${i.quantity})`).join(', ');
+                    const itemsSummary = o.items.map(i => {
+                                            let metragem = '';
+                                            if (i.note) {
+                                                const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+                                                if (match) metragem = `(${match[1]} pçs de ${match[2]}m)`;
+                                            }
+                                            return `${i.productName} ${metragem}`;
+                                        }).join(', ');
 
                     return `<tr class="hover:bg-slate-50 border-b">
                         <td class="p-4 text-center flex gap-2 justify-center">
@@ -2229,7 +2413,7 @@
                         </td>
                         <td class="p-4"><div class="font-black text-slate-700 text-sm">#${o.id}</div><div class="text-[10px] text-slate-400">${formatDate(o.date)}</div></td>
                         <td class="p-4 font-bold text-slate-700 truncate max-w-[150px]">${o.clientName}</td>
-                        <td class="p-4 text-xs text-slate-500 truncate max-w-[250px]" title="${itemsSummary}">${itemsSummary}</td>
+                        <td class="p-4 text-xs text-slate-500 truncate max-w-[250px]" title="${itemsSummary.replace(/<[^>]*>/g, '')}">${itemsSummary}</td>
                         <td class="p-4">
                             <div class="flex justify-between text-[10px] mb-1 font-bold uppercase"><span>Entregue: ${o.deliveredQty}/${o.totalQty}</span><span class="text-emerald-700">Falta: ${remain}</span></div>
                             <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden"><div class="bg-green-500 h-1.5 rounded-full" style="width: ${percent}%"></div></div>
@@ -2679,10 +2863,12 @@
 
             let subtotal = 0;
             const itemsHtml = sale.items.map(i => {
-                const itemTotal = i.qty * i.price;
-                subtotal += itemTotal;
-                return `<tr><td>${i.name}</td><td align="center">${i.qty}</td><td align="right">${formatMoney(i.price)}</td><td align="right">${formatMoney(itemTotal)}</td></tr>`;
-            }).join('');
+                  const itemTotal = i.qty * i.price;
+                  subtotal += itemTotal;
+                  let descricao = i.name;
+                  if (i.metragem) descricao += `<br><span style="font-size:9px;">${i.metragem}</span>`;
+                  return `<tr><td>${descricao}</td><td align="center">${i.qty}</td><td align="right">${formatMoney(i.price)}</td><td align="right">${formatMoney(itemTotal)}</td></tr>`;
+              }).join('');
 
             const discount = Number(sale.discount) || 0;
             const finalTotal = subtotal - discount;
@@ -2736,104 +2922,156 @@
         }
 
         function printFullOrder(orderId) {
-            const items = STATE.logs.filter(l => String(l.id) === String(orderId) && l.type === 'venda' && l.status !== 'CANCELADO');
-            if(items.length === 0) return showToast("Pedido não encontrado", true);
+    const items = STATE.logs.filter(l => String(l.id) === String(orderId) && l.type === 'venda' && l.status !== 'CANCELADO');
+    if(items.length === 0) return showToast("Pedido não encontrado", true);
 
-            const cli = STATE.clients.find(c => c.name === items[0].clientName) || { name: items[0].clientName, doc: '-', phone: '-', address: '-' };
+    const cli = STATE.clients.find(c => c.name === items[0].clientName) || { name: items[0].clientName, doc: '-', phone: '-', address: '-' };
 
-            const company = {
-                name: "RV PORTAL MADEIRAS",
-                 cnpj: "30.942.123/0001-02",
-                phone: "(64) 3636-4861",
-                address: "Jataí - GO",
-                logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
-            };
-            
-            const addressToShow = items[0].deliveryAddress 
-            ? `<span style="background-color: #ecfdf5; padding: 2px 5px; font-weight: bold; color: #047857; border: 1px dashed #059669;">ENTREGA: ${items[0].deliveryAddress}</span>` 
-            : (cli.address || '-');
+    const company = {
+        name: "RV PORTAL MADEIRAS",
+        cnpj: "30.942.123/0001-02",
+        phone: "(64) 3636-4861",
+        address: "Jataí - GO",
+        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
+    };
+    
+    const addressToShow = items[0].deliveryAddress 
+        ? `<span style="background-color: #ecfdf5; padding: 2px 5px; font-weight: bold; color: #047857; border: 1px dashed #059669;">ENTREGA: ${items[0].deliveryAddress}</span>` 
+        : (cli.address || '-');
 
-            const rowsHtml = items.map(item => {
-                return `
+    // Extrair observação extra (sem metragem)
+    const rawNote = items[0].note || '';
+    let obsLimpa = '';
+    if (rawNote.includes(' | ')) {
+        obsLimpa = rawNote.split(' | ').slice(1).join(' | ').trim();
+    } else if (!rawNote.match(/\d+pçs\d+(\.\d+)?m/)) {
+        // Se não é metragem, manter (desde que não seja texto padrão)
+        if (rawNote !== 'Venda PDV' && rawNote !== 'Pronta Entrega PDV') {
+            obsLimpa = rawNote;
+        }
+    }
+    // Se for apenas metragem, obsLimpa fica vazia e não será exibida
+
+    const rowsHtml = items.map(item => {
+        let metragem = '';
+        if (item.note) {
+            const match = item.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+            if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+        }
+        return `
+        <tr>
+            <td style="border: 1px solid #000; padding: 10px; font-weight: bold;">
+                ${item.productName}
+                ${metragem ? `<br><span style="font-size:10px; font-weight:normal;">${metragem}</span>` : ''}
+            </td>
+            <td style="border: 1px solid #000; padding: 10px; text-align: center; font-size: 14px; font-weight: bold;">${item.quantity}</td>
+            <td style="border: 1px solid #000; padding: 10px; text-align: center; width: 80px;">
+                <div style="width: 18px; height: 18px; border: 2px solid #334155; border-radius: 3px; margin: 0 auto;"></div>
+            </td>
+        </tr>`;
+    }).join('');
+    
+    const el = document.getElementById('print-area');
+    el.innerHTML = `
+    <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 15px;">
+        <div class="header-orig" style="display: flex; border: 1px solid #000; margin-bottom: 0;">
+            <div class="logo-box-orig" style="width: 100px; padding: 5px; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center;">
+                <img src="${company.logoUrl}" style="max-height: 80px; max-width: 100%;" />
+            </div>
+            <div class="company-box-orig" style="flex: 1; padding: 10px; border-right: 1px solid #000;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj}</p>
+                <p style="margin: 2px 0; font-size: 12px;">Endereço: ${company.address}</p>
+                <p style="margin: 2px 0; font-size: 12px;">Telefone: ${company.phone}</p>
+            </div>
+            <div class="info-box-orig" style="width: 180px; padding: 10px; background-color: #f9f9f9; text-align: right;">
+                <h3 style="margin: 0; font-size: 14px; font-weight: bold;">ROMANEIO DE ENTREGA</h3>
+                <p style="margin: 5px 0; font-size: 12px;">Emissão: ${new Date().toLocaleDateString()}</p>
+                <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">PEDIDO Nº ${items[0].id}</p>
+            </div>
+        </div>
+
+        <div style="background-color: #f8fafc; border: 1px solid #000; border-top: none; padding: 10px; margin-bottom: 15px;">
+            <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
                 <tr>
-                    <td style="border: 1px solid #000; padding: 10px; font-weight: bold;">${item.productName}</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; font-size: 14px; font-weight: bold;">${item.quantity}</td>
-                    <td style="border: 1px solid #000; padding: 10px; text-align: center; width: 80px;">
-                        <div style="width: 18px; height: 18px; border: 2px solid #334155; border-radius: 3px; margin: 0 auto;"></div>
-                    </td>
-                </tr>`;
-            }).join('');
-            
-            const el = document.getElementById('print-area');
-            el.innerHTML = `
-            <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 15px;">
-                <div class="header-orig" style="display: flex; border: 1px solid #000; margin-bottom: 0;">
-                    <div class="logo-box-orig" style="width: 100px; padding: 5px; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center;">
-                        <img src="${company.logoUrl}" style="max-height: 80px; max-width: 100%;" />
-                    </div>
-                    <div class="company-box-orig" style="flex: 1; padding: 10px; border-right: 1px solid #000;">
-                        <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
-                        <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj}</p>
-                        <p style="margin: 2px 0; font-size: 12px;">Endereço: ${company.address}</p>
-                        <p style="margin: 2px 0; font-size: 12px;">Telefone: ${company.phone}</p>
-                    </div>
-                    <div class="info-box-orig" style="width: 180px; padding: 10px; background-color: #f9f9f9; text-align: right;">
-                        <h3 style="margin: 0; font-size: 14px; font-weight: bold;">ROMANEIO DE ENTREGA</h3>
-                        <p style="margin: 5px 0; font-size: 12px;">Emissão: ${new Date().toLocaleDateString()}</p>
-                        <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">PEDIDO Nº ${items[0].id}</p>
-                    </div>
-                </div>
+                    <td style="font-weight: bold; width: 60px;">CLIENTE:</td>
+                    <td>${cli.name}</td>
+                    <td style="font-weight: bold; width: 40px;">DOC:</td>
+                    <td>${cli.doc || '-'}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold;">END:</td>
+                    <td colspan="3">${addressToShow}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold;">TEL:</td>
+                    <td colspan="3">${cli.phone || '-'}</td>
+                </tr>
+            </table>
+            ${obsLimpa ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px;"><strong>OBSERVAÇÕES:</strong> ${obsLimpa}</div>` : ''}
+        </div>
 
-                <div style="background-color: #f8fafc; border: 1px solid #000; border-top: none; padding: 10px; margin-bottom: 15px;">
-                    <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-                        <tr>
-                            <td style="font-weight: bold; width: 60px;">CLIENTE:</td>
-                            <td>${cli.name}</td>
-                            <td style="font-weight: bold; width: 40px;">DOC:</td>
-                            <td>${cli.doc || '-'}</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight: bold;">END:</td>
-                            <td colspan="3">${addressToShow}</td>
-                        </tr>
-                        <tr>
-                            <td style="font-weight: bold;">TEL:</td>
-                            <td colspan="3">${cli.phone || '-'}</td>
-                        </tr>
-                    </table>
-                    ${items[0].note && items[0].note !== 'Venda PDV' && items[0].note !== 'Pronta Entrega PDV' ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px;"><strong>OBSERVAÇÕES:</strong> ${items[0].note}</div>` : ''}
-                </div>
+        <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO</div>
+        <table class="items-table-orig" style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #000;">
+            <thead>
+                <tr style="background-color: #f1f5f9;">
+                    <th style="border: 1px solid #000; padding: 8px; text-align: left;">Produto</th>
+                    <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 120px;">Qtd. Vendida</th>
+                    <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 80px;">Check</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rowsHtml}
+            </tbody>
+        </table>
 
-                <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO</div>
-                <table class="items-table-orig" style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #000;">
-                    <thead>
-                        <tr style="background-color: #f1f5f9;">
-                            <th style="border: 1px solid #000; padding: 8px; text-align: left;">Produto</th>
-                            <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 120px;">Qtd. Vendida</th>
-                            <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 80px;">Check</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rowsHtml}
-                    </tbody>
-                </table>
-
-                <div style="display: flex; justify-content: space-between; margin-top: 60px;">
-                    <div style="width: 45%; text-align: center;">
-                        <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
-                        <span style="font-size: 10px; font-weight: bold;">ASSINATURA DO CONFERENTE / DATA</span>
-                    </div>
-                    <div style="width: 45%; text-align: center;">
-                        <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
-                        <span style="font-size: 10px; font-weight: bold;">ASSINATURA DE RECEBIMENTO (POR EXTENSO)</span>
-                    </div>
-                </div>
-            </div>`;
-            
+        <div style="display: flex; justify-content: space-between; margin-top: 60px;">
+            <div style="width: 45%; text-align: center;">
+                <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
+                <span style="font-size: 10px; font-weight: bold;">ASSINATURA DO CONFERENTE / DATA</span>
+            </div>
+            <div style="width: 45%; text-align: center;">
+                <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
+                <span style="font-size: 10px; font-weight: bold;">ASSINATURA DE RECEBIMENTO (POR EXTENSO)</span>
+            </div>
+        </div>
+    </div>`;
+    
+    setTimeout(() => window.print(), 500);
+}
+  
+        function printQuote(id) {
+            const q = STATE.quotes.find(x => x.id == id);
+            if (!q) return;
+        
+            // Extrai a observação extra (sem a metragem)
+            let obsLimpa = '';
+            const rawObs = q.observacao || '';  // observacao do orçamento (vem de logs.observacao)
+            if (rawObs.includes(' | ')) {
+                obsLimpa = rawObs.split(' | ').slice(1).join(' | ').trim();
+            } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+                // Se não é metragem pura, mantém a observação original (ex.: "Venda PDV", etc.)
+                obsLimpa = rawObs;
+            }
+            // se for metragem pura (sem "|"), obsLimpa fica vazia, que é o desejado
+        
+            // Cria uma cópia do orçamento com observação limpa e itens com metragem extraída
+            const qLimpo = {
+                ...q,
+                observacao: obsLimpa,
+                items: q.items.map(item => {
+                    let metragem = '';
+                    if (item.obs) {
+                        const match = item.obs.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+                        if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+                    }
+                    return { ...item, metragem: metragem };
+                })
+            };
+        
+            renderInvoice(qLimpo, true);
             setTimeout(() => window.print(), 500);
         }
-
-        function printQuote(id) { const q = STATE.quotes.find(x => x.id == id); renderInvoice(q, true); setTimeout(() => window.print(), 500); }
 
         function printExpeditionHistory() {
             let histLogs = (STATE.logs || []).filter(l => l.type === 'entrega' && l.status !== 'CANCELADO');
@@ -3136,45 +3374,54 @@
             setTimeout(() => window.print(), 500);
         }
 
-        function reprintSale(id) {
-            const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
-            if(!items.length) return;
-            
-            const totalDiscount = items[0].discount || 0;
-            const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
-            
-            const grossTotal = netTotal + totalDiscount;
-            const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
-            
-            const saleObj = {
-                id: id, 
-                date: items[0].date, 
-                clientName: items[0].clientName, 
-                paymentMethod: items[0].paymentMethod, 
-                discount: totalDiscount,
-                deliveryAddress: items[0].deliveryAddress,
-                observacao: items[0].note && items[0].note !== 'Venda PDV' && items[0].note !== 'Pronta Entrega PDV' ? items[0].note : '',
-                items: items.map(i => {
-                    const grossItemTotal = i.totalValue * fator; 
-                    return { 
-                        name: i.productName, 
-                        qty: i.quantity, 
-                        price: i.quantity > 0 ? (grossItemTotal / i.quantity) : 0, 
-                        total: grossItemTotal 
-                    };
-                })
-            };
-            
-            renderInvoice(saleObj, false); 
-            
-            // CORREÇÃO AQUI: Fecha o modal antes de chamar a impressão
-            if (typeof closePosHistoryModal === 'function') {
-                closePosHistoryModal();
+          function reprintSale(id) {
+    const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
+    if(!items.length) return;
+    
+    const totalDiscount = items[0].discount || 0;
+    const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
+    const grossTotal = netTotal + totalDiscount;
+    const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
+    
+    // Extrai apenas a observação extra (após o pipe), removendo a metragem
+    let obsLimpa = '';
+    const rawObs = items[0].note || '';
+    if (rawObs.includes(' | ')) {
+        obsLimpa = rawObs.split(' | ').slice(1).join(' | ').trim();
+    } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+        // Se não tem metragem, usa a observação inteira
+        obsLimpa = rawObs;
+    }
+    
+    const saleObj = {
+        id: id, 
+        date: items[0].date, 
+        clientName: items[0].clientName, 
+        paymentMethod: items[0].paymentMethod, 
+        discount: totalDiscount,
+        deliveryAddress: items[0].deliveryAddress,
+        observacao: obsLimpa,  // <-- agora só a parte extra, sem a metragem
+        items: items.map(i => {
+            const grossItemTotal = i.totalValue * fator;
+            let metragem = '';
+            if (i.note) {
+                const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+                if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
             }
-            
-            setTimeout(() => window.print(), 500);
-        }
-
+            return { 
+                name: i.productName, 
+                qty: i.quantity, 
+                price: i.quantity > 0 ? (grossItemTotal / i.quantity) : 0, 
+                total: grossItemTotal,
+                metragem: metragem
+            };
+        })
+    };
+    
+    renderInvoice(saleObj, false); 
+    if (typeof closePosHistoryModal === 'function') closePosHistoryModal();
+    setTimeout(() => window.print(), 500);
+}
         function fazerLogout() {
             localStorage.removeItem('rv_user');
             window.location.replace('index.html');
@@ -3250,149 +3497,168 @@
         }
 
         function downloadQuotePDF(id) {
-            const q = STATE.quotes.find(x => x.id == id);
-            if(!q) return;
+    const q = STATE.quotes.find(x => x.id == id);
+    if(!q) return;
 
-            showLoading(true);
+    showLoading(true);
 
-            const clientName = q.clientName || 'Consumidor Final';
-            const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+    const clientName = q.clientName || 'Consumidor Final';
+    const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
 
-            let subtotal = 0;
-            const itemsHtml = q.items.map((i, index) => {
-                const itemTotal = i.qty * i.price;
-                subtotal += itemTotal;
-                const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-                
-                return `
-                    <tr style="background-color: ${bgColor};">
-                        <td style="border-bottom: 1px solid #000; padding: 8px;">${i.name}</td>
-                        <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
-                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
-                        <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
-                    </tr>`;
-            }).join('');
+    let subtotal = 0;
+    const itemsHtml = q.items.map((i, index) => {
+        const itemTotal = i.qty * i.price;
+        subtotal += itemTotal;
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        
+        // Extrai metragem do campo obs do item
+        let metragem = '';
+        const obsItem = i.obs || '';
+        const match = obsItem.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+        if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+        
+        return `
+            <tr style="background-color: ${bgColor};">
+                <td style="border-bottom: 1px solid #000; padding: 8px;">
+                    ${i.name}
+                    ${metragem ? `<br><span style="font-size:9px;">${metragem}</span>` : ''}
+                </td>
+                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
+                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
+                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
+            </tr>`;
+    }).join('');
 
-            const discount = Number(q.discount) || 0;
-            const finalTotal = subtotal - discount;
-            const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
-            const obsText = q.observacao && q.observacao !== 'Venda PDV' && q.observacao !== 'Pronta Entrega PDV' 
-                            ? q.observacao : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    const discount = Number(q.discount) || 0;
+    const finalTotal = subtotal - discount;
+    const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
+    
+    // Observação geral: remover metragem se existir (parte antes do primeiro " | ")
+    let obsText = '';
+    const fullObs = q.observacao || '';
+    if (fullObs.includes(' | ')) {
+        obsText = fullObs.split(' | ').slice(1).join(' | '); // pega tudo após o primeiro " | "
+    } else if (fullObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+        // Se só tem metragem, não colocar nada extra
+        obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    } else {
+        obsText = fullObs || 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    }
 
-            const htmlString = `
-                <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
-                    
-                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
-                    </div>
+    const htmlString = `
+        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
+            
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
+                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
+            </div>
 
-                    <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                        <tr>
-                            <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
-                            </td>
-                            <td valign="middle" style="padding-left: 15px;">
-                                <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                                <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
-                                <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                            </td>
-                            <td align="right" valign="top">
-                                <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">ORÇAMENTO</h2>
-                                <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
-                                <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
-                            </td>
-                        </tr>
-                    </table>
+            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                <tr>
+                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
+                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
+                    </td>
+                    <td valign="middle" style="padding-left: 15px;">
+                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
+                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
+                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                    </td>
+                    <td align="right" valign="top">
+                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">ORÇAMENTO</h2>
+                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
+                        <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
+                    </td>
+                </tr>
+            </table>
 
-                    <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
-                        <tr>
-                            <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
-                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                                    <strong>${cli.name}</strong><br>
-                                    ${cli.doc || ''}<br>
-                                    ${cli.phone || ''}<br>
-                                    ${addressToShow}
-                                </div>
-                            </td>
-                            <td width="4%"></td> <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                                <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                                <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                                    <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br>
-                                    <strong>Vendedor:</strong> RV PORTAL
-                                </div>
-                            </td>
-                        </tr>
-                    </table>
+            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
+                <tr>
+                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
+                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                            <strong>${cli.name}</strong><br>
+                            ${cli.doc || ''}<br>
+                            ${cli.phone || ''}<br>
+                            ${addressToShow}
+                        </div>
+                    </td>
+                    <td width="4%"></td> <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
+                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
+                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
+                            <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br>
+                            <strong>Vendedor:</strong> RV PORTAL
+                        </div>
+                    </td>
+                </tr>
+            </table>
 
-                    <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
-                        <thead>
+            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
+                <thead>
+                    <tr>
+                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
+                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
+                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
+                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+            </table>
+
+            <table width="100%" style="margin-top: 10px;">
+                <tr>
+                    <td valign="top" style="padding-right: 30px;">
+                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
+                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
+                            <div style="font-size: 10px; color: #334155;">${obsText}</div>
+                        </div>
+                    </td>
+                    <td width="250" valign="top">
+                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
                             <tr>
-                                <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
-                                <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
-                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
-                                <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
+                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
+                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            ${itemsHtml}
-                        </tbody>
-                    </table>
+                            ${discount > 0 ? `
+                            <tr>
+                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
+                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td>
+                            </tr>` : ''}
+                            <tr>
+                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
+                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+            
+        </div>
+    `;
 
-                    <table width="100%" style="margin-top: 10px;">
-                        <tr>
-                            <td valign="top" style="padding-right: 30px;">
-                                <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
-                                    <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                                    <div style="font-size: 10px; color: #334155;">${obsText}</div>
-                                </div>
-                            </td>
-                            <td width="250" valign="top">
-                                <table width="100%" style="font-size: 11px; border-collapse: collapse;">
-                                    <tr>
-                                        <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
-                                        <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
-                                    </tr>
-                                    ${discount > 0 ? `
-                                    <tr>
-                                        <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
-                                        <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td>
-                                    </tr>` : ''}
-                                    <tr>
-                                        <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
-                                        <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                    
-                </div>
-            `;
+    setTimeout(() => {
+        const opt = {
+            margin:       10, 
+            filename:     `RV PORTAL - ${clientName} - #${q.id}.pdf`,
+            image:        { type: 'jpeg', quality: 1 },
+            html2canvas:  { 
+                scale: 2, 
+                useCORS: true, 
+                letterRendering: true 
+            },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
 
-            setTimeout(() => {
-                const opt = {
-                margin:       10, 
-                filename:     `RV PORTAL - ${clientName} - #${q.id}.pdf`,
-                image:        { type: 'jpeg', quality: 1 },
-                html2canvas:  { 
-                    scale: 2, 
-                    useCORS: true, 
-                    letterRendering: true 
-                },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-                html2pdf().set(opt).from(htmlString).save().then(() => {
-                    showLoading(false);
-                    showToast("PDF Baixado com Sucesso!");
-                }).catch(err => {
-                    console.error("Erro PDF:", err);
-                    showLoading(false);
-                    showToast("Erro ao gerar PDF", true);
-                });
-            }, 500); 
-        }
+        html2pdf().set(opt).from(htmlString).save().then(() => {
+            showLoading(false);
+            showToast("PDF Baixado com Sucesso!");
+        }).catch(err => {
+            console.error("Erro PDF:", err);
+            showLoading(false);
+            showToast("Erro ao gerar PDF", true);
+        });
+    }, 500); 
+}
 
         function printDailyRevenue() {
             showLoading(true);
@@ -3698,23 +3964,23 @@
         async function duplicateQuote(id) {
             if(!confirm("Deseja realmente duplicar este orçamento?")) return;
             showLoading(true);
-
+        
             const quoteToCopy = STATE.quotes.find(q => String(q.id) === String(id));
             if(!quoteToCopy) {
                 showLoading(false);
                 return showToast("Orçamento não encontrado!", true);
             }
-
+        
             const newBudgetId = getNextId(STATE.logs, STATE.quotes);
             const date = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
-
+        
             let quotesToInsert = quoteToCopy.items.map(item => ({
                 id: newBudgetId,
                 tipo: 'orcamento',
                 produto_nome: item.name,
                 quantidade: item.qty,
                 data: date,
-                observacao: quoteToCopy.observacao || '',
+                observacao: item.obs || '',          // <--- CORRIGIDO: copia a observação individual do item
                 valor_total: item.total,
                 cliente_nome: quoteToCopy.clientName,
                 forma_pagamento: quoteToCopy.paymentMethod || 'Dinheiro',
@@ -3727,14 +3993,14 @@
                 vencimento: date,
                 valor_pago: 0
             }));
-
+        
             const { error } = await sb.from('logs').insert(quotesToInsert);
-
+        
             if(error) {
                 showLoading(false);
                 return showToast("Erro ao duplicar: " + error.message, true);
             }
-
+        
             showToast("Orçamento duplicado com sucesso!");
             await loadData(); 
             navigate('quotes'); 
@@ -3809,7 +4075,6 @@ function closePosHistoryModal() {
 // ADICIONE O CÓDIGO ABAIXO LOGO DEPOIS DELA:
 
 async function downloadSalePDF(id) {
-    // Fecha o modal antes de gerar o PDF
     closePosHistoryModal();
     
     const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
@@ -3819,7 +4084,6 @@ async function downloadSalePDF(id) {
     }
     showLoading(true);
     
-    // Reconstruir totais considerando desconto (mesma lógica do reprintSale)
     const totalDiscount = items[0].discount || 0;
     const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
     const grossTotal = netTotal + totalDiscount;
@@ -3835,9 +4099,20 @@ async function downloadSalePDF(id) {
         const itemTotal = grossItemTotal;
         subtotal += itemTotal;
         const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        
+        // Extrai metragem
+        let metragem = '';
+        if (i.note) {
+            const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+            if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+        }
+        
         return `
             <tr style="background-color: ${bgColor};">
-                <td style="border-bottom: 1px solid #000; padding: 8px;">${i.productName}</td>
+                <td style="border-bottom: 1px solid #000; padding: 8px;">
+                    ${i.productName}
+                    ${metragem ? `<br><span style="font-size:9px;">${metragem}</span>` : ''}
+                </td>
                 <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.quantity}</td>
                 <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(unitPrice)}</td>
                 <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
@@ -3847,7 +4122,20 @@ async function downloadSalePDF(id) {
     const discount = totalDiscount;
     const finalTotal = subtotal - discount;
     const addressToShow = items[0].deliveryAddress ? `ENTREGA: ${items[0].deliveryAddress}` : (cli.address || 'Não informado');
-    const obsText = items[0].note && items[0].note !== 'Venda PDV' && items[0].note !== 'Pronta Entrega PDV' ? items[0].note : 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    
+    // Extrai observação geral sem metragem
+    const rawNote = items[0].note || '';
+    let obsText = '';
+    if (rawNote.includes(' | ')) {
+        obsText = rawNote.split(' | ').slice(1).join(' | ');
+    } else if (rawNote.match(/\d+pçs\d+(\.\d+)?m/)) {
+        obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    } else if (rawNote === 'Venda PDV' || rawNote === 'Pronta Entrega PDV' || rawNote === '') {
+        obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    } else {
+        obsText = rawNote;
+    }
+    
     const paymentMethod = items[0].paymentMethod || 'Não informado';
     
     const htmlString = `
@@ -3963,6 +4251,157 @@ async function downloadSalePDF(id) {
             showToast("Erro ao gerar PDF", true);
         });
     }, 500);
+}
+
+  // FUNÇÕES DO PARCEIRO =============================================================
+
+  // Modal de relatório de parceiro
+function openPartnerModal() {
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    document.getElementById('rep-part-start').value = getLocalISODate(primeiroDia);
+    document.getElementById('rep-part-end').value = getLocalISODate(ultimoDia);
+    document.getElementById('rep-part-type').value = 'metros'; // volta para o padrão
+    document.getElementById('modal-partner-report').classList.remove('hidden');
+}
+function closePartnerModal() { document.getElementById('modal-partner-report').classList.add('hidden'); }
+
+  function printPartnerReport() {
+      const start = document.getElementById('rep-part-start').value;
+      const end = document.getElementById('rep-part-end').value;
+      const tipo = document.getElementById('rep-part-type').value;
+      if (!start || !end) return showToast("Selecione as datas", true);
+      showLoading(true);
+  
+      const vendasFiltradas = STATE.logs.filter(l => {
+          if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
+          const prod = STATE.products.find(p => p.name === l.productName);
+          return prod && prod.parceiro && l.date.split('T')[0] >= start && l.date.split('T')[0] <= end;
+      });
+  
+      if (vendasFiltradas.length === 0) { showLoading(false); return showToast("Nenhuma venda de parceiro neste período.", true); }
+  
+      if (tipo === 'metros') {
+          // Relatório agrupado por produto (já existente)
+          const agrupado = {};
+          vendasFiltradas.forEach(l => {
+              if (!agrupado[l.productName]) {
+                  agrupado[l.productName] = { nome: l.productName, metros: 0, valorVenda: 0, custo: 0 };
+              }
+              agrupado[l.productName].metros += Number(l.quantity) || 0;
+              agrupado[l.productName].valorVenda += Number(l.totalValue) || 0;
+              const prod = STATE.products.find(p => p.name === l.productName);
+              agrupado[l.productName].custo += prod ? (prod.cost || 0) * (Number(l.quantity) || 0) : 0;
+          });
+          const rows = Object.values(agrupado).map(i => `
+              <tr>
+                  <td>${i.nome}</td>
+                  <td style="text-align:right;">${i.metros.toFixed(2)} m</td>
+                  <td style="text-align:right;">${formatMoney(i.valorVenda)}</td>
+                  <td style="text-align:right;">${formatMoney(i.custo)}</td>
+                  <td style="text-align:right;">${formatMoney(i.valorVenda - i.custo)}</td>
+              </tr>`).join('');
+          const totais = {
+              venda: Object.values(agrupado).reduce((s,i) => s + i.valorVenda, 0),
+              custo: Object.values(agrupado).reduce((s,i) => s + i.custo, 0)
+          };
+          var html = `
+          <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
+              <div style="text-align:center; margin-bottom:20px;">
+                  <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
+                  <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
+                  <p style="font-size:14px;">Relatório de Vendas de Parceiro (Metros)</p>
+                  <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
+              </div>
+              <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:13px;">
+                  <thead style="background:#eee;">
+                      <tr><th>Produto</th><th>Metros</th><th>Venda</th><th>Custo</th><th>Lucro</th></tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+                  <tfoot style="background:#f0fdf4;">
+                      <tr style="font-weight:bold;">
+                          <td>TOTAL</td><td></td><td>${formatMoney(totais.venda)}</td><td>${formatMoney(totais.custo)}</td><td>${formatMoney(totais.venda - totais.custo)}</td>
+                      </tr>
+                  </tfoot>
+              </table>
+          </div>`;
+      } else {
+          // Relatório de acerto: lista cada venda com data, pgto, produtos e total
+          // Agrupar por venda (id) para não repetir
+          const vendasMap = {};
+          vendasFiltradas.forEach(l => {
+              if (!vendasMap[l.id]) {
+                  vendasMap[l.id] = {
+                      id: l.id,
+                      data: l.date,
+                      cliente: l.clientName,
+                      pagamento: l.paymentMethod,
+                      itens: [],
+                      totalVenda: 0
+                  };
+              }
+              vendasMap[l.id].itens.push({
+                  nome: l.productName,
+                  qtd: l.quantity,
+                  metragem: (l.note || '').match(/\d+ pçs de \d+(\.\d+)?m/)
+              });
+              vendasMap[l.id].totalVenda += Number(l.totalValue) || 0;
+          });
+  
+          const vendasArray = Object.values(vendasMap).sort((a,b) => new Date(a.data) - new Date(b.data));
+          let rowsHtml = '';
+          let totalGeral = 0;
+          vendasArray.forEach(v => {
+              const itensStr = v.itens.map(i => {
+                  return i.nome + ' ' + i.qtd + 'm';
+              }).join(', ');
+              rowsHtml += `
+                  <tr>
+                      <td>${formatDate(v.data)}</td>
+                      <td>#${v.id}</td>
+                      <td>${v.cliente}</td>
+                      <td>${v.pagamento}</td>
+                      <td style="font-size:11px;">${itensStr}</td>
+                      <td style="text-align:right;">${formatMoney(v.totalVenda)}</td>
+                  </tr>`;
+              totalGeral += v.totalVenda;
+          });
+  
+          var html = `
+          <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
+              <div style="text-align:center; margin-bottom:20px;">
+                  <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
+                  <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
+                  <p style="font-size:14px;">Relatório de Acerto – Parceiro</p>
+                  <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
+              </div>
+              <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse: collapse; font-size:12px;">
+                  <thead style="background:#eee;">
+                      <tr>
+                          <th>Data</th>
+                          <th>Venda</th>
+                          <th>Cliente</th>
+                          <th>Forma Pgto</th>
+                          <th>Itens</th>
+                          <th style="text-align:right;">Valor Total</th>
+                      </tr>
+                  </thead>
+                  <tbody>${rowsHtml}</tbody>
+                  <tfoot style="background:#f0fdf4;">
+                      <tr style="font-weight:bold;">
+                          <td colspan="5">TOTAL GERAL</td>
+                          <td style="text-align:right;">${formatMoney(totalGeral)}</td>
+                      </tr>
+                  </tfoot>
+              </table>
+          </div>`;
+      }
+  
+      document.getElementById('print-area').innerHTML = html;
+      closePartnerModal();
+      showLoading(false);
+      setTimeout(() => window.print(), 500);
 }
   
     </script> 
