@@ -835,35 +835,60 @@
     </div>
 
     <div id="prod-form-container" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <form onsubmit="saveProduct(event)" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 class="font-bold text-lg mb-4">Dados do Produto</h3>
-            <input type="hidden" id="prd-id">
-            <div class="space-y-3">
-                <input type="text" id="prd-name" required placeholder="Nome do Produto" class="w-full p-2 border rounded">
-                <input type="text" id="prd-cat" placeholder="Categoria" class="w-full p-2 border rounded">
-                
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase">Preço de Venda (R$)</label>
-                        <input type="number" id="prd-price" required step="0.01" placeholder="Ex: 150.00" class="w-full p-2 border rounded">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase">Custo de Compra (R$)</label>
-                        <input type="number" id="prd-cost" step="0.01" placeholder="Ex: 80.00" class="w-full p-2 border rounded">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Estoque Físico</label>
-                    <input type="number" id="prd-stock" required placeholder="Quantidade Inicial" class="w-full p-2 border rounded">
-                </div>
-            </div>
-            <div class="flex gap-2 mt-6">
-                <button type="button" onclick="document.getElementById('prod-form-container').classList.add('hidden')" class="flex-1 p-2 bg-slate-200 rounded font-bold hover:bg-slate-300">Cancelar</button>
-                <button type="submit" class="flex-1 p-2 bg-indigo-700 text-white rounded font-bold hover:bg-indigo-800">Salvar</button>
-            </div>
-        </form>
-    </div>
+          <form onsubmit="saveProduct(event)" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+              <h3 class="font-bold text-lg mb-4">Dados do Produto</h3>
+              <input type="hidden" id="prd-id">
+              <div class="space-y-3">
+                  <input type="text" id="prd-name" required placeholder="Nome do Produto" class="w-full p-2 border rounded">
+                  <input type="text" id="prd-cat" placeholder="Categoria" class="w-full p-2 border rounded">
+                  
+                  <!-- Checkbox de parceiro -->
+                  <div class="flex items-center gap-2">
+                      <input type="checkbox" id="prd-parceiro" class="w-4 h-4 text-emerald-600 rounded" onchange="toggleProdutoParceiro()">
+                      <label for="prd-parceiro" class="text-sm font-bold text-slate-700 cursor-pointer">Produto de Parceiro (fornecedor externo)</label>
+                  </div>
+      
+                  <!-- Fornecedor parceiro (visível apenas se checkbox marcado) -->
+                  <div id="prd-fornecedor-container" class="hidden">
+                      <input type="text" id="prd-fornecedor" placeholder="Nome do fornecedor parceiro" class="w-full p-2 border rounded">
+                  </div>
+      
+                  <!-- Unidade de medida -->
+                  <div>
+                      <label class="block text-xs font-bold text-slate-500 mb-1">Unidade de Medida</label>
+                      <select id="prd-unidade" class="w-full p-2 border rounded">
+                          <option value="un">Unidade (un)</option>
+                          <option value="m">Metro linear (m)</option>
+                          <option value="m²">Metro quadrado (m²)</option>
+                          <option value="pct">Pacote (pct)</option>
+                          <option value="chapa">Chapa</option>
+                          <option value="kg">Quilograma (kg)</option>
+                          <option value="l">Litro (l)</option>
+                      </select>
+                  </div>
+      
+                  <div class="grid grid-cols-2 gap-2">
+                      <div>
+                          <label class="block text-[10px] font-bold text-slate-500 uppercase">Preço de Venda (R$)</label>
+                          <input type="number" id="prd-price" required step="0.01" placeholder="Ex: 150.00" class="w-full p-2 border rounded">
+                      </div>
+                      <div>
+                          <label class="block text-[10px] font-bold text-slate-500 uppercase">Custo de Compra (R$)</label>
+                          <input type="number" id="prd-cost" step="0.01" placeholder="Ex: 80.00" class="w-full p-2 border rounded">
+                      </div>
+                  </div>
+      
+                  <div>
+                      <label class="block text-[10px] font-bold text-slate-500 uppercase">Estoque Físico</label>
+                      <input type="number" id="prd-stock" required placeholder="Quantidade Inicial" class="w-full p-2 border rounded">
+                  </div>
+              </div>
+              <div class="flex gap-2 mt-6">
+                  <button type="button" onclick="document.getElementById('prod-form-container').classList.add('hidden')" class="flex-1 p-2 bg-slate-200 rounded font-bold hover:bg-slate-300">Cancelar</button>
+                  <button type="submit" class="flex-1 p-2 bg-indigo-700 text-white rounded font-bold hover:bg-indigo-800">Salvar</button>
+              </div>
+          </form>
+      </div>
     
     <div id="modal-receivable-edit" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
@@ -1348,26 +1373,45 @@
             loadData();
         }
 
-        async function saveProduct(e) {
+       async function saveProduct(e) {
             e.preventDefault();
             showLoading(true);
             const isNew = !document.getElementById('prd-id').value;
             const newId = isNew ? getNextId(STATE.products) : document.getElementById('prd-id').value;
-
+        
             const payload = {
-                id: newId, nome: document.getElementById('prd-name').value, categoria: document.getElementById('prd-cat').value,
-                preco: parseFloat(document.getElementById('prd-price').value), 
+                id: newId,
+                nome: document.getElementById('prd-name').value,
+                categoria: document.getElementById('prd-cat').value,
+                preco: parseFloat(document.getElementById('prd-price').value),
                 custo: parseFloat(document.getElementById('prd-cost').value) || 0,
                 estoque_fisico: parseFloat(document.getElementById('prd-stock').value),
-                estoque_comprometido: isNew ? 0 : STATE.products.find(p=>p.id==newId).committed
+                estoque_comprometido: isNew ? 0 : STATE.products.find(p => p.id == newId).committed,
+        
+                // Novos campos
+                produto_parceiro: document.getElementById('prd-parceiro').checked,
+                fornecedor_parceiro: document.getElementById('prd-fornecedor').value.trim(),
+                unidade_medida: document.getElementById('prd-unidade').value
             };
-
+        
             const { error } = await sb.from('produtos').upsert(payload);
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
-
+        
             document.getElementById('prod-form-container').classList.add('hidden');
             showToast("Produto Salvo!");
             loadData();
+        }
+
+      function toggleProdutoParceiro() {
+            const checkbox = document.getElementById('prd-parceiro');
+            const container = document.getElementById('prd-fornecedor-container');
+            if (!checkbox || !container) return;
+            if (checkbox.checked) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('prd-fornecedor').value = '';
+            }
         }
 
         async function finalizeSale(isProntaEntrega = false) {
@@ -2576,25 +2620,36 @@ function loadQuoteToCart(id) {
             lucide.createIcons(); 
         }
 
-        function openProductForm(id) { 
-            document.getElementById('prod-form-container').classList.remove('hidden'); 
-            if(id) { 
-                const p=STATE.products.find(x=>x.id==id); 
-                document.getElementById('prd-id').value=p.id; 
-                document.getElementById('prd-name').value=p.name; 
-                document.getElementById('prd-cat').value=p.category || ''; 
-                document.getElementById('prd-price').value=p.price; 
-                document.getElementById('prd-cost').value=p.cost || ''; 
-                document.getElementById('prd-stock').value=p.stock; 
-            } else { 
-                document.getElementById('prd-id').value=''; 
-                document.getElementById('prd-name').value=''; 
-                document.getElementById('prd-cat').value=''; 
-                document.getElementById('prd-price').value=''; 
-                document.getElementById('prd-cost').value=''; 
-                document.getElementById('prd-stock').value=''; 
-            } 
-        }
+       function openProductForm(id) { 
+          document.getElementById('prod-form-container').classList.remove('hidden'); 
+          if(id) { 
+              const p = STATE.products.find(x => x.id == id); 
+              document.getElementById('prd-id').value = p.id; 
+              document.getElementById('prd-name').value = p.name; 
+              document.getElementById('prd-cat').value = p.category || ''; 
+              document.getElementById('prd-price').value = p.price; 
+              document.getElementById('prd-cost').value = p.cost || ''; 
+              document.getElementById('prd-stock').value = p.stock; 
+      
+              // Novos campos
+              document.getElementById('prd-parceiro').checked = p.parceiro;
+              document.getElementById('prd-fornecedor').value = p.fornecedor || '';
+              document.getElementById('prd-unidade').value = p.unidade || 'un';
+              toggleProdutoParceiro(); // ajusta visibilidade do fornecedor
+          } else { 
+              document.getElementById('prd-id').value = ''; 
+              document.getElementById('prd-name').value = ''; 
+              document.getElementById('prd-cat').value = ''; 
+              document.getElementById('prd-price').value = ''; 
+              document.getElementById('prd-cost').value = ''; 
+              document.getElementById('prd-stock').value = ''; 
+      
+              document.getElementById('prd-parceiro').checked = false;
+              document.getElementById('prd-fornecedor').value = '';
+              document.getElementById('prd-unidade').value = 'un';
+              toggleProdutoParceiro();
+          } 
+      }
 
         function renderClients() {
             const list = document.getElementById('clients-list');
