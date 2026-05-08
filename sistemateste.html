@@ -2928,6 +2928,19 @@ function loadQuoteToCart(id) {
         ? `<span style="background-color: #ecfdf5; padding: 2px 5px; font-weight: bold; color: #047857; border: 1px dashed #059669;">ENTREGA: ${items[0].deliveryAddress}</span>` 
         : (cli.address || '-');
 
+    // Extrair observação extra (sem metragem)
+    const rawNote = items[0].note || '';
+    let obsLimpa = '';
+    if (rawNote.includes(' | ')) {
+        obsLimpa = rawNote.split(' | ').slice(1).join(' | ').trim();
+    } else if (!rawNote.match(/\d+pçs\d+(\.\d+)?m/)) {
+        // Se não é metragem, manter (desde que não seja texto padrão)
+        if (rawNote !== 'Venda PDV' && rawNote !== 'Pronta Entrega PDV') {
+            obsLimpa = rawNote;
+        }
+    }
+    // Se for apenas metragem, obsLimpa fica vazia e não será exibida
+
     const rowsHtml = items.map(item => {
         let metragem = '';
         if (item.note) {
@@ -2984,7 +2997,7 @@ function loadQuoteToCart(id) {
                     <td colspan="3">${cli.phone || '-'}</td>
                 </tr>
             </table>
-            ${items[0].note && items[0].note !== 'Venda PDV' && items[0].note !== 'Pronta Entrega PDV' ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px;"><strong>OBSERVAÇÕES:</strong> ${items[0].note}</div>` : ''}
+            ${obsLimpa ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px;"><strong>OBSERVAÇÕES:</strong> ${obsLimpa}</div>` : ''}
         </div>
 
         <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO</div>
