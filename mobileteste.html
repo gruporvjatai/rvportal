@@ -376,43 +376,69 @@
     </div>
 
     <div id="modal-period-report" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-center justify-center p-4 animate-[fadeIn_0.2s]">
-    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
-        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
-            <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="calendar-search" class="text-indigo-600 w-5 h-5"></i> Gerar Relatório</h3>
-            <button onclick="closePeriodReportModal()" class="text-slate-400 hover:text-red-500 bg-white rounded-full p-1"><i data-lucide="x"></i></button>
-        </div>
-        <div class="p-5 space-y-4">
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Início</label>
-                    <input type="date" id="rep-per-start" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+      <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+          <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+              <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="calendar-search" class="text-indigo-600 w-5 h-5"></i> Gerar Relatório</h3>
+              <button onclick="closePeriodReportModal()" class="text-slate-400 hover:text-red-500 bg-white rounded-full p-1"><i data-lucide="x"></i></button>
+          </div>
+            <div class="p-5 space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Início</label>
+                        <input type="date" id="rep-per-start" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Fim</label>
+                        <input type="date" id="rep-per-end" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Fim</label>
-                    <input type="date" id="rep-per-end" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Forma de Pagto</label>
+                    <select id="rep-per-payment" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Todos">Todos</option>
+                        <option>Dinheiro</option><option>PIX</option><option>Carteira</option>
+                        <option>Cartão Débito</option><option>Cartão Crédito</option>
+                        <option>Boleto 21 dias</option><option>Boleto 30 dias</option>
+                        <option>Boleto Programado</option><option>Cheque</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente (Opcional)</label>
+                    <input type="text" id="rep-per-client" placeholder="Ex: João da Silva" class="w-full p-3 border rounded-xl bg-slate-50 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
                 </div>
             </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Forma de Pagto</label>
-                <select id="rep-per-payment" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="Todos">Todos</option>
-                    <option>Dinheiro</option><option>PIX</option><option>Carteira</option>
-                    <option>Cartão Débito</option><option>Cartão Crédito</option>
-                    <option>Boleto 21 dias</option><option>Boleto 30 dias</option>
-                    <option>Boleto Programado</option><option>Cheque</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente (Opcional)</label>
-                <input type="text" id="rep-per-client" placeholder="Ex: João da Silva" class="w-full p-3 border rounded-xl bg-slate-50 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+            <div class="p-4 border-t bg-slate-50 flex gap-3">
+                <button onclick="closePeriodReportModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 active:scale-95">Cancelar</button>
+                <button onclick="showPeriodReport()" class="flex-1 py-3 bg-indigo-600 rounded-xl font-bold text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i data-lucide="eye" class="w-4 h-4"></i> Visualizar</button>
             </div>
         </div>
-        <div class="p-4 border-t bg-slate-50 flex gap-3">
-            <button onclick="closePeriodReportModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 active:scale-95">Cancelar</button>
-            <button onclick="showPeriodReport()" class="flex-1 py-3 bg-indigo-600 rounded-xl font-bold text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i data-lucide="eye" class="w-4 h-4"></i> Visualizar</button>
-        </div>
-    </div>
-    </div>
+      </div>
+  
+      <!-- Modal de Período para Relatório de Parceiro -->
+  <div id="modal-partner-report" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-center justify-center p-4 animate-[fadeIn_0.2s]">
+      <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+          <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+              <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="users" class="text-amber-600 w-5 h-5"></i> Relatório de Parceiro</h3>
+              <button onclick="closePartnerModal()" class="text-slate-400 hover:text-red-500 bg-white rounded-full p-1"><i data-lucide="x"></i></button>
+          </div>
+          <div class="p-5 space-y-4">
+              <div class="grid grid-cols-2 gap-3">
+                  <div>
+                      <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Início</label>
+                      <input type="date" id="rep-part-start" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500">
+                  </div>
+                  <div>
+                      <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Fim</label>
+                      <input type="date" id="rep-part-end" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500">
+                  </div>
+              </div>
+          </div>
+          <div class="p-4 border-t bg-slate-50 flex gap-3">
+              <button onclick="closePartnerModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 active:scale-95">Cancelar</button>
+              <button onclick="showPartnerReportFiltered()" class="flex-1 py-3 bg-amber-600 rounded-xl font-bold text-white shadow-lg active:scale-95 flex items-center justify-center gap-2"><i data-lucide="eye" class="w-4 h-4"></i> Visualizar</button>
+          </div>
+      </div>
+  </div>
 
     <!-- Modal de Baixa de Recebimento -->
     <div id="modal-receivable-edit" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
@@ -2348,92 +2374,104 @@
 
 
       function showPartnerReport() {
-            showLoading(true);
-            
             const hoje = new Date();
             const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
             const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
-            const dataInicio = toLocalYYYYMMDD(primeiroDia);
-            const dataFim = toLocalYYYYMMDD(ultimoDia);
-            
-            const vendasFiltradas = STATE.logs.filter(l => {
-                if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
-                const prod = STATE.products.find(p => p.name === l.productName);
-                return prod && prod.parceiro && l.date >= dataInicio && l.date <= dataFim + 'T23:59:59';
-            });
-            
-            if (vendasFiltradas.length === 0) {
-                showLoading(false);
-                showToast("Nenhuma venda de parceiro neste mês.", true);
-                return;
-            }
-            
-            // Agrupar por produto
-            const agrupado = {};
-            vendasFiltradas.forEach(l => {
-                if (!agrupado[l.productName]) {
-                    agrupado[l.productName] = { nome: l.productName, metros: 0, valorVenda: 0, custo: 0 };
-                }
-                agrupado[l.productName].metros += Number(l.quantity) || 0;
-                agrupado[l.productName].valorVenda += Number(l.totalValue) || 0;
-                const prod = STATE.products.find(p => p.name === l.productName);
-                agrupado[l.productName].custo += prod ? (prod.cost || 0) * (Number(l.quantity) || 0) : 0;
-            });
-            
-            const produtos = Object.values(agrupado).sort((a,b) => a.nome.localeCompare(b.nome));
-            
-            let rowsHtml = produtos.map(i => `
-                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2">
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="font-bold text-sm text-slate-800">${i.nome}</span>
-                        <span class="font-black text-emerald-600">${formatMoney(i.valorVenda)}</span>
-                    </div>
-                    <div class="flex justify-between text-xs text-slate-500">
-                        <span>Metros: ${i.metros.toFixed(2)}m</span>
-                        <span>Custo: ${formatMoney(i.custo)}</span>
-                        <span class="font-bold text-indigo-600">Lucro: ${formatMoney(i.valorVenda - i.custo)}</span>
-                    </div>
-                </div>
-            `).join('');
-            
-            const totalVenda = produtos.reduce((s,i) => s + i.valorVenda, 0);
-            const totalCusto = produtos.reduce((s,i) => s + i.custo, 0);
-            
-            const el = document.getElementById('report-result-content');
-            el.innerHTML = `
-                <div class="max-w-md mx-auto">
-                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
-                        <h3 class="font-black text-xl text-amber-600 mb-1">VENDAS DE PARCEIRO</h3>
-                        <p class="text-xs font-bold text-slate-500">${formatDate(dataInicio)} a ${formatDate(dataFim)}</p>
-                    </div>
-                    <div class="mb-4">
-                        <h4 class="font-bold text-slate-700 mb-2 uppercase text-xs">Produtos Vendidos</h4>
-                        ${rowsHtml}
-                    </div>
-                    <div class="bg-slate-900 p-5 rounded-2xl shadow-lg mb-8 text-white">
-                        <h4 class="font-bold text-slate-400 mb-3 uppercase text-xs">Resumo do Mês</h4>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-sm">Total em Vendas:</span>
-                            <span class="text-sm font-bold text-emerald-400">${formatMoney(totalVenda)}</span>
-                        </div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-sm">Total em Custos:</span>
-                            <span class="text-sm font-bold text-red-400">${formatMoney(totalCusto)}</span>
-                        </div>
-                        <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
-                            <span class="font-black text-lg">LUCRO:</span>
-                            <span class="font-black text-2xl text-amber-400">${formatMoney(totalVenda - totalCusto)}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            showLoading(false);
-            document.getElementById('view-report-result').classList.remove('hidden');
-            document.getElementById('view-report-result').classList.add('flex');
-            lucide.createIcons();
+            document.getElementById('rep-part-start').value = toLocalYYYYMMDD(primeiroDia);
+            document.getElementById('rep-part-end').value = toLocalYYYYMMDD(ultimoDia);
+            document.getElementById('modal-partner-report').classList.remove('hidden');
+        }
+        
+        function closePartnerModal() {
+            document.getElementById('modal-partner-report').classList.add('hidden');
         }
 
+      
+      function showPartnerReportFiltered() {
+          const start = document.getElementById('rep-part-start').value;
+          const end = document.getElementById('rep-part-end').value;
+          if (!start || !end) return showToast("Selecione as datas", true);
+          
+          closePartnerModal();
+          showLoading(true);
+          
+          const vendasFiltradas = STATE.logs.filter(l => {
+              if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
+              const prod = STATE.products.find(p => p.name === l.productName);
+              return prod && prod.parceiro && l.date >= start && l.date <= end + 'T23:59:59';
+          });
+          
+          if (vendasFiltradas.length === 0) {
+              showLoading(false);
+              showToast("Nenhuma venda de parceiro neste período.", true);
+              return;
+          }
+          
+          // Agrupar por produto
+          const agrupado = {};
+          vendasFiltradas.forEach(l => {
+              if (!agrupado[l.productName]) {
+                  agrupado[l.productName] = { nome: l.productName, metros: 0, valorVenda: 0, custo: 0 };
+              }
+              agrupado[l.productName].metros += Number(l.quantity) || 0;
+              agrupado[l.productName].valorVenda += Number(l.totalValue) || 0;
+              const prod = STATE.products.find(p => p.name === l.productName);
+              agrupado[l.productName].custo += prod ? (prod.cost || 0) * (Number(l.quantity) || 0) : 0;
+          });
+          
+          const produtos = Object.values(agrupado).sort((a,b) => a.nome.localeCompare(b.nome));
+          
+          let rowsHtml = produtos.map(i => `
+              <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2">
+                  <div class="flex justify-between items-start mb-1">
+                      <span class="font-bold text-sm text-slate-800">${i.nome}</span>
+                      <span class="font-black text-emerald-600">${formatMoney(i.valorVenda)}</span>
+                  </div>
+                  <div class="flex justify-between text-xs text-slate-500">
+                      <span>Metros: ${i.metros.toFixed(2)}m</span>
+                      <span>Custo: ${formatMoney(i.custo)}</span>
+                      <span class="font-bold text-indigo-600">Lucro: ${formatMoney(i.valorVenda - i.custo)}</span>
+                  </div>
+              </div>
+          `).join('');
+          
+          const totalVenda = produtos.reduce((s,i) => s + i.valorVenda, 0);
+          const totalCusto = produtos.reduce((s,i) => s + i.custo, 0);
+          
+          const el = document.getElementById('report-result-content');
+          el.innerHTML = `
+              <div class="max-w-md mx-auto">
+                  <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
+                      <h3 class="font-black text-xl text-amber-600 mb-1">VENDAS DE PARCEIRO</h3>
+                      <p class="text-xs font-bold text-slate-500">${formatDate(start)} a ${formatDate(end)}</p>
+                  </div>
+                  <div class="mb-4">
+                      <h4 class="font-bold text-slate-700 mb-2 uppercase text-xs">Produtos Vendidos</h4>
+                      ${rowsHtml}
+                  </div>
+                  <div class="bg-slate-900 p-5 rounded-2xl shadow-lg mb-8 text-white">
+                      <h4 class="font-bold text-slate-400 mb-3 uppercase text-xs">Resumo do Período</h4>
+                      <div class="flex justify-between items-center mb-1">
+                          <span class="text-sm">Total em Vendas:</span>
+                          <span class="text-sm font-bold text-emerald-400">${formatMoney(totalVenda)}</span>
+                      </div>
+                      <div class="flex justify-between items-center mb-1">
+                          <span class="text-sm">Total em Custos:</span>
+                          <span class="text-sm font-bold text-red-400">${formatMoney(totalCusto)}</span>
+                      </div>
+                      <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700">
+                          <span class="font-black text-lg">LUCRO:</span>
+                          <span class="font-black text-2xl text-amber-400">${formatMoney(totalVenda - totalCusto)}</span>
+                      </div>
+                  </div>
+              </div>
+          `;
+          
+          showLoading(false);
+          document.getElementById('view-report-result').classList.remove('hidden');
+          document.getElementById('view-report-result').classList.add('flex');
+          lucide.createIcons();
+      }
       
 
         function fazerLogout() {
