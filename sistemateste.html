@@ -3013,23 +3013,37 @@ function loadQuoteToCart(id) {
 }
   
         function printQuote(id) {
-              const q = STATE.quotes.find(x => x.id == id);
-              if (!q) return;
-              
-              // Extrai metragem para cada item, se existir no campo obs
-              const itemsComMetragem = q.items.map(item => {
-                  let metragem = '';
-                  if (item.obs) {
-                      const match = item.obs.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
-                      if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
-                  }
-                  return { ...item, metragem: metragem };
-              });
-              
-              const qComMetragem = { ...q, items: itemsComMetragem };
-              renderInvoice(qComMetragem, true);
-              setTimeout(() => window.print(), 500);
-          }
+            const q = STATE.quotes.find(x => x.id == id);
+            if (!q) return;
+        
+            // Extrai a observação extra (sem a metragem)
+            let obsLimpa = '';
+            const rawObs = q.observacao || '';  // observacao do orçamento (vem de logs.observacao)
+            if (rawObs.includes(' | ')) {
+                obsLimpa = rawObs.split(' | ').slice(1).join(' | ').trim();
+            } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+                // Se não é metragem pura, mantém a observação original (ex.: "Venda PDV", etc.)
+                obsLimpa = rawObs;
+            }
+            // se for metragem pura (sem "|"), obsLimpa fica vazia, que é o desejado
+        
+            // Cria uma cópia do orçamento com observação limpa e itens com metragem extraída
+            const qLimpo = {
+                ...q,
+                observacao: obsLimpa,
+                items: q.items.map(item => {
+                    let metragem = '';
+                    if (item.obs) {
+                        const match = item.obs.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+                        if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+                    }
+                    return { ...item, metragem: metragem };
+                })
+            };
+        
+            renderInvoice(qLimpo, true);
+            setTimeout(() => window.print(), 500);
+        }
 
         function printExpeditionHistory() {
             let histLogs = (STATE.logs || []).filter(l => l.type === 'entrega' && l.status !== 'CANCELADO');
