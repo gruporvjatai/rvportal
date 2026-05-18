@@ -1242,12 +1242,12 @@
 
         async function loadData() {
     try {
-        const [resProd, resCli, resLog, resDesp, resConf] = await Promise.all([
+        const [resProd, resCli, resLog, resDesp, /*resConf*/] = await Promise.all([
             fetchAllRecords('produtos'),
             fetchAllRecords('clientes'),
             fetchAllRecords('logs'),
-            fetchAllRecords('despesas'),
-            sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
+            fetchAllRecords('despesas')
+           //sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
         ]);
 
         STATE.products = (resProd.data || []).map(p => ({
