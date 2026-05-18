@@ -1630,10 +1630,8 @@ class OrcamentosMDF {
     window.showToast('Erro ao faturar: ' + err.message, true);
   } finally {
     if (typeof showLoading === 'function') showLoading(false);
-  }
-    if (typeof window.loadData === 'function') {
     window.loadData();
-  }
+  }   
 }
 
   async estornarOrcamento(id) {
