@@ -53,6 +53,7 @@ class MDFManager {
         <div id="subaba-mdf-orcamentos" class="subaba-mdf-content flex-1 hidden"></div>
       </div>
     `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     // Sincroniza a profundidade com o input
     const profundidadeInput = document.getElementById('profundidade-input-mdf');
     if (profundidadeInput) {
