@@ -31,21 +31,28 @@ class MDFManager {
   renderizarInterface() {
     this.container.innerHTML = `
       <div class="flex flex-col h-full">
-        <div class="flex gap-2 mb-4 bg-white p-2 rounded-xl shadow-sm border items-center">
-          <button data-subaba="projetos" class="subaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#b8a94e] text-white shadow">📐 Projetos</button>
-          <button data-subaba="orcamentos" class="subaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">💰 Orçamentos</button>
-          <div class="flex-1"></div>
-         <!--<div class="flex items-center gap-2">
-            <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
-            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs">
-            <button onclick="window.open('https://flatma.com/pt/create/designer', '_blank')" title="Abrir Flatma" class="px-3 py-1 border border-[#b8a94e] text-[#b8a94e] rounded text-xs font-bold hover:bg-amber-50 transition">📐 Flatma</button>
-          </div>-->
+        <div class="flex gap-3 mb-5 bg-white/80 backdrop-blur-sm p-1 rounded-2xl shadow-md border border-emerald-100">
+          <button data-subaba="projetos" 
+                  class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 
+                         bg-emerald-600 text-white shadow-md
+                         hover:bg-emerald-700 hover:shadow-lg
+                         flex items-center justify-center gap-2">
+            <i data-lucide="box" class="w-4 h-4"></i> 
+            <span>Projetos</span>
+          </button>
+          <button data-subaba="orcamentos" 
+                  class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 
+                         bg-white text-emerald-700 border border-emerald-200
+                         hover:bg-emerald-50 hover:border-emerald-300
+                         flex items-center justify-center gap-2">
+            <i data-lucide="file-text" class="w-4 h-4"></i> 
+            <span>Orçamentos</span>
+          </button>
         </div>
         <div id="subaba-mdf-projetos" class="subaba-mdf-content flex-1"></div>
         <div id="subaba-mdf-orcamentos" class="subaba-mdf-content flex-1 hidden"></div>
       </div>
     `;
-
     // Sincroniza a profundidade com o input
     const profundidadeInput = document.getElementById('profundidade-input-mdf');
     if (profundidadeInput) {
