@@ -30,8 +30,8 @@ class MDFManager {
           <button data-subaba="orcamentos" class="subaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">💰 Orçamentos</button>
           <div class="flex-1"></div>
           <div class="flex items-center gap-2">
-            <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
-            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs" onchange="window.profundidadeProjetoMDF = parseFloat(this.value)">
+            <!--<label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
+            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs" onchange="window.profundidadeProjetoMDF = parseFloat(this.value)">-->
             <button onclick="window.open('https://flatma.com/pt/create/designer', '_blank')" title="Abrir Flatma" class="px-3 py-1 border border-[#b8a94e] text-[#b8a94e] rounded text-xs font-bold hover:bg-amber-50 transition">📐 Flatma</button>
           </div>
         </div>
@@ -582,7 +582,12 @@ class ProjetosMDF {
         <div id="subsubaba-fachada" class="subsubaba-mdf-content flex-1"></div>
         <div id="subsubaba-3d" class="subsubaba-mdf-content flex-1 hidden"></div>
         <div id="subsubaba-detalhamento" class="subsubaba-mdf-content flex-1 hidden"></div>
-      </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
+            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs" onchange="window.profundidadeProjetoMDF = parseFloat(this.value)">
+          </div>
+       </div>
+    
     `;
 
     this.container.querySelectorAll('.subsubaba-mdf-btn').forEach(btn => {
