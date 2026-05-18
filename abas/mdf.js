@@ -1,5 +1,5 @@
-// mdf.js - Módulo completo para gestão de projetos e orçamentos MDF
-// Integrado ao RV Portal
+// mdf.js – Módulo completo para gestão de projetos e orçamentos MDF
+// Totalmente fiel aos originais projetos.js e app.js, unificado para o RV Portal
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -11,7 +11,7 @@ class MDFManager {
     this.profundidade = 60;
     this.linhas = [];
     this.preenchimentos = [];
-    this.activeSubTab = 'projetos'; // 'projetos' ou 'orcamentos'
+    this.activeSubTab = 'projetos';
     this.projetosManager = null;
     this.orcamentosManager = null;
     this.init();
@@ -75,7 +75,7 @@ class MDFManager {
     }
   }
 
-  // Métodos auxiliares para o editor 2D
+  // Métodos auxiliares compartilhados com o editor 2D
   obterDimensoesGerais() {
     if (this.linhas.length > 0) {
       const xs = this.linhas.flatMap(l => [l.x1, l.x2]);
@@ -370,7 +370,7 @@ class EditorFachada2DMDF {
   }
 }
 
-// ==================== CONFIGURADOR 3D ====================
+// ==================== CONFIGURADOR 3D COMPLETO (igual ao original) ====================
 class ConfiguradorArmarioMDF {
   constructor(container, manager) {
     this.container = container;
@@ -429,7 +429,7 @@ class ConfiguradorArmarioMDF {
 
     const { largura, altura, offsetX, offsetY } = dims;
     const profundidade = this.manager.profundidade;
-    const d = 1.8;
+    const d = 1.8; // espessura padrão das chapas (cm)
     const matCorpo = new THREE.MeshStandardMaterial({ color: '#A67B5B', roughness: 0.5 });
     const matPorta = new THREE.MeshStandardMaterial({ color: '#8B5A2B', roughness: 0.4 });
     const matGaveta = new THREE.MeshStandardMaterial({ color: '#b89a6b', roughness: 0.5 });
@@ -437,21 +437,24 @@ class ConfiguradorArmarioMDF {
 
     this.armarioGrupo = new THREE.Group();
 
+    // Função auxiliar para converter coordenadas do canvas 2D para o espaço 3D
     const to3D = (canvasX, canvasY) => {
       const x3D = canvasX - offsetX - largura / 2;
       const y3D = altura - (canvasY - offsetY);
       return { x: x3D, y: y3D };
     };
 
-    // Estrutura fixa
+    // Estrutura fixa (laterais, fundo, teto)
     const leftX = offsetX;
     const rightX = offsetX + largura;
     this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(d, altura, profundidade), matCorpo).translateX(to3D(leftX, 0).x).translateY(altura / 2));
     this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(d, altura, profundidade), matCorpo).translateX(to3D(rightX, 0).x).translateY(altura / 2));
+    // Fundo (chapa fina atrás)
     this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(largura - 2 * d, d, profundidade), matCorpo).translateY(d / 2));
+    // Teto
     this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(largura, d, profundidade), matCorpo).translateY(altura - d / 2));
 
-    // Prateleiras
+    // Prateleiras (linhas horizontais)
     this.manager.linhas.forEach(linha => {
       if (Math.abs(linha.y1 - linha.y2) < 0.1) {
         const yCanvas = linha.y1;
@@ -462,7 +465,7 @@ class ConfiguradorArmarioMDF {
       }
     });
 
-    // Divisórias
+    // Divisórias (linhas verticais)
     this.manager.linhas.forEach(linha => {
       if (Math.abs(linha.x1 - linha.x2) < 0.1) {
         const xCanvas = linha.x1;
@@ -476,10 +479,11 @@ class ConfiguradorArmarioMDF {
     // Portas, gavetas e fundos
     const espessuraFrente = d * 0.8;
     this.manager.preenchimentos.forEach(p => {
-      const baseX3D = to3D(p.x, 0).x;
-      const centroY3D = to3D(0, p.y + p.h / 2).y;
+      const baseX3D = to3D(p.x, 0).x;      // canto esquerdo da área
+      const centroY3D = to3D(0, p.y + p.h / 2).y; // centro vertical da área
       const faceFrontalZ = profundidade / 2;
 
+      // --- PORTAS (divisão horizontal = largura) ---
       if (p.tipo === 'porta') {
         const sub = p.subdivisoes || 1;
         const subW = p.w / sub;
@@ -488,28 +492,55 @@ class ConfiguradorArmarioMDF {
           const porta = new THREE.Mesh(new THREE.BoxGeometry(subW, p.h, espessuraFrente), matPorta);
           porta.position.set(cx, centroY3D, faceFrontalZ - espessuraFrente / 2);
           this.armarioGrupo.add(porta);
+          // Arestas
           porta.add(new THREE.LineSegments(new THREE.EdgesGeometry(porta.geometry), new THREE.LineBasicMaterial({ color: '#1e293b' })));
-          const pux = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), new THREE.MeshStandardMaterial({ color: '#c0c0c0', metalness: 0.9, roughness: 0.2 }));
-          pux.position.set(subW / 2 - 4, p.h / 2 - 10, espessuraFrente / 2 + 0.5);
-          porta.add(pux);
+          // Puxador esférico
+          const puxador = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), new THREE.MeshStandardMaterial({ color: '#c0c0c0', metalness: 0.9, roughness: 0.2 }));
+          puxador.position.set(subW / 2 - 4, p.h / 2 - 10, espessuraFrente / 2 + 0.5);
+          porta.add(puxador);
         }
-      } else if (p.tipo === 'gaveta') {
+      }
+
+      // --- GAVETAS (divisão vertical = altura) com corpo completo ---
+      else if (p.tipo === 'gaveta') {
         const sub = p.subdivisoes || 1;
-        const subH = p.h / sub;
-        const centroX = baseX3D + p.w / 2;
+        const subH = p.h / sub;            // altura de cada gaveta
+        const centroX = baseX3D + p.w / 2; // centro horizontal fixo
+
         for (let i = 0; i < sub; i++) {
+          // Posiciona de cima para baixo
           const cy = centroY3D + (p.h / 2) - subH / 2 - i * subH;
+
+          // Frente (painel)
           const frenteGeom = new THREE.BoxGeometry(p.w, subH, espessuraFrente);
           const frente = new THREE.Mesh(frenteGeom, matGaveta);
           frente.position.set(centroX, cy, faceFrontalZ - espessuraFrente / 2);
           this.armarioGrupo.add(frente);
           frente.add(new THREE.LineSegments(new THREE.EdgesGeometry(frenteGeom), new THREE.LineBasicMaterial({ color: '#1e293b' })));
+          // Friso decorativo
           const friso = new THREE.Mesh(new THREE.BoxGeometry(p.w - 0.4, 0.4, espessuraFrente + 0.3), new THREE.MeshBasicMaterial({ color: '#1e293b' }));
           friso.position.set(0, -subH / 2 + 2.5, 0);
           frente.add(friso);
-          // Corpo da gaveta omitido para simplificar (já tem visual)
+
+          // Corpo da gaveta (laterais e fundo)
+          const profundidadeCorpo = profundidade - 2 * d - 2;
+          const alturaCorpo = subH - d * 2;
+          const larguraCorpo = p.w - d * 2;
+          const zFrenteTraseira = faceFrontalZ - espessuraFrente;
+          const zCentroCorpo = zFrenteTraseira - profundidadeCorpo / 2;
+
+          // Lateral esquerda
+          const geoLat = new THREE.BoxGeometry(d, alturaCorpo, profundidadeCorpo);
+          this.armarioGrupo.add(new THREE.Mesh(geoLat, matGaveta).translateX(centroX - p.w / 2 + d / 2).translateY(cy).translateZ(zCentroCorpo));
+          // Lateral direita
+          this.armarioGrupo.add(new THREE.Mesh(geoLat, matGaveta).translateX(centroX + p.w / 2 - d / 2).translateY(cy).translateZ(zCentroCorpo));
+          // Fundo da gaveta
+          this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(larguraCorpo, d, profundidadeCorpo), matGaveta).translateX(centroX).translateY(cy - alturaCorpo / 2 + d / 2).translateZ(zCentroCorpo));
         }
-      } else if (p.tipo === 'fundo') {
+      }
+
+      // --- FUNDO (painel cego) ---
+      else if (p.tipo === 'fundo') {
         const centroX = baseX3D + p.w / 2;
         this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(p.w, p.h, d), matFundo).translateX(centroX).translateY(centroY3D).translateZ(-profundidade / 2 + d / 2));
       }
@@ -661,13 +692,152 @@ class ProjetosMDF {
       }
     }
 
-    // Chama o gerenciador de orçamentos para adicionar o item
-    const orcManager = this.parentManager.orcamentosManager;
-    if (orcManager) {
-      orcManager.adicionarItemDeProjeto(resumo, fotoUrl);
-    } else {
-      showToast("Módulo de orçamentos não disponível.", true);
+    // Abre modal de seleção (novo orçamento ou existente)
+    this.modalSelecaoOrcamento(resumo, fotoUrl);
+  }
+
+  modalSelecaoOrcamento(resumo, fotoUrl) {
+    const self = this;
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-selecao-orcamento-mdf';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;';
+    overlay.innerHTML = `
+      <div style="background:white; border-radius:16px; box-shadow:0 20px 40px rgba(0,0,0,0.2); max-width:400px; width:90%; padding:20px; position:relative;">
+        <button style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;" 
+                onclick="this.closest('#modal-selecao-orcamento-mdf').remove()">&times;</button>
+        <h3 style="font-size:1.2rem; font-weight:700; margin-bottom:15px;">Enviar para Orçamento</h3>
+        <p style="margin-bottom:20px;">Deseja criar um <strong>novo orçamento</strong> ou adicionar a um <strong>existente</strong>?</p>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button id="btn-novo-orcamento-mdf" style="padding:10px 20px; background:#b8a94e; color:#1e293b; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Novo Orçamento</button>
+          <button id="btn-orcamento-existente-mdf" style="padding:10px 20px; background:transparent; border:1.5px solid #b8a94e; color:#b8a94e; border-radius:8px; font-weight:bold; cursor:pointer;">Adicionar a Existente</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    document.getElementById('btn-novo-orcamento-mdf').addEventListener('click', () => {
+      overlay.remove();
+      this.criarNovoOrcamento(resumo, fotoUrl);
+    });
+    document.getElementById('btn-orcamento-existente-mdf').addEventListener('click', () => {
+      overlay.remove();
+      this.selecionarOrcamentoExistente(resumo, fotoUrl);
+    });
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+  }
+
+  criarNovoOrcamento(resumo, fotoUrl) {
+    // Obtém ou cria o gerenciador de orçamentos
+    let orcManager = this.parentManager.orcamentosManager;
+    if (!orcManager) {
+      const areaOrc = document.getElementById('subaba-mdf-orcamentos');
+      if (areaOrc) {
+        orcManager = new OrcamentosMDF(areaOrc, this.parentManager);
+        this.parentManager.orcamentosManager = orcManager;
+      } else {
+        showToast("Módulo de orçamentos não disponível.", true);
+        return;
+      }
     }
+    // Abre novo orçamento e adiciona o item
+    orcManager.abrirNovoOrcamento();
+    setTimeout(() => {
+      orcManager.adicionarItem({
+        nome: resumo.descricao,
+        descricao: `Projeto gerado automaticamente.`,
+        preco: 0,
+        desconto: 0,
+        foto_url: fotoUrl
+      });
+    }, 600);
+    // Navega para a aba de orçamentos dentro do MDF
+    this.parentManager.mostrarSubAba('orcamentos');
+  }
+
+  async selecionarOrcamentoExistente(resumo, fotoUrl) {
+    try {
+      const { data: orcamentos, error } = await window.sb
+        .from('mdf_orcamentos')
+        .select('id, cliente_nome, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      if (!orcamentos || orcamentos.length === 0) {
+        showToast("Nenhum orçamento encontrado. Crie um novo primeiro.", true);
+        return;
+      }
+      this.modalListaOrcamentos(resumo, fotoUrl, orcamentos);
+    } catch (err) {
+      console.error(err);
+      showToast("Erro ao carregar orçamentos.", true);
+    }
+  }
+
+  modalListaOrcamentos(resumo, fotoUrl, orcamentos) {
+    const self = this;
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-lista-orcamentos-mdf';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;';
+    overlay.innerHTML = `
+      <div style="background:white; border-radius:16px; box-shadow:0 20px 40px rgba(0,0,0,0.2); max-width:500px; width:90%; padding:20px; position:relative;">
+        <button style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:1.5rem; cursor:pointer; color:#64748b;" 
+                onclick="this.closest('#modal-lista-orcamentos-mdf').remove()">&times;</button>
+        <h3 style="font-size:1.2rem; font-weight:700; margin-bottom:15px;">Selecione o Orçamento</h3>
+        <p style="font-size:0.9rem; margin-bottom:15px;">Escolha um orçamento existente para adicionar o item:</p>
+        <div style="max-height:300px; overflow-y:auto;">
+          ${orcamentos.map(o => `
+            <div class="orcamento-item-mdf" data-id="${o.id}" style="padding:12px; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:white; transition:background 0.2s;">
+              <div>
+                <span style="font-weight:600;">#${o.id} - ${o.cliente_nome || 'Sem nome'}</span><br>
+                <span style="font-size:0.8rem; color:#64748b;">${new Date(o.created_at).toLocaleDateString('pt-BR')}</span>
+              </div>
+              <i data-lucide="plus-circle" style="color:#b8a94e;"></i>
+            </div>
+          `).join('')}
+        </div>
+        <div style="margin-top:15px; text-align:right;">
+          <button style="padding:8px 16px; border:1.5px solid #b8a94e; color:#b8a94e; background:transparent; border-radius:8px; font-weight:bold; cursor:pointer;" 
+                  onclick="this.closest('#modal-lista-orcamentos-mdf').remove()">Cancelar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    lucide.createIcons();
+
+    overlay.querySelectorAll('.orcamento-item-mdf').forEach(el => {
+      el.addEventListener('click', async () => {
+        const id = el.dataset.id;
+        overlay.remove();
+        await this.adicionarItemAOrcamento(id, resumo, fotoUrl);
+      });
+    });
+  }
+
+  async adicionarItemAOrcamento(orcamentoId, resumo, fotoUrl) {
+    let orcManager = this.parentManager.orcamentosManager;
+    if (!orcManager) {
+      const areaOrc = document.getElementById('subaba-mdf-orcamentos');
+      if (areaOrc) {
+        orcManager = new OrcamentosMDF(areaOrc, this.parentManager);
+        this.parentManager.orcamentosManager = orcManager;
+      } else {
+        showToast("Módulo de orçamentos não disponível.", true);
+        return;
+      }
+    }
+    await orcManager.editarOrcamento(orcamentoId);
+    setTimeout(() => {
+      orcManager.adicionarItem({
+        nome: resumo.descricao,
+        descricao: `Projeto gerado automaticamente.`,
+        preco: 0,
+        desconto: 0,
+        foto_url: fotoUrl
+      });
+    }, 800);
+    this.parentManager.mostrarSubAba('orcamentos');
   }
 }
 
@@ -793,6 +963,9 @@ class OrcamentosMDF {
             <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.gerarPDF()" class="px-4 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition flex items-center gap-2">
               <i data-lucide="download"></i> Baixar PDF
             </button>
+            <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.imprimirOrcamento()" class="px-4 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition flex items-center gap-2">
+              <i data-lucide="printer"></i> Imprimir
+            </button>
           </div>
         </div>
       </div>
@@ -805,7 +978,6 @@ class OrcamentosMDF {
   async carregarClientesSelect() {
     const select = document.getElementById('cliente-mdf');
     if (!select) return;
-    // Usa a lista de clientes do STATE do RV Portal (já carregada)
     const clientes = window.STATE?.clients || [];
     select.innerHTML = '<option value="">Selecione um cliente...</option>' +
       clientes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -814,7 +986,7 @@ class OrcamentosMDF {
   async renderizarOrcamentos() {
     const lista = document.getElementById('lista-orcamentos-mdf');
     if (!lista) return;
-    lista.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Carregando...</td></tr>';
+    lista.innerHTML = '<td><td colspan="5" class="p-8 text-center text-slate-400">Carregando...</td></tr>';
 
     const search = document.getElementById('search-quotes-mdf')?.value.toLowerCase() || '';
     const statusFiltro = document.getElementById('status-filter-mdf')?.value || '';
@@ -860,10 +1032,11 @@ class OrcamentosMDF {
               <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.editarOrcamento(${orc.id})" class="p-2 border border-[#b8a94e] bg-white text-[#b8a94e] hover:bg-amber-50 rounded-lg shadow-sm" title="Editar"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
               <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.duplicarOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Duplicar"><i data-lucide="copy" class="w-4 h-4"></i></button>
               <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.baixarPDF(${orc.id})" class="p-2 border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm" title="Baixar PDF"><i data-lucide="download" class="w-4 h-4"></i></button>
+              <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.imprimirOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Imprimir"><i data-lucide="printer" class="w-4 h-4"></i></button>
               <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.excluirOrcamento(${orc.id})" class="p-2 border border-red-200 bg-white text-red-500 hover:bg-red-50 rounded-lg shadow-sm" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
           </td>
-        </tr>
+        </table>
       `;
     }).join('');
     lucide.createIcons();
@@ -960,8 +1133,8 @@ class OrcamentosMDF {
           <input type="file" accept="image/*" class="hidden" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.uploadImagemItem(this, ${idx})">
         </div>
         <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 w-full">
-          <input type="text" placeholder="Nome do móvel" value="${item.nome}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'nome', this.value)" class="p-2 border rounded text-sm w-full">
-          <input type="text" placeholder="Medidas / descrição" value="${item.descricao}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'descricao', this.value)" class="p-2 border rounded text-sm w-full">
+          <input type="text" placeholder="Nome do móvel" value="${item.nome.replace(/"/g, '&quot;')}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'nome', this.value)" class="p-2 border rounded text-sm w-full">
+          <input type="text" placeholder="Medidas / descrição" value="${item.descricao.replace(/"/g, '&quot;')}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'descricao', this.value)" class="p-2 border rounded text-sm w-full">
           <input type="number" placeholder="Preço R$" value="${item.preco}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'preco', parseFloat(this.value) || 0)" class="p-2 border rounded text-sm w-full" step="0.01">
           <input type="number" placeholder="Desconto R$" value="${item.desconto}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'desconto', parseFloat(this.value) || 0)" class="p-2 border rounded text-sm w-full" step="0.01">
         </div>
@@ -1145,7 +1318,7 @@ class OrcamentosMDF {
         <td style="padding: 8px; text-align: right;">R$ ${parseFloat(item.preco).toFixed(2)}</td>
         <td style="padding: 8px; text-align: right;">R$ ${parseFloat(item.desconto || 0).toFixed(2)}</td>
         <td style="padding: 8px; text-align: right; font-weight: bold;">R$ ${(parseFloat(item.preco) - parseFloat(item.desconto || 0)).toFixed(2)}</td>
-      </tr>
+      </table>
     `).join('');
 
     const total = itens.reduce((s, i) => s + parseFloat(i.preco) - parseFloat(i.desconto || 0), 0);
@@ -1252,18 +1425,12 @@ class OrcamentosMDF {
     html2pdf().set(opt).from(html).save();
   }
 
-  adicionarItemDeProjeto(resumo, fotoUrl) {
-    // Abre o modal de orçamento (novo ou existente) e adiciona o item
-    this.abrirNovoOrcamento();
-    setTimeout(() => {
-      this.adicionarItem({
-        nome: resumo.descricao,
-        descricao: `Projeto gerado automaticamente.`,
-        preco: 0,
-        desconto: 0,
-        foto_url: fotoUrl
-      });
-    }, 600);
+  imprimirOrcamento(id) {
+    if (id) {
+      this.baixarPDF(id);
+    } else {
+      this.gerarPDF();
+    }
   }
 }
 
@@ -1292,7 +1459,6 @@ window.iniciarMDF = function() {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.navigate !== 'undefined') {
-      // Sobrescreve navigate para garantir que quando a aba MDF for chamada, o módulo seja iniciado
       const originalNavigate = window.navigate;
       window.navigate = function(viewId) {
         originalNavigate(viewId);
