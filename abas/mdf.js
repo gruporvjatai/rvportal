@@ -10,7 +10,7 @@ const SUPABASE_URL = 'https://lyieiqhkspbowsrlngvn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ==================== CLASSE PRINCIPAL DO MÓDULO MDF ====================
+// ==================== CLASSE PRINCIPAL DO MÓDULO MDF (CORRIGIDA) ====================
 class MDFManager {
   constructor(container) {
     this.container = container;
@@ -34,16 +34,12 @@ class MDFManager {
         <div class="flex gap-3 mb-5 bg-white/80 backdrop-blur-sm p-1 rounded-2xl shadow-md border border-emerald-100">
           <button data-subaba="projetos" 
                   class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 
-                         bg-emerald-600 text-white shadow-md
-                         hover:bg-emerald-700 hover:shadow-lg
                          flex items-center justify-center gap-2">
             <i data-lucide="box" class="w-4 h-4"></i> 
             <span>Projetos</span>
           </button>
           <button data-subaba="orcamentos" 
                   class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 
-                         bg-white text-emerald-700 border border-emerald-200
-                         hover:bg-emerald-50 hover:border-emerald-300
                          flex items-center justify-center gap-2">
             <i data-lucide="file-text" class="w-4 h-4"></i> 
             <span>Orçamentos</span>
@@ -53,14 +49,16 @@ class MDFManager {
         <div id="subaba-mdf-orcamentos" class="subaba-mdf-content flex-1 hidden"></div>
       </div>
     `;
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-    // Sincroniza a profundidade com o input
+
+    // Aplica o estilo ativo no botão correto
+    this.atualizarEstiloBotoes('projetos');
+
+    // Sincroniza a profundidade com o input (se existir)
     const profundidadeInput = document.getElementById('profundidade-input-mdf');
     if (profundidadeInput) {
       profundidadeInput.value = this.profundidade;
       profundidadeInput.addEventListener('change', (e) => {
         this.profundidade = parseFloat(e.target.value) || 60;
-        // Se o modelo 3D já existir, reconstruir
         if (this.projetosManager && this.projetosManager.configurador3D) {
           this.projetosManager.configurador3D.reconstruirModelo();
         }
@@ -68,21 +66,39 @@ class MDFManager {
     }
 
     this.container.querySelectorAll('.subaba-mdf-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => this.mostrarSubAba(e.target.dataset.subaba));
+      btn.addEventListener('click', (e) => {
+        const aba = e.currentTarget.dataset.subaba;
+        if (aba) this.mostrarSubAba(aba);
+      });
     });
+  }
+
+  // Método auxiliar para atualizar o estilo dos botões (ativo vs inativo)
+  atualizarEstiloBotoes(abaAtiva) {
+    const btnProjetos = this.container.querySelector('[data-subaba="projetos"]');
+    const btnOrcamentos = this.container.querySelector('[data-subaba="orcamentos"]');
+
+    const estiloAtivo = 'bg-emerald-600 text-white shadow-md border-transparent';
+    const estiloInativo = 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50';
+
+    if (abaAtiva === 'projetos') {
+      btnProjetos.classList.remove(...btnProjetos.classList);
+      btnProjetos.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloAtivo.split(' '));
+      
+      btnOrcamentos.classList.remove(...btnOrcamentos.classList);
+      btnOrcamentos.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloInativo.split(' '));
+    } else {
+      btnProjetos.classList.remove(...btnProjetos.classList);
+      btnProjetos.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloInativo.split(' '));
+      
+      btnOrcamentos.classList.remove(...btnOrcamentos.classList);
+      btnOrcamentos.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloAtivo.split(' '));
+    }
   }
 
   mostrarSubAba(nome) {
     this.activeSubTab = nome;
-    this.container.querySelectorAll('.subaba-mdf-btn').forEach(btn => {
-      btn.classList.remove('bg-[#b8a94e]', 'text-white', 'shadow');
-      btn.classList.add('text-slate-600', 'hover:bg-slate-100');
-    });
-    const btnAtivo = this.container.querySelector(`[data-subaba="${nome}"]`);
-    if (btnAtivo) {
-      btnAtivo.classList.add('bg-[#b8a94e]', 'text-white', 'shadow');
-      btnAtivo.classList.remove('text-slate-600', 'hover:bg-slate-100');
-    }
+    this.atualizarEstiloBotoes(nome);
 
     this.container.querySelectorAll('.subaba-mdf-content').forEach(el => el.classList.add('hidden'));
     const area = document.getElementById(`subaba-mdf-${nome}`);
@@ -99,8 +115,7 @@ class MDFManager {
         this.orcamentosManager.renderizarOrcamentos();
       }
     }
-  }
-
+  }  
   // Métodos auxiliares compartilhados com o editor 2D
   obterDimensoesGerais() {
     if (this.linhas.length > 0) {
