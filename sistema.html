@@ -176,13 +176,18 @@
         <button onclick="navigate('pos')" id="nav-pos" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="shopping-cart"></i> <span class="font-medium text-sm">PDV / Vendas</span></button>
         <button onclick="navigate('expedition')" id="nav-expedition" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all border-l-4 border-transparent hover:border-emerald-500"><i data-lucide="truck"></i> <span class="font-medium text-sm">Expedição / Entrega</span></button>
         <button onclick="navigate('quotes')" id="nav-quotes" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="folder-open"></i> <span class="font-medium text-sm">Orçamentos</span></button>
-        <button onclick="navigate('fin')" id="nav-fin" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="bar-chart-3"></i> <span class="font-medium text-sm">Financeiro</span></button>
+        <button onclick="navigate('mdf')" id="nav-mdf" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+        <i data-lucide="box"></i> <span class="font-medium text-sm">MDF</span></button>
+        
         <div class="border-t border-slate-700 my-2 pt-2"></div>
         <button onclick="navigate('equipe')" id="nav-equipe"class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="users"></i> <span class="font-medium text-sm">Equipe</span></button>
         <button onclick="navigate('clients')" id="nav-clients" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="users"></i> <span class="font-medium text-sm">Clientes</span></button>
         <button onclick="navigate('prod')" id="nav-prod" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="package"></i> <span class="font-medium text-sm">Produtos</span></button>
+         <div class="border-t border-slate-700 my-2 pt-2"></div>
+        <button onclick="navigate('fin')" id="nav-fin" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="bar-chart-3"></i> <span class="font-medium text-sm">Financeiro</span></button>
         <button onclick="navigate('production')" id="nav-production" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="pie-chart"></i> <span class="font-medium text-sm">Relatórios</span></button>
         <button onclick="navigate('gerencial')" id="nav-gerencial" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="calculator"></i> <span class="font-medium text-sm">Gerencial</span></button>
+       
         <div class="border-t border-slate-700 my-2 pt-2"></div>
         <button onclick="navigate('users')" id="nav-users" class="nav-btn w-full hidden flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="shield"></i> <span class="font-medium text-sm">Usuários (Admin)</span></button>
        </nav>
@@ -685,10 +690,9 @@
             </div>
         </div>
     </div>
-       <div id="view-equipe" class="hidden-section"></div>
-      <div id="view-gerencial" class="hidden-section">
-       <!-- Será populado dinamicamente pelo gerencial.js -->
-    </div>
+    <div id="view-equipe" class="hidden-section"></div>
+    <div id="view-gerencial" class="hidden-section"></div>
+    <div id="view-mdf" class="hidden-section"></div>
       
     </main>
     
@@ -1120,7 +1124,7 @@
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
-        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], custoMaterialB10: 0 };
+        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [] /*custoMaterialB10: 0 */};
         let CART = [];
         let CURRENT_QUOTE_ID = null; 
 
@@ -1241,12 +1245,12 @@
 
         async function loadData() {
     try {
-        const [resProd, resCli, resLog, resDesp, resConf] = await Promise.all([
+        const [resProd, resCli, resLog, resDesp, /*resConf*/] = await Promise.all([
             fetchAllRecords('produtos'),
             fetchAllRecords('clientes'),
             fetchAllRecords('logs'),
-            fetchAllRecords('despesas'),
-            sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
+            fetchAllRecords('despesas')
+           //sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
         ]);
 
         STATE.products = (resProd.data || []).map(p => ({
@@ -1309,14 +1313,14 @@
             cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
         }));
 
-        STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
+        /*STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
 
         if (dadosUsuario.nivel === 'admin') {
             const navUsersBtn = document.getElementById('nav-users');
             if (navUsersBtn) navUsersBtn.classList.remove('hidden');
             const resUsers = await fetchAllRecords('usuarios');
             STATE.users = resUsers.data || [];
-        }
+        }*/
 
         onDataLoaded();
     } catch (err) {
@@ -4321,8 +4325,7 @@ function openPartnerModal() {
     document.getElementById('modal-partner-report').classList.remove('hidden');
 }
 function closePartnerModal() { document.getElementById('modal-partner-report').classList.add('hidden'); }
-
- function printPartnerReport() {
+function printPartnerReport() {
     const start = document.getElementById('rep-part-start').value;
     const end = document.getElementById('rep-part-end').value;
     const tipo = document.getElementById('rep-part-type').value;
@@ -4338,7 +4341,7 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
     if (vendasFiltradas.length === 0) { showLoading(false); return showToast("Nenhuma venda de parceiro neste período.", true); }
 
     if (tipo === 'metros') {
-        // Relatório agrupado por produto (metragens e lucro)
+        // Relatório agrupado por produto (metragens e lucro) – permanece igual
         const agrupado = {};
         vendasFiltradas.forEach(l => {
             if (!agrupado[l.productName]) {
@@ -4382,7 +4385,7 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
             </table>
         </div>`;
     } else {
-        // Relatório de acerto: agrupa por venda + produto, somando metragem e valor de cada item
+        // Relatório de acerto: agrupa por venda + produto, exibindo CUSTO (não venda)
         const agrupado = {};
         vendasFiltradas.forEach(l => {
             const chave = `${l.id}_${l.productName}`;
@@ -4394,16 +4397,18 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
                     pagamento: l.paymentMethod,
                     produto: l.productName,
                     qtd: 0,
-                    valor: 0
+                    custo: 0
                 };
             }
             agrupado[chave].qtd += Number(l.quantity) || 0;
-            agrupado[chave].valor += Number(l.totalValue) || 0;
+            const prod = STATE.products.find(p => p.name === l.productName);
+            const custoUnitario = prod ? (prod.cost || 0) : 0;
+            agrupado[chave].custo += custoUnitario * (Number(l.quantity) || 0);
         });
 
         const linhas = Object.values(agrupado).sort((a,b) => new Date(a.data) - new Date(b.data));
         let rowsHtml = '';
-        let totalGeral = 0;
+        let totalCustoGeral = 0;
         linhas.forEach(item => {
             rowsHtml += `
                 <tr>
@@ -4412,9 +4417,9 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
                     <td>${item.cliente}</td>
                     <td>${item.pagamento}</td>
                     <td>${item.produto} ${item.qtd}m</td>
-                    <td style="text-align:right;">${formatMoney(item.valor)}</td>
+                    <td style="text-align:right;">${formatMoney(item.custo)}</td>
                 </tr>`;
-            totalGeral += item.valor;
+            totalCustoGeral += item.custo;
         });
 
         var html = `
@@ -4433,14 +4438,14 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
                         <th>Cliente</th>
                         <th>Forma Pgto</th>
                         <th>Produto (Metros)</th>
-                        <th style="text-align:right;">Valor Total</th>
+                        <th style="text-align:right;">Valor de Custo</th>
                     </tr>
                 </thead>
                 <tbody>${rowsHtml}</tbody>
                 <tfoot style="background:#f0fdf4;">
                     <tr style="font-weight:bold;">
-                        <td colspan="5">TOTAL GERAL</td>
-                        <td style="text-align:right;">${formatMoney(totalGeral)}</td>
+                        <td colspan="5">TOTAL A PAGAR AO PARCEIRO</td>
+                        <td style="text-align:right;">${formatMoney(totalCustoGeral)}</td>
                     </tr>
                 </tfoot>
             </table>
@@ -4454,7 +4459,17 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
 }
   
     </script> 
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="abas/mdf.js"></script>
     <script src="abas/equipe.js"></script>
     <script src="abas/gerencial.js"></script>
+   
   </body>
 </html>
