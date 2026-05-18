@@ -574,7 +574,7 @@ class ProjetosMDF {
           <button data-subsubaba="fachada" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#b8a94e] text-white shadow">📐 Fachada 2D</button>
           <button data-subsubaba="3d" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">🧊 3D</button>
           <button data-subsubaba="detalhamento" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">📋 Detalhamento</button>
-          <div class="flex items-center gap-2">
+          <div class="flex justify-content: flex-end gap-2">
             <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
             <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs">
             <button onclick="window.open('https://flatma.com/pt/create/designer', '_blank')" title="Abrir Flatma" class="px-3 py-1 border border-[#b8a94e] text-[#b8a94e] rounded text-xs font-bold hover:bg-amber-50 transition">📐 Flatma</button>
