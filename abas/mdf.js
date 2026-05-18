@@ -30,7 +30,8 @@ class MDFManager {
 
   renderizarInterface() {
     this.container.innerHTML = `
-      <div class="flex flex-col h-full">
+      <!--<div class="flex flex-col h-full">-->
+      <div class="flex items-center gap-2 ml-auto">
         <div class="flex gap-3 mb-5 bg-white/80 backdrop-blur-sm p-1 rounded-2xl shadow-md border border-emerald-100">
           <button data-subaba="projetos" 
                   class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 
