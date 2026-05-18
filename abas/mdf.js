@@ -1542,86 +1542,96 @@ class OrcamentosMDF {
 
   // ========== NOVOS MÉTODOS ==========
   async faturarOrcamento(id) {
-    if (!confirm(`Faturar orçamento #${id}? Isso criará uma venda no sistema financeiro.`)) return;
-    if (typeof showLoading === 'function') showLoading(true);
-    else console.log("showLoading não definido");
+  if (!confirm(`Faturar orçamento #${id}? Isso criará uma venda no sistema financeiro.`)) return;
+  if (typeof showLoading === 'function') showLoading(true);
 
-    try {
-      // 1. Buscar orçamento e itens
-      const { data: orc, error: errOrc } = await supabaseClient
-        .from('mdf_orcamentos')
-        .select('*')
-        .eq('id', id)
-        .single();
-      if (errOrc) throw errOrc;
+  try {
+    // 1. Buscar orçamento e itens
+    const { data: orc, error: errOrc } = await supabaseClient
+      .from('mdf_orcamentos')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (errOrc) throw errOrc;
 
-      const { data: itens, error: errItens } = await supabaseClient
-        .from('mdf_itens')
-        .select('*')
-        .eq('orcamento_id', id);
-      if (errItens) throw errItens;
+    const { data: itens, error: errItens } = await supabaseClient
+      .from('mdf_itens')
+      .select('*')
+      .eq('orcamento_id', id);
+    if (errItens) throw errItens;
+    if (!itens.length) throw new Error('Orçamento sem itens');
 
-      if (!itens.length) throw new Error('Orçamento sem itens');
-
-      // 2. Calcular totais e distribuir desconto
-      const subtotal = itens.reduce((acc, i) => acc + parseFloat(i.preco), 0);
-      let descontoTotal = parseFloat(orc.desconto) || 0;
-      if (orc.tipo_desconto === '%') {
-        descontoTotal = subtotal * (descontoTotal / 100);
-      }
-      const totalLiquido = Math.max(0, subtotal - descontoTotal);
-      const fator = subtotal > 0 ? totalLiquido / subtotal : 0;
-
-      // 3. Buscar cliente (para log)
-      const { data: cliente } = await supabaseClient
-        .from('clientes')
-        .select('nome')
-        .eq('nome', orc.cliente_nome)
-        .maybeSingle();
-      const nomeCliente = cliente?.nome || orc.cliente_nome || 'Consumidor Final';
-
-      // 4. Criar logs de venda (tipo 'venda')
-      const timestamp = new Date().toISOString();
-      const vendaId = Date.now(); // ID único (pode usar sequência)
-      const logs = itens.map(item => ({
-        id: vendaId,
-        tipo: 'venda',
-        produto_nome: item.nome,
-        quantidade: 1,
-        data: timestamp,
-        observacao: `MDF Orçamento #${id} - ${item.descricao || ''}`,
-        valor_total: parseFloat(item.preco) * fator,
-        cliente_nome: nomeCliente,
-        forma_pagamento: 'A Faturar',
-        status: 'ATIVO',
-        status_entrega: '',
-        qtd_entregue: 0,
-        desconto: 0,
-        status_financeiro: 'PENDENTE',
-        vencimento: timestamp,
-        valor_pago: 0,
-        endereco_entrega: ''
-      }));
-
-      const { error: errInsert } = await supabaseClient.from('logs').insert(logs);
-      if (errInsert) throw errInsert;
-
-      // 5. Atualizar status do orçamento para APROVADO
-      const { error: errUpdate } = await supabaseClient
-        .from('mdf_orcamentos')
-        .update({ status: 'APROVADO' })
-        .eq('id', id);
-      if (errUpdate) throw errUpdate;
-
-      window.showToast(`Orçamento #${id} faturado com sucesso! Venda registrada.`);
-      this.renderizarOrcamentos();
-    } catch (err) {
-      console.error(err);
-      window.showToast('Erro ao faturar: ' + err.message, true);
-    } finally {
-      if (typeof showLoading === 'function') showLoading(false);
+    // 2. Calcular totais e distribuir desconto
+    const subtotal = itens.reduce((acc, i) => acc + parseFloat(i.preco), 0);
+    let descontoTotal = parseFloat(orc.desconto) || 0;
+    if (orc.tipo_desconto === '%') {
+      descontoTotal = subtotal * (descontoTotal / 100);
     }
+    const totalLiquido = Math.max(0, subtotal - descontoTotal);
+    const fator = subtotal > 0 ? totalLiquido / subtotal : 0;
+
+    // 3. Buscar cliente (para log)
+    const { data: cliente } = await supabaseClient
+      .from('clientes')
+      .select('nome')
+      .eq('nome', orc.cliente_nome)
+      .maybeSingle();
+    const nomeCliente = cliente?.nome || orc.cliente_nome || 'Consumidor Final';
+
+    // 4. Buscar o próximo ID disponível na tabela logs
+    const { data: maxIdData, error: maxIdError } = await supabaseClient
+      .from('logs')
+      .select('id')
+      .order('id', { ascending: false })
+      .limit(1);
+    if (maxIdError) throw maxIdError;
+    let novoId = 1;
+    if (maxIdData && maxIdData.length > 0) {
+      novoId = maxIdData[0].id + 1;
+    }
+    const vendaId = novoId;
+
+    // 5. Criar logs de venda (tipo 'venda')
+    const timestamp = new Date().toISOString();
+    const logs = itens.map(item => ({
+      id: vendaId,
+      tipo: 'venda',
+      produto_nome: item.nome,
+      quantidade: 1,
+      data: timestamp,
+      observacao: `MDF Orçamento #${id} - ${item.descricao || ''}`,
+      valor_total: parseFloat(item.preco) * fator,
+      cliente_nome: nomeCliente,
+      forma_pagamento: 'A Faturar',
+      status: 'ATIVO',
+      status_entrega: '',
+      qtd_entregue: 0,
+      desconto: 0,
+      status_financeiro: 'PENDENTE',
+      vencimento: timestamp,
+      valor_pago: 0,
+      endereco_entrega: ''
+    }));
+
+    const { error: errInsert } = await supabaseClient.from('logs').insert(logs);
+    if (errInsert) throw errInsert;
+
+    // 6. Atualizar status do orçamento para APROVADO
+    const { error: errUpdate } = await supabaseClient
+      .from('mdf_orcamentos')
+      .update({ status: 'APROVADO' })
+      .eq('id', id);
+    if (errUpdate) throw errUpdate;
+
+    window.showToast(`Orçamento #${id} faturado com sucesso! Venda registrada.`);
+    this.renderizarOrcamentos();
+  } catch (err) {
+    console.error(err);
+    window.showToast('Erro ao faturar: ' + err.message, true);
+  } finally {
+    if (typeof showLoading === 'function') showLoading(false);
   }
+}
 
   async estornarOrcamento(id) {
     if (!confirm(`Estornar venda do orçamento #${id}? Isso removerá a venda do financeiro.`)) return;
