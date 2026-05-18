@@ -1675,11 +1675,230 @@ class OrcamentosMDF {
     }
   }
 
-  agendarInstalacao(id) {
-    // Placeholder: futuramente abrirá um modal de agenda
-    alert(`Funcionalidade em desenvolvimento: Agendar instalação para o orçamento #${id}`);
+  /*=====================agenda ==========================*/
+
+ // ========== MÉTODOS DE AGENDA ==========
+async agendarInstalacao(orcamentoId) {
+  // Buscar dados do orçamento e possível agendamento existente
+  const { data: orc } = await supabaseClient
+    .from('mdf_orcamentos')
+    .select('*')
+    .eq('id', orcamentoId)
+    .single();
+
+  const { data: agendaExistente } = await supabaseClient
+    .from('mdf_agenda')
+    .select('*')
+    .eq('orcamento_id', orcamentoId)
+    .maybeSingle();
+  const agendaIcon = agendaCheck ? `<i data-lucide="calendar-check" class="text-emerald-500 w-3 h-3 inline ml-1" title="Agendado"></i>` : '';
+  this.abrirModalAgenda(orcamentoId, orc, agendaExistente);
+}
+
+abrirModalAgenda(orcamentoId, orc, agenda) {
+  // Remove modal antigo se existir
+  const modalAntigo = document.getElementById('modal-agenda-mdf');
+  if (modalAntigo) modalAntigo.remove();
+
+  // Cria estrutura do modal
+  const modal = document.createElement('div');
+  modal.id = 'modal-agenda-mdf';
+  modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4';
+  modal.style.backdropFilter = 'blur(2px)';
+
+  // Formatar datas para o input date (YYYY-MM-DD)
+  const dataHoje = new Date().toISOString().split('T')[0];
+  const dataAgendada = agenda ? agenda.data_agendada.split('T')[0] : dataHoje;
+  const horarioAgendado = agenda ? agenda.horario.slice(0,5) : '14:00';
+  const statusAtual = agenda ? agenda.status : 'AGENDADO';
+
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="sticky top-0 bg-emerald-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
+        <h3 class="text-xl font-bold flex items-center gap-2">
+          <i data-lucide="calendar" class="w-5 h-5"></i> 
+          Agenda de Instalação
+        </h3>
+        <button onclick="document.getElementById('modal-agenda-mdf').remove()" class="text-white hover:text-emerald-200">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+      </div>
+      
+      <div class="p-6 space-y-5">
+        <div class="bg-slate-50 p-3 rounded-lg">
+          <p class="text-xs text-slate-500 uppercase font-bold">Orçamento / Cliente</p>
+          <p class="font-bold text-slate-800">#${orcamentoId} - ${orc.cliente_nome}</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Data da Instalação *</label>
+            <input type="date" id="agenda-data" value="${dataAgendada}" min="${dataHoje}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Horário *</label>
+            <input type="time" id="agenda-horario" value="${horarioAgendado}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">Status</label>
+          <select id="agenda-status" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+            <option value="AGENDADO" ${statusAtual === 'AGENDADO' ? 'selected' : ''}>Agendado</option>
+            <option value="REAGENDADO" ${statusAtual === 'REAGENDADO' ? 'selected' : ''}>Reagendado</option>
+            <option value="CONCLUIDO" ${statusAtual === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
+            <option value="CANCELADO" ${statusAtual === 'CANCELADO' ? 'selected' : ''}>Cancelado</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Instalador (nome)</label>
+            <input type="text" id="agenda-instalador-nome" value="${agenda?.instalador_nome || ''}" placeholder="Ex: João Silva" class="w-full p-2 border rounded-lg">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Telefone do Instalador</label>
+            <input type="tel" id="agenda-instalador-tel" value="${agenda?.instalador_telefone || ''}" placeholder="(64) 99999-9999" class="w-full p-2 border rounded-lg">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">Observações</label>
+          <textarea id="agenda-obs" rows="3" placeholder="Detalhes da instalação, endereço, etc." class="w-full p-2 border rounded-lg">${agenda?.observacoes || ''}</textarea>
+        </div>
+
+        <!-- Campo reservado para foto (futuro) -->
+        <div class="border-t pt-3">
+          <p class="text-xs text-slate-400 flex items-center gap-1"><i data-lucide="image" class="w-3 h-3"></i> Reservado para foto do produto instalado (em breve)</p>
+          <div id="foto-preview-area" class="hidden mt-2"></div>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          ${agenda && agenda.status !== 'CANCELADO' ? `
+            <button id="btn-cancelar-agenda" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 font-bold py-2 rounded-lg transition flex items-center justify-center gap-2">
+              <i data-lucide="ban" class="w-4 h-4"></i> Cancelar Instalação
+            </button>
+          ` : ''}
+          <button id="btn-salvar-agenda" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg shadow flex items-center justify-center gap-2">
+            <i data-lucide="save"></i> Salvar Agendamento
+          </button>
+          <button id="btn-whatsapp-instalador" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg shadow flex items-center justify-center gap-2 ${!agenda?.instalador_telefone ? 'opacity-50 cursor-not-allowed' : ''}" ${!agenda?.instalador_telefone ? 'disabled' : ''}>
+            <i data-lucide="message-circle"></i> WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  // Eventos
+  document.getElementById('btn-salvar-agenda').addEventListener('click', () => this.salvarAgenda(orcamentoId, modal));
+  if (agenda && agenda.status !== 'CANCELADO') {
+    document.getElementById('btn-cancelar-agenda')?.addEventListener('click', () => this.cancelarAgenda(orcamentoId, modal));
+  }
+  document.getElementById('btn-whatsapp-instalador')?.addEventListener('click', () => this.enviarWhatsAppInstalador(orcamentoId, agenda));
+}
+
+async salvarAgenda(orcamentoId, modal) {
+  const data = document.getElementById('agenda-data').value;
+  const horario = document.getElementById('agenda-horario').value;
+  const status = document.getElementById('agenda-status').value;
+  const instalador_nome = document.getElementById('agenda-instalador-nome').value;
+  const instalador_telefone = document.getElementById('agenda-instalador-tel').value;
+  const observacoes = document.getElementById('agenda-obs').value;
+
+  if (!data || !horario) {
+    window.showToast('Preencha data e horário.', true);
+    return;
+  }
+
+  // Verificar se já existe agendamento
+  const { data: existente } = await supabaseClient
+    .from('mdf_agenda')
+    .select('id')
+    .eq('orcamento_id', orcamentoId)
+    .maybeSingle();
+
+  let error;
+  if (existente) {
+    const { error: err } = await supabaseClient
+      .from('mdf_agenda')
+      .update({
+        data_agendada: data,
+        horario,
+        status,
+        instalador_nome,
+        instalador_telefone,
+        observacoes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existente.id);
+    error = err;
+  } else {
+    const { error: err } = await supabaseClient
+      .from('mdf_agenda')
+      .insert({
+        orcamento_id: orcamentoId,
+        data_agendada: data,
+        horario,
+        status,
+        instalador_nome,
+        instalador_telefone,
+        observacoes
+      });
+    error = err;
+  }
+
+  if (error) {
+    window.showToast('Erro ao salvar agenda: ' + error.message, true);
+  } else {
+    window.showToast('Agendamento salvo com sucesso!');
+    modal.remove();
+    // Opcional: atualizar a listagem de orçamentos para refletir o status
+    this.renderizarOrcamentos();
   }
 }
+
+async cancelarAgenda(orcamentoId, modal) {
+  if (!confirm('Cancelar esta instalação? O status será alterado para CANCELADO.')) return;
+
+  const { error } = await supabaseClient
+    .from('mdf_agenda')
+    .update({ status: 'CANCELADO', updated_at: new Date().toISOString() })
+    .eq('orcamento_id', orcamentoId);
+
+  if (error) {
+    window.showToast('Erro ao cancelar: ' + error.message, true);
+  } else {
+    window.showToast('Instalação cancelada.');
+    modal.remove();
+    this.renderizarOrcamentos();
+  }
+}
+
+enviarWhatsAppInstalador(orcamentoId, agenda) {
+  if (!agenda || !agenda.instalador_telefone) {
+    window.showToast('Telefone do instalador não cadastrado.', true);
+    return;
+  }
+
+  // Formatar número (remover não dígitos)
+  let numero = agenda.instalador_telefone.replace(/\D/g, '');
+  if (numero.length === 11) numero = '55' + numero;
+  else if (numero.length === 10) numero = '55' + numero;
+
+  // Mensagem padrão
+  const dataFormatada = new Date(agenda.data_agendada + 'T' + agenda.horario).toLocaleString('pt-BR');
+  const msg = `Olá ${agenda.instalador_nome || 'instalador'}! Temos uma instalação agendada para o orçamento #${orcamentoId} no dia ${dataFormatada}. Detalhes: ${agenda.observacoes || 'sem observações adicionais'}. Obrigado!`;
+  const url = `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+  
+}/*fechamento de Orçamentos MDF*/
+
+
 // ==================== INICIALIZAÇÃO GLOBAL ====================
 window.iniciarMDF = function() {
   const container = document.getElementById('view-mdf');
