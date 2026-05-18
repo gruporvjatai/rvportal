@@ -1,8 +1,14 @@
 // mdf.js – Módulo completo para gestão de projetos e orçamentos MDF
-// Totalmente fiel aos originais projetos.js e app.js, unificado para o RV Portal
+// Versão corrigida – cria seu próprio cliente Supabase e busca clientes da tabela clientes
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ==================== CONFIGURAÇÃO SUPABASE ====================
+// As mesmas credenciais usadas no RV Portal (hardcoded no HTML)
+const SUPABASE_URL = 'https://lyieiqhkspbowsrlngvn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==================== CLASSE PRINCIPAL DO MÓDULO MDF ====================
 class MDFManager {
@@ -29,21 +35,33 @@ class MDFManager {
           <button data-subaba="projetos" class="subaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#b8a94e] text-white shadow">📐 Projetos</button>
           <button data-subaba="orcamentos" class="subaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">💰 Orçamentos</button>
           <div class="flex-1"></div>
-          <div class="flex items-center gap-2">
-            <!--<label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
-            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs" onchange="window.profundidadeProjetoMDF = parseFloat(this.value)">-->
+         <!--<div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
+            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs">
             <button onclick="window.open('https://flatma.com/pt/create/designer', '_blank')" title="Abrir Flatma" class="px-3 py-1 border border-[#b8a94e] text-[#b8a94e] rounded text-xs font-bold hover:bg-amber-50 transition">📐 Flatma</button>
-          </div>
+          </div>-->
         </div>
         <div id="subaba-mdf-projetos" class="subaba-mdf-content flex-1"></div>
         <div id="subaba-mdf-orcamentos" class="subaba-mdf-content flex-1 hidden"></div>
       </div>
     `;
 
+    // Sincroniza a profundidade com o input
+    const profundidadeInput = document.getElementById('profundidade-input-mdf');
+    if (profundidadeInput) {
+      profundidadeInput.value = this.profundidade;
+      profundidadeInput.addEventListener('change', (e) => {
+        this.profundidade = parseFloat(e.target.value) || 60;
+        // Se o modelo 3D já existir, reconstruir
+        if (this.projetosManager && this.projetosManager.configurador3D) {
+          this.projetosManager.configurador3D.reconstruirModelo();
+        }
+      });
+    }
+
     this.container.querySelectorAll('.subaba-mdf-btn').forEach(btn => {
       btn.addEventListener('click', (e) => this.mostrarSubAba(e.target.dataset.subaba));
     });
-    window.profundidadeProjetoMDF = this.profundidade;
   }
 
   mostrarSubAba(nome) {
@@ -429,7 +447,7 @@ class ConfiguradorArmarioMDF {
 
     const { largura, altura, offsetX, offsetY } = dims;
     const profundidade = this.manager.profundidade;
-    const d = 1.8; // espessura padrão das chapas (cm)
+    const d = 1.8;
     const matCorpo = new THREE.MeshStandardMaterial({ color: '#A67B5B', roughness: 0.5 });
     const matPorta = new THREE.MeshStandardMaterial({ color: '#8B5A2B', roughness: 0.4 });
     const matGaveta = new THREE.MeshStandardMaterial({ color: '#b89a6b', roughness: 0.5 });
@@ -437,24 +455,21 @@ class ConfiguradorArmarioMDF {
 
     this.armarioGrupo = new THREE.Group();
 
-    // Função auxiliar para converter coordenadas do canvas 2D para o espaço 3D
     const to3D = (canvasX, canvasY) => {
       const x3D = canvasX - offsetX - largura / 2;
       const y3D = altura - (canvasY - offsetY);
       return { x: x3D, y: y3D };
     };
 
-    // Estrutura fixa (laterais, fundo, teto)
+    // Estrutura fixa
     const leftX = offsetX;
     const rightX = offsetX + largura;
     this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(d, altura, profundidade), matCorpo).translateX(to3D(leftX, 0).x).translateY(altura / 2));
     this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(d, altura, profundidade), matCorpo).translateX(to3D(rightX, 0).x).translateY(altura / 2));
-    // Fundo (chapa fina atrás)
     this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(largura - 2 * d, d, profundidade), matCorpo).translateY(d / 2));
-    // Teto
     this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(largura, d, profundidade), matCorpo).translateY(altura - d / 2));
 
-    // Prateleiras (linhas horizontais)
+    // Prateleiras
     this.manager.linhas.forEach(linha => {
       if (Math.abs(linha.y1 - linha.y2) < 0.1) {
         const yCanvas = linha.y1;
@@ -465,7 +480,7 @@ class ConfiguradorArmarioMDF {
       }
     });
 
-    // Divisórias (linhas verticais)
+    // Divisórias
     this.manager.linhas.forEach(linha => {
       if (Math.abs(linha.x1 - linha.x2) < 0.1) {
         const xCanvas = linha.x1;
@@ -479,11 +494,10 @@ class ConfiguradorArmarioMDF {
     // Portas, gavetas e fundos
     const espessuraFrente = d * 0.8;
     this.manager.preenchimentos.forEach(p => {
-      const baseX3D = to3D(p.x, 0).x;      // canto esquerdo da área
-      const centroY3D = to3D(0, p.y + p.h / 2).y; // centro vertical da área
+      const baseX3D = to3D(p.x, 0).x;
+      const centroY3D = to3D(0, p.y + p.h / 2).y;
       const faceFrontalZ = profundidade / 2;
 
-      // --- PORTAS (divisão horizontal = largura) ---
       if (p.tipo === 'porta') {
         const sub = p.subdivisoes || 1;
         const subW = p.w / sub;
@@ -492,55 +506,37 @@ class ConfiguradorArmarioMDF {
           const porta = new THREE.Mesh(new THREE.BoxGeometry(subW, p.h, espessuraFrente), matPorta);
           porta.position.set(cx, centroY3D, faceFrontalZ - espessuraFrente / 2);
           this.armarioGrupo.add(porta);
-          // Arestas
           porta.add(new THREE.LineSegments(new THREE.EdgesGeometry(porta.geometry), new THREE.LineBasicMaterial({ color: '#1e293b' })));
-          // Puxador esférico
           const puxador = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 8), new THREE.MeshStandardMaterial({ color: '#c0c0c0', metalness: 0.9, roughness: 0.2 }));
           puxador.position.set(subW / 2 - 4, p.h / 2 - 10, espessuraFrente / 2 + 0.5);
           porta.add(puxador);
         }
-      }
-
-      // --- GAVETAS (divisão vertical = altura) com corpo completo ---
-      else if (p.tipo === 'gaveta') {
+      } else if (p.tipo === 'gaveta') {
         const sub = p.subdivisoes || 1;
-        const subH = p.h / sub;            // altura de cada gaveta
-        const centroX = baseX3D + p.w / 2; // centro horizontal fixo
-
+        const subH = p.h / sub;
+        const centroX = baseX3D + p.w / 2;
         for (let i = 0; i < sub; i++) {
-          // Posiciona de cima para baixo
           const cy = centroY3D + (p.h / 2) - subH / 2 - i * subH;
-
-          // Frente (painel)
           const frenteGeom = new THREE.BoxGeometry(p.w, subH, espessuraFrente);
           const frente = new THREE.Mesh(frenteGeom, matGaveta);
           frente.position.set(centroX, cy, faceFrontalZ - espessuraFrente / 2);
           this.armarioGrupo.add(frente);
           frente.add(new THREE.LineSegments(new THREE.EdgesGeometry(frenteGeom), new THREE.LineBasicMaterial({ color: '#1e293b' })));
-          // Friso decorativo
           const friso = new THREE.Mesh(new THREE.BoxGeometry(p.w - 0.4, 0.4, espessuraFrente + 0.3), new THREE.MeshBasicMaterial({ color: '#1e293b' }));
           friso.position.set(0, -subH / 2 + 2.5, 0);
           frente.add(friso);
-
-          // Corpo da gaveta (laterais e fundo)
+          // Corpo da gaveta
           const profundidadeCorpo = profundidade - 2 * d - 2;
           const alturaCorpo = subH - d * 2;
           const larguraCorpo = p.w - d * 2;
           const zFrenteTraseira = faceFrontalZ - espessuraFrente;
           const zCentroCorpo = zFrenteTraseira - profundidadeCorpo / 2;
-
-          // Lateral esquerda
           const geoLat = new THREE.BoxGeometry(d, alturaCorpo, profundidadeCorpo);
           this.armarioGrupo.add(new THREE.Mesh(geoLat, matGaveta).translateX(centroX - p.w / 2 + d / 2).translateY(cy).translateZ(zCentroCorpo));
-          // Lateral direita
           this.armarioGrupo.add(new THREE.Mesh(geoLat, matGaveta).translateX(centroX + p.w / 2 - d / 2).translateY(cy).translateZ(zCentroCorpo));
-          // Fundo da gaveta
           this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(larguraCorpo, d, profundidadeCorpo), matGaveta).translateX(centroX).translateY(cy - alturaCorpo / 2 + d / 2).translateZ(zCentroCorpo));
         }
-      }
-
-      // --- FUNDO (painel cego) ---
-      else if (p.tipo === 'fundo') {
+      } else if (p.tipo === 'fundo') {
         const centroX = baseX3D + p.w / 2;
         this.armarioGrupo.add(new THREE.Mesh(new THREE.BoxGeometry(p.w, p.h, d), matFundo).translateX(centroX).translateY(centroY3D).translateZ(-profundidade / 2 + d / 2));
       }
@@ -578,16 +574,16 @@ class ProjetosMDF {
           <button data-subsubaba="fachada" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#b8a94e] text-white shadow">📐 Fachada 2D</button>
           <button data-subsubaba="3d" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">🧊 3D</button>
           <button data-subsubaba="detalhamento" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">📋 Detalhamento</button>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
+            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs">
+            <button onclick="window.open('https://flatma.com/pt/create/designer', '_blank')" title="Abrir Flatma" class="px-3 py-1 border border-[#b8a94e] text-[#b8a94e] rounded text-xs font-bold hover:bg-amber-50 transition">📐 Flatma</button>
+          </div>
         </div>
         <div id="subsubaba-fachada" class="subsubaba-mdf-content flex-1"></div>
         <div id="subsubaba-3d" class="subsubaba-mdf-content flex-1 hidden"></div>
         <div id="subsubaba-detalhamento" class="subsubaba-mdf-content flex-1 hidden"></div>
-          <div class="flex items-center gap-2">
-            <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
-            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs" onchange="window.profundidadeProjetoMDF = parseFloat(this.value)">
-          </div>
-       </div>
-    
+      </div>
     `;
 
     this.container.querySelectorAll('.subsubaba-mdf-btn').forEach(btn => {
@@ -671,7 +667,7 @@ class ProjetosMDF {
   async enviarResumoParaOrcamento() {
     const resumo = this.parentManager.obterResumoProjeto();
     if (!resumo) {
-      showToast("Desenhe o projeto primeiro.", true);
+      window.showToast("Desenhe o projeto primeiro.", true);
       return;
     }
 
@@ -683,7 +679,7 @@ class ProjetosMDF {
         if (blob) {
           const formData = new FormData();
           formData.append('image', blob);
-          const resp = await fetch(`https://api.imgbb.com/1/upload?key=${CONFIG.IMGBB_KEY}`, {
+          const resp = await fetch(`https://api.imgbb.com/1/upload?key=SEU_IMGBB_KEY`, { // Substitua pela sua chave real
             method: 'POST',
             body: formData
           });
@@ -697,12 +693,10 @@ class ProjetosMDF {
       }
     }
 
-    // Abre modal de seleção (novo orçamento ou existente)
     this.modalSelecaoOrcamento(resumo, fotoUrl);
   }
 
   modalSelecaoOrcamento(resumo, fotoUrl) {
-    const self = this;
     const overlay = document.createElement('div');
     overlay.id = 'modal-selecao-orcamento-mdf';
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;';
@@ -734,7 +728,6 @@ class ProjetosMDF {
   }
 
   criarNovoOrcamento(resumo, fotoUrl) {
-    // Obtém ou cria o gerenciador de orçamentos
     let orcManager = this.parentManager.orcamentosManager;
     if (!orcManager) {
       const areaOrc = document.getElementById('subaba-mdf-orcamentos');
@@ -742,11 +735,10 @@ class ProjetosMDF {
         orcManager = new OrcamentosMDF(areaOrc, this.parentManager);
         this.parentManager.orcamentosManager = orcManager;
       } else {
-        showToast("Módulo de orçamentos não disponível.", true);
+        window.showToast("Módulo de orçamentos não disponível.", true);
         return;
       }
     }
-    // Abre novo orçamento e adiciona o item
     orcManager.abrirNovoOrcamento();
     setTimeout(() => {
       orcManager.adicionarItem({
@@ -757,31 +749,29 @@ class ProjetosMDF {
         foto_url: fotoUrl
       });
     }, 600);
-    // Navega para a aba de orçamentos dentro do MDF
     this.parentManager.mostrarSubAba('orcamentos');
   }
 
   async selecionarOrcamentoExistente(resumo, fotoUrl) {
     try {
-      const { data: orcamentos, error } = await window.sb
+      const { data: orcamentos, error } = await supabaseClient
         .from('mdf_orcamentos')
         .select('id, cliente_nome, created_at')
         .order('created_at', { ascending: false })
         .limit(20);
       if (error) throw error;
       if (!orcamentos || orcamentos.length === 0) {
-        showToast("Nenhum orçamento encontrado. Crie um novo primeiro.", true);
+        window.showToast("Nenhum orçamento encontrado. Crie um novo primeiro.", true);
         return;
       }
       this.modalListaOrcamentos(resumo, fotoUrl, orcamentos);
     } catch (err) {
       console.error(err);
-      showToast("Erro ao carregar orçamentos.", true);
+      window.showToast("Erro ao carregar orçamentos.", true);
     }
   }
 
   modalListaOrcamentos(resumo, fotoUrl, orcamentos) {
-    const self = this;
     const overlay = document.createElement('div');
     overlay.id = 'modal-lista-orcamentos-mdf';
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999;';
@@ -809,7 +799,7 @@ class ProjetosMDF {
       </div>
     `;
     document.body.appendChild(overlay);
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     overlay.querySelectorAll('.orcamento-item-mdf').forEach(el => {
       el.addEventListener('click', async () => {
@@ -828,7 +818,7 @@ class ProjetosMDF {
         orcManager = new OrcamentosMDF(areaOrc, this.parentManager);
         this.parentManager.orcamentosManager = orcManager;
       } else {
-        showToast("Módulo de orçamentos não disponível.", true);
+        window.showToast("Módulo de orçamentos não disponível.", true);
         return;
       }
     }
@@ -977,43 +967,52 @@ class OrcamentosMDF {
     `;
     this.carregarClientesSelect();
     this.renderizarOrcamentos();
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
   async carregarClientesSelect() {
     const select = document.getElementById('cliente-mdf');
     if (!select) return;
-    const clientes = window.STATE?.clients || [];
+    // Busca clientes da tabela clientes do Supabase
+    const { data: clientes, error } = await supabaseClient
+      .from('clientes')
+      .select('id, nome')
+      .order('nome');
+    if (error) {
+      console.error('Erro ao carregar clientes:', error);
+      select.innerHTML = '<option value="">Erro ao carregar clientes</option>';
+      return;
+    }
     select.innerHTML = '<option value="">Selecione um cliente...</option>' +
-      clientes.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      clientes.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
   }
 
   async renderizarOrcamentos() {
     const lista = document.getElementById('lista-orcamentos-mdf');
     if (!lista) return;
-    lista.innerHTML = '<td><td colspan="5" class="p-8 text-center text-slate-400">Carregando...</td></tr>';
+    lista.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Carregando...</td></tr>';
 
     const search = document.getElementById('search-quotes-mdf')?.value.toLowerCase() || '';
     const statusFiltro = document.getElementById('status-filter-mdf')?.value || '';
 
-    let query = window.sb.from('mdf_orcamentos').select('*').order('created_at', { ascending: false });
+    let query = supabaseClient.from('mdf_orcamentos').select('*').order('created_at', { ascending: false });
     if (statusFiltro) query = query.eq('status', statusFiltro);
 
     const { data: orcamentos, error } = await query;
     if (error) {
-      lista.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-red-400">Erro ao carregar.</td></tr>';
+      lista.innerHTML = '<td><td colspan="5" class="p-8 text-center text-red-400">Erro ao carregar. ERRO: ' + error.message + '</td></tr>';
       return;
     }
 
     const filtrados = orcamentos.filter(o => !search || (o.cliente_nome && o.cliente_nome.toLowerCase().includes(search)));
 
     if (!filtrados.length) {
-      lista.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Nenhum orçamento encontrado.</td></tr>';
+      lista.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Nenhum orçamento encontrado.解决</td></tr>';
       return;
     }
 
     const dados = await Promise.all(filtrados.map(async (orc) => {
-      const { data: itensData } = await window.sb.from('mdf_itens').select('preco, desconto').eq('orcamento_id', orc.id);
+      const { data: itensData } = await supabaseClient.from('mdf_itens').select('preco, desconto').eq('orcamento_id', orc.id);
       const total = itensData ? itensData.reduce((s, i) => s + parseFloat(i.preco) - parseFloat(i.desconto || 0), 0) : 0;
       return { ...orc, total, itensCount: itensData?.length || 0 };
     }));
@@ -1041,10 +1040,10 @@ class OrcamentosMDF {
               <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.excluirOrcamento(${orc.id})" class="p-2 border border-red-200 bg-white text-red-500 hover:bg-red-50 rounded-lg shadow-sm" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
           </td>
-        </table>
+        </tr>
       `;
     }).join('');
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
   abrirNovoOrcamento() {
@@ -1061,7 +1060,7 @@ class OrcamentosMDF {
     this.atualizarTotais();
     this.carregarClientesSelect();
     document.getElementById('modal-orcamento-mdf').classList.remove('hidden');
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
   fecharModal() {
@@ -1072,18 +1071,23 @@ class OrcamentosMDF {
     this.orcamentoAtualId = id;
     document.getElementById('modal-titulo-mdf').innerText = `Editar Orçamento #${id}`;
 
-    const { data: orc } = await window.sb.from('mdf_orcamentos').select('*').eq('id', id).single();
+    const { data: orc } = await supabaseClient.from('mdf_orcamentos').select('*').eq('id', id).single();
     if (orc) {
       document.getElementById('status-mdf').value = orc.status || 'ABERTO';
       document.getElementById('observacoes-mdf').value = orc.observacoes || '';
       await this.carregarClientesSelect();
       if (orc.cliente_nome) {
-        const cliente = window.STATE?.clients?.find(c => c.name === orc.cliente_nome);
+        // Buscar cliente pelo nome na tabela clientes
+        const { data: cliente } = await supabaseClient
+          .from('clientes')
+          .select('id')
+          .eq('nome', orc.cliente_nome)
+          .maybeSingle();
         document.getElementById('cliente-mdf').value = cliente?.id || '';
       }
     }
 
-    const { data: itensData } = await window.sb.from('mdf_itens').select('*').eq('orcamento_id', id);
+    const { data: itensData } = await supabaseClient.from('mdf_itens').select('*').eq('orcamento_id', id);
     this.itens = itensData ? itensData.map(i => ({
       id: i.id,
       nome: i.nome,
@@ -1097,7 +1101,7 @@ class OrcamentosMDF {
     this.renderizarItens();
     this.atualizarTotais();
     document.getElementById('modal-orcamento-mdf').classList.remove('hidden');
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
   adicionarItem(dados = {}) {
@@ -1112,7 +1116,7 @@ class OrcamentosMDF {
     });
     this.renderizarItens();
     this.atualizarTotais();
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
   removerItem(index) {
@@ -1146,7 +1150,7 @@ class OrcamentosMDF {
         <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.removerItem(${idx})" class="text-red-400 hover:text-red-600 p-2"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
       </div>
     `).join('');
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
   atualizarItem(index, campo, valor) {
@@ -1160,7 +1164,7 @@ class OrcamentosMDF {
     const formData = new FormData();
     formData.append('image', file);
     try {
-      const resp = await fetch(`https://api.imgbb.com/1/upload?key=${CONFIG.IMGBB_KEY}`, {
+      const resp = await fetch(`https://api.imgbb.com/1/upload?key=SUA_IMGBB_KEY`, { // Substitua pela chave real
         method: 'POST',
         body: formData
       });
@@ -1168,12 +1172,12 @@ class OrcamentosMDF {
       if (data.success) {
         this.itens[index].foto_url = data.data.url;
         this.renderizarItens();
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       } else {
-        showToast('Erro ao enviar imagem.', true);
+        window.showToast('Erro ao enviar imagem.', true);
       }
     } catch (e) {
-      showToast('Erro de conexão ao enviar imagem.', true);
+      window.showToast('Erro de conexão ao enviar imagem.', true);
     }
   }
 
@@ -1194,13 +1198,13 @@ class OrcamentosMDF {
     const obs = document.getElementById('observacoes-mdf').value.trim();
 
     if (!clienteNome) {
-      showToast("Selecione um cliente.", true);
+      window.showToast("Selecione um cliente.", true);
       return;
     }
 
     const itensAtivos = this.itens.filter(i => !i.removido);
     if (itensAtivos.length === 0) {
-      showToast("Adicione pelo menos um item ao orçamento.", true);
+      window.showToast("Adicione pelo menos um item ao orçamento.", true);
       return;
     }
 
@@ -1211,7 +1215,7 @@ class OrcamentosMDF {
 
     if (this.orcamentoAtualId) {
       // Atualização
-      const { error: errOrc } = await window.sb
+      const { error: errOrc } = await supabaseClient
         .from('mdf_orcamentos')
         .update({
           cliente_nome: clienteNome,
@@ -1220,13 +1224,13 @@ class OrcamentosMDF {
         })
         .eq('id', this.orcamentoAtualId);
       if (errOrc) {
-        showToast('Erro ao atualizar orçamento: ' + errOrc.message, true);
+        window.showToast('Erro ao atualizar orçamento: ' + errOrc.message, true);
         return;
       }
 
       const itensParaRemover = this.itens.filter(i => i.removido && i.id);
       for (const item of itensParaRemover) {
-        await window.sb.from('mdf_itens').delete().eq('id', item.id);
+        await supabaseClient.from('mdf_itens').delete().eq('id', item.id);
       }
 
       for (const item of itensAtivos) {
@@ -1239,14 +1243,14 @@ class OrcamentosMDF {
           foto_url: item.foto_url || ''
         };
         if (item.id) {
-          await window.sb.from('mdf_itens').update(payload).eq('id', item.id);
+          await supabaseClient.from('mdf_itens').update(payload).eq('id', item.id);
         } else {
-          await window.sb.from('mdf_itens').insert(payload);
+          await supabaseClient.from('mdf_itens').insert(payload);
         }
       }
     } else {
       // Novo orçamento
-      const { data: novoOrc, error: errOrc } = await window.sb
+      const { data: novoOrc, error: errOrc } = await supabaseClient
         .from('mdf_orcamentos')
         .insert({
           cliente_nome: clienteNome,
@@ -1256,7 +1260,7 @@ class OrcamentosMDF {
         .select()
         .single();
       if (errOrc) {
-        showToast('Erro ao criar orçamento: ' + errOrc.message, true);
+        window.showToast('Erro ao criar orçamento: ' + errOrc.message, true);
         return;
       }
 
@@ -1268,29 +1272,29 @@ class OrcamentosMDF {
         desconto: item.desconto,
         foto_url: item.foto_url || ''
       }));
-      const { error: errItens } = await window.sb.from('mdf_itens').insert(itensParaInserir);
+      const { error: errItens } = await supabaseClient.from('mdf_itens').insert(itensParaInserir);
       if (errItens) console.error("Erro ao inserir itens:", errItens);
     }
 
     this.itens = [];
     this.fecharModal();
     this.renderizarOrcamentos();
-    showToast('Orçamento salvo com sucesso!');
+    window.showToast('Orçamento salvo com sucesso!');
   }
 
   async excluirOrcamento(id) {
     if (!confirm('Excluir este orçamento?')) return;
-    await window.sb.from('mdf_itens').delete().eq('orcamento_id', id);
-    await window.sb.from('mdf_orcamentos').delete().eq('id', id);
+    await supabaseClient.from('mdf_itens').delete().eq('orcamento_id', id);
+    await supabaseClient.from('mdf_orcamentos').delete().eq('id', id);
     this.renderizarOrcamentos();
   }
 
   async duplicarOrcamento(id) {
     if (!confirm('Duplicar este orçamento?')) return;
-    const { data: orc } = await window.sb.from('mdf_orcamentos').select().eq('id', id).single();
+    const { data: orc } = await supabaseClient.from('mdf_orcamentos').select().eq('id', id).single();
     if (!orc) return;
-    const { data: itensData } = await window.sb.from('mdf_itens').select().eq('orcamento_id', id);
-    const { data: novo } = await window.sb.from('mdf_orcamentos').insert({
+    const { data: itensData } = await supabaseClient.from('mdf_itens').select().eq('orcamento_id', id);
+    const { data: novo } = await supabaseClient.from('mdf_orcamentos').insert({
       cliente_nome: orc.cliente_nome,
       status: 'ABERTO',
       observacoes: orc.observacoes
@@ -1304,16 +1308,16 @@ class OrcamentosMDF {
         desconto: i.desconto,
         foto_url: i.foto_url
       }));
-      await window.sb.from('mdf_itens').insert(novosItens);
+      await supabaseClient.from('mdf_itens').insert(novosItens);
     }
     this.renderizarOrcamentos();
-    showToast('Orçamento duplicado!');
+    window.showToast('Orçamento duplicado!');
   }
 
   async baixarPDF(id) {
-    const { data: orc } = await window.sb.from('mdf_orcamentos').select().eq('id', id).single();
+    const { data: orc } = await supabaseClient.from('mdf_orcamentos').select().eq('id', id).single();
     if (!orc) return;
-    const { data: itensData } = await window.sb.from('mdf_itens').select().eq('orcamento_id', id);
+    const { data: itensData } = await supabaseClient.from('mdf_itens').select().eq('orcamento_id', id);
     const itens = itensData || [];
 
     const rowsHtml = itens.map((item, idx) => `
@@ -1323,7 +1327,7 @@ class OrcamentosMDF {
         <td style="padding: 8px; text-align: right;">R$ ${parseFloat(item.preco).toFixed(2)}</td>
         <td style="padding: 8px; text-align: right;">R$ ${parseFloat(item.desconto || 0).toFixed(2)}</td>
         <td style="padding: 8px; text-align: right; font-weight: bold;">R$ ${(parseFloat(item.preco) - parseFloat(item.desconto || 0)).toFixed(2)}</td>
-      </table>
+      </tr>
     `).join('');
 
     const total = itens.reduce((s, i) => s + parseFloat(i.preco) - parseFloat(i.desconto || 0), 0);
@@ -1359,7 +1363,7 @@ class OrcamentosMDF {
       await html2pdf().set(opt).from(html).save();
       printArea.innerHTML = '';
     } else {
-      showToast("Elemento print-area não encontrado.", true);
+      window.showToast("Elemento print-area não encontrado.", true);
     }
   }
 
