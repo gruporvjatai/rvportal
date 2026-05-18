@@ -118,7 +118,7 @@
           </div>
 
           <!-- Tabela de produtos (sem desp. operacional) -->
-          <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div class="bg-white rounded-xl border shadow-sm overflow-hidden mt-6">
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left">
                 <thead class="bg-slate-800 text-white">
