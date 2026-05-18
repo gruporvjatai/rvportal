@@ -1121,7 +1121,7 @@
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
-        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], custoMaterialB10: 0 };
+        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [] /*custoMaterialB10: 0 */};
         let CART = [];
         let CURRENT_QUOTE_ID = null; 
 
@@ -1310,14 +1310,14 @@
             cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
         }));
 
-        STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
+        /*STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
 
         if (dadosUsuario.nivel === 'admin') {
             const navUsersBtn = document.getElementById('nav-users');
             if (navUsersBtn) navUsersBtn.classList.remove('hidden');
             const resUsers = await fetchAllRecords('usuarios');
             STATE.users = resUsers.data || [];
-        }
+        }*/
 
         onDataLoaded();
     } catch (err) {
