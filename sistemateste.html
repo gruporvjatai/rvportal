@@ -4324,8 +4324,7 @@ function openPartnerModal() {
     document.getElementById('modal-partner-report').classList.remove('hidden');
 }
 function closePartnerModal() { document.getElementById('modal-partner-report').classList.add('hidden'); }
-
- function printPartnerReport() {
+function printPartnerReport() {
     const start = document.getElementById('rep-part-start').value;
     const end = document.getElementById('rep-part-end').value;
     const tipo = document.getElementById('rep-part-type').value;
@@ -4341,7 +4340,7 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
     if (vendasFiltradas.length === 0) { showLoading(false); return showToast("Nenhuma venda de parceiro neste período.", true); }
 
     if (tipo === 'metros') {
-        // Relatório agrupado por produto (metragens e lucro)
+        // Relatório agrupado por produto (metragens e lucro) – permanece igual
         const agrupado = {};
         vendasFiltradas.forEach(l => {
             if (!agrupado[l.productName]) {
@@ -4385,7 +4384,7 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
             </table>
         </div>`;
     } else {
-        // Relatório de acerto: agrupa por venda + produto, somando metragem e valor de cada item
+        // Relatório de acerto: agrupa por venda + produto, exibindo CUSTO (não venda)
         const agrupado = {};
         vendasFiltradas.forEach(l => {
             const chave = `${l.id}_${l.productName}`;
@@ -4397,16 +4396,18 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
                     pagamento: l.paymentMethod,
                     produto: l.productName,
                     qtd: 0,
-                    valor: 0
+                    custo: 0
                 };
             }
             agrupado[chave].qtd += Number(l.quantity) || 0;
-            agrupado[chave].valor += Number(l.totalValue) || 0;
+            const prod = STATE.products.find(p => p.name === l.productName);
+            const custoUnitario = prod ? (prod.cost || 0) : 0;
+            agrupado[chave].custo += custoUnitario * (Number(l.quantity) || 0);
         });
 
         const linhas = Object.values(agrupado).sort((a,b) => new Date(a.data) - new Date(b.data));
         let rowsHtml = '';
-        let totalGeral = 0;
+        let totalCustoGeral = 0;
         linhas.forEach(item => {
             rowsHtml += `
                 <tr>
@@ -4415,9 +4416,9 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
                     <td>${item.cliente}</td>
                     <td>${item.pagamento}</td>
                     <td>${item.produto} ${item.qtd}m</td>
-                    <td style="text-align:right;">${formatMoney(item.valor)}</td>
+                    <td style="text-align:right;">${formatMoney(item.custo)}</td>
                 </tr>`;
-            totalGeral += item.valor;
+            totalCustoGeral += item.custo;
         });
 
         var html = `
@@ -4436,14 +4437,14 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
                         <th>Cliente</th>
                         <th>Forma Pgto</th>
                         <th>Produto (Metros)</th>
-                        <th style="text-align:right;">Valor Total</th>
+                        <th style="text-align:right;">Valor de Custo</th>
                     </tr>
                 </thead>
                 <tbody>${rowsHtml}</tbody>
                 <tfoot style="background:#f0fdf4;">
                     <tr style="font-weight:bold;">
-                        <td colspan="5">TOTAL GERAL</td>
-                        <td style="text-align:right;">${formatMoney(totalGeral)}</td>
+                        <td colspan="5">TOTAL A PAGAR AO PARCEIRO</td>
+                        <td style="text-align:right;">${formatMoney(totalCustoGeral)}</td>
                     </tr>
                 </tfoot>
             </table>
