@@ -1691,7 +1691,7 @@ async agendarInstalacao(orcamentoId) {
     .select('*')
     .eq('orcamento_id', orcamentoId)
     .maybeSingle();
-  const agendaIcon = agendaCheck ? `<i data-lucide="calendar-check" class="text-emerald-500 w-3 h-3 inline ml-1" title="Agendado"></i>` : '';
+ 
   this.abrirModalAgenda(orcamentoId, orc, agendaExistente);
 }
 
