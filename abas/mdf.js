@@ -1666,6 +1666,7 @@ class OrcamentosMDF {
 
       window.showToast(`Estorno realizado. Orçamento #${id} voltou para ABERTO.`);
       this.renderizarOrcamentos();
+       window.loadData();
     } catch (err) {
       console.error(err);
       window.showToast('Erro ao estornar: ' + err.message, true);
