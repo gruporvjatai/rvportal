@@ -186,8 +186,7 @@
          <div class="border-t border-slate-700 my-2 pt-2"></div>
         <button onclick="navigate('fin')" id="nav-fin" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="bar-chart-3"></i> <span class="font-medium text-sm">Financeiro</span></button>
         <button onclick="navigate('production')" id="nav-production" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="pie-chart"></i> <span class="font-medium text-sm">Relatórios</span></button>
-        <button onclick="navigate('gerencial')" id="nav-gerencial" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="calculator"></i> <span class="font-medium text-sm">Gerencial</span></button>
-       
+        <button onclick="navigate('gerencial')" id="nav-gerencial" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="calculator"></i> <span class="font-medium text-sm">Gerencial</span></button>       
         <div class="border-t border-slate-700 my-2 pt-2"></div>
         <button onclick="navigate('users')" id="nav-users" class="nav-btn w-full hidden flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="shield"></i> <span class="font-medium text-sm">Usuários (Admin)</span></button>
        </nav>
@@ -1313,14 +1312,14 @@
             cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
         }));
 
-        /*STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;
+        /*STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;*/
 
         if (dadosUsuario.nivel === 'admin') {
             const navUsersBtn = document.getElementById('nav-users');
             if (navUsersBtn) navUsersBtn.classList.remove('hidden');
             const resUsers = await fetchAllRecords('usuarios');
             STATE.users = resUsers.data || [];
-        }*/
+        }
 
         onDataLoaded();
     } catch (err) {
