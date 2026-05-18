@@ -176,6 +176,8 @@
         <button onclick="navigate('pos')" id="nav-pos" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="shopping-cart"></i> <span class="font-medium text-sm">PDV / Vendas</span></button>
         <button onclick="navigate('expedition')" id="nav-expedition" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all border-l-4 border-transparent hover:border-emerald-500"><i data-lucide="truck"></i> <span class="font-medium text-sm">Expedição / Entrega</span></button>
         <button onclick="navigate('quotes')" id="nav-quotes" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="folder-open"></i> <span class="font-medium text-sm">Orçamentos</span></button>
+        <button onclick="navigate('mdf')" id="nav-mdf" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+        <i data-lucide="box"></i> <span class="font-medium text-sm">MDF</span></button>
         <button onclick="navigate('fin')" id="nav-fin" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="bar-chart-3"></i> <span class="font-medium text-sm">Financeiro</span></button>
         <div class="border-t border-slate-700 my-2 pt-2"></div>
         <button onclick="navigate('equipe')" id="nav-equipe"class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="users"></i> <span class="font-medium text-sm">Equipe</span></button>
@@ -685,10 +687,9 @@
             </div>
         </div>
     </div>
-       <div id="view-equipe" class="hidden-section"></div>
-      <div id="view-gerencial" class="hidden-section">
-       <!-- Será populado dinamicamente pelo gerencial.js -->
-    </div>
+    <div id="view-equipe" class="hidden-section"></div>
+    <div id="view-gerencial" class="hidden-section"></div>
+    <div id="view-mdf" class="hidden-section"></div>
       
     </main>
     
@@ -4456,5 +4457,6 @@ function closePartnerModal() { document.getElementById('modal-partner-report').c
     </script> 
     <script src="abas/equipe.js"></script>
     <script src="abas/gerencial.js"></script>
+    <script type="module" src="abas/mdf.js"></script>
   </body>
 </html>
