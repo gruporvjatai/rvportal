@@ -587,6 +587,25 @@ class ProjetosMDF {
       <div id="subsubaba-detalhamento" class="subsubaba-mdf-content flex-1 hidden"></div>
     </div>
   `;
+
+    // Sincronizar profundidade com o manager principal
+      const profundidadeInput = document.getElementById('profundidade-input-mdf');
+      if (profundidadeInput) {
+        profundidadeInput.value = this.parentManager.profundidade;
+        profundidadeInput.addEventListener('change', (e) => {
+          const novaProfundidade = parseFloat(e.target.value) || 60;
+          this.parentManager.profundidade = novaProfundidade;
+          if (this.configurador3D) {
+            this.configurador3D.reconstruirModelo();
+          }
+          const areaDetalhamento = document.getElementById('subsubaba-detalhamento');
+          if (areaDetalhamento && !areaDetalhamento.classList.contains('hidden')) {
+            this.atualizarDetalhamento(areaDetalhamento);
+          }
+        });
+      }
+
+    
     this.container.querySelectorAll('.subsubaba-mdf-btn').forEach(btn => {
       btn.addEventListener('click', (e) => this.mostrarSubSubAba(e.target.dataset.subsubaba));
     });
