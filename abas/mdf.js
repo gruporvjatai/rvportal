@@ -880,6 +880,7 @@ class ProjetosMDF {
 }
 
 // ==================== SUB-ABA ORÇAMENTOS ====================
+// ==================== SUB-ABA ORÇAMENTOS (COMPLETA) ====================
 class OrcamentosMDF {
   constructor(container, parentManager) {
     this.container = container;
@@ -894,21 +895,21 @@ class OrcamentosMDF {
       <div class="flex flex-col h-full">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <i data-lucide="folder-open" class="text-[#b8a94e]"></i> Orçamentos MDF
+            <i data-lucide="folder-open" class="text-emerald-600"></i> Orçamentos MDF
           </h2>
           <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
             <div class="relative w-full md:w-64">
               <i data-lucide="search" class="absolute left-2 top-2.5 text-slate-400 w-4 h-4"></i>
-              <input type="text" id="search-quotes-mdf" placeholder="Buscar cliente..." class="w-full pl-8 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#DBCC79] outline-none shadow-sm" onkeyup="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.renderizarOrcamentos()">
+              <input type="text" id="search-quotes-mdf" placeholder="Buscar cliente..." class="w-full pl-8 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm" onkeyup="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.renderizarOrcamentos()">
             </div>
-            <select id="status-filter-mdf" class="w-full md:w-auto p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#DBCC79] outline-none shadow-sm font-medium text-slate-600" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.renderizarOrcamentos()">
+            <select id="status-filter-mdf" class="w-full md:w-auto p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm font-medium text-slate-600" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.renderizarOrcamentos()">
               <option value="">Todos os Status</option>
               <option value="ABERTO">Abertos</option>
               <option value="EM NEGOCIAÇÃO">Em Negociação</option>
-              <option value="APROVADO">Aprovados</option>
+              <option value="APROVADO">Aprovados (Faturados)</option>
               <option value="PERDIDO">Perdidos</option>
             </select>
-            <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.abrirNovoOrcamento()" class="btn-primary px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2 whitespace-nowrap">
+            <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.abrirNovoOrcamento()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2 whitespace-nowrap">
               <i data-lucide="plus"></i> Novo Orçamento
             </button>
           </div>
@@ -939,7 +940,7 @@ class OrcamentosMDF {
         <div class="modal-container bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div class="p-5 border-b flex justify-between items-center bg-amber-50 rounded-t-2xl">
             <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
-              <i data-lucide="file-text" class="text-[#b8a94e]"></i>
+              <i data-lucide="file-text" class="text-emerald-600"></i>
               <span id="modal-titulo-mdf">Novo Orçamento</span>
             </h3>
             <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.fecharModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
@@ -949,13 +950,13 @@ class OrcamentosMDF {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Cliente *</label>
-                <select id="cliente-mdf" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#DBCC79] outline-none">
+                <select id="cliente-mdf" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                   <option value="">Selecione um cliente...</option>
                 </select>
               </div>
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Status</label>
-                <select id="status-mdf" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#DBCC79] outline-none">
+                <select id="status-mdf" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                   <option value="ABERTO">Aberto</option>
                   <option value="EM NEGOCIAÇÃO">Em Negociação</option>
                   <option value="APROVADO">Aprovado</option>
@@ -965,12 +966,12 @@ class OrcamentosMDF {
             </div>
             <div>
               <label class="block text-sm font-bold text-slate-700 mb-1">Observações</label>
-              <textarea id="observacoes-mdf" rows="2" placeholder="Detalhes do projeto..." class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#DBCC79] outline-none"></textarea>
+              <textarea id="observacoes-mdf" rows="2" placeholder="Detalhes do projeto..." class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"></textarea>
             </div>
             <div class="border-t pt-4">
               <div class="flex justify-between items-center mb-3">
                 <h4 class="font-bold text-slate-700">Itens do Projeto</h4>
-                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.adicionarItem()" class="btn-outline px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1">
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.adicionarItem()" class="border border-emerald-600 text-emerald-700 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-emerald-50">
                   <i data-lucide="plus" class="w-4 h-4"></i> Adicionar Item
                 </button>
               </div>
@@ -989,13 +990,13 @@ class OrcamentosMDF {
                 </div>
               </div>
               <div class="flex justify-between font-bold text-lg border-t pt-2 mt-1">
-                <span>Total</span> <span id="total-geral-mdf" class="text-[#b8a94e]">R$ 0,00</span>
+                <span>Total</span> <span id="total-geral-mdf" class="text-emerald-700">R$ 0,00</span>
               </div>
             </div>
           </div>
           <div class="p-5 border-t bg-slate-50 rounded-b-2xl flex justify-end gap-3">
             <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.fecharModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 font-bold hover:bg-slate-100 transition">Cancelar</button>
-            <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.salvarOrcamento()" class="btn-primary px-6 py-2 rounded-lg font-bold shadow flex items-center gap-2">
+            <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.salvarOrcamento()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-bold shadow flex items-center gap-2">
               <i data-lucide="save"></i> Salvar Orçamento
             </button>
             <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.gerarPDF()" class="px-4 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-900 transition flex items-center gap-2">
@@ -1016,7 +1017,6 @@ class OrcamentosMDF {
   async carregarClientesSelect() {
     const select = document.getElementById('cliente-mdf');
     if (!select) return;
-    // Busca clientes da tabela clientes do Supabase
     const { data: clientes, error } = await supabaseClient
       .from('clientes')
       .select('id, nome')
@@ -1043,44 +1043,85 @@ class OrcamentosMDF {
 
     const { data: orcamentos, error } = await query;
     if (error) {
-      lista.innerHTML = '<td><td colspan="5" class="p-8 text-center text-red-400">Erro ao carregar. ERRO: ' + error.message + '</td></tr>';
+      lista.innerHTML = `<td><td colspan="5" class="p-8 text-center text-red-400">Erro ao carregar: ${error.message}</td></tr>`;
       return;
     }
 
     const filtrados = orcamentos.filter(o => !search || (o.cliente_nome && o.cliente_nome.toLowerCase().includes(search)));
 
     if (!filtrados.length) {
-      lista.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Nenhum orçamento encontrado.解决</td></tr>';
+      lista.innerHTML = '<td><td colspan="5" class="p-8 text-center text-slate-400">Nenhum orçamento encontrado.解决</td></tr>';
       return;
     }
 
     const dados = await Promise.all(filtrados.map(async (orc) => {
       const { data: itensData } = await supabaseClient.from('mdf_itens').select('preco, desconto').eq('orcamento_id', orc.id);
-      const total = itensData ? itensData.reduce((s, i) => s + parseFloat(i.preco) - parseFloat(i.desconto || 0), 0) : 0;
+      let total = itensData ? itensData.reduce((s, i) => s + parseFloat(i.preco) - parseFloat(i.desconto || 0), 0) : 0;
+      // Aplica desconto geral do orçamento
+      if (orc.desconto && orc.desconto > 0) {
+        const descontoAplicado = orc.tipo_desconto === '%' ? total * (orc.desconto / 100) : orc.desconto;
+        total = Math.max(0, total - descontoAplicado);
+      }
       return { ...orc, total, itensCount: itensData?.length || 0 };
     }));
 
     lista.innerHTML = dados.map(orc => {
       const statusClass = {
-        'ABERTO': 'status-aberto',
-        'EM NEGOCIAÇÃO': 'status-negociacao',
-        'APROVADO': 'status-aprovado',
-        'PERDIDO': 'status-perdido'
-      }[orc.status] || 'status-aberto';
+        'ABERTO': 'bg-amber-100 text-amber-800',
+        'EM NEGOCIAÇÃO': 'bg-blue-100 text-blue-800',
+        'APROVADO': 'bg-green-100 text-green-800',
+        'PERDIDO': 'bg-red-100 text-red-800'
+      }[orc.status] || 'bg-gray-100 text-gray-800';
 
+      const isAprovado = orc.status === 'APROVADO';
+      
       return `
-        <tr class="hover:bg-slate-50 transition">
-          <td class="p-4"><div class="font-black text-slate-700">#${orc.id}</div><div class="text-xs text-slate-400">${new Date(orc.created_at).toLocaleDateString('pt-BR')}</div></td>
-          <td class="p-4"><div class="font-bold text-slate-800">${orc.cliente_nome || 'Consumidor Final'}</div><div class="text-xs text-slate-500">${orc.itensCount} itens</div></td>
-          <td class="p-4 font-bold text-slate-800">R$ ${orc.total.toFixed(2)}</td>
-          <td class="p-4 text-center"><span class="status-badge ${statusClass}">${orc.status}</span></td>
+        <tr class="hover:bg-slate-50 transition border-b">
           <td class="p-4">
-            <div class="flex items-center justify-center gap-2">
-              <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.editarOrcamento(${orc.id})" class="p-2 border border-[#b8a94e] bg-white text-[#b8a94e] hover:bg-amber-50 rounded-lg shadow-sm" title="Editar"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-              <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.duplicarOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Duplicar"><i data-lucide="copy" class="w-4 h-4"></i></button>
-              <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.baixarPDF(${orc.id})" class="p-2 border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm" title="Baixar PDF"><i data-lucide="download" class="w-4 h-4"></i></button>
-              <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.imprimirOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Imprimir"><i data-lucide="printer" class="w-4 h-4"></i></button>
-              <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.excluirOrcamento(${orc.id})" class="p-2 border border-red-200 bg-white text-red-500 hover:bg-red-50 rounded-lg shadow-sm" title="Excluir"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            <div class="font-black text-slate-700">#${orc.id}</div>
+            <div class="text-[10px] text-slate-400">${new Date(orc.created_at).toLocaleDateString('pt-BR')}</div>
+          </td>
+          <td class="p-4">
+            <div class="font-bold text-slate-800">${orc.cliente_nome || 'Consumidor Final'}</div>
+            <div class="text-xs text-slate-500">${orc.itensCount} itens</div>
+          </td>
+          <td class="p-4 font-bold text-slate-800">R$ ${orc.total.toFixed(2)}</td>
+          <td class="p-4 text-center"><span class="px-2 py-1 rounded-full text-xs font-bold ${statusClass}">${orc.status}</span></td>
+          <td class="p-4">
+            <div class="flex items-center justify-center gap-2 flex-wrap">
+              ${isAprovado ? `
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.estornarOrcamento(${orc.id})" class="p-2 border border-red-200 bg-white text-red-500 hover:bg-red-50 rounded-lg shadow-sm" title="Estornar Venda">
+                  <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                </button>
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.agendarInstalacao(${orc.id})" class="p-2 border border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50 rounded-lg shadow-sm" title="Agendar Instalação">
+                  <i data-lucide="calendar" class="w-4 h-4"></i>
+                </button>
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.baixarPDF(${orc.id})" class="p-2 border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm" title="Baixar PDF">
+                  <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.imprimirOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Imprimir">
+                  <i data-lucide="printer" class="w-4 h-4"></i>
+                </button>
+              ` : `
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.faturarOrcamento(${orc.id})" class="p-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg shadow-sm" title="Faturar">
+                  <i data-lucide="credit-card" class="w-4 h-4"></i>
+                </button>
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.editarOrcamento(${orc.id})" class="p-2 border border-emerald-600 bg-white text-emerald-600 hover:bg-emerald-50 rounded-lg shadow-sm" title="Editar">
+                  <i data-lucide="edit-3" class="w-4 h-4"></i>
+                </button>
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.duplicarOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Duplicar">
+                  <i data-lucide="copy" class="w-4 h-4"></i>
+                </button>
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.baixarPDF(${orc.id})" class="p-2 border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm" title="Baixar PDF">
+                  <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.imprimirOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Imprimir">
+                  <i data-lucide="printer" class="w-4 h-4"></i>
+                </button>
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.excluirOrcamento(${orc.id})" class="p-2 border border-red-200 bg-white text-red-500 hover:bg-red-50 rounded-lg shadow-sm" title="Excluir">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              `}
             </div>
           </td>
         </tr>
@@ -1118,9 +1159,10 @@ class OrcamentosMDF {
     if (orc) {
       document.getElementById('status-mdf').value = orc.status || 'ABERTO';
       document.getElementById('observacoes-mdf').value = orc.observacoes || '';
+      document.getElementById('tipo-desconto-mdf').value = orc.tipo_desconto || '$';
+      document.getElementById('valor-desconto-mdf').value = orc.desconto || 0;
       await this.carregarClientesSelect();
       if (orc.cliente_nome) {
-        // Buscar cliente pelo nome na tabela clientes
         const { data: cliente } = await supabaseClient
           .from('clientes')
           .select('id')
@@ -1207,7 +1249,7 @@ class OrcamentosMDF {
     const formData = new FormData();
     formData.append('image', file);
     try {
-      const resp = await fetch(`https://api.imgbb.com/1/upload?key=c201a949389ed2c50aabd3731b4d1932`, { // Substitua pela chave real
+      const resp = await fetch(`https://api.imgbb.com/1/upload?key=c201a949389ed2c50aabd3731b4d1932`, {
         method: 'POST',
         body: formData
       });
@@ -1239,6 +1281,8 @@ class OrcamentosMDF {
     const clienteNome = selectCliente.options[selectCliente.selectedIndex]?.text || 'Consumidor Final';
     const status = document.getElementById('status-mdf').value;
     const obs = document.getElementById('observacoes-mdf').value.trim();
+    const descontoValor = parseFloat(document.getElementById('valor-desconto-mdf').value) || 0;
+    const tipoDesconto = document.getElementById('tipo-desconto-mdf').value;
 
     if (!clienteNome) {
       window.showToast("Selecione um cliente.", true);
@@ -1263,7 +1307,9 @@ class OrcamentosMDF {
         .update({
           cliente_nome: clienteNome,
           status,
-          observacoes: obs
+          observacoes: obs,
+          desconto: descontoValor,
+          tipo_desconto: tipoDesconto
         })
         .eq('id', this.orcamentoAtualId);
       if (errOrc) {
@@ -1298,7 +1344,9 @@ class OrcamentosMDF {
         .insert({
           cliente_nome: clienteNome,
           status,
-          observacoes: obs
+          observacoes: obs,
+          desconto: descontoValor,
+          tipo_desconto: tipoDesconto
         })
         .select()
         .single();
@@ -1340,7 +1388,9 @@ class OrcamentosMDF {
     const { data: novo } = await supabaseClient.from('mdf_orcamentos').insert({
       cliente_nome: orc.cliente_nome,
       status: 'ABERTO',
-      observacoes: orc.observacoes
+      observacoes: orc.observacoes,
+      desconto: orc.desconto,
+      tipo_desconto: orc.tipo_desconto
     }).select().single();
     if (novo && itensData) {
       const novosItens = itensData.map(i => ({
@@ -1373,7 +1423,12 @@ class OrcamentosMDF {
       </tr>
     `).join('');
 
-    const total = itens.reduce((s, i) => s + parseFloat(i.preco) - parseFloat(i.desconto || 0), 0);
+    // Aplica desconto geral
+    let subtotal = itens.reduce((s, i) => s + parseFloat(i.preco) - parseFloat(i.desconto || 0), 0);
+    let descontoTotal = parseFloat(orc.desconto) || 0;
+    if (orc.tipo_desconto === '%') descontoTotal = subtotal * (descontoTotal / 100);
+    const total = Math.max(0, subtotal - descontoTotal);
+
     const html = `
       <div style="font-family: Helvetica; padding: 20px; max-width: 800px; margin: auto; background: white;">
         <div style="text-align: center;">
@@ -1395,7 +1450,7 @@ class OrcamentosMDF {
 
     const opt = {
       margin: 10,
-      filename: `orcamento_${orc.cliente_nome}_#${id}.pdf`,
+      filename: `orcamento_${orc.cliente_nome}_#${orc.id}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -1484,8 +1539,135 @@ class OrcamentosMDF {
       this.gerarPDF();
     }
   }
-}
 
+  // ========== NOVOS MÉTODOS ==========
+  async faturarOrcamento(id) {
+    if (!confirm(`Faturar orçamento #${id}? Isso criará uma venda no sistema financeiro.`)) return;
+    if (typeof showLoading === 'function') showLoading(true);
+    else console.log("showLoading não definido");
+
+    try {
+      // 1. Buscar orçamento e itens
+      const { data: orc, error: errOrc } = await supabaseClient
+        .from('mdf_orcamentos')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (errOrc) throw errOrc;
+
+      const { data: itens, error: errItens } = await supabaseClient
+        .from('mdf_itens')
+        .select('*')
+        .eq('orcamento_id', id);
+      if (errItens) throw errItens;
+
+      if (!itens.length) throw new Error('Orçamento sem itens');
+
+      // 2. Calcular totais e distribuir desconto
+      const subtotal = itens.reduce((acc, i) => acc + parseFloat(i.preco), 0);
+      let descontoTotal = parseFloat(orc.desconto) || 0;
+      if (orc.tipo_desconto === '%') {
+        descontoTotal = subtotal * (descontoTotal / 100);
+      }
+      const totalLiquido = Math.max(0, subtotal - descontoTotal);
+      const fator = subtotal > 0 ? totalLiquido / subtotal : 0;
+
+      // 3. Buscar cliente (para log)
+      const { data: cliente } = await supabaseClient
+        .from('clientes')
+        .select('nome')
+        .eq('nome', orc.cliente_nome)
+        .maybeSingle();
+      const nomeCliente = cliente?.nome || orc.cliente_nome || 'Consumidor Final';
+
+      // 4. Criar logs de venda (tipo 'venda')
+      const timestamp = new Date().toISOString();
+      const vendaId = Date.now(); // ID único (pode usar sequência)
+      const logs = itens.map(item => ({
+        id: vendaId,
+        tipo: 'venda',
+        produto_nome: item.nome,
+        quantidade: 1,
+        data: timestamp,
+        observacao: `MDF Orçamento #${id} - ${item.descricao || ''}`,
+        valor_total: parseFloat(item.preco) * fator,
+        cliente_nome: nomeCliente,
+        forma_pagamento: 'A Faturar',
+        status: 'ATIVO',
+        status_entrega: '',
+        qtd_entregue: 0,
+        desconto: 0,
+        status_financeiro: 'PENDENTE',
+        vencimento: timestamp,
+        valor_pago: 0,
+        endereco_entrega: ''
+      }));
+
+      const { error: errInsert } = await supabaseClient.from('logs').insert(logs);
+      if (errInsert) throw errInsert;
+
+      // 5. Atualizar status do orçamento para APROVADO
+      const { error: errUpdate } = await supabaseClient
+        .from('mdf_orcamentos')
+        .update({ status: 'APROVADO' })
+        .eq('id', id);
+      if (errUpdate) throw errUpdate;
+
+      window.showToast(`Orçamento #${id} faturado com sucesso! Venda registrada.`);
+      this.renderizarOrcamentos();
+    } catch (err) {
+      console.error(err);
+      window.showToast('Erro ao faturar: ' + err.message, true);
+    } finally {
+      if (typeof showLoading === 'function') showLoading(false);
+    }
+  }
+
+  async estornarOrcamento(id) {
+    if (!confirm(`Estornar venda do orçamento #${id}? Isso removerá a venda do financeiro.`)) return;
+    if (typeof showLoading === 'function') showLoading(true);
+
+    try {
+      // 1. Buscar os logs de venda associados (observação contém "MDF Orçamento #id")
+      const { data: logs, error: errLogs } = await supabaseClient
+        .from('logs')
+        .select('*')
+        .like('observacao', `%MDF Orçamento #${id}%`)
+        .eq('tipo', 'venda');
+      if (errLogs) throw errLogs;
+
+      if (logs.length) {
+        // Excluir logs (ou marcar como cancelados)
+        const idsParaExcluir = logs.map(l => l.id);
+        const { error: errDel } = await supabaseClient
+          .from('logs')
+          .delete()
+          .in('id', idsParaExcluir);
+        if (errDel) throw errDel;
+      }
+
+      // 2. Atualizar status do orçamento para ABERTO
+      const { error: errUpdate } = await supabaseClient
+        .from('mdf_orcamentos')
+        .update({ status: 'ABERTO' })
+        .eq('id', id);
+      if (errUpdate) throw errUpdate;
+
+      window.showToast(`Estorno realizado. Orçamento #${id} voltou para ABERTO.`);
+      this.renderizarOrcamentos();
+    } catch (err) {
+      console.error(err);
+      window.showToast('Erro ao estornar: ' + err.message, true);
+    } finally {
+      if (typeof showLoading === 'function') showLoading(false);
+    }
+  }
+
+  agendarInstalacao(id) {
+    // Placeholder: futuramente abrirá um modal de agenda
+    alert(`Funcionalidade em desenvolvimento: Agendar instalação para o orçamento #${id}`);
+  }
+}
 // ==================== INICIALIZAÇÃO GLOBAL ====================
 window.iniciarMDF = function() {
   const container = document.getElementById('view-mdf');
