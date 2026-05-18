@@ -679,7 +679,7 @@ class ProjetosMDF {
         if (blob) {
           const formData = new FormData();
           formData.append('image', blob);
-          const resp = await fetch(`https://api.imgbb.com/1/upload?key=SEU_IMGBB_KEY`, { // Substitua pela sua chave real
+          const resp = await fetch(`https://api.imgbb.com/1/upload?key=c201a949389ed2c50aabd3731b4d1932`, { // Substitua pela sua chave real
             method: 'POST',
             body: formData
           });
@@ -1164,7 +1164,7 @@ class OrcamentosMDF {
     const formData = new FormData();
     formData.append('image', file);
     try {
-      const resp = await fetch(`https://api.imgbb.com/1/upload?key=SUA_IMGBB_KEY`, { // Substitua pela chave real
+      const resp = await fetch(`https://api.imgbb.com/1/upload?key=c201a949389ed2c50aabd3731b4d1932`, { // Substitua pela chave real
         method: 'POST',
         body: formData
       });
