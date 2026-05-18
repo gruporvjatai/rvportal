@@ -1625,12 +1625,12 @@ class OrcamentosMDF {
 
     window.showToast(`Orçamento #${id} faturado com sucesso! Venda registrada.`);
     this.renderizarOrcamentos();
+     window.loadData();
   } catch (err) {
     console.error(err);
     window.showToast('Erro ao faturar: ' + err.message, true);
   } finally {
-    if (typeof showLoading === 'function') showLoading(false);
-    window.loadData();
+    if (typeof showLoading === 'function') showLoading(false);  
   }   
 }
 
