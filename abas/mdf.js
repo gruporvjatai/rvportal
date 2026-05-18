@@ -1631,6 +1631,9 @@ class OrcamentosMDF {
   } finally {
     if (typeof showLoading === 'function') showLoading(false);
   }
+    if (typeof window.loadData === 'function') {
+    window.loadData();
+  }
 }
 
   async estornarOrcamento(id) {
