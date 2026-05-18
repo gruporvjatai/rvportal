@@ -188,24 +188,22 @@ class EditorFachada2DMDF {
 
   renderizar() {
     this.container.innerHTML = `
-      <div class="flex flex-col gap-2 h-full">
-        <div class="flex gap-2 bg-white p-2 rounded-lg shadow-sm border items-center">
-          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-[#b8a94e] text-white" data-tool="linha">✏️ Linha</button>
-          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-slate-200 text-slate-700" data-tool="retangulo">🚪 Porta / Gaveta / Fundo</button>
-          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-red-100 text-red-700" data-tool="desfazer">↩️ Desfazer</button>
-          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-red-300 text-red-900" data-tool="limpar">🗑️ Limpar Tudo</button>
-          <span class="text-xs text-slate-500 ml-2">Grade: ${this.grade}cm | Arraste para desenhar</span>
+      <div class="flex flex-col h-full">
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-4 bg-white p-2 rounded-xl shadow-sm border">
+          <div class="flex gap-2">
+            <button data-subsubaba="fachada" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#b8a94e] text-white shadow">📐 Fachada 2D</button>
+            <button data-subsubaba="3d" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">🧊 3D</button>
+            <button data-subsubaba="detalhamento" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">📋 Detalhamento</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
+            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs">
+            <button onclick="window.open('https://flatma.com/pt/create/designer', '_blank')" title="Abrir Flatma" class="px-3 py-1 border border-[#b8a94e] text-[#b8a94e] rounded text-xs font-bold hover:bg-amber-50 transition">📐 Flatma</button>
+          </div>
         </div>
-        <div class="flex-1 bg-white rounded-xl border shadow-sm relative overflow-hidden" id="canvas-fachada-mdf" style="min-height:500px;">
-          <canvas id="fachada-canvas-mdf" class="absolute inset-0 w-full h-full"></canvas>
-        </div>
-      </div>
-      <div id="modal-tipo-preenchimento-mdf" class="hidden fixed inset-0 bg-black/40 z-[60] flex items-center justify-center">
-        <div class="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full">
-          <h3 class="font-bold text-lg mb-4">Selecionar tipo</h3>
-          <div class="grid grid-cols-1 gap-2" id="opcoes-modal-mdf"></div>
-          <button onclick="document.getElementById('modal-tipo-preenchimento-mdf').classList.add('hidden')" class="mt-4 w-full py-2 bg-slate-200 rounded-lg font-bold">Cancelar</button>
-        </div>
+        <div id="subsubaba-fachada" class="subsubaba-mdf-content flex-1"></div>
+        <div id="subsubaba-3d" class="subsubaba-mdf-content flex-1 hidden"></div>
+        <div id="subsubaba-detalhamento" class="subsubaba-mdf-content flex-1 hidden"></div>
       </div>
     `;
 
@@ -574,12 +572,7 @@ class ProjetosMDF {
           <button data-subsubaba="fachada" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#b8a94e] text-white shadow">📐 Fachada 2D</button>
           <button data-subsubaba="3d" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">🧊 3D</button>
           <button data-subsubaba="detalhamento" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">📋 Detalhamento</button>
-          <div class="flex justify-content: flex-end gap-2">
-            <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
-            <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs">
-            <button onclick="window.open('https://flatma.com/pt/create/designer', '_blank')" title="Abrir Flatma" class="px-3 py-1 border border-[#b8a94e] text-[#b8a94e] rounded text-xs font-bold hover:bg-amber-50 transition">📐 Flatma</button>
-          </div>
-        </div>
+         </div>
         <div id="subsubaba-fachada" class="subsubaba-mdf-content flex-1"></div>
         <div id="subsubaba-3d" class="subsubaba-mdf-content flex-1 hidden"></div>
         <div id="subsubaba-detalhamento" class="subsubaba-mdf-content flex-1 hidden"></div>
