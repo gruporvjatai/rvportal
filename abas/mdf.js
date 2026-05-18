@@ -31,22 +31,23 @@ class MDFManager {
   renderizarInterface() {
     this.container.innerHTML = `
       <div class="flex flex-col h-full">      
-        <div class="flex items-center gap-2 ml-auto mb-5 bg-white/80 backdrop-blur-sm p-1 rounded-2xl shadow-md border border-emerald-100">
-          <button data-subaba="projetos" 
-                  class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 
-                         flex items-center justify-center gap-2">
+       <div class="flex items-center gap-2 ml-auto bg-white/80 backdrop-blur-sm p-1 rounded-2xl shadow-md border border-emerald-100">
+        <button data-subaba="projetos" class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2">
             <i data-lucide="box" class="w-4 h-4"></i> 
             <span>Projetos</span>
           </button>
-          <button data-subaba="orcamentos" 
-                  class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 
-                         flex items-center justify-center gap-2">
+          <button data-subaba="orcamentos" class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2">
             <i data-lucide="file-text" class="w-4 h-4"></i> 
             <span>Orçamentos</span>
+          </button>
+          <button data-subaba="agenda" class="subaba-mdf-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2">
+            <i data-lucide="calendar" class="w-4 h-4"></i> 
+            <span>Agenda</span>
           </button>
         </div>
         <div id="subaba-mdf-projetos" class="subaba-mdf-content flex-1"></div>
         <div id="subaba-mdf-orcamentos" class="subaba-mdf-content flex-1 hidden"></div>
+        <div id="subaba-mdf-agenda" class="subaba-mdf-content flex-1 hidden"></div>
       </div>
     `;
 
@@ -74,27 +75,26 @@ class MDFManager {
   }
 
   // Método auxiliar para atualizar o estilo dos botões (ativo vs inativo)
-  atualizarEstiloBotoes(abaAtiva) {
-    const btnProjetos = this.container.querySelector('[data-subaba="projetos"]');
-    const btnOrcamentos = this.container.querySelector('[data-subaba="orcamentos"]');
+ atualizarEstiloBotoes(abaAtiva) {
+  const botoes = {
+    projetos: this.container.querySelector('[data-subaba="projetos"]'),
+    orcamentos: this.container.querySelector('[data-subaba="orcamentos"]'),
+    agenda: this.container.querySelector('[data-subaba="agenda"]')
+  };
+  const estiloAtivo = 'bg-emerald-600 text-white shadow-md border-transparent';
+  const estiloInativo = 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50';
 
-    const estiloAtivo = 'bg-emerald-600 text-white shadow-md border-transparent';
-    const estiloInativo = 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50';
-
-    if (abaAtiva === 'projetos') {
-      btnProjetos.classList.remove(...btnProjetos.classList);
-      btnProjetos.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloAtivo.split(' '));
-      
-      btnOrcamentos.classList.remove(...btnOrcamentos.classList);
-      btnOrcamentos.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloInativo.split(' '));
+  for (const [aba, btn] of Object.entries(botoes)) {
+    if (!btn) continue;
+    if (aba === abaAtiva) {
+      btn.classList.remove(...btn.classList);
+      btn.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloAtivo.split(' '));
     } else {
-      btnProjetos.classList.remove(...btnProjetos.classList);
-      btnProjetos.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloInativo.split(' '));
-      
-      btnOrcamentos.classList.remove(...btnOrcamentos.classList);
-      btnOrcamentos.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloAtivo.split(' '));
+      btn.classList.remove(...btn.classList);
+      btn.classList.add('subaba-mdf-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloInativo.split(' '));
     }
   }
+}
 
   mostrarSubAba(nome) {
     this.activeSubTab = nome;
@@ -111,7 +111,13 @@ class MDFManager {
     } else if (nome === 'orcamentos') {
       if (!this.orcamentosManager) {
         this.orcamentosManager = new OrcamentosMDF(area, this);
-      } else {
+      } else if (nome === 'agenda') {
+      if (!this.agendaManager) {
+        // Importar o módulo agenda.js (já deve estar carregado via script no HTML)
+        this.agendaManager = new AgendaManager(area, supabaseClient);
+      }
+    }        
+      else {
         this.orcamentosManager.renderizarOrcamentos();
       }
     }
