@@ -105,7 +105,7 @@ class FornecedorManager {
                                 <tr class="border-b hover:bg-slate-50">
                                     <td class="p-3 font-medium">${f.nome}</td>
                                     <td class="p-3">${f.contato || '-'}</td>
-                                    <td class="p-3">${f.telefone || '-'}</td>
+                                    <td class="p-3">${f.telefone || '-'}<td>
                                     <td class="p-3">${f.documento || '-'}</td>
                                     <td class="p-3 text-center">${f.ativo ? '<span class="text-green-600">Ativo</span>' : '<span class="text-red-500">Inativo</span>'}</td>
                                     <td class="p-3 text-center">
@@ -237,6 +237,10 @@ class FornecedorManager {
             return { ...desp, fornecedor_nome: fornecedorNome, fornecedor_id: fornecedorId };
         });
 
+        // 🔍 Depuração: verificar se as despesas possuem o campo tipo_despesa
+        console.log('Despesas carregadas (primeiras 3):', despesasComFornecedor.slice(0,3));
+        console.log('Exemplo de tipo_despesa:', despesasComFornecedor[0]?.tipo_despesa);
+
         const hoje = new Date().toISOString().split('T')[0];
         const primeiroDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
@@ -293,8 +297,11 @@ class FornecedorManager {
 
             let filtered = despesasComFornecedor;
 
-            // 🔴 NOVO: Filtrar APENAS despesas do tipo MERCADORIA
-            filtered = filtered.filter(d => d.tipo_despesa === 'MERCADORIA');
+            // 🔴 Filtro por tipo de despesa (apenas MERCADORIA)
+            // Verifica se o campo existe e se é 'MERCADORIA'
+            filtered = filtered.filter(d => d.tipo_despesa && d.tipo_despesa === 'MERCADORIA');
+
+            console.log('Despesas após filtro MERCADORIA:', filtered.length);
 
             // Filtro por fornecedor
             if (fornecedorFiltro === 'SEM') {
@@ -403,7 +410,7 @@ class FornecedorManager {
 
         let filtered = [...todasDespesas];
         // Apenas MERCADORIA
-        filtered = filtered.filter(d => d.tipo_despesa === 'MERCADORIA');
+        filtered = filtered.filter(d => d.tipo_despesa && d.tipo_despesa === 'MERCADORIA');
 
         if (fornecedorFiltro === 'SEM') {
             filtered = filtered.filter(d => !d.fornecedor_id);
