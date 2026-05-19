@@ -1,5 +1,5 @@
-// fornecedor.js – Módulo de gestão de fornecedores e compras (corrigido)
-// Depende das variáveis globais: sb, STATE, showToast, showLoading, getNextId, payExpense, formatDate, formatMoney, getHojeLocalStr
+// fornecedor.js – Módulo de gestão de fornecedores e compras (CORRIGIDO)
+// Depende das funções globais: sb, STATE, showToast, getNextId, payExpense, formatDate, formatMoney, getHojeLocalStr
 
 class FornecedorManager {
     constructor(container) {
@@ -215,18 +215,35 @@ class FornecedorManager {
 
     // ==================== COMPRAS (APENAS MERCADORIA) ====================
     async renderizarCompras(container) {
-        // Buscar despesas da tabela despesas
-        const { data: despesas, error } = await sb
-            .from('despesas')
-            .select('*')
-            .order('data', { ascending: false });
+        // 1. Buscar todas as despesas
+        const { data: despesas, error } = await sb.from('despesas').select('*').order('data', { ascending: false });
         if (error) {
-            container.innerHTML = '<p class="text-red-500">Erro ao carregar despesas.</p>';
+            container.innerHTML = '<div class="text-red-500 p-4">Erro ao carregar despesas: ' + error.message + '</div>';
             return;
         }
 
-        // Mapear despesas com nome do fornecedor (pela observação)
-        const despesasComFornecedor = despesas.map(desp => {
+        console.log('Total de despesas carregadas:', despesas.length);
+
+        // 2. Filtrar APENAS as que têm tipo_despesa = 'MERCADORIA'
+        let despesasMercadoria = despesas.filter(d => d.tipo_despesa === 'MERCADORIA');
+        console.log('Despesas MERCADORIA:', despesasMercadoria.length);
+
+        if (despesasMercadoria.length === 0) {
+            container.innerHTML = `
+                <div class="bg-white rounded-xl shadow-sm border p-4">
+                    <div class="text-center text-slate-500 p-8">
+                        <i data-lucide="alert-circle" class="w-12 h-12 mx-auto mb-2 text-slate-300"></i>
+                        <p>Nenhuma despesa do tipo MERCADORIA encontrada.</p>
+                        <p class="text-xs mt-2">Verifique se os lançamentos de despesa possuem o campo <strong>tipo_despesa = 'MERCADORIA'</strong>.</p>
+                    </div>
+                </div>
+            `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            return;
+        }
+
+        // 3. Mapear para adicionar nome do fornecedor (baseado na observação)
+        const despesasComFornecedor = despesasMercadoria.map(desp => {
             let fornecedorNome = '';
             let fornecedorId = null;
             if (desp.observacao && desp.observacao.includes('Fornecedor:')) {
@@ -235,11 +252,10 @@ class FornecedorManager {
                 const forn = this.fornecedores.find(f => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
                 if (forn) fornecedorId = forn.id;
             }
-            // Garantir que tipo_despesa exista (padrão MERCADORIA)
-            const tipo = desp.tipo_despesa || 'MERCADORIA';
-            return { ...desp, fornecedor_nome: fornecedorNome, fornecedor_id: fornecedorId, tipo_despesa: tipo };
+            return { ...desp, fornecedor_nome: fornecedorNome, fornecedor_id: fornecedorId };
         });
 
+        // 4. Preparar HTML da tabela e filtros
         const hoje = new Date().toISOString().split('T')[0];
         const primeiroDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
 
@@ -281,15 +297,13 @@ class FornecedorManager {
                                 <th class="p-3">Ação</th>
                             </tr>
                         </thead>
-                        <tbody id="corpo-tabela-compras">
-                            <tr><td colspan="7" class="p-8 text-center text-slate-400">Carregando...</td></tr>
-                        </tbody>
+                        <tbody id="corpo-tabela-compras"></tbody>
                     </table>
                 </div>
             </div>
         `;
 
-        // Função de renderização interna
+        // Função de renderização
         const renderTabela = () => {
             const statusFiltro = document.getElementById('filtro-status-compras').value;
             const dataInicio = document.getElementById('filtro-data-inicio').value;
@@ -298,9 +312,6 @@ class FornecedorManager {
             const hojeLocal = getHojeLocalStr();
 
             let filtered = [...despesasComFornecedor];
-
-            // Filtro por tipo (apenas MERCADORIA)
-            filtered = filtered.filter(d => d.tipo_despesa === 'MERCADORIA');
 
             // Filtro por fornecedor
             if (fornecedorFiltro === 'SEM') {
@@ -323,8 +334,7 @@ class FornecedorManager {
             }
 
             this.comprasFiltradas = filtered;
-            console.log('Despesas filtradas (MERCADORIA):', this.comprasFiltradas.length);
-            this.aplicarOrdenacaoTabela('data', 'desc');
+            this.exibirComprasTabela();
         };
 
         document.getElementById('btn-aplicar-filtros').addEventListener('click', renderTabela);
@@ -338,14 +348,14 @@ class FornecedorManager {
                 const newDir = currentDir === 'desc' ? 'asc' : 'desc';
                 document.querySelectorAll('#tabela-compras th').forEach(t => t.classList.remove('asc', 'desc'));
                 th.classList.add(newDir);
-                this.aplicarOrdenacaoTabela(orderBy, newDir);
+                this.ordenarTabela(orderBy, newDir);
             });
         });
 
         renderTabela();
     }
 
-    aplicarOrdenacaoTabela(orderBy, orderDir) {
+    ordenarTabela(orderBy, orderDir) {
         if (!this.comprasFiltradas) return;
         const sorted = [...this.comprasFiltradas];
         sorted.sort((a, b) => {
@@ -378,11 +388,11 @@ class FornecedorManager {
     exibirComprasTabela() {
         const tbody = document.getElementById('corpo-tabela-compras');
         if (!tbody) {
-            console.error('tbody não encontrado!');
+            console.error('tbody não encontrado');
             return;
         }
         if (!this.comprasFiltradas || this.comprasFiltradas.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhuma compra encontrada.解决方案<br>Verifique se há despesas com tipo_despesa = MERCADORIA</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhuma compra encontrada com os filtros atuais.</td></tr>';
             return;
         }
         const hojeLocal = getHojeLocalStr();
@@ -417,7 +427,6 @@ class FornecedorManager {
         const hojeLocal = getHojeLocalStr();
 
         let filtered = [...todasDespesas];
-        filtered = filtered.filter(d => d.tipo_despesa === 'MERCADORIA');
 
         if (fornecedorFiltro === 'SEM') {
             filtered = filtered.filter(d => !d.fornecedor_id);
@@ -440,14 +449,16 @@ class FornecedorManager {
             total += comp.custo;
             const isVencido = comp.status !== 'PAGO' && (comp.date || '').split('T')[0] < hojeLocal;
             let statusText = comp.status === 'PAGO' ? 'PAGO' : (isVencido ? 'VENCIDO' : 'EM ABERTO');
-            return `<tr>
-                <td style="border:1px solid #ccc; padding:6px;">${formatDate(comp.date)}</td>
-                <td style="border:1px solid #ccc; padding:6px;">${comp.fornecedor_nome || '-'}</td>
-                <td style="border:1px solid #ccc; padding:6px;">${comp.item || '-'}</td>
-                <td style="border:1px solid #ccc; padding:6px; text-align:right;">${formatMoney(comp.custo)}</td>
-                <td style="border:1px solid #ccc; padding:6px;">${formatDate(comp.date)}</td>
-                <td style="border:1px solid #ccc; padding:6px;">${statusText}</td>
-            </tr>`;
+            return `
+                <tr>
+                    <td style="border:1px solid #ccc; padding:6px;">${formatDate(comp.date)}</td>
+                    <td style="border:1px solid #ccc; padding:6px;">${comp.fornecedor_nome || '-'}</td>
+                    <td style="border:1px solid #ccc; padding:6px;">${comp.item || '-'}</td>
+                    <td style="border:1px solid #ccc; padding:6px; text-align:right;">${formatMoney(comp.custo)}</td>
+                    <td style="border:1px solid #ccc; padding:6px;">${formatDate(comp.date)}</td>
+                    <td style="border:1px solid #ccc; padding:6px;">${statusText}</td>
+                </tr>
+            `;
         }).join('');
 
         const html = `
@@ -482,7 +493,26 @@ window.initFornecedor = function() {
     }
 };
 
-// Garantir funções auxiliares (caso não existam no escopo global)
+// Fallback para funções auxiliares (caso não estejam definidas globalmente)
+if (typeof formatDate === 'undefined') {
+    window.formatDate = function(d) {
+        if (!d) return '-';
+        try {
+            const parts = d.split('T')[0].split('-');
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        } catch(e) { return '-'; }
+    };
+}
+if (typeof formatMoney === 'undefined') {
+    window.formatMoney = function(val) {
+        return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    };
+}
+if (typeof getHojeLocalStr === 'undefined') {
+    window.getHojeLocalStr = function() {
+        return new Date().toISOString().split('T')[0];
+    };
+}
 if (typeof getNextId === 'undefined') {
     window.getNextId = function(array1, array2 = []) {
         let max = 0;
