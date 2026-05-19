@@ -32,12 +32,12 @@ class FornecedorManager {
   renderizarInterface() {
     this.container.innerHTML = `
       <div class="flex flex-col h-full">
-        <div class="flex gap-2 mb-4 bg-white p-2 rounded-xl shadow-sm border">
-          <button data-subaba="cadastro" class="subaba-fornecedor-btn px-4 py-2 rounded-lg font-bold text-sm bg-emerald-600 text-white shadow">📝 Cadastro</button>
-          <button data-subaba="compras" class="subaba-fornecedor-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">💰 Compras</button>
-        </div>
-        <div id="subaba-fornecedor-cadastro" class="subaba-fornecedor-content flex-1"></div>
+        <div class="flex gap-2 mb-4 bg-white p-2 rounded-xl shadow-sm border">          
+          <button data-subaba="compras" class="subaba-fornecedor-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100"> Compras</button>
+          <button data-subaba="cadastro" class="subaba-fornecedor-btn px-4 py-2 rounded-lg font-bold text-sm bg-emerald-600 text-white shadow"> Cadastro</button>
+        </div>        
         <div id="subaba-fornecedor-compras" class="subaba-fornecedor-content flex-1 hidden"></div>
+        <div id="subaba-fornecedor-cadastro" class="subaba-fornecedor-content flex-1"></div>
       </div>
     `;
 
