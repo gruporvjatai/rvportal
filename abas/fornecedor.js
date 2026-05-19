@@ -1,519 +1,470 @@
 // fornecedor.js – Módulo de gestão de fornecedores e compras
-// Depende das variáveis globais: sb, STATE, showToast, showLoading, getNextId, payExpense (opcional)
-
-// Aguarda o DOM carregar
-document.addEventListener('DOMContentLoaded', () => {
-    const container = document.getElementById('view-fornecedor');
-    if (container && !container.dataset.fornecedorIniciado) {
-        container.dataset.fornecedorIniciado = 'true';
-        new FornecedorManager(container);
-    }
-});
+// Integrado ao RV Portal, utilizando tabela clientes (com tipo FORNECEDOR) e despesas (com match textual)
 
 class FornecedorManager {
-    constructor(container) {
-        this.container = container;
-        this.activeSubTab = 'cadastro';
-        this.init();
+  constructor(container, supabase) {
+    this.container = container;
+    this.supabase = supabase;
+    this.fornecedores = [];
+    this.activeSubTab = 'cadastro'; // 'cadastro' ou 'compras'
+    this.init();
+  }
+
+  async init() {
+    await this.carregarFornecedores();
+    this.renderizarInterface();
+    this.mostrarSubAba('cadastro');
+  }
+
+  async carregarFornecedores() {
+    const { data, error } = await this.supabase
+      .from('clientes')
+      .select('*')
+      .eq('tipo', 'FORNECEDOR')
+      .order('nome');
+    if (error) {
+      console.error('Erro ao carregar fornecedores:', error);
+      this.fornecedores = [];
+    } else {
+      this.fornecedores = data || [];
     }
+  }
 
-    async init() {
-        await this.carregarFornecedores();
-        this.renderizarInterface();
-        this.mostrarSubAba('cadastro');
+  renderizarInterface() {
+    this.container.innerHTML = `
+      <div class="flex flex-col h-full">
+        <!-- Sub-abas -->
+        <div class="flex gap-3 mb-5 bg-white p-1 rounded-2xl shadow-md border border-emerald-100">
+          <button data-subaba="cadastro" class="subaba-fornecedor-btn flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2">
+            <i data-lucide="user-plus"></i> Cadastro
+          </button>
+          <button data-subaba="compras" class="subaba-fornecedor-btn flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2">
+            <i data-lucide="shopping-cart"></i> Compras
+          </button>
+        </div>
+        <div id="subaba-fornecedor-cadastro" class="subaba-fornecedor-content flex-1"></div>
+        <div id="subaba-fornecedor-compras" class="subaba-fornecedor-content flex-1 hidden"></div>
+      </div>
+    `;
+    this.atualizarEstiloBotoes('cadastro');
+    this.container.querySelectorAll('.subaba-fornecedor-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const aba = e.currentTarget.dataset.subaba;
+        if (aba) this.mostrarSubAba(aba);
+      });
+    });
+  }
+
+  atualizarEstiloBotoes(abaAtiva) {
+    const botoes = {
+      cadastro: this.container.querySelector('[data-subaba="cadastro"]'),
+      compras: this.container.querySelector('[data-subaba="compras"]')
+    };
+    const estiloAtivo = 'bg-emerald-600 text-white shadow-md border-transparent';
+    const estiloInativo = 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50';
+    for (const [aba, btn] of Object.entries(botoes)) {
+      if (!btn) continue;
+      if (aba === abaAtiva) {
+        btn.classList.remove(...btn.classList);
+        btn.classList.add('subaba-fornecedor-btn', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloAtivo.split(' '));
+      } else {
+        btn.classList.remove(...btn.classList);
+        btn.classList.add('subaba-fornecedor-btn', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloInativo.split(' '));
+      }
     }
+  }
 
-    async carregarFornecedores() {
-        // Buscar fornecedores da tabela clientes (tipo = 'FORNECEDOR')
-        const { data, error } = await sb
-            .from('clientes')
-            .select('*')
-            .eq('tipo', 'FORNECEDOR')
-            .order('nome');
-        if (error) {
-            console.error('Erro ao carregar fornecedores:', error);
-            this.fornecedores = [];
-        } else {
-            this.fornecedores = data || [];
-        }
+  mostrarSubAba(nome) {
+    this.activeSubTab = nome;
+    this.atualizarEstiloBotoes(nome);
+    this.container.querySelectorAll('.subaba-fornecedor-content').forEach(el => el.classList.add('hidden'));
+    const area = document.getElementById(`subaba-fornecedor-${nome}`);
+    if (area) area.classList.remove('hidden');
+    if (nome === 'cadastro') {
+      this.renderizarCadastro(area);
+    } else if (nome === 'compras') {
+      this.renderizarCompras(area);
     }
+  }
 
-    renderizarInterface() {
-        this.container.innerHTML = `
-            <div class="flex flex-col h-full">
-                <!-- Sub-abas -->
-                <div class="flex gap-3 mb-5 bg-white/80 p-1 rounded-2xl shadow-md border border-emerald-100">
-                    <button data-subaba="cadastro" class="subaba-forn-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2">
-                        <i data-lucide="users" class="w-4 h-4"></i> Cadastro
-                    </button>
-                    <button data-subaba="compras" class="subaba-forn-btn relative flex-1 md:flex-none px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2">
-                        <i data-lucide="shopping-cart" class="w-4 h-4"></i> Compras
-                    </button>
-                </div>
-                <div id="subaba-forn-cadastro" class="subaba-forn-content flex-1"></div>
-                <div id="subaba-forn-compras" class="subaba-forn-content flex-1 hidden"></div>
-            </div>
-        `;
+  // ==================== SUB-ABA CADASTRO ====================
+  renderizarCadastro(area) {
+    area.innerHTML = `
+      <div class="flex flex-col h-full">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <i data-lucide="truck" class="text-emerald-600"></i> Fornecedores
+          </h2>
+          <button id="btn-novo-fornecedor" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2">
+            <i data-lucide="plus"></i> Novo Fornecedor
+          </button>
+        </div>
+        <div class="mb-4 bg-white p-4 rounded-xl shadow-sm border">
+          <div class="relative w-full">
+            <i data-lucide="search" class="absolute left-3 top-2.5 text-slate-400 w-5 h-5"></i>
+            <input type="text" id="busca-fornecedor" placeholder="Buscar fornecedor por nome, documento ou contato..." class="w-full pl-10 p-2 border rounded outline-none focus:border-emerald-600 font-medium">
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border shadow-sm overflow-hidden flex-1">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-slate-700 sticky top-0">
+              <tr><th class="p-4">Nome</th><th class="p-4">Contato</th><th class="p-4">Telefone</th><th class="p-4">Documento</th><th class="p-4 text-center">Status</th><th class="p-4 text-center">Ações</th></tr>
+            </thead>
+            <tbody id="lista-fornecedores" class="divide-y"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+    this.renderizarListaFornecedores();
+    document.getElementById('busca-fornecedor').addEventListener('keyup', () => this.renderizarListaFornecedores());
+    document.getElementById('btn-novo-fornecedor').addEventListener('click', () => this.abrirModalFornecedor());
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
 
-        // Estilo inicial dos botões
-        this.atualizarEstiloBotoes('cadastro');
-
-        this.container.querySelectorAll('.subaba-forn-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const aba = e.currentTarget.dataset.subaba;
-                if (aba) this.mostrarSubAba(aba);
-            });
-        });
+  async renderizarListaFornecedores() {
+    const busca = document.getElementById('busca-fornecedor')?.value.toLowerCase() || '';
+    let filtered = this.fornecedores.filter(f =>
+      f.nome.toLowerCase().includes(busca) ||
+      (f.documento && f.documento.includes(busca)) ||
+      (f.contato && f.contato.toLowerCase().includes(busca))
+    );
+    const tbody = document.getElementById('lista-fornecedores');
+    if (!tbody) return;
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">Nenhum fornecedor encontrado.</td></tr>';
+      return;
     }
+    tbody.innerHTML = filtered.map(f => `
+      <tr class="hover:bg-slate-50 border-b">
+        <td class="p-4 font-medium">${f.nome}</td>
+        <td class="p-4">${f.contato || '-'}</td>
+        <td class="p-4">${f.telefone || '-'}</td>
+        <td class="p-4">${f.documento || '-'}</td>
+        <td class="p-4 text-center"><span class="px-2 py-1 rounded-full text-xs font-bold ${f.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${f.ativo ? 'Ativo' : 'Inativo'}</span></td>
+        <td class="p-4 text-center">
+          <div class="flex justify-center gap-2">
+            <button onclick="window.fornecedorManager.abrirModalFornecedor('${f.id}')" class="text-indigo-600 hover:text-indigo-800" title="Editar"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+            <button onclick="window.fornecedorManager.toggleStatusFornecedor('${f.id}', ${f.ativo})" class="${f.ativo ? 'text-orange-500' : 'text-green-600'}" title="${f.ativo ? 'Desativar' : 'Ativar'}"><i data-lucide="${f.ativo ? 'ban' : 'check-circle'}" class="w-4 h-4"></i></button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
 
-    atualizarEstiloBotoes(abaAtiva) {
-        const botoes = {
-            cadastro: this.container.querySelector('[data-subaba="cadastro"]'),
-            compras: this.container.querySelector('[data-subaba="compras"]')
-        };
-        const estiloAtivo = 'bg-emerald-600 text-white shadow-md border-transparent';
-        const estiloInativo = 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50';
-
-        for (const [aba, btn] of Object.entries(botoes)) {
-            if (!btn) continue;
-            if (aba === abaAtiva) {
-                btn.classList.remove(...btn.classList);
-                btn.classList.add('subaba-forn-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloAtivo.split(' '));
-            } else {
-                btn.classList.remove(...btn.classList);
-                btn.classList.add('subaba-forn-btn', 'relative', 'flex-1', 'md:flex-none', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloInativo.split(' '));
-            }
-        }
+  async abrirModalFornecedor(id = null) {
+    const isEdit = !!id;
+    let dados = { id: '', nome: '', contato: '', telefone: '', documento: '', ie: '', cep: '', endereco: '', ativo: true };
+    if (isEdit) {
+      const fornecedor = this.fornecedores.find(f => f.id == id);
+      if (fornecedor) dados = { ...fornecedor };
     }
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4';
+    modal.innerHTML = `
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-emerald-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
+          <h3 class="text-xl font-bold flex items-center gap-2"><i data-lucide="truck"></i> ${isEdit ? 'Editar' : 'Novo'} Fornecedor</h3>
+          <button class="fechar-modal text-white hover:text-emerald-200"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+          <div><label class="block text-sm font-bold text-slate-700">Nome *</label><input type="text" id="f-nome" value="${dados.nome.replace(/"/g, '&quot;')}" class="w-full p-2 border rounded focus:ring-emerald-500"></div>
+          <div><label class="block text-sm font-bold text-slate-700">Contato (pessoa)</label><input type="text" id="f-contato" value="${dados.contato || ''}" class="w-full p-2 border rounded"></div>
+          <div><label class="block text-sm font-bold text-slate-700">Telefone</label><input type="text" id="f-telefone" value="${dados.telefone || ''}" class="w-full p-2 border rounded"></div>
+          <div><label class="block text-sm font-bold text-slate-700">Documento (CNPJ/CPF)</label><input type="text" id="f-documento" value="${dados.documento || ''}" class="w-full p-2 border rounded"></div>
+          <div><label class="block text-sm font-bold text-slate-700">Inscrição Estadual (IE)</label><input type="text" id="f-ie" value="${dados.ie || ''}" class="w-full p-2 border rounded"></div>
+          <div><label class="block text-sm font-bold text-slate-700">CEP</label><input type="text" id="f-cep" value="${dados.cep || ''}" class="w-full p-2 border rounded"></div>
+          <div><label class="block text-sm font-bold text-slate-700">Endereço</label><textarea id="f-endereco" rows="2" class="w-full p-2 border rounded">${dados.endereco || ''}</textarea></div>
+          <div class="flex items-center gap-2"><input type="checkbox" id="f-ativo" ${dados.ativo ? 'checked' : ''} class="w-4 h-4 text-emerald-600"><label class="text-sm font-bold">Ativo</label></div>
+        </div>
+        <div class="p-5 border-t bg-slate-50 flex gap-3">
+          <button class="btn-cancelar flex-1 py-2 bg-white border border-slate-300 rounded-lg font-bold">Cancelar</button>
+          <button class="btn-salvar flex-1 py-2 bg-emerald-600 text-white rounded-lg font-bold shadow">Salvar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    mostrarSubAba(nome) {
-        this.activeSubTab = nome;
-        this.atualizarEstiloBotoes(nome);
+    modal.querySelector('.fechar-modal').addEventListener('click', () => modal.remove());
+    modal.querySelector('.btn-cancelar').addEventListener('click', () => modal.remove());
+    modal.querySelector('.btn-salvar').addEventListener('click', async () => {
+      const payload = {
+        nome: document.getElementById('f-nome').value.trim(),
+        contato: document.getElementById('f-contato').value.trim(),
+        telefone: document.getElementById('f-telefone').value.trim(),
+        documento: document.getElementById('f-documento').value.trim(),
+        ie: document.getElementById('f-ie').value.trim(),
+        cep: document.getElementById('f-cep').value.trim(),
+        endereco: document.getElementById('f-endereco').value.trim(),
+        ativo: document.getElementById('f-ativo').checked,
+        tipo: 'FORNECEDOR'
+      };
+      if (!payload.nome) {
+        window.showToast('Nome é obrigatório.', true);
+        return;
+      }
+      if (isEdit) {
+        payload.id = dados.id;
+        const { error } = await this.supabase.from('clientes').update(payload).eq('id', payload.id);
+        if (error) window.showToast('Erro ao atualizar: ' + error.message, true);
+        else { window.showToast('Fornecedor atualizado!'); modal.remove(); await this.carregarFornecedores(); this.renderizarListaFornecedores(); }
+      } else {
+        // Buscar próximo ID disponível (igual aba clientes)
+        const { data: maxIdData } = await this.supabase.from('clientes').select('id').order('id', { ascending: false }).limit(1);
+        let novoId = 1;
+        if (maxIdData && maxIdData.length > 0) novoId = maxIdData[0].id + 1;
+        payload.id = novoId;
+        const { error } = await this.supabase.from('clientes').insert(payload);
+        if (error) window.showToast('Erro ao criar: ' + error.message, true);
+        else { window.showToast('Fornecedor criado!'); modal.remove(); await this.carregarFornecedores(); this.renderizarListaFornecedores(); }
+      }
+    });
+  }
 
-        this.container.querySelectorAll('.subaba-forn-content').forEach(el => el.classList.add('hidden'));
-        const area = document.getElementById(`subaba-forn-${nome}`);
-        if (area) area.classList.remove('hidden');
+  async toggleStatusFornecedor(id, ativo) {
+    if (!confirm(ativo ? 'Desativar este fornecedor?' : 'Ativar este fornecedor?')) return;
+    const { error } = await this.supabase.from('clientes').update({ ativo: !ativo }).eq('id', id);
+    if (error) window.showToast('Erro ao alterar status: ' + error.message, true);
+    else { window.showToast(ativo ? 'Fornecedor desativado.' : 'Fornecedor ativado.'); await this.carregarFornecedores(); this.renderizarListaFornecedores(); }
+  }
 
-        if (nome === 'cadastro') {
-            this.renderizarCadastro(area);
-        } else if (nome === 'compras') {
-            this.renderizarCompras(area);
-        }
-    }
-
-    // ==================== CADASTRO DE FORNECEDORES ====================
-    renderizarCadastro(container) {
-        container.innerHTML = `
-            <div class="bg-white rounded-xl shadow-sm border p-4 mb-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-slate-800">Fornecedores</h2>
-                    <button id="btn-novo-fornecedor" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2">
-                        <i data-lucide="plus"></i> Novo Fornecedor
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-slate-50">
-                            <tr><th class="p-3 text-left">Nome</th><th class="p-3 text-left">Contato</th><th class="p-3 text-left">Telefone</th><th class="p-3 text-left">Documento</th><th class="p-3 text-center">Ativo</th><th class="p-3 text-center">Ações</th></tr>
-                        </thead>
-                        <tbody id="lista-fornecedores">
-                            ${this.fornecedores.map(f => `
-                                <tr class="border-b hover:bg-slate-50">
-                                    <td class="p-3 font-medium">${f.nome}</td>
-                                    <td class="p-3">${f.contato || '-'}</td>
-                                    <td class="p-3">${f.telefone || '-'}</td>
-                                    <td class="p-3">${f.documento || '-'}</td>
-                                    <td class="p-3 text-center">${f.ativo ? '<span class="text-green-600">Ativo</span>' : '<span class="text-red-500">Inativo</span>'}</td>
-                                    <td class="p-3 text-center">
-                                        <button onclick="window.fornecedorManager.editarFornecedor('${f.id}')" class="text-blue-600 hover:text-blue-800 p-1" title="Editar"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-                                        <button onclick="window.fornecedorManager.toggleAtivoFornecedor('${f.id}', ${f.ativo})" class="${f.ativo ? 'text-orange-500' : 'text-green-600'} hover:opacity-80 p-1" title="${f.ativo ? 'Desativar' : 'Ativar'}"><i data-lucide="${f.ativo ? 'ban' : 'check-circle'}" class="w-4 h-4"></i></button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-        document.getElementById('btn-novo-fornecedor').addEventListener('click', () => this.abrirModalFornecedor());
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
-
-    abrirModalFornecedor(fornecedor = null) {
-        const modalAntigo = document.getElementById('modal-fornecedor');
-        if (modalAntigo) modalAntigo.remove();
-
-        const modal = document.createElement('div');
-        modal.id = 'modal-fornecedor';
-        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4';
-        // REMOVEMOS o blur que travava: modal.style.backdropFilter = 'blur(2px)';
-
-        const isEdit = !!fornecedor;
-        modal.innerHTML = `
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-                <div class="sticky top-0 bg-emerald-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
-                    <h3 class="text-xl font-bold">${isEdit ? 'Editar Fornecedor' : 'Novo Fornecedor'}</h3>
-                    <button class="fechar-modal text-white hover:text-emerald-200"><i data-lucide="x" class="w-6 h-6"></i></button>
-                </div>
-                <div class="p-6 space-y-4">
-                    <input type="hidden" id="forn-id" value="${isEdit ? fornecedor.id : ''}">
-                    <div><label class="block text-sm font-bold">Nome *</label><input type="text" id="forn-nome" value="${isEdit ? fornecedor.nome : ''}" class="w-full p-2 border rounded"></div>
-                    <div><label class="block text-sm font-bold">Contato (pessoa)</label><input type="text" id="forn-contato" value="${isEdit ? fornecedor.contato || '' : ''}" class="w-full p-2 border rounded"></div>
-                    <div><label class="block text-sm font-bold">Telefone</label><input type="text" id="forn-telefone" value="${isEdit ? fornecedor.telefone || '' : ''}" class="w-full p-2 border rounded"></div>
-                    <div><label class="block text-sm font-bold">CNPJ/CPF</label><input type="text" id="forn-doc" value="${isEdit ? fornecedor.documento || '' : ''}" class="w-full p-2 border rounded"></div>
-                    <div><label class="block text-sm font-bold">Inscrição Estadual</label><input type="text" id="forn-ie" value="${isEdit ? fornecedor.ie || '' : ''}" class="w-full p-2 border rounded"></div>
-                    <div><label class="block text-sm font-bold">CEP</label><input type="text" id="forn-cep" value="${isEdit ? fornecedor.cep || '' : ''}" class="w-full p-2 border rounded"></div>
-                    <div><label class="block text-sm font-bold">Endereço</label><input type="text" id="forn-endereco" value="${isEdit ? fornecedor.endereco || '' : ''}" class="w-full p-2 border rounded"></div>
-                    <div><label class="block text-sm font-bold">Data de Cadastro (Fornecedor desde)</label><input type="date" id="forn-data" value="${isEdit ? (fornecedor.fornecedor_desde || '').split('T')[0] : new Date().toISOString().split('T')[0]}" class="w-full p-2 border rounded"></div>
-                    <div class="flex items-center gap-2"><input type="checkbox" id="forn-ativo" ${isEdit ? (fornecedor.ativo ? 'checked' : '') : 'checked'} class="w-4 h-4"><label>Ativo</label></div>
-                </div>
-                <div class="p-5 border-t flex gap-3">
-                    <button class="btn-cancelar flex-1 py-2 bg-slate-200 rounded-lg font-bold">Cancelar</button>
-                    <button class="btn-salvar flex-1 py-2 bg-emerald-600 text-white rounded-lg font-bold">Salvar</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-
-        modal.querySelector('.fechar-modal').addEventListener('click', () => modal.remove());
-        modal.querySelector('.btn-cancelar').addEventListener('click', () => modal.remove());
-        modal.querySelector('.btn-salvar').addEventListener('click', async () => {
-            await this.salvarFornecedor(modal);
-        });
-    }
-
-    async salvarFornecedor(modal) {
-        const id = document.getElementById('forn-id').value;
-        const isNew = !id;
-        // Obter próximo ID usando a mesma lógica do sistema (getNextId)
-        let newId = isNew ? getNextId(STATE.clients) : parseInt(id);
-
-        const payload = {
-            id: newId,
-            nome: document.getElementById('forn-nome').value,
-            telefone: document.getElementById('forn-telefone').value,
-            documento: document.getElementById('forn-doc').value,
-            endereco: document.getElementById('forn-endereco').value,
-            tipo: 'FORNECEDOR',
-            ie: document.getElementById('forn-ie').value,
-            cep: document.getElementById('forn-cep').value,
-            contato: document.getElementById('forn-contato').value,
-            ativo: document.getElementById('forn-ativo').checked,
-            fornecedor_desde: document.getElementById('forn-data').value || null
-        };
-
-        const { error } = await sb.from('clientes').upsert(payload);
-        if (error) {
-            showToast('Erro ao salvar fornecedor: ' + error.message, true);
-        } else {
-            showToast('Fornecedor salvo com sucesso!');
-            modal.remove();
-            await this.carregarFornecedores();
-            this.renderizarCadastro(document.getElementById('subaba-forn-cadastro'));
-        }
-    }
-
-    async editarFornecedor(id) {
-        const fornecedor = this.fornecedores.find(f => f.id == id);
-        if (fornecedor) this.abrirModalFornecedor(fornecedor);
-    }
-
-    async toggleAtivoFornecedor(id, ativoAtual) {
-        const { error } = await sb.from('clientes').update({ ativo: !ativoAtual }).eq('id', id);
-        if (error) {
-            showToast('Erro ao alterar status: ' + error.message, true);
-        } else {
-            showToast(ativoAtual ? 'Fornecedor desativado' : 'Fornecedor ativado');
-            await this.carregarFornecedores();
-            this.renderizarCadastro(document.getElementById('subaba-forn-cadastro'));
-        }
-    }
-
-    // ==================== COMPRAS (DESPESAS DE FORNECEDORES) ====================
-    async renderizarCompras(container) {
-        // Carregar despesas da tabela despesas e associar ao fornecedor
-        const { data: despesas, error } = await sb
-            .from('despesas')
-            .select('*')
-            .order('data', { ascending: false });
-        if (error) {
-            container.innerHTML = '<p class="text-red-500">Erro ao carregar despesas.</p>';
-            return;
-        }
-
-        // Mapear despesas para um objeto com nome do fornecedor
-        const despesasComFornecedor = despesas.map(desp => {
-            let fornecedorNome = '';
-            let fornecedorId = null;
-            if (desp.note && desp.note.includes('Fornecedor:')) {
-                const match = desp.note.match(/Fornecedor:\s*([^|]+)/);
-                if (match) fornecedorNome = match[1].trim();
-                // Tentar encontrar o fornecedor pelo nome
-                const forn = this.fornecedores.find(f => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
-                if (forn) fornecedorId = forn.id;
-            } else {
-                // Se não tiver "Fornecedor:" na observação, tentar pelo item (categoria)
-                // Deixamos em branco
-            }
-            return { ...desp, fornecedor_nome: fornecedorNome, fornecedor_id: fornecedorId };
-        });
-
-        // Filtrar apenas despesas que têm algum fornecedor identificado (ou todas, conforme filtro)
-        // Vamos permitir filtrar por "Todos fornecedores" e também mostrar as sem fornecedor?
-        // Melhor: criar um filtro que lista todos os fornecedores + "Sem fornecedor"
-        const fornecedoresList = [...this.fornecedores];
-        const hoje = new Date().toISOString().split('T')[0];
-        const primeiroDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-
-        container.innerHTML = `
-            <div class="bg-white rounded-xl shadow-sm border p-4">
-                <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-                    <h2 class="text-xl font-bold text-slate-800">Compras / Despesas de Fornecedores</h2>
-                    <button id="btn-imprimir-compras" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2">
-                        <i data-lucide="printer"></i> Imprimir Relatório
-                    </button>
-                </div>
-                <div class="flex flex-wrap gap-3 mb-4 items-center">
-                    <select id="filtro-status-compras" class="p-2 border rounded text-sm">
-                        <option value="VENCIDOS">Vencidos</option>
-                        <option value="EM_ABERTO">Em Aberto (inclui vencidos)</option>
-                        <option value="PAGOS">Pagos</option>
-                        <option value="TODOS">Todos</option>
-                    </select>
-                    <input type="date" id="filtro-data-inicio" value="${primeiroDiaMes}" class="p-2 border rounded text-sm">
-                    <span>até</span>
-                    <input type="date" id="filtro-data-fim" value="${hoje}" class="p-2 border rounded text-sm">
-                    <select id="filtro-fornecedor-compras" class="p-2 border rounded text-sm">
-                        <option value="">Todos os fornecedores</option>
-                        ${fornecedoresList.map(f => `<option value="${f.id}">${f.nome}</option>`).join('')}
-                        <option value="SEM">Sem fornecedor identificado</option>
-                    </select>
-                    <button id="btn-aplicar-filtros" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold">Filtrar</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm" id="tabela-compras">
-                        <thead class="bg-slate-50">
-                            <tr>
-                                <th class="p-3 cursor-pointer" data-order="data">Data <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="fornecedor">Fornecedor <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="item">Categoria <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="valor">Valor (R$) <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="vencimento">Vencimento <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="status">Status <span class="order-arrow"></span></th>
-                                <th class="p-3">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody id="corpo-tabela-compras"></tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-
-        // Função para renderizar os dados filtrados
-        const renderTabela = () => {
-            const statusFiltro = document.getElementById('filtro-status-compras').value;
-            const dataInicio = document.getElementById('filtro-data-inicio').value;
-            const dataFim = document.getElementById('filtro-data-fim').value;
-            const fornecedorFiltro = document.getElementById('filtro-fornecedor-compras').value;
-            const hojeLocal = getHojeLocalStr();
-
-            let filtered = [...despesasComFornecedor];
-
-            // Filtro por fornecedor
-            if (fornecedorFiltro === 'SEM') {
-                filtered = filtered.filter(d => !d.fornecedor_id);
-            } else if (fornecedorFiltro) {
-                filtered = filtered.filter(d => String(d.fornecedor_id) === fornecedorFiltro);
-            }
-
-            // Filtro por data de vencimento (data da despesa)
-            if (dataInicio) filtered = filtered.filter(d => (d.date || '').split('T')[0] >= dataInicio);
-            if (dataFim) filtered = filtered.filter(d => (d.date || '').split('T')[0] <= dataFim);
-
-            // Filtro por status
-            if (statusFiltro === 'VENCIDOS') {
-                filtered = filtered.filter(d => d.status !== 'PAGO' && (d.date || '').split('T')[0] < hojeLocal);
-            } else if (statusFiltro === 'EM_ABERTO') {
-                filtered = filtered.filter(d => d.status !== 'PAGO');
-            } else if (statusFiltro === 'PAGOS') {
-                filtered = filtered.filter(d => d.status === 'PAGO');
-            }
-            // 'TODOS' não filtra
-
-            // Ordenação (inicial por data decrescente)
-            let orderBy = 'data';
-            let orderDir = 'desc';
-            this.aplicarOrdenacaoTabela(filtered, orderBy, orderDir);
-        };
-
-        // Eventos
-        document.getElementById('btn-aplicar-filtros').addEventListener('click', renderTabela);
-        document.getElementById('btn-imprimir-compras').addEventListener('click', () => this.imprimirCompras(despesasComFornecedor));
-        // Ordenação ao clicar nos cabeçalhos
-        document.querySelectorAll('#tabela-compras th[data-order]').forEach(th => {
-            th.addEventListener('click', () => {
-                const orderBy = th.dataset.order;
-                const currentDir = th.classList.contains('asc') ? 'asc' : (th.classList.contains('desc') ? 'desc' : 'desc');
-                const newDir = currentDir === 'desc' ? 'asc' : 'desc';
-                // resetar classes
-                document.querySelectorAll('#tabela-compras th').forEach(t => t.classList.remove('asc', 'desc'));
-                th.classList.add(newDir);
-                // obter dados atuais (já filtrados)
-                const statusFiltro = document.getElementById('filtro-status-compras').value;
-                const dataInicio = document.getElementById('filtro-data-inicio').value;
-                const dataFim = document.getElementById('filtro-data-fim').value;
-                const fornecedorFiltro = document.getElementById('filtro-fornecedor-compras').value;
-                let filtered = [...despesasComFornecedor];
-                if (fornecedorFiltro === 'SEM') {
-                    filtered = filtered.filter(d => !d.fornecedor_id);
-                } else if (fornecedorFiltro) {
-                    filtered = filtered.filter(d => String(d.fornecedor_id) === fornecedorFiltro);
-                }
-                if (dataInicio) filtered = filtered.filter(d => (d.date || '').split('T')[0] >= dataInicio);
-                if (dataFim) filtered = filtered.filter(d => (d.date || '').split('T')[0] <= dataFim);
-                if (statusFiltro === 'VENCIDOS') {
-                    filtered = filtered.filter(d => d.status !== 'PAGO' && (d.date || '').split('T')[0] < getHojeLocalStr());
-                } else if (statusFiltro === 'EM_ABERTO') {
-                    filtered = filtered.filter(d => d.status !== 'PAGO');
-                } else if (statusFiltro === 'PAGOS') {
-                    filtered = filtered.filter(d => d.status === 'PAGO');
-                }
-                this.aplicarOrdenacaoTabela(filtered, orderBy, newDir);
-            });
-        });
-
-        // Chamada inicial
-        renderTabela();
-    }
-
-    aplicarOrdenacaoTabela(dados, orderBy, orderDir) {
-        const sorted = [...dados];
-        sorted.sort((a, b) => {
-            let valA, valB;
-            if (orderBy === 'data') {
-                valA = a.date || '';
-                valB = b.date || '';
-            } else if (orderBy === 'fornecedor') {
-                valA = a.fornecedor_nome || '';
-                valB = b.fornecedor_nome || '';
-            } else if (orderBy === 'item') {
-                valA = a.item || '';
-                valB = b.item || '';
-            } else if (orderBy === 'valor') {
-                valA = a.custo || 0;
-                valB = b.custo || 0;
-            } else if (orderBy === 'vencimento') {
-                valA = a.date || '';
-                valB = b.date || '';
-            } else if (orderBy === 'status') {
-                valA = a.status || '';
-                valB = b.status || '';
-            }
-            if (orderDir === 'asc') return valA > valB ? 1 : -1;
-            else return valA < valB ? 1 : -1;
-        });
-        const tbody = document.getElementById('corpo-tabela-compras');
-        const hojeLocal = getHojeLocalStr();
-        tbody.innerHTML = sorted.map(comp => {
-            const isVencido = comp.status !== 'PAGO' && (comp.date || '').split('T')[0] < hojeLocal;
-            let statusText = comp.status === 'PAGO' ? 'PAGO' : (isVencido ? 'VENCIDO' : 'EM ABERTO');
-            let statusClass = comp.status === 'PAGO' ? 'bg-green-100 text-green-700' : (isVencido ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
-            return `
-                <tr class="border-b hover:bg-slate-50">
-                    <td class="p-3">${formatDate(comp.date)}</td>
-                    <td class="p-3 font-medium">${comp.fornecedor_nome || '-'}</td>
-                    <td class="p-3">${comp.item || '-'}</td>
-                    <td class="p-3 text-right font-bold">${formatMoney(comp.custo)}</td>
-                    <td class="p-3">${formatDate(comp.date)}</td>
-                    <td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${statusClass}">${statusText}</span></td>
-                    <td class="p-3 text-center">
-                        ${comp.status !== 'PAGO' ? `<button onclick="if(window.fornecedorManager && window.payExpense) payExpense(${comp.id})" class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700">Baixar</button>` : '-'}
-                    </td>
+  // ==================== SUB-ABA COMPRAS ====================
+  async renderizarCompras(area) {
+    area.innerHTML = `
+      <div class="flex flex-col h-full">
+        <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+          <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2"><i data-lucide="shopping-cart" class="text-emerald-600"></i> Compras / Contas a Pagar (Fornecedores)</h2>
+          <div class="flex gap-2">
+            <button id="btn-imprimir-compras" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2"><i data-lucide="printer"></i> Imprimir Relatório</button>
+          </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow-sm border mb-4">
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div><label class="text-xs font-bold uppercase">Fornecedor</label><select id="filtro-fornecedor-id" class="w-full p-2 border rounded text-sm"><option value="">Todos</option></select></div>
+            <div><label class="text-xs font-bold uppercase">Status</label><select id="filtro-status-compra" class="w-full p-2 border rounded text-sm"><option value="VENCIDOS">Vencidos (Padrão)</option><option value="ABERTOS">Em Aberto</option><option value="PAGOS">Pagos</option><option value="TODOS">Todos</option></select></div>
+            <div><label class="text-xs font-bold uppercase">Data Inicial</label><input type="date" id="filtro-data-start" class="w-full p-2 border rounded text-sm"></div>
+            <div><label class="text-xs font-bold uppercase">Data Final</label><input type="date" id="filtro-data-end" class="w-full p-2 border rounded text-sm"></div>
+            <div class="flex items-end"><button id="btn-aplicar-filtros" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold w-full">Aplicar Filtros</button></div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border shadow-sm overflow-hidden flex-1">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-slate-50 text-slate-700 sticky top-0">
+                <tr>
+                  <th class="p-3 cursor-pointer" data-ordem="data_vencimento">Vencimento <span class="seta-ordem"></span></th>
+                  <th class="p-3 cursor-pointer" data-ordem="data_lancamento">Lançamento <span class="seta-ordem"></span></th>
+                  <th class="p-3 cursor-pointer" data-ordem="fornecedor_nome">Fornecedor <span class="seta-ordem"></span></th>
+                  <th class="p-3 cursor-pointer" data-ordem="categoria">Categoria <span class="seta-ordem"></span></th>
+                  <th class="p-3 cursor-pointer" data-ordem="valor">Valor (R$) <span class="seta-ordem"></span></th>
+                  <th class="p-3 text-center">Status</th>
                 </tr>
-            `;
-        }).join('');
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+              </thead>
+              <tbody id="lista-compras" class="divide-y"><tr><td colspan="6" class="p-8 text-center text-slate-400">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+    // Preencher select de fornecedores
+    const selectFornecedor = document.getElementById('filtro-fornecedor-id');
+    if (selectFornecedor) {
+      selectFornecedor.innerHTML = '<option value="">Todos</option>' + this.fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+    }
+    // Definir datas padrão: início do ano até hoje
+    const hoje = new Date();
+    const inicioAno = new Date(hoje.getFullYear(), 0, 1);
+    document.getElementById('filtro-data-start').value = inicioAno.toISOString().split('T')[0];
+    document.getElementById('filtro-data-end').value = hoje.toISOString().split('T')[0];
+    document.getElementById('btn-aplicar-filtros').addEventListener('click', () => this.carregarCompras());
+    document.getElementById('btn-imprimir-compras').addEventListener('click', () => this.imprimirRelatorioCompras());
+    // Ordenação
+    document.querySelectorAll('#lista-compras').forEach(th => {
+      th.addEventListener('click', (e) => {
+        const coluna = e.currentTarget.dataset.ordem;
+        if (coluna) this.ordenarCompras(coluna);
+      });
+    });
+    await this.carregarCompras();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  async carregarCompras() {
+    const tbody = document.getElementById('lista-compras');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">Carregando...</td></tr>';
+
+    // Buscar todas as despesas
+    const { data: despesas, error } = await this.supabase.from('despesas').select('*').order('data', { ascending: false });
+    if (error) {
+      tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-400">Erro: ${error.message}</td></tr>`;
+      return;
     }
 
-    async imprimirCompras(todasDespesas) {
-        // Capturar filtros atuais
-        const statusFiltro = document.getElementById('filtro-status-compras').value;
-        const dataInicio = document.getElementById('filtro-data-inicio').value;
-        const dataFim = document.getElementById('filtro-data-fim').value;
-        const fornecedorFiltro = document.getElementById('filtro-fornecedor-compras').value;
-        const hojeLocal = getHojeLocalStr();
-
-        let filtered = [...todasDespesas];
-        if (fornecedorFiltro === 'SEM') {
-            filtered = filtered.filter(d => !d.fornecedor_id);
-        } else if (fornecedorFiltro) {
-            const forn = this.fornecedores.find(f => f.id == fornecedorFiltro);
-            if (forn) filtered = filtered.filter(d => d.fornecedor_nome === forn.nome);
+    // Associar cada despesa a um fornecedor pelo match textual na observação
+    const despesasComFornecedor = [];
+    for (const desp of despesas) {
+      let fornecedorNome = null;
+      let fornecedorId = null;
+      if (desp.observacao) {
+        const match = desp.observacao.match(/Fornecedor:\s*([^|]+)/i);
+        if (match) fornecedorNome = match[1].trim();
+      }
+      if (fornecedorNome) {
+        const fornecedor = this.fornecedores.find(f => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
+        if (fornecedor) {
+          fornecedorId = fornecedor.id;
+          fornecedorNome = fornecedor.nome;
         }
-        if (dataInicio) filtered = filtered.filter(d => (d.date || '').split('T')[0] >= dataInicio);
-        if (dataFim) filtered = filtered.filter(d => (d.date || '').split('T')[0] <= dataFim);
-        if (statusFiltro === 'VENCIDOS') {
-            filtered = filtered.filter(d => d.status !== 'PAGO' && (d.date || '').split('T')[0] < hojeLocal);
-        } else if (statusFiltro === 'EM_ABERTO') {
-            filtered = filtered.filter(d => d.status !== 'PAGO');
-        } else if (statusFiltro === 'PAGOS') {
-            filtered = filtered.filter(d => d.status === 'PAGO');
-        }
-
-        let total = 0;
-        const rows = filtered.map(comp => {
-            total += comp.custo;
-            const isVencido = comp.status !== 'PAGO' && (comp.date || '').split('T')[0] < hojeLocal;
-            let statusText = comp.status === 'PAGO' ? 'PAGO' : (isVencido ? 'VENCIDO' : 'EM ABERTO');
-            return `<tr>
-                <td style="border:1px solid #ccc; padding:6px;">${formatDate(comp.date)}</td>
-                <td style="border:1px solid #ccc; padding:6px;">${comp.fornecedor_nome || '-'}</td>
-                <td style="border:1px solid #ccc; padding:6px;">${comp.item || '-'}</td>
-                <td style="border:1px solid #ccc; padding:6px; text-align:right;">${formatMoney(comp.custo)}</td>
-                <td style="border:1px solid #ccc; padding:6px;">${formatDate(comp.date)}</td>
-                <td style="border:1px solid #ccc; padding:6px;">${statusText}</td>
-            </table>`;
-        }).join('');
-
-        const html = `
-            <div style="font-family:Helvetica; padding:20px;">
-                <div style="text-align:center;">
-                    <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px;">
-                    <h2>RV PORTAL MADEIRAS</h2>
-                    <p>Relatório de Compras / Despesas de Fornecedores</p>
-                    <p>Período: ${dataInicio || 'início'} a ${dataFim || 'hoje'} | Status: ${statusFiltro}</p>
-                </div>
-                <table style="width:100%; border-collapse:collapse; margin-top:20px;">
-                    <thead><tr style="background:#eee;"><th>Data</th><th>Fornecedor</th><th>Categoria</th><th>Valor</th><th>Vencimento</th><th>Status</th></tr></thead>
-                    <tbody>${rows}</tbody>
-                    <tfoot><tr><td colspan="3" style="text-align:right; font-weight:bold;">TOTAL:</td><td style="text-align:right; font-weight:bold;">${formatMoney(total)}</td><td></td><td></td></tr></tfoot>
-                </table>
-            </div>
-        `;
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.print();
+      }
+      if (fornecedorId) {
+        despesasComFornecedor.push({
+          id: desp.id,
+          data_lancamento: desp.data,
+          data_vencimento: desp.data, // a tabela despesas tem data (vencimento)
+          fornecedor_id: fornecedorId,
+          fornecedor_nome: fornecedorNome,
+          categoria: desp.item,
+          valor: desp.custo,
+          status: desp.status // PENDENTE, PAGO
+        });
+      }
     }
+
+    // Aplicar filtros
+    const fornecedorIdFiltro = document.getElementById('filtro-fornecedor-id').value;
+    const statusFiltro = document.getElementById('filtro-status-compra').value;
+    const dataStart = document.getElementById('filtro-data-start').value;
+    const dataEnd = document.getElementById('filtro-data-end').value;
+    const hojeLocal = new Date().toISOString().split('T')[0];
+
+    let filtradas = despesasComFornecedor.filter(d => {
+      if (fornecedorIdFiltro && d.fornecedor_id != fornecedorIdFiltro) return false;
+      if (dataStart && d.data_vencimento < dataStart) return false;
+      if (dataEnd && d.data_vencimento > dataEnd) return false;
+      const isVencido = (d.data_vencimento < hojeLocal) && d.status !== 'PAGO';
+      if (statusFiltro === 'VENCIDOS') return isVencido;
+      if (statusFiltro === 'ABERTOS') return d.status !== 'PAGO'; // inclui vencidos
+      if (statusFiltro === 'PAGOS') return d.status === 'PAGO';
+      return true;
+    });
+
+    this.comprasFiltradas = filtradas; // guardar para impressão e ordenação
+    this.ordenarCompras('data_vencimento'); // ordenação inicial
+  }
+
+  ordenarCompras(coluna, direcao = 'asc') {
+    if (!this.comprasFiltradas) return;
+    const sorted = [...this.comprasFiltradas];
+    const ordem = direcao === 'asc' ? 1 : -1;
+    sorted.sort((a, b) => {
+      let valA = a[coluna];
+      let valB = b[coluna];
+      if (coluna === 'valor') { valA = parseFloat(valA); valB = parseFloat(valB); }
+      if (coluna === 'data_vencimento' || coluna === 'data_lancamento') { valA = valA || ''; valB = valB || ''; }
+      if (valA < valB) return -1 * ordem;
+      if (valA > valB) return 1 * ordem;
+      return 0;
+    });
+    this.comprasFiltradas = sorted;
+    this.exibirComprasTabela();
+    // Atualizar setas visuais (simplificado)
+    document.querySelectorAll('.seta-ordem').forEach(s => s.innerHTML = '');
+    const th = document.querySelector(`[data-ordem="${coluna}"]`);
+    if (th) th.querySelector('.seta-ordem').innerHTML = direcao === 'asc' ? ' ▲' : ' ▼';
+  }
+
+  exibirComprasTabela() {
+    const tbody = document.getElementById('lista-compras');
+    if (!tbody) return;
+    if (!this.comprasFiltradas || this.comprasFiltradas.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">Nenhuma compra encontrada para os filtros.</td></tr>';
+      return;
+    }
+    const hojeLocal = new Date().toISOString().split('T')[0];
+    tbody.innerHTML = this.comprasFiltradas.map(d => {
+      const isVencido = (d.data_vencimento < hojeLocal) && d.status !== 'PAGO';
+      let statusHtml = '';
+      if (d.status === 'PAGO') statusHtml = '<span class="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">Pago</span>';
+      else if (isVencido) statusHtml = '<span class="px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">Vencido</span>';
+      else statusHtml = '<span class="px-2 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Em Aberto</span>';
+      return `
+        <tr class="border-b hover:bg-slate-50">
+          <td class="p-3">${d.data_vencimento ? new Date(d.data_vencimento).toLocaleDateString('pt-BR') : '-'}</td>
+          <td class="p-3">${d.data_lancamento ? new Date(d.data_lancamento).toLocaleDateString('pt-BR') : '-'}</td>
+          <td class="p-3 font-medium">${d.fornecedor_nome}</td>
+          <td class="p-3">${d.categoria || '-'}</td>
+          <td class="p-3 font-bold text-right">R$ ${parseFloat(d.valor).toFixed(2)}</td>
+          <td class="p-3 text-center">${statusHtml}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async imprimirRelatorioCompras() {
+    if (!this.comprasFiltradas || this.comprasFiltradas.length === 0) {
+      window.showToast('Nenhum dado para imprimir.', true);
+      return;
+    }
+    const filtroFornecedor = document.getElementById('filtro-fornecedor-id').options[document.getElementById('filtro-fornecedor-id').selectedIndex]?.text || 'Todos';
+    const statusFiltro = document.getElementById('filtro-status-compra').options[document.getElementById('filtro-status-compra').selectedIndex]?.text || '';
+    const dataStart = document.getElementById('filtro-data-start').value;
+    const dataEnd = document.getElementById('filtro-data-end').value;
+    let totalGeral = 0;
+    const rowsHtml = this.comprasFiltradas.map(d => {
+      totalGeral += parseFloat(d.valor);
+      let statusText = d.status === 'PAGO' ? 'Pago' : (d.data_vencimento < new Date().toISOString().split('T')[0] ? 'Vencido' : 'Em Aberto');
+      return `
+        <tr>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">${new Date(d.data_vencimento).toLocaleDateString('pt-BR')}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">${new Date(d.data_lancamento).toLocaleDateString('pt-BR')}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">${d.fornecedor_nome}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px;">${d.categoria || '-'}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px; text-align:right;">R$ ${parseFloat(d.valor).toFixed(2)}</td>
+          <td style="border-bottom:1px solid #ccc; padding:6px; text-align:center;">${statusText}</td>
+        </tr>
+      `;
+    }).join('');
+    const html = `
+      <div style="font-family:Helvetica; padding:20px; max-width:1000px; margin:auto;">
+        <div style="text-align:center; margin-bottom:20px;">
+          <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px;">
+          <h2 style="color:#059669;">RV PORTAL MADEIRAS</h2>
+          <h3>Relatório de Compras (Fornecedores)</h3>
+          <p>Período: ${dataStart ? new Date(dataStart).toLocaleDateString('pt-BR') : 'início'} até ${dataEnd ? new Date(dataEnd).toLocaleDateString('pt-BR') : 'hoje'}</p>
+          <p>Fornecedor: ${filtroFornecedor} | Status: ${statusFiltro}</p>
+        </div>
+        <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse; font-size:12px;">
+          <thead><tr style="background:#eee;"><th>Vencimento</th><th>Lançamento</th><th>Fornecedor</th><th>Categoria</th><th>Valor (R$)</th><th>Status</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+          <tfoot><tr style="background:#f0fdf4;"><td colspan="4" style="text-align:right; font-weight:bold;">Total Geral:</td><td style="text-align:right; font-weight:bold;">R$ ${totalGeral.toFixed(2)}</td><td></td></tr></tfoot>
+        </table>
+      </div>
+    `;
+    const opt = { margin: 10, filename: `relatorio_compras_${new Date().toISOString().slice(0,10)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+    const printArea = document.getElementById('print-area');
+    if (printArea) {
+      printArea.innerHTML = html;
+      await html2pdf().set(opt).from(html).save();
+      printArea.innerHTML = '';
+    } else {
+      window.showToast('Elemento print-area não encontrado.', true);
+    }
+  }
 }
 
-// Expor globalmente
-window.fornecedorManager = null;
+// Inicialização global
 window.initFornecedor = function() {
-    const container = document.getElementById('view-fornecedor');
-    if (container && !container.dataset.fornecedorIniciado) {
-        container.dataset.fornecedorIniciado = 'true';
-        window.fornecedorManager = new FornecedorManager(container);
-    }
+  const container = document.getElementById('view-fornecedor');
+  if (!container || container.dataset.fornecedorIniciado === 'true') return;
+  container.dataset.fornecedorIniciado = 'true';
+  container.classList.remove('hidden-section');
+  container.classList.add('active-section');
+  container.innerHTML = '';
+  window.fornecedorManager = new FornecedorManager(container, window.supabaseClient || window.sb);
 };
-
-// Garantir que a função getNextId e showToast estejam disponíveis
-if (typeof getNextId === 'undefined') {
-    window.getNextId = function(array1, array2 = []) {
-        let max = 0;
-        array1.forEach(item => { const val = parseInt(item.id); if (!isNaN(val) && val > max) max = val; });
-        array2.forEach(item => { const val = parseInt(item.id); if (!isNaN(val) && val > max) max = val; });
-        return max + 1;
-    };
+// Chamar se a aba já estiver visível na primeira navegação (opcional)
+if (document.getElementById('view-fornecedor') && document.getElementById('view-fornecedor').classList.contains('active-section')) {
+  window.initFornecedor();
 }
