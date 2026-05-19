@@ -1,507 +1,495 @@
-// fornecedor.js – Módulo de gestão de fornecedores e compras
-// Depende de: sb (cliente Supabase), showToast, showLoading, formatMoney, formatDate (globais)
+// fornecedor.js – Módulo de fornecedores e compras
+// Depende do sb (cliente Supabase global) e funções auxiliares (showToast, formatMoney, formatDate)
 
-let fornecedorState = {
-    fornecedores: [],
-    compras: [],
-    subAbaAtiva: 'cadastro'
-};
+class FornecedorManager {
+  constructor(container) {
+    this.container = container;
+    this.fornecedores = [];
+    this.activeSubTab = 'cadastro';
+    this.init();
+  }
 
-// Inicialização da aba
-window.initFornecedor = async function() {
-    const container = document.getElementById('view-fornecedor');
-    if (!container) return;
-    container.innerHTML = '';
-    container.classList.remove('hidden-section');
-    container.classList.add('active-section');
-    
-    await carregarFornecedores();
-    await carregarCompras();
-    
-    renderizarInterface();
-    mostrarSubAba('cadastro');
-};
+  async init() {
+    await this.carregarFornecedores();
+    this.renderizarInterface();
+    this.mostrarSubAba('cadastro');
+  }
 
-async function carregarFornecedores() {
+  async carregarFornecedores() {
     const { data, error } = await sb
-        .from('clientes')
-        .select('*')
-        .eq('tipo', 'FORNECEDOR')
-        .order('nome');
+      .from('clientes')
+      .select('*')
+      .eq('tipo', 'FORNECEDOR')
+      .order('nome');
     if (error) {
-        console.error('Erro ao carregar fornecedores:', error);
-        fornecedorState.fornecedores = [];
+      console.error('Erro ao carregar fornecedores:', error);
+      this.fornecedores = [];
     } else {
-        fornecedorState.fornecedores = data || [];
+      this.fornecedores = data || [];
     }
-}
+  }
 
-async function carregarCompras() {
-    // Buscar despesas (tabela despesas) associadas a fornecedores
-    // Vamos relacionar despesas com fornecedores pelo nome (ou futuramente por ID)
-    const { data: despesas, error } = await sb
-        .from('despesas')
-        .select('*')
-        .order('data', { ascending: false });
-    if (error) {
-        console.error('Erro ao carregar despesas:', error);
-        fornecedorState.compras = [];
-        return;
-    }
-    
-    // Mapear fornecedores por nome (simplificado)
-    const fornecedoresMap = new Map();
-    fornecedorState.fornecedores.forEach(f => {
-        fornecedoresMap.set(f.nome.toLowerCase(), f);
-    });
-    
-    // Filtrar despesas que correspondem a algum fornecedor (ou que tenham observação com "Fornecedor:")
-    const compras = [];
-    for (const d of despesas) {
-        let fornecedorNome = null;
-        // Tenta extrair da observação "Fornecedor: ..."
-        if (d.observacao && d.observacao.includes('Fornecedor:')) {
-            const match = d.observacao.match(/Fornecedor:\s*([^|]+)/);
-            if (match) fornecedorNome = match[1].trim();
-        }
-        // Se não, tenta comparar com algum fornecedor cadastrado
-        if (!fornecedorNome) {
-            for (const f of fornecedorState.fornecedores) {
-                if (d.observacao && d.observacao.toLowerCase().includes(f.nome.toLowerCase())) {
-                    fornecedorNome = f.nome;
-                    break;
-                }
-            }
-        }
-        if (fornecedorNome) {
-            compras.push({
-                id: d.id,
-                fornecedor: fornecedorNome,
-                data_lancamento: d.data,
-                data_vencimento: d.data, // despesas não têm vencimento separado, usar a mesma data
-                valor: d.custo,
-                status_pagamento: d.status || 'PENDENTE',
-                observacao: d.observacao
-            });
-        }
-    }
-    fornecedorState.compras = compras;
-}
-
-function renderizarInterface() {
-    const container = document.getElementById('view-fornecedor');
-    container.innerHTML = `
-        <div class="flex flex-col h-full">
-            <div class="flex gap-3 mb-5 bg-white/80 backdrop-blur-sm p-1 rounded-2xl shadow-md border border-emerald-100 w-fit">
-                <button data-subaba="cadastro" class="subaba-fornecedor-btn relative px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2">
-                    <i data-lucide="user-plus"></i> <span>Cadastro</span>
-                </button>
-                <button data-subaba="compras" class="subaba-fornecedor-btn relative px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2">
-                    <i data-lucide="shopping-cart"></i> <span>Compras</span>
-                </button>
-            </div>
-            <div id="subaba-fornecedor-cadastro" class="subaba-fornecedor-content flex-1"></div>
-            <div id="subaba-fornecedor-compras" class="subaba-fornecedor-content flex-1 hidden"></div>
+  renderizarInterface() {
+    this.container.innerHTML = `
+      <div class="flex flex-col h-full">
+        <div class="flex gap-2 mb-4 bg-white p-2 rounded-xl shadow-sm border">
+          <button data-subaba="cadastro" class="subaba-fornecedor-btn px-4 py-2 rounded-lg font-bold text-sm bg-emerald-600 text-white shadow">📝 Cadastro</button>
+          <button data-subaba="compras" class="subaba-fornecedor-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">💰 Compras</button>
         </div>
+        <div id="subaba-fornecedor-cadastro" class="subaba-fornecedor-content flex-1"></div>
+        <div id="subaba-fornecedor-compras" class="subaba-fornecedor-content flex-1 hidden"></div>
+      </div>
     `;
-    
-    // Estilizar botões ativos (inicialmente cadastro)
-    atualizarEstiloBotoes('cadastro');
-    
-    document.querySelectorAll('.subaba-fornecedor-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const aba = e.currentTarget.dataset.subaba;
-            mostrarSubAba(aba);
-        });
+
+    this.container.querySelectorAll('.subaba-fornecedor-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => this.mostrarSubAba(e.target.dataset.subaba));
     });
-}
+  }
 
-function atualizarEstiloBotoes(abaAtiva) {
-    const botoes = {
-        cadastro: document.querySelector('[data-subaba="cadastro"]'),
-        compras: document.querySelector('[data-subaba="compras"]')
-    };
-    const estiloAtivo = 'bg-emerald-600 text-white shadow-md border-transparent';
-    const estiloInativo = 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50';
-    
-    for (const [aba, btn] of Object.entries(botoes)) {
-        if (!btn) continue;
-        if (aba === abaAtiva) {
-            btn.classList.remove(...btn.classList);
-            btn.classList.add('subaba-fornecedor-btn', 'relative', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloAtivo.split(' '));
-        } else {
-            btn.classList.remove(...btn.classList);
-            btn.classList.add('subaba-fornecedor-btn', 'relative', 'px-6', 'py-2.5', 'rounded-xl', 'font-bold', 'text-sm', 'transition-all', 'duration-200', 'flex', 'items-center', 'justify-center', 'gap-2', ...estiloInativo.split(' '));
-        }
+  mostrarSubAba(nome) {
+    this.activeSubTab = nome;
+    this.container.querySelectorAll('.subaba-fornecedor-btn').forEach(btn => {
+      btn.classList.remove('bg-emerald-600', 'text-white', 'shadow');
+      btn.classList.add('text-slate-600', 'hover:bg-slate-100');
+    });
+    const btnAtivo = this.container.querySelector(`[data-subaba="${nome}"]`);
+    if (btnAtivo) {
+      btnAtivo.classList.add('bg-emerald-600', 'text-white', 'shadow');
+      btnAtivo.classList.remove('text-slate-600', 'hover:bg-slate-100');
     }
-}
 
-function mostrarSubAba(aba) {
-    fornecedorState.subAbaAtiva = aba;
-    atualizarEstiloBotoes(aba);
-    
-    document.querySelectorAll('.subaba-fornecedor-content').forEach(el => el.classList.add('hidden'));
-    const area = document.getElementById(`subaba-fornecedor-${aba}`);
+    this.container.querySelectorAll('.subaba-fornecedor-content').forEach(el => el.classList.add('hidden'));
+    const area = document.getElementById(`subaba-fornecedor-${nome}`);
     if (area) area.classList.remove('hidden');
-    
-    if (aba === 'cadastro') {
-        renderizarCadastro(area);
-    } else if (aba === 'compras') {
-        renderizarCompras(area);
-    }
-}
 
-// ==================== CADASTRO DE FORNECEDORES ====================
-async function renderizarCadastro(container) {
-    await carregarFornecedores();
+    if (nome === 'cadastro') {
+      this.renderizarCadastro(area);
+    } else if (nome === 'compras') {
+      this.renderizarCompras(area);
+    }
+  }
+
+  // ==================== CADASTRO ====================
+  renderizarCadastro(container) {
     container.innerHTML = `
-        <div class="bg-white rounded-xl shadow-sm border p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-slate-800">Fornecedores</h2>
-                <button id="btn-novo-fornecedor" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2">
-                    <i data-lucide="plus"></i> Novo Fornecedor
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-50 text-slate-700">
-                        <tr><th class="p-3">Nome</th><th class="p-3">Contato</th><th class="p-3">Telefone</th><th class="p-3">Documento</th><th class="p-3">IE</th><th class="p-3">CEP</th><th class="p-3">Status</th><th class="p-3 text-center">Ações</th></tr>
-                    </thead>
-                    <tbody id="fornecedores-list" class="divide-y">
-                        ${fornecedorState.fornecedores.map(f => `
-                            <tr class="hover:bg-slate-50">
-                                <td class="p-3 font-medium">${f.nome}</td>
-                                <td class="p-3">${f.contato || '-'}</td>
-                                <td class="p-3">${f.telefone || '-'}</td>
-                                <td class="p-3">${f.documento || '-'}</td>
-                                <td class="p-3">${f.ie || '-'}</td>
-                                <td class="p-3">${f.cep || '-'}</td>
-                                <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-bold ${f.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${f.ativo ? 'Ativo' : 'Inativo'}</span></td>
-                                <td class="p-3 text-center">
-                                    <button onclick="editarFornecedor('${f.id}')" class="text-indigo-600 hover:text-indigo-800 mr-2"><i data-lucide="edit-3" width="16"></i></button>
-                                    <button onclick="toggleFornecedorStatus('${f.id}', ${f.ativo})" class="${f.ativo ? 'text-orange-500' : 'text-green-600'}"><i data-lucide="${f.ativo ? 'ban' : 'check-circle'}" width="16"></i></button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
+      <div class="flex justify-end mb-4">
+        <button id="btn-novo-fornecedor" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2">
+          <i data-lucide="plus"></i> Novo Fornecedor
+        </button>
+      </div>
+      <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-slate-700">
+              <tr>
+                <th class="p-3">Nome</th>
+                <th class="p-3">Contato</th>
+                <th class="p-3">Telefone</th>
+                <th class="p-3">Documento</th>
+                <th class="p-3">IE</th>
+                <th class="p-3">Status</th>
+                <th class="p-3 text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="lista-fornecedores">
+              ${this.fornecedores.map(f => `
+                <tr class="border-b hover:bg-slate-50">
+                  <td class="p-3 font-medium">${f.nome}</td>
+                  <td class="p-3">${f.contato || '-'}</td>
+                  <td class="p-3">${f.telefone || '-'}</td>
+                  <td class="p-3">${f.documento || '-'}</td>
+                  <td class="p-3">${f.ie || '-'}</td>
+                  <td class="p-3">
+                    <span class="px-2 py-1 rounded-full text-xs font-bold ${f.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                      ${f.ativo ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </td>
+                  <td class="p-3 text-center">
+                    <button onclick="window.fornecedorManager?.editarFornecedor(${f.id})" class="text-indigo-600 hover:text-indigo-800 mr-2" title="Editar">
+                      <i data-lucide="edit-3" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="window.fornecedorManager?.toggleStatus(${f.id}, ${f.ativo})" class="${f.ativo ? 'text-orange-500' : 'text-green-600'} hover:opacity-80" title="${f.ativo ? 'Desativar' : 'Ativar'}">
+                      <i data-lucide="${f.ativo ? 'ban' : 'check-circle'}" class="w-4 h-4"></i>
+                    </button>
+                  </td>
+                </tr>
+              `).join('') || '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhum fornecedor cadastrado.</td></tr>'}
+            </tbody>
+          </table>
         </div>
+      </div>
     `;
     lucide.createIcons();
-    
-    document.getElementById('btn-novo-fornecedor').onclick = () => abrirModalFornecedor();
-}
+    document.getElementById('btn-novo-fornecedor').addEventListener('click', () => this.abrirModalFornecedor());
+  }
 
-function abrirModalFornecedor(fornecedor = null) {
+  abrirModalFornecedor(fornecedor = null) {
+    const modalAntigo = document.getElementById('modal-fornecedor');
+    if (modalAntigo) modalAntigo.remove();
+
     const modal = document.createElement('div');
+    modal.id = 'modal-fornecedor';
     modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4';
     modal.style.backdropFilter = 'blur(2px)';
+
     const isEdit = !!fornecedor;
     modal.innerHTML = `
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div class="bg-emerald-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
-                <h3 class="text-xl font-bold">${isEdit ? 'Editar Fornecedor' : 'Novo Fornecedor'}</h3>
-                <button class="fechar-modal text-white hover:text-emerald-200"><i data-lucide="x" class="w-6 h-6"></i></button>
-            </div>
-            <div class="p-6 space-y-4">
-                <input type="hidden" id="forn-id" value="${fornecedor?.id || ''}">
-                <div><label class="block text-sm font-bold text-slate-700">Nome *</label><input type="text" id="forn-nome" value="${fornecedor?.nome || ''}" class="w-full p-2 border rounded-lg"></div>
-                <div><label class="block text-sm font-bold text-slate-700">Contato</label><input type="text" id="forn-contato" value="${fornecedor?.contato || ''}" class="w-full p-2 border rounded-lg"></div>
-                <div><label class="block text-sm font-bold text-slate-700">Telefone</label><input type="text" id="forn-telefone" value="${fornecedor?.telefone || ''}" class="w-full p-2 border rounded-lg"></div>
-                <div><label class="block text-sm font-bold text-slate-700">CPF/CNPJ</label><input type="text" id="forn-doc" value="${fornecedor?.documento || ''}" class="w-full p-2 border rounded-lg"></div>
-                <div><label class="block text-sm font-bold text-slate-700">Inscrição Estadual</label><input type="text" id="forn-ie" value="${fornecedor?.ie || ''}" class="w-full p-2 border rounded-lg"></div>
-                <div><label class="block text-sm font-bold text-slate-700">CEP</label><input type="text" id="forn-cep" value="${fornecedor?.cep || ''}" class="w-full p-2 border rounded-lg"></div>
-                <div><label class="block text-sm font-bold text-slate-700">Endereço</label><input type="text" id="forn-endereco" value="${fornecedor?.endereco || ''}" class="w-full p-2 border rounded-lg"></div>
-                <div><label class="block text-sm font-bold text-slate-700">Ativo</label><select id="forn-ativo" class="w-full p-2 border rounded-lg"><option value="true" ${fornecedor?.ativo !== false ? 'selected' : ''}>Sim</option><option value="false" ${fornecedor?.ativo === false ? 'selected' : ''}>Não</option></select></div>
-            </div>
-            <div class="p-4 border-t flex gap-3 justify-end">
-                <button class="cancelar-modal px-4 py-2 bg-slate-200 rounded-lg font-bold">Cancelar</button>
-                <button id="salvar-fornecedor" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold">Salvar</button>
-            </div>
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-emerald-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="truck"></i> ${isEdit ? 'Editar Fornecedor' : 'Novo Fornecedor'}
+          </h3>
+          <button class="fechar-modal text-white hover:text-emerald-200"><i data-lucide="x" class="w-6 h-6"></i></button>
         </div>
+        <div class="p-6 space-y-4">
+          <input type="hidden" id="forn-id" value="${fornecedor?.id || ''}">
+          <div><label class="block text-sm font-bold text-slate-700">Nome *</label><input type="text" id="forn-nome" value="${fornecedor?.nome || ''}" class="w-full p-2 border rounded-lg" required></div>
+          <div><label class="block text-sm font-bold text-slate-700">Contato (pessoa)</label><input type="text" id="forn-contato" value="${fornecedor?.contato || ''}" class="w-full p-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-bold text-slate-700">Telefone</label><input type="text" id="forn-telefone" value="${fornecedor?.telefone || ''}" class="w-full p-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-bold text-slate-700">Documento (CNPJ/CPF)</label><input type="text" id="forn-doc" value="${fornecedor?.documento || ''}" class="w-full p-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-bold text-slate-700">Inscrição Estadual</label><input type="text" id="forn-ie" value="${fornecedor?.ie || ''}" class="w-full p-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-bold text-slate-700">CEP</label><input type="text" id="forn-cep" value="${fornecedor?.cep || ''}" class="w-full p-2 border rounded-lg"></div>
+          <div><label class="block text-sm font-bold text-slate-700">Endereço</label><textarea id="forn-endereco" rows="2" class="w-full p-2 border rounded-lg">${fornecedor?.endereco || ''}</textarea></div>
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="forn-ativo" ${fornecedor?.ativo !== false ? 'checked' : ''} class="w-4 h-4 text-emerald-600 rounded">
+            <label class="text-sm font-bold text-slate-700">Ativo</label>
+          </div>
+        </div>
+        <div class="p-5 border-t bg-slate-50 flex gap-3">
+          <button class="fechar-modal flex-1 py-2 bg-white border border-slate-300 rounded-lg font-bold">Cancelar</button>
+          <button id="btn-salvar-fornecedor" class="flex-1 py-2 bg-emerald-600 text-white rounded-lg font-bold shadow">Salvar</button>
+        </div>
+      </div>
     `;
+
     document.body.appendChild(modal);
     lucide.createIcons();
-    
+
     const fechar = () => modal.remove();
-    modal.querySelector('.fechar-modal').addEventListener('click', fechar);
-    modal.querySelector('.cancelar-modal').addEventListener('click', fechar);
-    modal.querySelector('#salvar-fornecedor').addEventListener('click', async () => {
-        const payload = {
-            nome: document.getElementById('forn-nome').value,
-            contato: document.getElementById('forn-contato').value,
-            telefone: document.getElementById('forn-telefone').value,
-            documento: document.getElementById('forn-doc').value,
-            ie: document.getElementById('forn-ie').value,
-            cep: document.getElementById('forn-cep').value,
-            endereco: document.getElementById('forn-endereco').value,
-            ativo: document.getElementById('forn-ativo').value === 'true',
-            tipo: 'FORNECEDOR'
-        };
-        if (!payload.nome) return showToast('Nome é obrigatório', true);
-        const id = document.getElementById('forn-id').value;
-        let error;
-        if (id) {
-            const { error: err } = await sb.from('clientes').update(payload).eq('id', id);
-            error = err;
-        } else {
-            const { error: err } = await sb.from('clientes').insert(payload);
-            error = err;
-        }
-        if (error) {
-            showToast('Erro ao salvar: ' + error.message, true);
-        } else {
-            showToast('Fornecedor salvo!');
-            fechar();
-            await carregarFornecedores();
-            renderizarCadastro(document.getElementById('subaba-fornecedor-cadastro'));
-        }
-    });
-}
+    modal.querySelectorAll('.fechar-modal').forEach(btn => btn.addEventListener('click', fechar));
+    modal.addEventListener('click', (e) => { if (e.target === modal) fechar(); });
+    document.getElementById('btn-salvar-fornecedor').addEventListener('click', () => this.salvarFornecedor(modal));
+  }
 
-window.editarFornecedor = async (id) => {
-    const f = fornecedorState.fornecedores.find(f => f.id == id);
-    if (f) abrirModalFornecedor(f);
-};
+  async salvarFornecedor(modal) {
+    const id = document.getElementById('forn-id').value;
+    const nome = document.getElementById('forn-nome').value.trim();
+    if (!nome) return showToast('Nome é obrigatório!', true);
 
-window.toggleFornecedorStatus = async (id, ativo) => {
-    if (!confirm(ativo ? 'Desativar fornecedor?' : 'Reativar fornecedor?')) return;
-    const { error } = await sb.from('clientes').update({ ativo: !ativo }).eq('id', id);
-    if (error) showToast('Erro: ' + error.message, true);
-    else {
-        showToast(ativo ? 'Fornecedor desativado' : 'Fornecedor ativado');
-        await carregarFornecedores();
-        renderizarCadastro(document.getElementById('subaba-fornecedor-cadastro'));
+    const payload = {
+      nome,
+      tipo: 'FORNECEDOR',
+      contato: document.getElementById('forn-contato').value,
+      telefone: document.getElementById('forn-telefone').value,
+      documento: document.getElementById('forn-doc').value,
+      ie: document.getElementById('forn-ie').value,
+      cep: document.getElementById('forn-cep').value,
+      endereco: document.getElementById('forn-endereco').value,
+      ativo: document.getElementById('forn-ativo').checked,
+      fornecedor_desde: new Date().toISOString().split('T')[0]
+    };
+
+    if (id) payload.id = parseInt(id);
+
+    const { error } = await sb.from('clientes').upsert(payload);
+    if (error) {
+      showToast('Erro ao salvar: ' + error.message, true);
+    } else {
+      showToast('Fornecedor salvo com sucesso!');
+      modal.remove();
+      await this.carregarFornecedores();
+      this.mostrarSubAba('cadastro');
     }
-};
+  }
 
-// ==================== COMPRAS (CONTAS A PAGAR FORNECEDORES) ====================
-let comprasFiltro = {
-    status: 'VENCIDOS', // 'TODOS', 'PENDENTES', 'PAGOS'
-    startDate: '',
-    endDate: '',
-    ordenarPor: 'vencimento',
-    ordem: 'asc'
-};
+  async editarFornecedor(id) {
+    const fornecedor = this.fornecedores.find(f => f.id == id);
+    if (fornecedor) this.abrirModalFornecedor(fornecedor);
+  }
 
-function renderizarCompras(container) {
-    // Definir datas padrão: início do ano até hoje
-    const hoje = new Date();
-    const inicioAno = new Date(hoje.getFullYear(), 0, 1);
-    const startDefault = inicioAno.toISOString().split('T')[0];
-    const endDefault = hoje.toISOString().split('T')[0];
-    
-    comprasFiltro.startDate = comprasFiltro.startDate || startDefault;
-    comprasFiltro.endDate = comprasFiltro.endDate || endDefault;
-    
+  async toggleStatus(id, ativo) {
+    const novoStatus = !ativo;
+    const { error } = await sb.from('clientes').update({ ativo: novoStatus }).eq('id', id);
+    if (error) {
+      showToast('Erro ao alterar status: ' + error.message, true);
+    } else {
+      showToast(novoStatus ? 'Fornecedor ativado!' : 'Fornecedor desativado!');
+      await this.carregarFornecedores();
+      this.mostrarSubAba('cadastro');
+    }
+  }
+
+  // ==================== COMPRAS ====================
+  async renderizarCompras(container) {
+    // Carregar despesas com fornecedores associados
+    const despesas = await this.carregarDespesas();
+    const fornecedores = this.fornecedores;
+
     container.innerHTML = `
-        <div class="bg-white rounded-xl shadow-sm border p-6">
-            <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-                <h2 class="text-xl font-bold text-slate-800">Compras / Contas a Pagar (Fornecedores)</h2>
-                <button id="btn-imprimir-compras" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2">
-                    <i data-lucide="printer"></i> Imprimir
-                </button>
-            </div>
-            
-            <!-- Filtros -->
-            <div class="bg-slate-50 p-4 rounded-lg mb-4 flex flex-wrap gap-4 items-end">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500">Status</label>
-                    <select id="filtro-status-compras" class="p-2 border rounded-lg text-sm">
-                        <option value="VENCIDOS" ${comprasFiltro.status === 'VENCIDOS' ? 'selected' : ''}>Vencidos (em aberto)</option>
-                        <option value="PENDENTES" ${comprasFiltro.status === 'PENDENTES' ? 'selected' : ''}>Em aberto (todos)</option>
-                        <option value="PAGOS" ${comprasFiltro.status === 'PAGOS' ? 'selected' : ''}>Pagos</option>
-                        <option value="TODOS" ${comprasFiltro.status === 'TODOS' ? 'selected' : ''}>Todos</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500">Data Inicial</label>
-                    <input type="date" id="filtro-data-start" value="${comprasFiltro.startDate}" class="p-2 border rounded-lg text-sm">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500">Data Final</label>
-                    <input type="date" id="filtro-data-end" value="${comprasFiltro.endDate}" class="p-2 border rounded-lg text-sm">
-                </div>
-                <div>
-                    <button id="btn-aplicar-filtros" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold">Filtrar</button>
-                </div>
-            </div>
-            
-            <!-- Tabela -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left border" id="tabela-compras">
-                    <thead class="bg-slate-100 text-slate-700">
-                        <tr>
-                            <th class="p-3 cursor-pointer hover:bg-slate-200" data-col="fornecedor">Fornecedor <span class="ordenacao"></span></th>
-                            <th class="p-3 cursor-pointer hover:bg-slate-200" data-col="data_lancamento">Lançamento <span class="ordenacao"></span></th>
-                            <th class="p-3 cursor-pointer hover:bg-slate-200" data-col="data_vencimento">Vencimento <span class="ordenacao"></span></th>
-                            <th class="p-3 cursor-pointer hover:bg-slate-200" data-col="valor">Valor (R$) <span class="ordenacao"></span></th>
-                            <th class="p-3 cursor-pointer hover:bg-slate-200" data-col="status_pagamento">Status <span class="ordenacao"></span></th>
-                            <th class="p-3">Observação</th>
-                        </tr>
-                    </thead>
-                    <tbody id="compras-list-body">
-                        <tr><td colspan="6" class="p-8 text-center text-slate-400">Carregando...</td></tr>
-                    </tbody>
-                </table>
-            </div>
+      <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="flex-1 min-w-[150px]">
+            <label class="block text-xs font-bold text-slate-500 mb-1">Fornecedor</label>
+            <select id="filtro-fornecedor" class="w-full p-2 border rounded text-sm bg-white">
+              <option value="">Todos os fornecedores</option>
+              ${fornecedores.map(f => `<option value="${f.nome.replace(/"/g, '&quot;')}">${f.nome}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Status</label>
+            <select id="filtro-status-compra" class="w-36 p-2 border rounded text-sm bg-white">
+              <option value="VENCIDOS">Vencidos</option>
+              <option value="ABERTOS">Em aberto (inclui vencidos)</option>
+              <option value="PAGOS">Pagos</option>
+              <option value="TODOS">Todos</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Data Inicial</label>
+            <input type="date" id="filtro-data-inicio" class="p-2 border rounded text-sm w-36">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Data Final</label>
+            <input type="date" id="filtro-data-fim" class="p-2 border rounded text-sm w-36">
+          </div>
+          <button id="btn-aplicar-filtros" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold">Filtrar</button>
+          <button id="btn-imprimir-compras" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
         </div>
+      </div>
+      <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left" id="tabela-compras">
+            <thead class="bg-slate-50 text-slate-700">
+              <tr>
+                <th class="p-3 cursor-pointer hover:bg-slate-100" data-ordem="fornecedor">Fornecedor <span class="ordem-icon"></span></th>
+                <th class="p-3 cursor-pointer hover:bg-slate-100" data-ordem="data">Data Lanç. <span class="ordem-icon"></span></th>
+                <th class="p-3 cursor-pointer hover:bg-slate-100" data-ordem="vencimento">Vencimento <span class="ordem-icon"></span></th>
+                <th class="p-3 cursor-pointer hover:bg-slate-100" data-ordem="categoria">Categoria <span class="ordem-icon"></span></th>
+                <th class="p-3 cursor-pointer hover:bg-slate-100" data-ordem="valor">Valor <span class="ordem-icon"></span></th>
+                <th class="p-3 text-center">Status</th>
+                <th class="p-3 text-center w-24">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="lista-compras">
+              <tr><td colspan="7" class="p-8 text-center text-slate-400">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     `;
-    lucide.createIcons();
-    
-    // Aplicar ordenação e filtros
-    atualizarTabelaCompras();
-    
-    // Eventos
-    document.getElementById('btn-aplicar-filtros').addEventListener('click', () => {
-        comprasFiltro.startDate = document.getElementById('filtro-data-start').value;
-        comprasFiltro.endDate = document.getElementById('filtro-data-end').value;
-        comprasFiltro.status = document.getElementById('filtro-status-compras').value;
-        atualizarTabelaCompras();
-    });
-    document.getElementById('btn-imprimir-compras').addEventListener('click', () => imprimirCompras());
-    
-    // Ordenação nos headers
-    document.querySelectorAll('#tabela-compras th[data-col]').forEach(th => {
-        th.addEventListener('click', () => {
-            const col = th.dataset.col;
-            if (comprasFiltro.ordenarPor === col) {
-                comprasFiltro.ordem = comprasFiltro.ordem === 'asc' ? 'desc' : 'asc';
-            } else {
-                comprasFiltro.ordenarPor = col;
-                comprasFiltro.ordem = 'asc';
-            }
-            atualizarTabelaCompras();
-        });
-    });
-}
 
-function atualizarTabelaCompras() {
-    let dados = [...fornecedorState.compras];
+    lucide.createIcons();
+
+    // Configurar datas padrão (Janeiro até hoje)
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), 0, 1);
+    document.getElementById('filtro-data-inicio').value = primeiroDia.toISOString().split('T')[0];
+    document.getElementById('filtro-data-fim').value = hoje.toISOString().split('T')[0];
+
+    // Eventos
+    document.getElementById('btn-aplicar-filtros').addEventListener('click', () => this.atualizarTabelaCompras());
+    document.getElementById('btn-imprimir-compras').addEventListener('click', () => this.imprimirCompras());
+    // Ordenação
+    const headers = document.querySelectorAll('#tabela-compras th');
+    headers.forEach(th => {
+      th.addEventListener('click', () => {
+        const campo = th.dataset.ordem;
+        if (campo) this.ordenarTabela(campo);
+      });
+    });
+
+    this.atualizarTabelaCompras();
+  }
+
+  async carregarDespesas() {
+    // Buscar todas as despesas e também logs do tipo despesa (pagos) – na verdade, despesas estão na tabela despesas
+    const { data: despesas, error } = await sb.from('despesas').select('*').order('data', { ascending: false });
+    if (error) {
+      console.error(error);
+      return [];
+    }
+    // Associar fornecedor (pela observação "Fornecedor: Nome" ou pelo nome da categoria se igual a algum fornecedor)
+    const fornecedoresMap = new Map(this.fornecedores.map(f => [f.nome.toLowerCase(), f]));
+    const despesasComFornecedor = despesas.map(d => {
+      let fornecedor = null;
+      let nomeFornecedor = '';
+      if (d.observacao && d.observacao.includes('Fornecedor:')) {
+        const match = d.observacao.match(/Fornecedor:\s*([^|]+)/i);
+        if (match) nomeFornecedor = match[1].trim();
+      } else {
+        // Tenta associar pela categoria se coincidir com algum fornecedor
+        const catLower = d.item.toLowerCase();
+        const found = this.fornecedores.find(f => f.nome.toLowerCase() === catLower);
+        if (found) nomeFornecedor = found.nome;
+      }
+      if (nomeFornecedor) {
+        const f = fornecedoresMap.get(nomeFornecedor.toLowerCase());
+        if (f) fornecedor = f;
+      }
+      return { ...d, fornecedorNome: nomeFornecedor || '—', fornecedor };
+    });
+    return despesasComFornecedor;
+  }
+
+  async atualizarTabelaCompras() {
+    const despesas = await this.carregarDespesas();
+    const fornecedorFiltro = document.getElementById('filtro-fornecedor').value;
+    const statusFiltro = document.getElementById('filtro-status-compra').value;
+    const dataInicio = document.getElementById('filtro-data-inicio').value;
+    const dataFim = document.getElementById('filtro-data-fim').value;
     const hoje = new Date().toISOString().split('T')[0];
-    
-    // Filtrar por data de vencimento (usando data_vencimento)
-    if (comprasFiltro.startDate) {
-        dados = dados.filter(c => c.data_vencimento >= comprasFiltro.startDate);
+
+    let filtradas = despesas;
+
+    // Filtro fornecedor
+    if (fornecedorFiltro) {
+      filtradas = filtradas.filter(d => d.fornecedorNome === fornecedorFiltro);
     }
-    if (comprasFiltro.endDate) {
-        dados = dados.filter(c => c.data_vencimento <= comprasFiltro.endDate);
-    }
-    
-    // Filtrar por status
-    if (comprasFiltro.status === 'PAGOS') {
-        dados = dados.filter(c => c.status_pagamento === 'PAGO');
-    } else if (comprasFiltro.status === 'PENDENTES') {
-        dados = dados.filter(c => c.status_pagamento !== 'PAGO');
-    } else if (comprasFiltro.status === 'VENCIDOS') {
-        dados = dados.filter(c => c.status_pagamento !== 'PAGO' && c.data_vencimento < hoje);
+
+    // Filtro datas (usa data de lançamento - campo "data")
+    if (dataInicio) filtradas = filtradas.filter(d => d.data >= dataInicio);
+    if (dataFim) filtradas = filtradas.filter(d => d.data <= dataFim);
+
+    // Filtro status
+    if (statusFiltro === 'VENCIDOS') {
+      filtradas = filtradas.filter(d => d.status !== 'PAGO' && d.data < hoje);
+    } else if (statusFiltro === 'ABERTOS') {
+      filtradas = filtradas.filter(d => d.status !== 'PAGO'); // inclui vencidos
+    } else if (statusFiltro === 'PAGOS') {
+      filtradas = filtradas.filter(d => d.status === 'PAGO');
     }
     // 'TODOS' não filtra
-    
-    // Ordenar
-    const ordem = comprasFiltro.ordem === 'asc' ? 1 : -1;
-    dados.sort((a, b) => {
-        let valA = a[comprasFiltro.ordenarPor];
-        let valB = b[comprasFiltro.ordenarPor];
-        if (comprasFiltro.ordenarPor === 'valor') {
-            valA = parseFloat(valA);
-            valB = parseFloat(valB);
-        } else if (comprasFiltro.ordenarPor === 'data_lancamento' || comprasFiltro.ordenarPor === 'data_vencimento') {
-            valA = new Date(valA);
-            valB = new Date(valB);
-        } else {
-            valA = String(valA).toLowerCase();
-            valB = String(valB).toLowerCase();
-        }
-        if (valA < valB) return -1 * ordem;
-        if (valA > valB) return 1 * ordem;
-        return 0;
-    });
-    
-    const tbody = document.getElementById('compras-list-body');
-    if (!tbody) return;
-    
-    if (dados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">Nenhuma compra encontrada.</td></tr>';
-        return;
-    }
-    
-    const hojeStr = hoje;
-    tbody.innerHTML = dados.map(c => {
-        const isVencido = c.status_pagamento !== 'PAGO' && c.data_vencimento < hojeStr;
-        const rowClass = isVencido ? 'bg-red-50' : (c.status_pagamento === 'PAGO' ? 'bg-green-50' : '');
-        let statusText = c.status_pagamento === 'PAGO' ? 'Pago' : (isVencido ? 'Vencido' : 'Em aberto');
-        let statusClass = c.status_pagamento === 'PAGO' ? 'text-green-700 bg-green-100' : (isVencido ? 'text-red-700 bg-red-100' : 'text-yellow-700 bg-yellow-100');
-        return `
-            <tr class="hover:bg-slate-50 ${rowClass}">
-                <td class="p-3 font-medium">${c.fornecedor}</td>
-                <td class="p-3">${formatDate(c.data_lancamento)}</td>
-                <td class="p-3">${formatDate(c.data_vencimento)}</td>
-                <td class="p-3 font-bold">${formatMoney(c.valor)}</td>
-                <td class="p-3"><span class="px-2 py-1 rounded-full text-xs font-bold ${statusClass}">${statusText}</span></td>
-                <td class="p-3 text-xs text-slate-500">${c.observacao || '-'}</td>
-            </tr>
-        `;
-    }).join('');
-    
-    // Atualizar ícones de ordenação nos cabeçalhos
-    document.querySelectorAll('#tabela-compras th[data-col] .ordenacao').forEach(span => span.innerHTML = '');
-    const colAtiva = comprasFiltro.ordenarPor;
-    const thAtivo = document.querySelector(`#tabela-compras th[data-col="${colAtiva}"] .ordenacao`);
-    if (thAtivo) thAtivo.innerHTML = comprasFiltro.ordem === 'asc' ? ' ▲' : ' ▼';
-}
 
-function imprimirCompras() {
-    const dados = [];
-    document.querySelectorAll('#compras-list-body tr').forEach(tr => {
-        if (tr.cells.length < 6) return;
-        dados.push({
-            fornecedor: tr.cells[0].innerText,
-            lancamento: tr.cells[1].innerText,
-            vencimento: tr.cells[2].innerText,
-            valor: tr.cells[3].innerText,
-            status: tr.cells[4].innerText,
-            obs: tr.cells[5].innerText
-        });
+    this.dadosTabela = filtradas;
+    this.renderTabelaCompras(filtradas);
+  }
+
+  renderTabelaCompras(dados) {
+    const tbody = document.getElementById('lista-compras');
+    if (!tbody) return;
+    if (!dados.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhuma compra encontrada.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = dados.map(exp => {
+      const statusClass = exp.status === 'PAGO' ? 'bg-green-100 text-green-700' : (exp.data < new Date().toISOString().split('T')[0] ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
+      const statusText = exp.status === 'PAGO' ? 'Pago' : (exp.data < new Date().toISOString().split('T')[0] ? 'Vencido' : 'Pendente');
+      return `
+        <tr class="border-b hover:bg-slate-50">
+          <td class="p-3 font-medium">${exp.fornecedorNome}</td>
+          <td class="p-3">${formatDate(exp.data)}</td>
+          <td class="p-3">${formatDate(exp.data)}</td>
+          <td class="p-3">${exp.item}</td>
+          <td class="p-3 font-bold text-right">${formatMoney(exp.custo)}</td>
+          <td class="p-3 text-center"><span class="px-2 py-1 rounded-full text-xs font-bold ${statusClass}">${statusText}</span></td>
+          <td class="p-3 text-center">
+            ${exp.status !== 'PAGO' ? `<button onclick="payExpense(${exp.id})" class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600">Baixar</button>` : '<span class="text-slate-400 text-xs">—</span>'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+    lucide.createIcons();
+  }
+
+  ordenarTabela(campo) {
+    if (!this.dadosTabela) return;
+    let ordenados = [...this.dadosTabela];
+    const ordemAtual = this.ordemAtual || {};
+    const direcao = ordemAtual[campo] === 'asc' ? 'desc' : 'asc';
+    ordenados.sort((a, b) => {
+      let valA, valB;
+      switch (campo) {
+        case 'fornecedor': valA = a.fornecedorNome; valB = b.fornecedorNome; break;
+        case 'data': valA = a.data; valB = b.data; break;
+        case 'vencimento': valA = a.data; valB = b.data; break;
+        case 'categoria': valA = a.item; valB = b.item; break;
+        case 'valor': valA = a.custo; valB = b.custo; break;
+        default: return 0;
+      }
+      if (valA < valB) return direcao === 'asc' ? -1 : 1;
+      if (valA > valB) return direcao === 'asc' ? 1 : -1;
+      return 0;
     });
-    
+    this.ordemAtual = { [campo]: direcao };
+    this.renderTabelaCompras(ordenados);
+    // Atualizar ícones das setas
+    document.querySelectorAll('#tabela-compras th .ordem-icon').forEach(icon => icon.innerHTML = '');
+    const th = document.querySelector(`#tabela-compras th[data-ordem="${campo}"] .ordem-icon`);
+    if (th) th.innerHTML = direcao === 'asc' ? ' ▲' : ' ▼';
+  }
+
+  async imprimirCompras() {
+    const dados = this.dadosTabela || [];
     if (dados.length === 0) return showToast('Nenhum dado para imprimir', true);
-    
+    const fornecedorFiltro = document.getElementById('filtro-fornecedor').value || 'Todos';
+    const statusFiltro = document.getElementById('filtro-status-compra').value;
+    const dataInicio = document.getElementById('filtro-data-inicio').value;
+    const dataFim = document.getElementById('filtro-data-fim').value;
+
+    let statusTexto = '';
+    if (statusFiltro === 'VENCIDOS') statusTexto = 'Apenas Vencidos';
+    else if (statusFiltro === 'ABERTOS') statusTexto = 'Em Aberto (inclui vencidos)';
+    else if (statusFiltro === 'PAGOS') statusTexto = 'Pagos';
+    else statusTexto = 'Todos';
+
+    const rowsHtml = dados.map(exp => `
+      <tr>
+        <td style="border:1px solid #000; padding:6px;">${exp.fornecedorNome}</td>
+        <td style="border:1px solid #000; padding:6px;">${formatDate(exp.data)}</td>
+        <td style="border:1px solid #000; padding:6px;">${exp.item}</td>
+        <td style="border:1px solid #000; padding:6px; text-align:right;">${formatMoney(exp.custo)}</td>
+        <td style="border:1px solid #000; padding:6px; text-align:center;">${exp.status === 'PAGO' ? 'Pago' : (exp.data < new Date().toISOString().split('T')[0] ? 'Vencido' : 'Pendente')}</td>
+      </tr>
+    `).join('');
+
+    const total = dados.reduce((s, e) => s + e.custo, 0);
+
     const html = `
-        <div style="font-family: Helvetica; padding: 20px; max-width: 1000px; margin: auto;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height: 60px;">
-                <h2 style="color: #059669;">RV PORTAL MADEIRAS</h2>
-                <h3>Relatório de Compras / Contas a Pagar (Fornecedores)</h3>
-                <p>Filtros: Status ${comprasFiltro.status} | Período: ${formatDate(comprasFiltro.startDate)} até ${formatDate(comprasFiltro.endDate)}</p>
-            </div>
-            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse: collapse;">
-                <thead><tr style="background:#eee;"><th>Fornecedor</th><th>Lançamento</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Observação</th></tr></thead>
-                <tbody>
-                    ${dados.map(d => `
-                        <tr>
-                            <td>${d.fornecedor}</td>
-                            <td>${d.lancamento}</td>
-                            <td>${d.vencimento}</td>
-                            <td align="right">${d.valor}</td>
-                            <td>${d.status}</td>
-                            <td>${d.obs}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+      <div style="font-family: Helvetica; padding:20px; max-width:1000px; margin:auto;">
+        <div style="text-align:center; margin-bottom:20px;">
+          <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px;">
+          <h2 style="color:#059669;">RV PORTAL MADEIRAS</h2>
+          <h3>Relatório de Compras - Fornecedores</h3>
+          <p>Fornecedor: ${fornecedorFiltro} | Status: ${statusTexto} | Período: ${dataInicio || 'início'} até ${dataFim || 'hoje'}</p>
         </div>
+        <table style="width:100%; border-collapse: collapse; margin-top:15px;">
+          <thead>
+            <tr style="background:#1e293b; color:white;">
+              <th style="padding:8px;">Fornecedor</th>
+              <th style="padding:8px;">Data Lanç.</th>
+              <th style="padding:8px;">Categoria</th>
+              <th style="padding:8px;">Valor</th>
+              <th style="padding:8px;">Status</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+          <tfoot>
+            <tr style="background:#f1f5f9; font-weight:bold;">
+              <td colspan="3" style="padding:8px; text-align:right;">TOTAL:</td>
+              <td style="padding:8px; text-align:right;">${formatMoney(total)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     `;
+
     const printWindow = window.open('', '_blank');
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
-    printWindow.close();
+    setTimeout(() => printWindow.print(), 500);
+  }
 }
 
-// Expor funções globalmente
-window.initFornecedor = initFornecedor;
-window.editarFornecedor = editarFornecedor;
-window.toggleFornecedorStatus = toggleFornecedorStatus;
+// Inicialização global
+window.fornecedorManager = null;
+window.initFornecedor = function() {
+  const container = document.getElementById('view-fornecedor');
+  if (!container || container.dataset.fornecedorIniciado === 'true') return;
+  container.dataset.fornecedorIniciado = 'true';
+  container.classList.remove('hidden-section');
+  container.classList.add('active-section');
+  container.innerHTML = '';
+  window.fornecedorManager = new FornecedorManager(container);
+};
