@@ -377,29 +377,38 @@ class FornecedorManager {
     }
 
     exibirComprasTabela() {
-        const tbody = document.getElementById('corpo-tabela-compras');
-        if (!tbody) return;
-        const hojeLocal = getHojeLocalStr();
-        tbody.innerHTML = this.comprasFiltradas.map(comp => {
-            const isVencido = comp.status !== 'PAGO' && (comp.date || '').split('T')[0] < hojeLocal;
-            let statusText = comp.status === 'PAGO' ? 'PAGO' : (isVencido ? 'VENCIDO' : 'EM ABERTO');
-            let statusClass = comp.status === 'PAGO' ? 'bg-green-100 text-green-700' : (isVencido ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
-            return `
-                <tr class="border-b hover:bg-slate-50">
-                    <td class="p-3">${formatDate(comp.date)}</td>
-                    <td class="p-3 font-medium">${comp.fornecedor_nome || '-'}</td>
-                    <td class="p-3">${comp.item || '-'}</td>
-                    <td class="p-3 text-right font-bold">${formatMoney(comp.custo)}</td>
-                    <td class="p-3">${formatDate(comp.date)}</td>
-                    <td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${statusClass}">${statusText}</span></td>
-                    <td class="p-3 text-center">
-                        ${comp.status !== 'PAGO' ? `<button onclick="if(window.fornecedorManager && window.payExpense) payExpense(${comp.id})" class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700">Baixar</button>` : '-'}
-                    </td>
-                </tr>
-            `;
-        }).join('');
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+    const tbody = document.getElementById('corpo-tabela-compras');
+    if (!tbody) {
+        console.error('tbody não encontrado!');
+        return;
     }
+    if (!this.comprasFiltradas || this.comprasFiltradas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhuma compra encontrada.</td></tr>';
+        return;
+    }
+    const hojeLocal = getHojeLocalStr();
+    let html = '';
+    for (const comp of this.comprasFiltradas) {
+        const isVencido = comp.status !== 'PAGO' && (comp.date || '').split('T')[0] < hojeLocal;
+        let statusText = comp.status === 'PAGO' ? 'PAGO' : (isVencido ? 'VENCIDO' : 'EM ABERTO');
+        let statusClass = comp.status === 'PAGO' ? 'bg-green-100 text-green-700' : (isVencido ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
+        html += `
+            <tr class="border-b hover:bg-slate-50">
+                <td class="p-3">${formatDate(comp.date)}</td>
+                <td class="p-3 font-medium">${comp.fornecedor_nome || '-'}</td>
+                <td class="p-3">${comp.item || '-'}</td>
+                <td class="p-3 text-right font-bold">${formatMoney(comp.custo)}</td>
+                <td class="p-3">${formatDate(comp.date)}</td>
+                <td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${statusClass}">${statusText}</span></td>
+                <td class="p-3 text-center">
+                    ${comp.status !== 'PAGO' ? `<button onclick="if(window.fornecedorManager && window.payExpense) payExpense(${comp.id})" class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700">Baixar</button>` : '-'}
+                </td>
+            </tr>
+        `;
+    }
+    tbody.innerHTML = html;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
 
     async imprimirCompras(todasDespesas) {
         const statusFiltro = document.getElementById('filtro-status-compras').value;
