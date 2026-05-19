@@ -213,177 +213,176 @@ class FornecedorManager {
     }
 
     // ==================== COMPRAS (APENAS MERCADORIA) ====================
-    async renderizarCompras(container) {
-        // Buscar despesas da tabela despesas
-        const { data: despesas, error } = await sb
-            .from('despesas')
-            .select('*')
-            .order('data', { ascending: false });
-        if (error) {
-            container.innerHTML = '<p class="text-red-500">Erro ao carregar despesas.</p>';
-            return;
+   // ==================== SUB-ABA COMPRAS (APENAS MERCADORIA) ====================
+async renderizarCompras(container) {
+    // Buscar despesas da tabela despesas
+    const { data: despesas, error } = await sb
+        .from('despesas')
+        .select('*')
+        .order('data', { ascending: false });
+    if (error) {
+        container.innerHTML = '<p class="text-red-500">Erro ao carregar despesas.</p>';
+        return;
+    }
+
+    // Mapear despesas com nome do fornecedor (pela observação)
+    const despesasComFornecedor = despesas.map(desp => {
+        let fornecedorNome = '';
+        let fornecedorId = null;
+        if (desp.observacao && desp.observacao.includes('Fornecedor:')) {
+            const match = desp.observacao.match(/Fornecedor:\s*([^|]+)/);
+            if (match) fornecedorNome = match[1].trim();
+            const forn = this.fornecedores.find(f => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
+            if (forn) fornecedorId = forn.id;
+        }
+        // Garantir que tipo_despesa exista (padrão MERCADORIA)
+        const tipo = desp.tipo_despesa || 'MERCADORIA';
+        return { ...desp, fornecedor_nome: fornecedorNome, fornecedor_id: fornecedorId, tipo_despesa: tipo };
+    });
+
+    const hoje = new Date().toISOString().split('T')[0];
+    const primeiroDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+
+    container.innerHTML = `
+        <div class="bg-white rounded-xl shadow-sm border p-4">
+            <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                <h2 class="text-xl font-bold text-slate-800">Compras de Mercadoria (Fornecedores)</h2>
+                <button id="btn-imprimir-compras" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                    <i data-lucide="printer"></i> Imprimir Relatório
+                </button>
+            </div>
+            <div class="flex flex-wrap gap-3 mb-4 items-center">
+                <select id="filtro-status-compras" class="p-2 border rounded text-sm">
+                    <option value="VENCIDOS">Vencidos</option>
+                    <option value="EM_ABERTO">Em Aberto (inclui vencidos)</option>
+                    <option value="PAGOS">Pagos</option>
+                    <option value="TODOS">Todos</option>
+                </select>
+                <input type="date" id="filtro-data-inicio" value="${primeiroDiaMes}" class="p-2 border rounded text-sm">
+                <span>até</span>
+                <input type="date" id="filtro-data-fim" value="${hoje}" class="p-2 border rounded text-sm">
+                <select id="filtro-fornecedor-compras" class="p-2 border rounded text-sm">
+                    <option value="">Todos os fornecedores</option>
+                    ${this.fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('')}
+                    <option value="SEM">Sem fornecedor identificado</option>
+                </select>
+                <button id="btn-aplicar-filtros" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold">Filtrar</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm" id="tabela-compras">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="p-3 cursor-pointer" data-order="data">Data <span class="order-arrow"></span></th>
+                            <th class="p-3 cursor-pointer" data-order="fornecedor">Fornecedor <span class="order-arrow"></span></th>
+                            <th class="p-3 cursor-pointer" data-order="item">Categoria <span class="order-arrow"></span></th>
+                            <th class="p-3 cursor-pointer" data-order="valor">Valor (R$) <span class="order-arrow"></span></th>
+                            <th class="p-3 cursor-pointer" data-order="vencimento">Vencimento <span class="order-arrow"></span></th>
+                            <th class="p-3 cursor-pointer" data-order="status">Status <span class="order-arrow"></span></th>
+                            <th class="p-3">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-tabela-compras">
+                        <tr><td colspan="7" class="p-8 text-center text-slate-400">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // Função de renderização interna
+    const renderTabela = () => {
+        const statusFiltro = document.getElementById('filtro-status-compras').value;
+        const dataInicio = document.getElementById('filtro-data-inicio').value;
+        const dataFim = document.getElementById('filtro-data-fim').value;
+        const fornecedorFiltro = document.getElementById('filtro-fornecedor-compras').value;
+        const hojeLocal = getHojeLocalStr();
+
+        let filtered = [...despesasComFornecedor];
+
+        // Filtro por tipo (apenas MERCADORIA)
+        filtered = filtered.filter(d => d.tipo_despesa === 'MERCADORIA');
+
+        // Filtro por fornecedor
+        if (fornecedorFiltro === 'SEM') {
+            filtered = filtered.filter(d => !d.fornecedor_id);
+        } else if (fornecedorFiltro) {
+            filtered = filtered.filter(d => String(d.fornecedor_id) === fornecedorFiltro);
         }
 
-        // Mapear despesas com nome do fornecedor (pela observação)
-        const despesasComFornecedor = despesas.map(desp => {
-            let fornecedorNome = '';
-            let fornecedorId = null;
-            if (desp.observacao && desp.observacao.includes('Fornecedor:')) {
-                const match = desp.observacao.match(/Fornecedor:\s*([^|]+)/);
-                if (match) fornecedorNome = match[1].trim();
-                const forn = this.fornecedores.find(f => f.nome.toLowerCase() === fornecedorNome.toLowerCase());
-                if (forn) fornecedorId = forn.id;
-            }
-            return { ...desp, fornecedor_nome: fornecedorNome, fornecedor_id: fornecedorId };
+        // Filtro por data de vencimento
+        if (dataInicio) filtered = filtered.filter(d => (d.date || '').split('T')[0] >= dataInicio);
+        if (dataFim) filtered = filtered.filter(d => (d.date || '').split('T')[0] <= dataFim);
+
+        // Filtro por status
+        if (statusFiltro === 'VENCIDOS') {
+            filtered = filtered.filter(d => d.status !== 'PAGO' && (d.date || '').split('T')[0] < hojeLocal);
+        } else if (statusFiltro === 'EM_ABERTO') {
+            filtered = filtered.filter(d => d.status !== 'PAGO');
+        } else if (statusFiltro === 'PAGOS') {
+            filtered = filtered.filter(d => d.status === 'PAGO');
+        }
+
+        this.comprasFiltradas = filtered;
+        console.log('Despesas filtradas (MERCADORIA):', this.comprasFiltradas.length);
+        this.aplicarOrdenacaoTabela('data', 'desc');
+    };
+
+    document.getElementById('btn-aplicar-filtros').addEventListener('click', renderTabela);
+    document.getElementById('btn-imprimir-compras').addEventListener('click', () => this.imprimirCompras(despesasComFornecedor));
+
+    // Ordenação
+    document.querySelectorAll('#tabela-compras th[data-order]').forEach(th => {
+        th.addEventListener('click', () => {
+            const orderBy = th.dataset.order;
+            const currentDir = th.classList.contains('asc') ? 'asc' : (th.classList.contains('desc') ? 'desc' : 'desc');
+            const newDir = currentDir === 'desc' ? 'asc' : 'desc';
+            document.querySelectorAll('#tabela-compras th').forEach(t => t.classList.remove('asc', 'desc'));
+            th.classList.add(newDir);
+            this.aplicarOrdenacaoTabela(orderBy, newDir);
         });
+    });
 
-        // 🔍 Depuração: verificar se as despesas possuem o campo tipo_despesa
-        console.log('Despesas carregadas (primeiras 3):', despesasComFornecedor.slice(0,3));
-        console.log('Exemplo de tipo_despesa:', despesasComFornecedor[0]?.tipo_despesa);
-
-        const hoje = new Date().toISOString().split('T')[0];
-        const primeiroDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-
-        container.innerHTML = `
-            <div class="bg-white rounded-xl shadow-sm border p-4">
-                <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-                    <h2 class="text-xl font-bold text-slate-800">Compras de Mercadoria (Fornecedores)</h2>
-                    <button id="btn-imprimir-compras" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2">
-                        <i data-lucide="printer"></i> Imprimir Relatório
-                    </button>
-                </div>
-                <div class="flex flex-wrap gap-3 mb-4 items-center">
-                    <select id="filtro-status-compras" class="p-2 border rounded text-sm">
-                        <option value="VENCIDOS">Vencidos</option>
-                        <option value="EM_ABERTO">Em Aberto (inclui vencidos)</option>
-                        <option value="PAGOS">Pagos</option>
-                        <option value="TODOS">Todos</option>
-                    </select>
-                    <input type="date" id="filtro-data-inicio" value="${primeiroDiaMes}" class="p-2 border rounded text-sm">
-                    <span>até</span>
-                    <input type="date" id="filtro-data-fim" value="${hoje}" class="p-2 border rounded text-sm">
-                    <select id="filtro-fornecedor-compras" class="p-2 border rounded text-sm">
-                        <option value="">Todos os fornecedores</option>
-                        ${this.fornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('')}
-                        <option value="SEM">Sem fornecedor identificado</option>
-                    </select>
-                    <button id="btn-aplicar-filtros" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold">Filtrar</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm" id="tabela-compras">
-                        <thead class="bg-slate-50">
-                            <tr>
-                                <th class="p-3 cursor-pointer" data-order="data">Data <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="fornecedor">Fornecedor <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="item">Categoria <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="valor">Valor (R$) <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="vencimento">Vencimento <span class="order-arrow"></span></th>
-                                <th class="p-3 cursor-pointer" data-order="status">Status <span class="order-arrow"></span></th>
-                                <th class="p-3">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody id="corpo-tabela-compras"></tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-
-        const renderTabela = () => {
-            const statusFiltro = document.getElementById('filtro-status-compras').value;
-            const dataInicio = document.getElementById('filtro-data-inicio').value;
-            const dataFim = document.getElementById('filtro-data-fim').value;
-            const fornecedorFiltro = document.getElementById('filtro-fornecedor-compras').value;
-            const hojeLocal = getHojeLocalStr();
-
-            let filtered = despesasComFornecedor;
-
-            // 🔴 Filtro por tipo de despesa (apenas MERCADORIA)
-            // Verifica se o campo existe e se é 'MERCADORIA'
-            filtered = filtered.filter(d => d.tipo_despesa && d.tipo_despesa === 'MERCADORIA');
-
-            console.log('Despesas após filtro MERCADORIA:', filtered.length);
-
-            // Filtro por fornecedor
-            if (fornecedorFiltro === 'SEM') {
-                filtered = filtered.filter(d => !d.fornecedor_id);
-            } else if (fornecedorFiltro) {
-                filtered = filtered.filter(d => String(d.fornecedor_id) === fornecedorFiltro);
-            }
-
-            // Filtro por data de vencimento
-            if (dataInicio) filtered = filtered.filter(d => (d.date || '').split('T')[0] >= dataInicio);
-            if (dataFim) filtered = filtered.filter(d => (d.date || '').split('T')[0] <= dataFim);
-
-            // Filtro por status
-            if (statusFiltro === 'VENCIDOS') {
-                filtered = filtered.filter(d => d.status !== 'PAGO' && (d.date || '').split('T')[0] < hojeLocal);
-            } else if (statusFiltro === 'EM_ABERTO') {
-                filtered = filtered.filter(d => d.status !== 'PAGO');
-            } else if (statusFiltro === 'PAGOS') {
-                filtered = filtered.filter(d => d.status === 'PAGO');
-            }
-
-            this.comprasFiltradas = filtered;
-            this.aplicarOrdenacaoTabela('data', 'desc');
-        };
-
-        document.getElementById('btn-aplicar-filtros').addEventListener('click', renderTabela);
-        document.getElementById('btn-imprimir-compras').addEventListener('click', () => this.imprimirCompras(despesasComFornecedor));
-
-        // Ordenação
-        document.querySelectorAll('#tabela-compras th[data-order]').forEach(th => {
-            th.addEventListener('click', () => {
-                const orderBy = th.dataset.order;
-                const currentDir = th.classList.contains('asc') ? 'asc' : (th.classList.contains('desc') ? 'desc' : 'desc');
-                const newDir = currentDir === 'desc' ? 'asc' : 'desc';
-                document.querySelectorAll('#tabela-compras th').forEach(t => t.classList.remove('asc', 'desc'));
-                th.classList.add(newDir);
-                this.aplicarOrdenacaoTabela(orderBy, newDir);
-            });
-        });
-
-        renderTabela();
-    }
-
+    renderTabela();
+}
+    
     aplicarOrdenacaoTabela(orderBy, orderDir) {
-        if (!this.comprasFiltradas) return;
-        const sorted = [...this.comprasFiltradas];
-        sorted.sort((a, b) => {
-            let valA, valB;
-            if (orderBy === 'data') {
-                valA = a.date || '';
-                valB = b.date || '';
-            } else if (orderBy === 'fornecedor') {
-                valA = a.fornecedor_nome || '';
-                valB = b.fornecedor_nome || '';
-            } else if (orderBy === 'item') {
-                valA = a.item || '';
-                valB = b.item || '';
-            } else if (orderBy === 'valor') {
-                valA = a.custo || 0;
-                valB = b.custo || 0;
-            } else if (orderBy === 'vencimento') {
-                valA = a.date || '';
-                valB = b.date || '';
-            } else if (orderBy === 'status') {
-                valA = a.status || '';
-                valB = b.status || '';
-            }
-            if (orderDir === 'asc') return valA > valB ? 1 : -1;
-            else return valA < valB ? 1 : -1;
-        });
-        this.comprasFiltradas = sorted;
-        this.exibirComprasTabela();
-    }
+    if (!this.comprasFiltradas) return;
+    const sorted = [...this.comprasFiltradas];
+    sorted.sort((a, b) => {
+        let valA, valB;
+        if (orderBy === 'data' || orderBy === 'vencimento') {
+            valA = a.date || '';
+            valB = b.date || '';
+        } else if (orderBy === 'fornecedor') {
+            valA = a.fornecedor_nome || '';
+            valB = b.fornecedor_nome || '';
+        } else if (orderBy === 'item') {
+            valA = a.item || '';
+            valB = b.item || '';
+        } else if (orderBy === 'valor') {
+            valA = a.custo || 0;
+            valB = b.custo || 0;
+        } else if (orderBy === 'status') {
+            valA = a.status || '';
+            valB = b.status || '';
+        } else {
+            return 0;
+        }
+        if (orderDir === 'asc') return valA > valB ? 1 : -1;
+        else return valA < valB ? 1 : -1;
+    });
+    this.comprasFiltradas = sorted;
+    this.exibirComprasTabela();
+}
 
-    exibirComprasTabela() {
+exibirComprasTabela() {
     const tbody = document.getElementById('corpo-tabela-compras');
     if (!tbody) {
         console.error('tbody não encontrado!');
         return;
     }
     if (!this.comprasFiltradas || this.comprasFiltradas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhuma compra encontrada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhuma compra encontrada.解决方案</td></tr>';
         return;
     }
     const hojeLocal = getHojeLocalStr();
@@ -409,7 +408,7 @@ class FornecedorManager {
     tbody.innerHTML = html;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
-
+    
     async imprimirCompras(todasDespesas) {
         const statusFiltro = document.getElementById('filtro-status-compras').value;
         const dataInicio = document.getElementById('filtro-data-inicio').value;
