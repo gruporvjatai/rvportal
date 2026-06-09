@@ -534,44 +534,72 @@
           </div>
       </div>
 
-      <div id="view-prod" class="hidden-section">
-        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-          <h2 class="text-2xl font-bold text-slate-800">Produtos</h2>
-          <div class="flex gap-2">
-            <button onclick="printStockCountSheet()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
-              <i data-lucide="printer"></i> Imprimir Ficha de Contagem
-            </button>
-            <button onclick="openProductForm()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
-              <i data-lucide="plus"></i> Novo Produto
-            </button>
-          </div>
-        </div>
-      
-        <div class="flex gap-2 mb-4 bg-white p-4 rounded-xl shadow-sm border">
-          <input type="text" id="prod-search" placeholder="Buscar produto por nome..." class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderProducts()">
-          <select id="prod-category" class="w-1/3 p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onkeyup="renderProducts()" onchange="renderProducts()">
-            <option value="">Todas as Categorias</option>
-          </select>
-        </div>
-      
-        <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-              <thead class="bg-slate-50 text-slate-700">
-                <tr>
-                  <th class="p-4">Produto</th>
-                  <th class="p-4">Preço (R$)</th>
-                  <th class="p-4">Estoque Atual</th>
-                  <th class="p-4">Ajuste (Qtd)</th>
-                  <th class="p-4">Novo Estoque</th>
-                  <th class="p-4 text-center">Editar</th>
-                </tr>
-              </thead>
-              <tbody id="prod-list" class="divide-y"></tbody>
-            </table>
-          </div>
-        </div>
+     <div id="view-prod" class="hidden-section">
+  <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+    <h2 class="text-2xl font-bold text-slate-800">Produtos</h2>
+    <div class="flex gap-2">
+      <button onclick="openStockCountFilters()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
+        <i data-lucide="printer"></i> Imprimir Ficha de Contagem
+      </button>
+      <button onclick="openProductForm()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
+        <i data-lucide="plus"></i> Novo Produto
+      </button>
+    </div>
+  </div>
+
+  <div class="flex gap-2 mb-4 bg-white p-4 rounded-xl shadow-sm border">
+    <input type="text" id="prod-search" placeholder="Buscar produto por nome..." class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderProducts()">
+    <select id="prod-category" class="w-1/3 p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onkeyup="renderProducts()" onchange="renderProducts()">
+      <option value="">Todas as Categorias</option>
+    </select>
+  </div>
+
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm text-left">
+        <thead class="bg-slate-50 text-slate-700">
+          <tr>
+            <th class="p-4">Produto</th>
+            <th class="p-4">Preço (R$)</th>
+            <th class="p-4">Estoque Atual</th>
+            <th class="p-4">Ajuste (Qtd)</th>
+            <th class="p-4">Novo Estoque</th>
+            <th class="p-4 text-center">Editar</th>
+          </tr>
+        </thead>
+        <tbody id="prod-list" class="divide-y"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de filtros para impressão da ficha de contagem -->
+<div id="modal-stock-count-filters" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+    <h3 class="font-bold text-lg mb-4 text-slate-800">Filtrar Ficha de Contagem</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
+        <select id="stock-cat-filter" class="w-full p-2 border rounded">
+          <option value="">Todas</option>
+          <!-- opções preenchidas via JS -->
+        </select>
       </div>
+      <div>
+        <label class="block text-sm font-bold text-slate-700 mb-1">Tipo de Produto</label>
+        <select id="stock-type-filter" class="w-full p-2 border rounded">
+          <option value="">Todos</option>
+          <option value="proprio">Próprio (Estoque RV)</option>
+          <option value="parceiro">Parceiro</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-6">
+      <button onclick="closeStockCountFilters()" class="flex-1 p-2 bg-slate-200 rounded font-bold hover:bg-slate-300">Cancelar</button>
+      <button onclick="printStockCountSheet()" class="flex-1 p-2 bg-amber-600 text-white rounded font-bold hover:bg-amber-700">Imprimir</button>
+    </div>
+  </div>
+</div>
 <!-- ========================================= RELATORIOS ===================================================-->
       <div id="view-production" class="hidden-section w-full h-[calc(100vh-120px)] flex flex-col">
           <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
@@ -1601,69 +1629,127 @@ async function adjustStock(prodId, adjustment, prodName) {
 }
 
 // ================== IMPRESSÃO FICHA DE CONTAGEM ==================
-    function printStockCountSheet() {
-      if (!STATE.products.length) {
-        showToast("Nenhum produto cadastrado", true);
-        return;
-      }
-    
-      const company = {
-        name: "RV PORTAL MADEIRAS",
-        cnpj: "30.942.123/0001-02",
-        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
-      };
-    
-      const now = new Date().toLocaleString('pt-BR');
-      const rows = STATE.products.map(p => `
-        <tr style="border-bottom: 1px solid #ccc;">
-          <td style="padding: 8px;">${p.name}</td>
-          <td style="padding: 8px; text-align: center;">${p.stock}</td>
-          <td style="padding: 8px; text-align: center;">
-            <span style="display:inline-block; width:80px; border-bottom:1px solid #000;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-          </td>
-        </tr>
-      `).join('');
-    
-      const html = `
-        <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 1000px; margin: auto;">
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-            <div style="display: flex; gap: 15px; align-items: center;">
-              <img src="${company.logoUrl}" style="max-height: 60px;" />
-              <div>
-                <h2 style="margin: 0; color: #059669;">${company.name}</h2>
-                <p style="margin: 2px 0; font-size: 11px;">CNPJ: ${company.cnpj}</p>
-              </div>
-            </div>
-            <div style="text-align: right;">
-              <h3 style="margin: 0;">FICHA DE CONTAGEM DE ESTOQUE</h3>
-              <p style="margin: 2px 0; font-size: 11px;">Gerado em: ${now}</p>
-            </div>
-          </div>
-    
-          <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-            <thead>
-              <tr style="background-color: #f1f5f9; border-bottom: 2px solid #0f172a;">
-                <th style="padding: 10px; text-align: left;">Produto</th>
-                <th style="padding: 10px; text-align: center;">Estoque Sistema</th>
-                <th style="padding: 10px; text-align: center;">Quantidade Contada</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-    
-          <div style="margin-top: 40px; font-size: 11px; text-align: center; border-top: 1px dashed #ccc; padding-top: 15px;">
-            Assinatura do responsável: ___________________________ &nbsp;&nbsp;&nbsp; Data: ___/___/_____
+   // ================== FILTROS PARA FICHA DE CONTAGEM ==================
+function openStockCountFilters() {
+  // Preencher dinamicamente as categorias no select
+  const catSelect = document.getElementById('stock-cat-filter');
+  if (catSelect) {
+    const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
+    catSelect.innerHTML = '<option value="">Todas</option>';
+    categoriasUnicas.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = cat;
+      option.textContent = cat;
+      catSelect.appendChild(option);
+    });
+  }
+  document.getElementById('modal-stock-count-filters').classList.remove('hidden');
+}
+
+function closeStockCountFilters() {
+  document.getElementById('modal-stock-count-filters').classList.add('hidden');
+}
+
+// ================== IMPRESSÃO FICHA DE CONTAGEM COM FILTROS ==================
+function printStockCountSheet() {
+  const categoria = document.getElementById('stock-cat-filter').value;
+  const tipo = document.getElementById('stock-type-filter').value;
+
+  let produtosFiltrados = [...STATE.products];
+
+  if (categoria) {
+    produtosFiltrados = produtosFiltrados.filter(p => p.category === categoria);
+  }
+  if (tipo === 'proprio') {
+    produtosFiltrados = produtosFiltrados.filter(p => !p.parceiro);
+  } else if (tipo === 'parceiro') {
+    produtosFiltrados = produtosFiltrados.filter(p => p.parceiro);
+  }
+
+  if (produtosFiltrados.length === 0) {
+    showToast("Nenhum produto encontrado com os filtros selecionados.", true);
+    closeStockCountFilters();
+    return;
+  }
+
+  const company = {
+    name: "RV PORTAL MADEIRAS",
+    cnpj: "30.942.123/0001-02",
+    logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+  };
+
+  const now = new Date().toLocaleString('pt-BR');
+  let filtroTexto = '';
+  if (categoria) filtroTexto += `Categoria: ${categoria} | `;
+  if (tipo === 'proprio') filtroTexto += 'Tipo: Próprio | ';
+  if (tipo === 'parceiro') filtroTexto += 'Tipo: Parceiro | ';
+  filtroTexto = filtroTexto.slice(0, -3) || 'Todos os produtos';
+
+  const rows = produtosFiltrados.map(p => {
+    let unidade = '';
+    switch (p.unidade) {
+      case 'un': unidade = 'Unidade'; break;
+      case 'm': unidade = 'Metro linear'; break;
+      case 'm²': unidade = 'Metro quadrado'; break;
+      case 'pct': unidade = 'Pacote'; break;
+      case 'chapa': unidade = 'Chapa'; break;
+      case 'kg': unidade = 'Kg'; break;
+      case 'l': unidade = 'Litro'; break;
+      default: unidade = p.unidade;
+    }
+    return `
+      <tr style="border-bottom: 1px solid #ccc;">
+        <td style="padding: 8px;">${p.name}<br><span style="font-size:9px; color:#555;">${unidade}</span></td>
+        <td style="padding: 8px; text-align: center;">${p.stock}</td>
+        <td style="padding: 8px; text-align: center;">
+          <span style="display:inline-block; width:80px; border-bottom:1px solid #000;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const html = `
+    <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 1000px; margin: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+        <div style="display: flex; gap: 15px; align-items: center;">
+          <img src="${company.logoUrl}" style="max-height: 60px;" />
+          <div>
+            <h2 style="margin: 0; color: #059669;">${company.name}</h2>
+            <p style="margin: 2px 0; font-size: 11px;">CNPJ: ${company.cnpj}</p>
           </div>
         </div>
-      `;
-    
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.print();
-    }
+        <div style="text-align: right;">
+          <h3 style="margin: 0;">FICHA DE CONTAGEM DE ESTOQUE</h3>
+          <p style="margin: 2px 0; font-size: 11px;">Gerado em: ${now}</p>
+          <p style="margin: 2px 0; font-size: 11px; color: #555;">Filtros: ${filtroTexto}</p>
+        </div>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+        <thead>
+          <tr style="background-color: #f1f5f9; border-bottom: 2px solid #0f172a;">
+            <th style="padding: 10px; text-align: left;">Produto (Unidade)</th>
+            <th style="padding: 10px; text-align: center;">Estoque Sistema</th>
+            <th style="padding: 10px; text-align: center;">Quantidade Contada</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+
+      <div style="margin-top: 40px; font-size: 11px; text-align: center; border-top: 1px dashed #ccc; padding-top: 15px;">
+        Assinatura do responsável: ___________________________ &nbsp;&nbsp;&nbsp; Data: ___/___/_____
+      </div>
+    </div>
+  `;
+
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.print();
+  closeStockCountFilters();
+}
 
   
   
