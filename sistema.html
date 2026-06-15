@@ -401,118 +401,125 @@
       </div>
       
       <div id="view-fin" class="hidden-section">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-slate-800">Financeiro & Caixa</h2>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-green-50 p-4 rounded-xl border border-green-100 shadow-sm">
-                <p class="text-green-800 text-xs font-bold uppercase">Receitas (Recebidas)</p>
-                <h3 id="fin-income" class="text-2xl font-bold text-green-600 mt-1">R$ 0,00</h3>
-            </div>
-            <div class="bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm">
-                <p class="text-red-800 text-xs font-bold uppercase">Saídas (Despesas Pagas)</p>
-                <h3 id="fin-expenses" class="text-2xl font-bold text-red-600 mt-1">R$ 0,00</h3>
-            </div>
-            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 shadow-sm">
-                <p class="text-indigo-800 text-xs font-bold uppercase">Saldo em Caixa</p>
-                <h3 id="fin-balance" class="text-2xl font-bold text-indigo-600 mt-1">R$ 0,00</h3>
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            <div class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px]">
-                <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
-                    <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-down-to-line" class="w-5 h-5 text-indigo-600"></i> Contas a Receber</h3>
-                    <div class="flex gap-2">
-                        <button onclick="printReceivables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
-                        <button onclick="openRevenueModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Nova</button>
-                    </div>
-                </div>
-                
-                <div class="p-3 border-b bg-white flex flex-col gap-2">
-                    <div class="flex gap-2">
-                        <div class="relative flex-1">
-                            <i data-lucide="search" class="absolute left-2 top-2 text-slate-400 w-4 h-4"></i>
-                            <input type="text" id="rec-search" placeholder="Buscar cliente..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-indigo-600 outline-none" onkeyup="renderFinance()">
-                        </div>
-                        <select id="rec-status" class="w-32 p-1.5 border rounded text-xs focus:ring-1 focus:ring-indigo-600 outline-none" onchange="renderFinance()">
-                            <option value="">Todos</option>
-                            <option value="ABERTOS">Em Aberto</option>
-                            <option value="VENCIDOS">Vencidos</option>
-                            <option value="PAGOS">Pagos</option>
-                        </select>
-                    </div>
-                    <div class="flex gap-2 items-center">
-                        <input type="date" id="rec-start" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-indigo-600 outline-none" onchange="renderFinance()">
-                        <span class="text-slate-400 text-xs">até</span>
-                        <input type="date" id="rec-end" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-indigo-600 outline-none" onchange="renderFinance()">
-                        <button onclick="document.getElementById('rec-search').value=''; document.getElementById('rec-status').value=''; document.getElementById('rec-start').value=''; document.getElementById('rec-end').value=''; renderFinance()" class="p-1.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-600" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </div>
-                </div>
+  <div class="flex justify-between items-center mb-6">
+    <h2 class="text-2xl font-bold text-slate-800">Financeiro & Caixa</h2>
+  </div>
 
-                <div class="overflow-y-auto flex-1 p-0">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b z-10">
-                            <tr>
-                                <th class="p-3 font-semibold">Venc/Pagto</th>
-                                <th class="p-3 font-semibold">Cliente/Ref</th>
-                                <th class="p-3 font-semibold">Valor</th>
-                                <th class="p-3 font-semibold text-right w-24">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody id="fin-receivables-list" class="divide-y"></tbody>
-                    </table>
-                </div>
-            </div>
+  <!-- Cards de resumo (mantidos) -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-green-50 p-4 rounded-xl border border-green-100 shadow-sm">
+      <p class="text-green-800 text-xs font-bold uppercase">Receitas (Recebidas)</p>
+      <h3 id="fin-income" class="text-2xl font-bold text-green-600 mt-1">R$ 0,00</h3>
+    </div>
+    <div class="bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm">
+      <p class="text-red-800 text-xs font-bold uppercase">Saídas (Despesas Pagas)</p>
+      <h3 id="fin-expenses" class="text-2xl font-bold text-red-600 mt-1">R$ 0,00</h3>
+    </div>
+    <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 shadow-sm">
+      <p class="text-indigo-800 text-xs font-bold uppercase">Saldo em Caixa</p>
+      <h3 id="fin-balance" class="text-2xl font-bold text-indigo-600 mt-1">R$ 0,00</h3>
+    </div>
+  </div>
 
-            <div class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px]">
-                <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
-                    <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-up-from-line" class="w-5 h-5 text-red-500"></i> Contas a Pagar</h3>
-                    <div class="flex gap-2">
-                        <button onclick="printExpenses()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
-                        <button onclick="document.getElementById('exp-id').value=''; document.getElementById('modal-expense').classList.remove('hidden')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída</button>
-                    </div>
-                </div>
-                
-                <div class="p-3 border-b bg-white flex flex-col gap-2">
-                    <div class="flex gap-2">
-                        <div class="relative flex-1">
-                            <i data-lucide="search" class="absolute left-2 top-2 text-slate-400 w-4 h-4"></i>
-                            <input type="text" id="exp-search" placeholder="Buscar fornecedor/item..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" onkeyup="renderFinance()">
-                        </div>
-                        <select id="exp-status" class="w-32 p-1.5 border rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
-                            <option value="">Todos</option>
-                            <option value="PENDENTE">Pendentes</option>
-                            <option value="PAGO">Pagos</option>
-                        </select>
-                    </div>
-                    <div class="flex gap-2 items-center">
-                        <input type="date" id="exp-start" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
-                        <span class="text-slate-400 text-xs">até</span>
-                        <input type="date" id="exp-end" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
-                        <button onclick="document.getElementById('exp-search').value=''; document.getElementById('exp-status').value=''; document.getElementById('exp-start').value=''; document.getElementById('exp-end').value=''; renderFinance()" class="p-1.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-600" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </div>
-                </div>
+  <!-- SUB-ABAS -->
+  <div class="mb-4 border-b border-slate-200">
+    <button id="tab-receber-btn" onclick="switchFinanceTab('receber')" class="px-4 py-2 text-sm font-bold rounded-t-lg transition-all bg-indigo-600 text-white shadow">📋 Contas a Receber</button>
+    <button id="tab-pagar-btn" onclick="switchFinanceTab('pagar')" class="px-4 py-2 text-sm font-bold rounded-t-lg transition-all bg-slate-200 text-slate-700 hover:bg-slate-300">💰 Contas a Pagar</button>
+  </div>
 
-                <div class="overflow-y-auto flex-1 p-0">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b z-10">
-                            <tr>
-                                <th class="p-3 font-semibold">Data</th>
-                                <th class="p-3 font-semibold">Fornecedor</th>
-                                <th class="p-3 font-semibold">Valor</th>
-                                <th class="p-3 font-semibold text-right w-[110px]">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody id="fin-expense-history-list" class="divide-y"></tbody>
-                    </table>
-                </div>
-            </div>
-
-        </div>
+  <!-- Conteúdo Contas a Receber -->
+  <div id="finance-receber" class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px]">
+    <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
+      <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-down-to-line" class="w-5 h-5 text-indigo-600"></i> Contas a Receber</h3>
+      <div class="flex gap-2">
+        <button onclick="printReceivables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+        <button onclick="openRevenueModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Nova</button>
       </div>
+    </div>
+
+    <div class="p-3 border-b bg-white flex flex-col gap-2">
+      <div class="flex gap-2">
+        <div class="relative flex-1">
+          <i data-lucide="search" class="absolute left-2 top-2 text-slate-400 w-4 h-4"></i>
+          <input type="text" id="rec-search" placeholder="Buscar cliente..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-indigo-600 outline-none" onkeyup="renderFinance()">
+        </div>
+        <select id="rec-status" class="w-32 p-1.5 border rounded text-xs focus:ring-1 focus:ring-indigo-600 outline-none" onchange="renderFinance()">
+          <option value="">Todos</option>
+          <option value="ABERTOS">Em Aberto</option>
+          <option value="VENCIDOS">Vencidos</option>
+          <option value="PAGOS">Pagos</option>
+        </select>
+      </div>
+      <div class="flex gap-2 items-center">
+        <input type="date" id="rec-start" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-indigo-600 outline-none" onchange="renderFinance()">
+        <span class="text-slate-400 text-xs">até</span>
+        <input type="date" id="rec-end" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-indigo-600 outline-none" onchange="renderFinance()">
+        <button onclick="document.getElementById('rec-search').value=''; document.getElementById('rec-status').value=''; document.getElementById('rec-start').value=''; document.getElementById('rec-end').value=''; renderFinance()" class="p-1.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-600" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+    </div>
+
+    <div class="overflow-y-auto flex-1 p-0">
+      <table class="w-full text-sm text-left">
+        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b z-10">
+          <tr>
+            <th class="p-3 font-semibold">Venc/Pagto</th>
+            <th class="p-3 font-semibold">Cliente/Ref</th>
+            <th class="p-3 font-semibold">Valor</th>
+            <th class="p-3 font-semibold text-right w-24">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="fin-receivables-list" class="divide-y"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Conteúdo Contas a Pagar (inicialmente oculto) -->
+  <div id="finance-pagar" class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px] hidden">
+    <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
+      <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-up-from-line" class="w-5 h-5 text-red-500"></i> Contas a Pagar</h3>
+      <div class="flex gap-2">
+        <button onclick="printExpenses()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+      <button onclick="openNewExpense()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1">
+          <i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída
+      </button>
+      </div>
+    </div>
+
+    <div class="p-3 border-b bg-white flex flex-col gap-2">
+      <div class="flex gap-2">
+        <div class="relative flex-1">
+          <i data-lucide="search" class="absolute left-2 top-2 text-slate-400 w-4 h-4"></i>
+          <input type="text" id="exp-search" placeholder="Buscar fornecedor/item..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" onkeyup="renderFinance()">
+        </div>
+        <select id="exp-status" class="w-32 p-1.5 border rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
+          <option value="">Todos</option>
+          <option value="PENDENTE">Pendentes</option>
+          <option value="PAGO">Pagos</option>
+        </select>
+      </div>
+      <div class="flex gap-2 items-center">
+        <input type="date" id="exp-start" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
+        <span class="text-slate-400 text-xs">até</span>
+        <input type="date" id="exp-end" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
+        <button onclick="document.getElementById('exp-search').value=''; document.getElementById('exp-status').value=''; document.getElementById('exp-start').value=''; document.getElementById('exp-end').value=''; renderFinance()" class="p-1.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-600" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+    </div>
+
+    <div class="overflow-y-auto flex-1 p-0">
+      <table class="w-full text-sm text-left">
+        <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b z-10">
+          <tr>
+            <th class="p-3 font-semibold">Data</th>
+            <th class="p-3 font-semibold">Fornecedor</th>
+            <th class="p-3 font-semibold">Valor</th>
+            <th class="p-3 font-semibold text-right w-[110px]">Ação</th>
+          </tr>
+        </thead>
+        <tbody id="fin-expense-history-list" class="divide-y"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
       <div id="view-clients" class="hidden-section">
           <div class="flex justify-between items-center mb-4">
@@ -975,7 +982,8 @@
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-slate-50">
                 <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="minus-circle" class="text-red-500"></i> Registrar Nova Saída</h3>
-                <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+                <!--<button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>-->
+                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
             </div>
             <div class="p-6 space-y-4 overflow-y-auto">
                  <input type="hidden" id="exp-id">
@@ -1018,7 +1026,7 @@
                 </div>
             </div>
             <div class="p-5 border-t bg-slate-50 flex gap-3">
-                <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="closeExpenseModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button onclick="saveExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Salvar Pendente</button>
             </div>
         </div>
@@ -2143,6 +2151,7 @@ function printStockCountSheet() {
         
             showToast(isNew ? "Despesa lançada com sucesso!" : "Despesa atualizada!");
             await loadData();
+            closeExpenseModal();
         }
 
        async function payExpense(id) {
@@ -2195,6 +2204,7 @@ function printStockCountSheet() {
               showToast("Despesa não encontrada! ID: " + expenseId, true);
               return;
           }
+          // Preenche os campos com os dados da despesa
           document.getElementById('exp-id').value = exp.id;
           document.getElementById('exp-item').value = exp.item;
           document.getElementById('exp-cost').value = exp.cost;
@@ -2410,6 +2420,33 @@ function printStockCountSheet() {
             document.getElementById('pos-custom-obs').value = '';
             
             renderCart(); 
+        }
+
+
+
+        function switchFinanceTab(tab) {
+          const receberDiv = document.getElementById('finance-receber');
+          const pagarDiv = document.getElementById('finance-pagar');
+          const btnReceber = document.getElementById('tab-receber-btn');
+          const btnPagar = document.getElementById('tab-pagar-btn');
+        
+          if (tab === 'receber') {
+            receberDiv.classList.remove('hidden');
+            pagarDiv.classList.add('hidden');
+            btnReceber.classList.remove('bg-slate-200', 'text-slate-700');
+            btnReceber.classList.add('bg-indigo-600', 'text-white');
+            btnPagar.classList.remove('bg-indigo-600', 'text-white');
+            btnPagar.classList.add('bg-slate-200', 'text-slate-700');
+          } else {
+            receberDiv.classList.add('hidden');
+            pagarDiv.classList.remove('hidden');
+            btnPagar.classList.remove('bg-slate-200', 'text-slate-700');
+            btnPagar.classList.add('bg-red-600', 'text-white');
+            btnReceber.classList.remove('bg-indigo-600', 'text-white');
+            btnReceber.classList.add('bg-slate-200', 'text-slate-700');
+          }
+          // Garante que os ícones sejam recarregados (opcional)
+          if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         function renderRecentHistory() { 
@@ -4433,6 +4470,28 @@ function loadQuoteToCart(id) {
             await loadData(); 
             navigate('quotes'); 
         }
+
+  // Função para limpar completamente o formulário de despesa
+    function resetExpenseForm() {
+        document.getElementById('exp-id').value = '';
+        document.getElementById('exp-item').value = 'Fornecedor';
+        document.getElementById('exp-provider').value = '';
+        document.getElementById('exp-cost').value = '';
+        document.getElementById('exp-date').value = '';
+        document.getElementById('exp-note').value = '';
+    }
+    
+    // Função para abrir nova despesa (limpa o formulário e exibe o modal)
+    function openNewExpense() {
+        resetExpenseForm();
+        document.getElementById('modal-expense').classList.remove('hidden');
+    }
+    
+    // Função para fechar o modal de despesa (limpa os campos)
+    function closeExpenseModal() {
+        resetExpenseForm();
+        document.getElementById('modal-expense').classList.add('hidden');
+    }
 
   
 
