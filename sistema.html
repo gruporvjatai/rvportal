@@ -558,15 +558,21 @@
     <div class="overflow-x-auto">
       <table class="w-full text-sm text-left">
         <thead class="bg-slate-50 text-slate-700">
-          <tr>
-            <th class="p-4">Produto</th>
-            <th class="p-4">Preço (R$)</th>
-            <th class="p-4">Estoque Atual</th>
-            <th class="p-4">Ajuste (Qtd)</th>
-            <th class="p-4">Novo Estoque</th>
-            <th class="p-4 text-center">Editar</th>
-          </tr>
-        </thead>
+            <tr>
+              <th class="p-4 cursor-pointer hover:bg-slate-200" onclick="sortProducts('name')">
+                Produto <span id="sort-icon-name" class="ml-1 text-xs">🔽</span>
+              </th>
+              <th class="p-4 cursor-pointer hover:bg-slate-200" onclick="sortProducts('price')">
+                Preço (R$) <span id="sort-icon-price" class="ml-1 text-xs">🔽</span>
+              </th>
+              <th class="p-4 cursor-pointer hover:bg-slate-200" onclick="sortProducts('stock')">
+                Estoque Atual <span id="sort-icon-stock" class="ml-1 text-xs">🔽</span>
+              </th>
+              <th class="p-4">Ajuste (Qtd)</th>
+              <th class="p-4">Novo Estoque</th>
+              <th class="p-4 text-center">Editar</th>
+            </tr>
+          </thead>
         <tbody id="prod-list" class="divide-y"></tbody>
       </table>
     </div>
@@ -1108,6 +1114,8 @@
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
         let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [] /*custoMaterialB10: 0 */};
+        let sortColumn = 'id';       // coluna padrão: id (ou pode ser 'name')
+        let sortDirection = 'asc';   // 'asc' ou 'desc'
         let CART = [];
         let CURRENT_QUOTE_ID = null; 
 
@@ -1359,6 +1367,17 @@
             showToast("Excluído!");
             loadData();
         }
+
+        function sortProducts(column) {
+        if (sortColumn === column) {
+          // inverte a direção
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortColumn = column;
+          sortDirection = 'asc';
+        }
+        renderProducts(); // re-renderiza com a nova ordenação
+      }
 
        async function saveProduct(e) {
             e.preventDefault();
