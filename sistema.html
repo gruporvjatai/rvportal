@@ -2759,62 +2759,92 @@ function loadQuoteToCart(id) {
             }
         }
 
-       function renderProducts() {
-  const list = document.getElementById('prod-list');
-  if (!list) return;
-
-  const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
-  const catFilter = document.getElementById('prod-category')?.value || '';
-
-  const catSelect = document.getElementById('prod-category');
-  if (catSelect && catSelect.options.length <= 1) {
-    const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
-    categoriasUnicas.forEach(cat => {
-      const option = document.createElement('option');
-      option.value = cat;
-      option.textContent = cat;
-      catSelect.appendChild(option);
-    });
-  }
-
-  let filtered = STATE.products.slice();
-  if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
-  if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
-
-  if (filtered.length === 0) {
-    list.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">Nenhum produto encontrado.</td></tr>';
-    return;
-  }
-
-  list.innerHTML = filtered.map(p => {
-    // ID único para o campo de ajuste
-    const inputId = `adj-${p.id}`;
-    const previewId = `preview-${p.id}`;
-    return `
-      <tr class="hover:bg-slate-50">
-        <td class="p-4 font-bold text-slate-700">
-          ${p.name}<br>
-          <span class="text-[10px] text-slate-400 uppercase font-bold bg-slate-100 px-1 py-0.5 rounded">${p.category || 'Geral'}</span>
-        </td>
-        <td class="p-4 font-medium">${formatMoney(p.price)}</td>
-        <td class="p-4 font-bold">${p.stock}</td>
-        <td class="p-4">
-          <div class="flex gap-1 items-center">
-            <input type="number" id="${inputId}" class="w-24 p-1 border rounded text-center text-sm" placeholder="+ / -" step="0.01" value="0" oninput="document.getElementById('${previewId}').innerText = (${p.stock} + parseFloat(this.value || 0)).toFixed(2)">
-            <button onclick="adjustStock(${p.id}, document.getElementById('${inputId}').value, '${p.name.replace(/'/g, "\\'")}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-xs hover:bg-emerald-700">Aplicar</button>
-          </div>
-        </td>
-        <td class="p-4 font-bold text-indigo-600" id="${previewId}">${p.stock}</td>
-        <td class="p-4 text-center">
-          <button onclick="openProductForm('${p.id}')" class="text-indigo-600 hover:text-indigo-800">
-            <i data-lucide="edit-3" width="16"></i>
-          </button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-  lucide.createIcons();
-}
+      function renderProducts() {
+        const list = document.getElementById('prod-list');
+        if (!list) return;
+      
+        const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
+        const catFilter = document.getElementById('prod-category')?.value || '';
+      
+        const catSelect = document.getElementById('prod-category');
+        if (catSelect && catSelect.options.length <= 1) {
+          const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
+          categoriasUnicas.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            catSelect.appendChild(option);
+          });
+        }
+      
+        // Primeiro filtra
+        let filtered = STATE.products.slice();
+        if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
+        if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
+      
+        // Depois ordena
+        filtered.sort((a, b) => {
+          let valA, valB;
+          switch (sortColumn) {
+            case 'name':
+              valA = a.name.toLowerCase();
+              valB = b.name.toLowerCase();
+              break;
+            case 'price':
+              valA = a.price;
+              valB = b.price;
+              break;
+            case 'stock':
+              valA = a.stock;
+              valB = b.stock;
+              break;
+            default:
+              valA = a.id;
+              valB = b.id;
+          }
+          if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+          if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+          return 0;
+        });
+      
+        // Atualiza os ícones nos cabeçalhos
+        document.getElementById('sort-icon-name').innerHTML = sortColumn === 'name' ? (sortDirection === 'asc' ? '🔼' : '🔽') : '🔽';
+        document.getElementById('sort-icon-price').innerHTML = sortColumn === 'price' ? (sortDirection === 'asc' ? '🔼' : '🔽') : '🔽';
+        document.getElementById('sort-icon-stock').innerHTML = sortColumn === 'stock' ? (sortDirection === 'asc' ? '🔼' : '🔽') : '🔽';
+      
+        if (filtered.length === 0) {
+          list.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">Nenhum produto encontrado.</td></tr>';
+          return;
+        }
+      
+        list.innerHTML = filtered.map(p => {
+          const inputId = `adj-${p.id}`;
+          const previewId = `preview-${p.id}`;
+          return `
+            <tr class="hover:bg-slate-50">
+              <td class="p-4 font-bold text-slate-700">
+                ${p.name}<br>
+                <span class="text-[10px] text-slate-400 uppercase font-bold bg-slate-100 px-1 py-0.5 rounded">${p.category || 'Geral'}</span>
+              </td>
+              <td class="p-4 font-medium">${formatMoney(p.price)}</td>
+              <td class="p-4 font-bold">${p.stock}</td>
+              <td class="p-4">
+                <div class="flex gap-1 items-center">
+                  <input type="number" id="${inputId}" class="w-24 p-1 border rounded text-center text-sm" placeholder="+ / -" step="0.01" value="0" oninput="document.getElementById('${previewId}').innerText = (${p.stock} + parseFloat(this.value || 0)).toFixed(2)">
+                  <button onclick="adjustStock(${p.id}, document.getElementById('${inputId}').value, '${p.name.replace(/'/g, "\\'")}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-xs hover:bg-emerald-700">Aplicar</button>
+                </div>
+              </td>
+              <td class="p-4 font-bold text-indigo-600" id="${previewId}">${p.stock}</td>
+              <td class="p-4 text-center">
+                <button onclick="openProductForm('${p.id}')" class="text-indigo-600 hover:text-indigo-800">
+                  <i data-lucide="edit-3" width="16"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+        lucide.createIcons();
+      }
 
        function openProductForm(id) { 
           document.getElementById('prod-form-container').classList.remove('hidden'); 
