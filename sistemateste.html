@@ -479,7 +479,9 @@
       <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-up-from-line" class="w-5 h-5 text-red-500"></i> Contas a Pagar</h3>
       <div class="flex gap-2">
         <button onclick="printExpenses()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
-        <button onclick="document.getElementById('exp-id').value=''; document.getElementById('modal-expense').classList.remove('hidden')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída</button>
+      <button onclick="openNewExpense()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1">
+          <i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída
+      </button>
       </div>
     </div>
 
@@ -980,7 +982,8 @@
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-slate-50">
                 <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="minus-circle" class="text-red-500"></i> Registrar Nova Saída</h3>
-                <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+                <!--<button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>-->
+                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
             </div>
             <div class="p-6 space-y-4 overflow-y-auto">
                  <input type="hidden" id="exp-id">
@@ -1023,7 +1026,7 @@
                 </div>
             </div>
             <div class="p-5 border-t bg-slate-50 flex gap-3">
-                <button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="closeExpenseModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button onclick="saveExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Salvar Pendente</button>
             </div>
         </div>
@@ -2148,6 +2151,7 @@ function printStockCountSheet() {
         
             showToast(isNew ? "Despesa lançada com sucesso!" : "Despesa atualizada!");
             await loadData();
+            closeExpenseModal();
         }
 
        async function payExpense(id) {
@@ -2200,6 +2204,7 @@ function printStockCountSheet() {
               showToast("Despesa não encontrada! ID: " + expenseId, true);
               return;
           }
+          // Preenche os campos com os dados da despesa
           document.getElementById('exp-id').value = exp.id;
           document.getElementById('exp-item').value = exp.item;
           document.getElementById('exp-cost').value = exp.cost;
@@ -4465,6 +4470,28 @@ function loadQuoteToCart(id) {
             await loadData(); 
             navigate('quotes'); 
         }
+
+  // Função para limpar completamente o formulário de despesa
+    function resetExpenseForm() {
+        document.getElementById('exp-id').value = '';
+        document.getElementById('exp-item').value = 'Fornecedor';
+        document.getElementById('exp-provider').value = '';
+        document.getElementById('exp-cost').value = '';
+        document.getElementById('exp-date').value = '';
+        document.getElementById('exp-note').value = '';
+    }
+    
+    // Função para abrir nova despesa (limpa o formulário e exibe o modal)
+    function openNewExpense() {
+        resetExpenseForm();
+        document.getElementById('modal-expense').classList.remove('hidden');
+    }
+    
+    // Função para fechar o modal de despesa (limpa os campos)
+    function closeExpenseModal() {
+        resetExpenseForm();
+        document.getElementById('modal-expense').classList.add('hidden');
+    }
 
   
 
