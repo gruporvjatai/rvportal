@@ -19,49 +19,53 @@
   }
 
   // ========== RENDERIZAÇÃO PRINCIPAL ==========
-  function renderEquipe() {
-    const container = document.getElementById('view-equipe');
-    if (!container) return;
+ function renderEquipe() {
+  const container = document.getElementById('view-equipe');
+  if (!container) return;
 
-    container.innerHTML = `
-      <div class="space-y-4 p-4">
-        <!-- Sub-abas -->
-        <div class="flex bg-white rounded-xl shadow-sm border p-1 gap-1 w-fit">
-          <button id="eq-tab-lancamentos" onclick="alternarSubAbaEquipe('lancamentos')"
-            class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all
-            ${subAbaAtiva === 'lancamentos' ? 'bg-emerald-600 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-100'}">
-            <i data-lucide="file-text" class="inline w-4 h-4 mr-1"></i> Lançamentos
-          </button>
-          <button id="eq-tab-cadastro" onclick="alternarSubAbaEquipe('cadastro')"
-            class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all
-            ${subAbaAtiva === 'cadastro' ? 'bg-emerald-600 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-100'}">
-            <i data-lucide="users" class="inline w-4 h-4 mr-1"></i> Cadastro
-          </button>
-        </div>
-
-        <!-- Container das sub-abas -->
-        <div id="eq-aba-lancamentos" class="${subAbaAtiva === 'lancamentos' ? '' : 'hidden'}">
-          ${getLancamentosHTML()}
-        </div>
-        <div id="eq-aba-cadastro" class="${subAbaAtiva === 'cadastro' ? '' : 'hidden'}">
-          ${getCadastroHTML()}
-        </div>
+  container.innerHTML = `
+    <div class="space-y-4 p-4">
+      <!-- Sub-abas -->
+      <div class="flex bg-white rounded-xl shadow-sm border p-1 gap-1 w-fit">
+        <button id="eq-tab-lancamentos" onclick="alternarSubAbaEquipe('lancamentos')"
+          class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all
+          ${subAbaAtiva === 'lancamentos' ? 'bg-emerald-600 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-100'}">
+          <i data-lucide="file-text" class="inline w-4 h-4 mr-1"></i> Lançamentos
+        </button>
+        <button id="eq-tab-cadastro" onclick="alternarSubAbaEquipe('cadastro')"
+          class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all
+          ${subAbaAtiva === 'cadastro' ? 'bg-emerald-600 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-100'}">
+          <i data-lucide="users" class="inline w-4 h-4 mr-1"></i> Cadastro
+        </button>
       </div>
-    `;
 
-    if (subAbaAtiva === 'lancamentos') {
-      safeCall(carregarLancamentos);
-    } else {
-      safeCall(carregarCadastro);
+      <!-- Container das sub-abas -->
+      <div id="eq-aba-lancamentos" class="${subAbaAtiva === 'lancamentos' ? '' : 'hidden'}">
+        ${getLancamentosHTML()}
+      </div>
+      <div id="eq-aba-cadastro" class="${subAbaAtiva === 'cadastro' ? '' : 'hidden'}">
+        ${getCadastroHTML()}
+      </div>
+    </div>
+  `;
+
+  // 👇 NOVO: Define o mês anterior no filtro, se estiver na aba Lançamentos
+  if (subAbaAtiva === 'lancamentos') {
+    const inputMes = document.getElementById('eq-filtro-mes');
+    if (inputMes && !inputMes.value) {   // só define se ainda estiver vazio
+      const dataAtual = new Date();
+      dataAtual.setMonth(dataAtual.getMonth() - 1);
+      const mesAnterior = dataAtual.toISOString().slice(0, 7);
+      inputMes.value = mesAnterior;
     }
-    lucide.createIcons();
-    window.alternarSubAbaEquipe = alternarSubAbaEquipe;
+    safeCall(carregarLancamentos);
+  } else {
+    safeCall(carregarCadastro);
   }
 
-  function alternarSubAbaEquipe(nova) {
-    subAbaAtiva = nova;
-    renderEquipe();
-  }
+  lucide.createIcons();
+  window.alternarSubAbaEquipe = alternarSubAbaEquipe;
+}
 
   // ========== HTML DAS SUB-ABAS ==========
   function getLancamentosHTML() {
