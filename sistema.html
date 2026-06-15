@@ -1859,26 +1859,33 @@ function printStockCountSheet() {
         }
 
         async function estornarDespesaLog(id) {
-            if(!confirm("Estornar o pagamento desta despesa? Ela voltará a ficar PENDENTE no caixa.")) return;
+            if (!confirm("Estornar o pagamento desta despesa? Ela voltará a ficar pendente.")) return;
             showLoading(true);
             try {
-                await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', id);
-                await sb.from('logs').delete().like('observacao', `%Ref Despesa #${id}%`).eq('tipo', 'despesa');
+                const { error: err1 } = await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', id);
+                if (err1) throw err1;
+                
+                const { error: err2 } = await sb.from('logs').delete().like('observacao', `%Ref Despesa #${id}%`).eq('tipo', 'despesa');
+                if (err2) throw err2;
+                
                 showToast("Pagamento estornado!");
-                loadData();
-            } catch(e) {
+                await loadData();
+            } catch (e) {
                 showLoading(false);
-                showToast("Erro: " + e.message, true);
+                showToast("Erro ao estornar: " + e.message, true);
             }
         }
 
         async function excluirDespesa(id) {
-            if(!confirm("Excluir esta despesa permanentemente do sistema?")) return;
+            if (!confirm("Excluir esta despesa permanentemente? Esta ação não pode ser desfeita.")) return;
             showLoading(true);
-            const {error} = await sb.from('despesas').delete().eq('id', id);
-            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+            const { error } = await sb.from('despesas').delete().eq('id', id);
+            if (error) {
+                showLoading(false);
+                return showToast("Erro ao excluir: " + error.message, true);
+            }
             showToast("Despesa excluída!");
-            loadData();
+            await loadData();
         }
 
         async function estornarEntregaLog(uid) {
@@ -2086,91 +2093,131 @@ function printStockCountSheet() {
             const isNew = !idVal;
             const item = document.getElementById('exp-item').value;
             const provider = document.getElementById('exp-provider').value.trim();
-            const cost = document.getElementById('exp-cost').value;
-            
-            const dataLocal = getHojeLocalStr();
-            let date = document.getElementById('exp-date').value || dataLocal;
+            const cost = parseFloat(document.getElementById('exp-cost').value);
+            const date = document.getElementById('exp-date').value || getHojeLocalStr();
             const note = document.getElementById('exp-note').value.trim();
-            
-            if(!item || !cost) return showToast("Preencha a categoria e o valor", true);
+        
+            if (!item || isNaN(cost) || cost <= 0) {
+                showToast("Preencha a categoria e o valor corretamente", true);
+                return;
+            }
+        
             showLoading(true);
-
-            const finalNote = provider ? `Fornecedor: ${provider}${note ? ' | ' + note : ''}` : note;
-
+        
+            let finalNote = note;
+            if (provider) {
+                finalNote = `Fornecedor: ${provider}${note ? ' | ' + note : ''}`;
+            }
+        
             const payload = {
-                item: item, quantidade: 1, unidade: 'Un',
-                custo: Number(cost), data: date, observacao: finalNote, status: 'PENDENTE'
+                item: item,
+                quantidade: 1,
+                unidade: 'Un',
+                custo: cost,
+                data: date,
+                observacao: finalNote,
+                status: 'PENDENTE'
             };
-
+        
             let error;
             if (isNew) {
                 payload.id = getNextId(STATE.expenses);
-                const res = await sb.from('despesas').insert([payload]);
-                error = res.error;
+                const { error: err } = await sb.from('despesas').insert([payload]);
+                error = err;
             } else {
-                const res = await sb.from('despesas').update(payload).eq('id', idVal);
-                error = res.error;
+                const { error: err } = await sb.from('despesas').update(payload).eq('id', idVal);
+                error = err;
             }
-
-            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
-
-            document.getElementById('exp-id').value = "";
-            document.getElementById('exp-provider').value = "";
-            document.getElementById('exp-cost').value = ""; 
-            document.getElementById('exp-note').value = "";
+        
+            if (error) {
+                showLoading(false);
+                return showToast("Erro ao salvar: " + error.message, true);
+            }
+        
+            // Limpa e fecha modal
+            document.getElementById('exp-id').value = '';
+            document.getElementById('exp-provider').value = '';
+            document.getElementById('exp-cost').value = '';
+            document.getElementById('exp-note').value = '';
             document.getElementById('modal-expense').classList.add('hidden');
-            
-            showToast(isNew ? "Despesa Lançada (Pendente)!" : "Despesa Atualizada!");
-            loadData();
+        
+            showToast(isNew ? "Despesa lançada com sucesso!" : "Despesa atualizada!");
+            await loadData();
         }
 
-        async function payExpense(id) {
-            if(!confirm("Confirmar a baixa desta despesa? O valor sairá do caixa agora.")) return;
-            showLoading(true);
-            
-            const exp = STATE.expenses.find(e => String(e.id) === String(id));
-            if(!exp) { showLoading(false); return showToast("Erro: Despesa não encontrada", true); }
-            if(exp.status === 'PAGO') { showLoading(false); return showToast("Esta despesa já foi paga!", true); }
-            
-            const { error: err1 } = await sb.from('despesas').update({ status: 'PAGO' }).eq('id', id);
-            if(err1) { showLoading(false); return showToast("Erro ao baixar: " + err1.message, true); }
-            
-            const newLogId = getNextId(STATE.logs);
-            const { error: err2 } = await sb.from('logs').insert([{
-                id: newLogId, tipo: 'despesa', produto_nome: exp.item, quantidade: exp.quantity,
-                data: getHojeLocalStr(), 
-                observacao: (exp.note ? exp.note + ' | ' : '') + 'Ref Despesa #' + exp.id, 
-                valor_total: exp.cost, status: 'ATIVO',
-                status_financeiro: 'PAGO', valor_pago: exp.cost
-            }]);
-            
-            if(err2) { showLoading(false); return showToast("Erro ao gerar log de caixa: " + err2.message, true); }
-            
-            showToast("Despesa baixada com sucesso!");
-            loadData();
-        }
+       async function payExpense(id) {
+          if (!confirm("Confirmar o pagamento desta despesa? O valor será lançado no caixa como saída.")) return;
+          showLoading(true);
+          
+          const exp = STATE.expenses.find(e => String(e.id) === String(id));
+          if (!exp) {
+              showLoading(false);
+              return showToast("Despesa não encontrada", true);
+          }
+          if (exp.status === 'PAGO') {
+              showLoading(false);
+              return showToast("Esta despesa já foi paga!", true);
+          }
+          
+          const { error: err1 } = await sb.from('despesas').update({ status: 'PAGO' }).eq('id', id);
+          if (err1) {
+              showLoading(false);
+              return showToast("Erro ao baixar despesa: " + err1.message, true);
+          }
+          
+          const newLogId = getNextId(STATE.logs);
+          const { error: err2 } = await sb.from('logs').insert([{
+              id: newLogId,
+              tipo: 'despesa',
+              produto_nome: exp.item,
+              quantidade: exp.quantidade || 1,
+              data: getHojeLocalStr(),
+              observacao: (exp.note ? exp.note + ' | ' : '') + 'Ref Despesa #' + exp.id,
+              valor_total: exp.custo,
+              status: 'ATIVO',
+              status_financeiro: 'PAGO',
+              valor_pago: exp.custo
+          }]);
+          
+          if (err2) {
+              showLoading(false);
+              return showToast("Erro ao registrar pagamento: " + err2.message, true);
+          }
+          
+          showToast("Despesa baixada com sucesso!");
+          await loadData();
+      }
 
-        function openEditExpense(id) {
-            const exp = STATE.expenses.find(e => String(e.id) === String(id));
-            if(!exp) return;
-            document.getElementById('exp-id').value = exp.id;
-            document.getElementById('exp-item').value = exp.item;
-            
-            let providerVal = '';
-            let noteVal = exp.note || '';
-            if (noteVal.startsWith('Fornecedor:')) {
-                const parts = noteVal.split('|');
-                providerVal = parts[0].replace('Fornecedor:', '').trim();
-                noteVal = parts.slice(1).join('|').trim();
-            }
-            
-            document.getElementById('exp-provider').value = providerVal;
-            document.getElementById('exp-cost').value = exp.cost;
-            try { document.getElementById('exp-date').value = (exp.date||'').split('T')[0]; } catch(e){}
-            document.getElementById('exp-note').value = noteVal;
-            
-            document.getElementById('modal-expense').classList.remove('hidden');
-        }
+       function openEditExpense(id) {
+          const exp = STATE.expenses.find(e => String(e.id) === String(id));
+          if (!exp) {
+              showToast("Despesa não encontrada!", true);
+              return;
+          }
+          document.getElementById('exp-id').value = exp.id;
+          document.getElementById('exp-item').value = exp.item;
+          document.getElementById('exp-cost').value = exp.cost;
+          if (exp.date) {
+              document.getElementById('exp-date').value = exp.date.split('T')[0];
+          } else {
+              document.getElementById('exp-date').value = '';
+          }
+          // Trata observação que pode conter "Fornecedor: ..."
+          let note = exp.note || '';
+          let provider = '';
+          let obsNote = '';
+          if (note.startsWith('Fornecedor:')) {
+              const parts = note.split('|');
+              provider = parts[0].replace('Fornecedor:', '').trim();
+              obsNote = parts.slice(1).join('|').trim();
+          } else {
+              obsNote = note;
+          }
+          document.getElementById('exp-provider').value = provider;
+          document.getElementById('exp-note').value = obsNote;
+          
+          document.getElementById('modal-expense').classList.remove('hidden');
+      }
 
         function updateClientSelects() { }
 
