@@ -814,4 +814,11 @@
   window.excluirVale = excluirVale;
   window.carregarLancamentos = carregarLancamentos;
   window.carregarCadastro = carregarCadastro;
+
+  // ========== ALTERNAR SUB‑ABA ==========
+function alternarSubAbaEquipe(aba) {
+  subAbaAtiva = aba;
+  renderEquipe(); // recarrega toda a view com a aba ativa
+}
+window.alternarSubAbaEquipe = alternarSubAbaEquipe;
 })();
