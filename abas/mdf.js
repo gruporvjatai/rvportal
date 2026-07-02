@@ -1707,7 +1707,7 @@ class OrcamentosMDF {
     const modal = document.createElement('div');
     modal.id = 'modal-agenda-mdf';
     modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4';
-    modal.style.backdropFilter = 'blur(2px)';
+    //modal.style.backdropFilter = 'blur(2px)';
 
     // Formatar datas para o input date (YYYY-MM-DD)
     const dataHoje = new Date().toISOString().split('T')[0];
@@ -1907,7 +1907,7 @@ class OrcamentosMDF {
     const modal = document.createElement('div');
     modal.id = 'modal-busca-clientes-mdf';
     modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4';
-    modal.style.backdropFilter = 'blur(2px)';
+    //modal.style.backdropFilter = 'blur(2px)';
 
     modal.innerHTML = `
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
