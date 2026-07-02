@@ -1,5 +1,5 @@
 // mdf.js – Módulo completo para gestão de projetos e orçamentos MDF
-// Versão corrigida – cria seu próprio cliente Supabase e busca clientes da tabela clientes
+// Versão corrigida – cria seu próprio cliente Supabase e busca clientes da tabela clientesv2
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
