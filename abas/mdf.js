@@ -1,5 +1,5 @@
 // mdf.js – Módulo completo para gestão de projetos e orçamentos MDF
-// Versão corrigida – cria seu próprio cliente Supabase e busca clientes da tabela clientes
+// Versão corrigida – com busca de clientes via modal
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -884,7 +884,6 @@ class ProjetosMDF {
   }
 }
 
-// ==================== SUB-ABA ORÇAMENTOS ====================
 // ==================== SUB-ABA ORÇAMENTOS (COMPLETA) ====================
 class OrcamentosMDF {
   constructor(container, parentManager) {
@@ -955,9 +954,16 @@ class OrcamentosMDF {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Cliente *</label>
-                <select id="cliente-mdf" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                  <option value="">Selecione um cliente...</option>
-                </select>
+                <div class="flex gap-2">
+                  <input type="text" id="cliente-nome-mdf" readonly placeholder="Nenhum cliente selecionado" 
+                         class="flex-1 p-2 border rounded-lg bg-slate-50 text-sm cursor-pointer" 
+                         onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.abrirModalClientes()">
+                  <button type="button" onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.abrirModalClientes()" 
+                          class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 hover:bg-emerald-700">
+                    <i data-lucide="search" class="w-4 h-4"></i> Buscar
+                  </button>
+                </div>
+                <input type="hidden" id="cliente-id-mdf" value="">
               </div>
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Status</label>
@@ -1014,25 +1020,9 @@ class OrcamentosMDF {
         </div>
       </div>
     `;
-    this.carregarClientesSelect();
+    // Não usamos mais carregarClientesSelect, pois usamos modal de busca
     this.renderizarOrcamentos();
     if (typeof lucide !== 'undefined') lucide.createIcons();
-  }
-
-  async carregarClientesSelect() {
-    const select = document.getElementById('cliente-mdf');
-    if (!select) return;
-    const { data: clientes, error } = await supabaseClient
-      .from('clientes')
-      .select('id, nome')
-      .order('nome');
-    if (error) {
-      console.error('Erro ao carregar clientes:', error);
-      select.innerHTML = '<option value="">Erro ao carregar clientes</option>';
-      return;
-    }
-    select.innerHTML = '<option value="">Selecione um cliente...</option>' +
-      clientes.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
   }
 
   async renderizarOrcamentos() {
@@ -1055,7 +1045,7 @@ class OrcamentosMDF {
     const filtrados = orcamentos.filter(o => !search || (o.cliente_nome && o.cliente_nome.toLowerCase().includes(search)));
 
     if (!filtrados.length) {
-      lista.innerHTML = '<td><td colspan="5" class="p-8 text-center text-slate-400">Nenhum orçamento encontrado.解决</td></tr>';
+      lista.innerHTML = '<td><td colspan="5" class="p-8 text-center text-slate-400">Nenhum orçamento encontrado.</td></tr>';
       return;
     }
 
@@ -1139,7 +1129,8 @@ class OrcamentosMDF {
     this.orcamentoAtualId = null;
     document.getElementById('modal-titulo-mdf').innerText = 'Novo Orçamento';
     document.getElementById('orcamento-id-mdf').value = '';
-    document.getElementById('cliente-mdf').value = '';
+    document.getElementById('cliente-nome-mdf').value = '';
+    document.getElementById('cliente-id-mdf').value = '';
     document.getElementById('status-mdf').value = 'ABERTO';
     document.getElementById('observacoes-mdf').value = '';
     document.getElementById('tipo-desconto-mdf').value = '$';
@@ -1147,7 +1138,6 @@ class OrcamentosMDF {
     this.itens = [];
     this.renderizarItens();
     this.atualizarTotais();
-    this.carregarClientesSelect();
     document.getElementById('modal-orcamento-mdf').classList.remove('hidden');
     if (typeof lucide !== 'undefined') lucide.createIcons();
   }
@@ -1166,14 +1156,20 @@ class OrcamentosMDF {
       document.getElementById('observacoes-mdf').value = orc.observacoes || '';
       document.getElementById('tipo-desconto-mdf').value = orc.tipo_desconto || '$';
       document.getElementById('valor-desconto-mdf').value = orc.desconto || 0;
-      await this.carregarClientesSelect();
+      
+      // Preencher cliente
       if (orc.cliente_nome) {
+        document.getElementById('cliente-nome-mdf').value = orc.cliente_nome;
+        // Buscar ID do cliente para guardar no hidden
         const { data: cliente } = await supabaseClient
           .from('clientes')
           .select('id')
           .eq('nome', orc.cliente_nome)
           .maybeSingle();
-        document.getElementById('cliente-mdf').value = cliente?.id || '';
+        document.getElementById('cliente-id-mdf').value = cliente?.id || '';
+      } else {
+        document.getElementById('cliente-nome-mdf').value = '';
+        document.getElementById('cliente-id-mdf').value = '';
       }
     }
 
@@ -1282,8 +1278,12 @@ class OrcamentosMDF {
   }
 
   async salvarOrcamento() {
-    const selectCliente = document.getElementById('cliente-mdf');
-    const clienteNome = selectCliente.options[selectCliente.selectedIndex]?.text || 'Consumidor Final';
+    const clienteId = document.getElementById('cliente-id-mdf').value;
+    const clienteNome = document.getElementById('cliente-nome-mdf').value.trim() || 'Consumidor Final';
+    if (!clienteId) {
+      window.showToast('Selecione um cliente válido.', true);
+      return;
+    }
     const status = document.getElementById('status-mdf').value;
     const obs = document.getElementById('observacoes-mdf').value.trim();
     const descontoValor = parseFloat(document.getElementById('valor-desconto-mdf').value) || 0;
@@ -1471,7 +1471,7 @@ class OrcamentosMDF {
   }
 
   gerarPDF() {
-    const clienteNome = document.getElementById('cliente-mdf').options[document.getElementById('cliente-mdf').selectedIndex]?.text || 'Consumidor Final';
+    const clienteNome = document.getElementById('cliente-nome-mdf').value || 'Consumidor Final';
     const obs = document.getElementById('observacoes-mdf').value;
     const itensAtivos = this.itens.filter(i => !i.removido);
     const subtotal = itensAtivos.reduce((s, i) => s + i.preco, 0);
@@ -1545,99 +1545,99 @@ class OrcamentosMDF {
     }
   }
 
-  // ========== NOVOS MÉTODOS ==========
+  // ========== NOVOS MÉTODOS DE FATURAMENTO E AGENDA ==========
   async faturarOrcamento(id) {
-  if (!confirm(`Faturar orçamento #${id}? Isso criará uma venda no sistema financeiro.`)) return;
-  if (typeof showLoading === 'function') showLoading(true);
+    if (!confirm(`Faturar orçamento #${id}? Isso criará uma venda no sistema financeiro.`)) return;
+    if (typeof showLoading === 'function') showLoading(true);
 
-  try {
-    // 1. Buscar orçamento e itens
-    const { data: orc, error: errOrc } = await supabaseClient
-      .from('mdf_orcamentos')
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (errOrc) throw errOrc;
+    try {
+      // 1. Buscar orçamento e itens
+      const { data: orc, error: errOrc } = await supabaseClient
+        .from('mdf_orcamentos')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (errOrc) throw errOrc;
 
-    const { data: itens, error: errItens } = await supabaseClient
-      .from('mdf_itens')
-      .select('*')
-      .eq('orcamento_id', id);
-    if (errItens) throw errItens;
-    if (!itens.length) throw new Error('Orçamento sem itens');
+      const { data: itens, error: errItens } = await supabaseClient
+        .from('mdf_itens')
+        .select('*')
+        .eq('orcamento_id', id);
+      if (errItens) throw errItens;
+      if (!itens.length) throw new Error('Orçamento sem itens');
 
-    // 2. Calcular totais e distribuir desconto
-    const subtotal = itens.reduce((acc, i) => acc + parseFloat(i.preco), 0);
-    let descontoTotal = parseFloat(orc.desconto) || 0;
-    if (orc.tipo_desconto === '%') {
-      descontoTotal = subtotal * (descontoTotal / 100);
-    }
-    const totalLiquido = Math.max(0, subtotal - descontoTotal);
-    const fator = subtotal > 0 ? totalLiquido / subtotal : 0;
+      // 2. Calcular totais e distribuir desconto
+      const subtotal = itens.reduce((acc, i) => acc + parseFloat(i.preco), 0);
+      let descontoTotal = parseFloat(orc.desconto) || 0;
+      if (orc.tipo_desconto === '%') {
+        descontoTotal = subtotal * (descontoTotal / 100);
+      }
+      const totalLiquido = Math.max(0, subtotal - descontoTotal);
+      const fator = subtotal > 0 ? totalLiquido / subtotal : 0;
 
-    // 3. Buscar cliente (para log)
-    const { data: cliente } = await supabaseClient
-      .from('clientes')
-      .select('nome')
-      .eq('nome', orc.cliente_nome)
-      .maybeSingle();
-    const nomeCliente = cliente?.nome || orc.cliente_nome || 'Consumidor Final';
+      // 3. Buscar cliente (para log)
+      const { data: cliente } = await supabaseClient
+        .from('clientes')
+        .select('nome')
+        .eq('nome', orc.cliente_nome)
+        .maybeSingle();
+      const nomeCliente = cliente?.nome || orc.cliente_nome || 'Consumidor Final';
 
-    // 4. Buscar o próximo ID disponível na tabela logs
-    const { data: maxIdData, error: maxIdError } = await supabaseClient
-      .from('logs')
-      .select('id')
-      .order('id', { ascending: false })
-      .limit(1);
-    if (maxIdError) throw maxIdError;
-    let novoId = 1;
-    if (maxIdData && maxIdData.length > 0) {
-      novoId = maxIdData[0].id + 1;
-    }
-    const vendaId = novoId;
+      // 4. Buscar o próximo ID disponível na tabela logs
+      const { data: maxIdData, error: maxIdError } = await supabaseClient
+        .from('logs')
+        .select('id')
+        .order('id', { ascending: false })
+        .limit(1);
+      if (maxIdError) throw maxIdError;
+      let novoId = 1;
+      if (maxIdData && maxIdData.length > 0) {
+        novoId = maxIdData[0].id + 1;
+      }
+      const vendaId = novoId;
 
-    // 5. Criar logs de venda (tipo 'venda')
-    const timestamp = new Date().toISOString();
-    const logs = itens.map(item => ({
-      id: vendaId,
-      tipo: 'venda',
-      produto_nome: item.nome,
-      quantidade: 1,
-      data: timestamp,
-      observacao: `MDF Orçamento #${id} - ${item.descricao || ''}`,
-      valor_total: parseFloat(item.preco) * fator,
-      cliente_nome: nomeCliente,
-      forma_pagamento: 'A Faturar',
-      status: 'ATIVO',
-      status_entrega: '',
-      qtd_entregue: 0,
-      desconto: 0,
-      status_financeiro: 'PENDENTE',
-      vencimento: timestamp,
-      valor_pago: 0,
-      endereco_entrega: ''
-    }));
+      // 5. Criar logs de venda (tipo 'venda')
+      const timestamp = new Date().toISOString();
+      const logs = itens.map(item => ({
+        id: vendaId,
+        tipo: 'venda',
+        produto_nome: item.nome,
+        quantidade: 1,
+        data: timestamp,
+        observacao: `MDF Orçamento #${id} - ${item.descricao || ''}`,
+        valor_total: parseFloat(item.preco) * fator,
+        cliente_nome: nomeCliente,
+        forma_pagamento: 'A Faturar',
+        status: 'ATIVO',
+        status_entrega: '',
+        qtd_entregue: 0,
+        desconto: 0,
+        status_financeiro: 'PENDENTE',
+        vencimento: timestamp,
+        valor_pago: 0,
+        endereco_entrega: ''
+      }));
 
-    const { error: errInsert } = await supabaseClient.from('logs').insert(logs);
-    if (errInsert) throw errInsert;
+      const { error: errInsert } = await supabaseClient.from('logs').insert(logs);
+      if (errInsert) throw errInsert;
 
-    // 6. Atualizar status do orçamento para APROVADO
-    const { error: errUpdate } = await supabaseClient
-      .from('mdf_orcamentos')
-      .update({ status: 'APROVADO' })
-      .eq('id', id);
-    if (errUpdate) throw errUpdate;
+      // 6. Atualizar status do orçamento para APROVADO
+      const { error: errUpdate } = await supabaseClient
+        .from('mdf_orcamentos')
+        .update({ status: 'APROVADO' })
+        .eq('id', id);
+      if (errUpdate) throw errUpdate;
 
-    window.showToast(`Orçamento #${id} faturado com sucesso! Venda registrada.`);
-    this.renderizarOrcamentos();
-     window.loadData();
-  } catch (err) {
-    console.error(err);
-    window.showToast('Erro ao faturar: ' + err.message, true);
-  } finally {
-    if (typeof showLoading === 'function') showLoading(false);  
-  }   
-}
+      window.showToast(`Orçamento #${id} faturado com sucesso! Venda registrada.`);
+      this.renderizarOrcamentos();
+      window.loadData();
+    } catch (err) {
+      console.error(err);
+      window.showToast('Erro ao faturar: ' + err.message, true);
+    } finally {
+      if (typeof showLoading === 'function') showLoading(false);  
+    }   
+  }
 
   async estornarOrcamento(id) {
     if (!confirm(`Estornar venda do orçamento #${id}? Isso removerá a venda do financeiro.`)) return;
@@ -1671,7 +1671,7 @@ class OrcamentosMDF {
 
       window.showToast(`Estorno realizado. Orçamento #${id} voltou para ABERTO.`);
       this.renderizarOrcamentos();
-       window.loadData();
+      window.loadData();
     } catch (err) {
       console.error(err);
       window.showToast('Erro ao estornar: ' + err.message, true);
@@ -1680,229 +1680,339 @@ class OrcamentosMDF {
     }
   }
 
-  /*=====================agenda ==========================*/
+  // ========== MÉTODOS DE AGENDA ==========
+  async agendarInstalacao(orcamentoId) {
+    // Buscar dados do orçamento e possível agendamento existente
+    const { data: orc } = await supabaseClient
+      .from('mdf_orcamentos')
+      .select('*')
+      .eq('id', orcamentoId)
+      .single();
 
- // ========== MÉTODOS DE AGENDA ==========
-async agendarInstalacao(orcamentoId) {
-  // Buscar dados do orçamento e possível agendamento existente
-  const { data: orc } = await supabaseClient
-    .from('mdf_orcamentos')
-    .select('*')
-    .eq('id', orcamentoId)
-    .single();
+    const { data: agendaExistente } = await supabaseClient
+      .from('mdf_agenda')
+      .select('*')
+      .eq('orcamento_id', orcamentoId)
+      .maybeSingle();
+   
+    this.abrirModalAgenda(orcamentoId, orc, agendaExistente);
+  }
 
-  const { data: agendaExistente } = await supabaseClient
-    .from('mdf_agenda')
-    .select('*')
-    .eq('orcamento_id', orcamentoId)
-    .maybeSingle();
- 
-  this.abrirModalAgenda(orcamentoId, orc, agendaExistente);
-}
+  abrirModalAgenda(orcamentoId, orc, agenda) {
+    // Remove modal antigo se existir
+    const modalAntigo = document.getElementById('modal-agenda-mdf');
+    if (modalAntigo) modalAntigo.remove();
 
-abrirModalAgenda(orcamentoId, orc, agenda) {
-  // Remove modal antigo se existir
-  const modalAntigo = document.getElementById('modal-agenda-mdf');
-  if (modalAntigo) modalAntigo.remove();
+    // Cria estrutura do modal
+    const modal = document.createElement('div');
+    modal.id = 'modal-agenda-mdf';
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4';
+    modal.style.backdropFilter = 'blur(2px)';
 
-  // Cria estrutura do modal
-  const modal = document.createElement('div');
-  modal.id = 'modal-agenda-mdf';
-  modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4';
-  modal.style.backdropFilter = 'blur(2px)';
+    // Formatar datas para o input date (YYYY-MM-DD)
+    const dataHoje = new Date().toISOString().split('T')[0];
+    const dataAgendada = agenda ? agenda.data_agendada.split('T')[0] : dataHoje;
+    const horarioAgendado = agenda ? agenda.horario.slice(0,5) : '14:00';
+    const statusAtual = agenda ? agenda.status : 'AGENDADO';
 
-  // Formatar datas para o input date (YYYY-MM-DD)
-  const dataHoje = new Date().toISOString().split('T')[0];
-  const dataAgendada = agenda ? agenda.data_agendada.split('T')[0] : dataHoje;
-  const horarioAgendado = agenda ? agenda.horario.slice(0,5) : '14:00';
-  const statusAtual = agenda ? agenda.status : 'AGENDADO';
-
-  modal.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-      <div class="sticky top-0 bg-emerald-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
-        <h3 class="text-xl font-bold flex items-center gap-2">
-          <i data-lucide="calendar" class="w-5 h-5"></i> 
-          Agenda de Instalação
-        </h3>
-        <button onclick="document.getElementById('modal-agenda-mdf').remove()" class="text-white hover:text-emerald-200">
-          <i data-lucide="x" class="w-6 h-6"></i>
-        </button>
-      </div>
-      
-      <div class="p-6 space-y-5">
-        <div class="bg-slate-50 p-3 rounded-lg">
-          <p class="text-xs text-slate-500 uppercase font-bold">Orçamento / Cliente</p>
-          <p class="font-bold text-slate-800">#${orcamentoId} - ${orc.cliente_nome}</p>
+    modal.innerHTML = `
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-emerald-600 text-white p-4 rounded-t-2xl flex justify-between items-center">
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <i data-lucide="calendar" class="w-5 h-5"></i> 
+            Agenda de Instalação
+          </h3>
+          <button onclick="document.getElementById('modal-agenda-mdf').remove()" class="text-white hover:text-emerald-200">
+            <i data-lucide="x" class="w-6 h-6"></i>
+          </button>
         </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-bold text-slate-700 mb-1">Data da Instalação *</label>
-            <input type="date" id="agenda-data" value="${dataAgendada}" min="${dataHoje}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+        
+        <div class="p-6 space-y-5">
+          <div class="bg-slate-50 p-3 rounded-lg">
+            <p class="text-xs text-slate-500 uppercase font-bold">Orçamento / Cliente</p>
+            <p class="font-bold text-slate-800">#${orcamentoId} - ${orc.cliente_nome}</p>
           </div>
-          <div>
-            <label class="block text-sm font-bold text-slate-700 mb-1">Horário *</label>
-            <input type="time" id="agenda-horario" value="${horarioAgendado}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-1">Data da Instalação *</label>
+              <input type="date" id="agenda-data" value="${dataAgendada}" min="${dataHoje}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-1">Horário *</label>
+              <input type="time" id="agenda-horario" value="${horarioAgendado}" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+            </div>
           </div>
-        </div>
 
-        <div>
-          <label class="block text-sm font-bold text-slate-700 mb-1">Status</label>
-          <select id="agenda-status" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
-            <option value="AGENDADO" ${statusAtual === 'AGENDADO' ? 'selected' : ''}>Agendado</option>
-            <option value="REAGENDADO" ${statusAtual === 'REAGENDADO' ? 'selected' : ''}>Reagendado</option>
-            <option value="CONCLUIDO" ${statusAtual === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
-            <option value="CANCELADO" ${statusAtual === 'CANCELADO' ? 'selected' : ''}>Cancelado</option>
-          </select>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-bold text-slate-700 mb-1">Instalador (nome)</label>
-            <input type="text" id="agenda-instalador-nome" value="${agenda?.instalador_nome || ''}" placeholder="Ex: João Silva" class="w-full p-2 border rounded-lg">
+            <label class="block text-sm font-bold text-slate-700 mb-1">Status</label>
+            <select id="agenda-status" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+              <option value="AGENDADO" ${statusAtual === 'AGENDADO' ? 'selected' : ''}>Agendado</option>
+              <option value="REAGENDADO" ${statusAtual === 'REAGENDADO' ? 'selected' : ''}>Reagendado</option>
+              <option value="CONCLUIDO" ${statusAtual === 'CONCLUIDO' ? 'selected' : ''}>Concluído</option>
+              <option value="CANCELADO" ${statusAtual === 'CANCELADO' ? 'selected' : ''}>Cancelado</option>
+            </select>
           </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-1">Instalador (nome)</label>
+              <input type="text" id="agenda-instalador-nome" value="${agenda?.instalador_nome || ''}" placeholder="Ex: João Silva" class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-1">Telefone do Instalador</label>
+              <input type="tel" id="agenda-instalador-tel" value="${agenda?.instalador_telefone || ''}" placeholder="(64) 99999-9999" class="w-full p-2 border rounded-lg">
+            </div>
+          </div>
+
           <div>
-            <label class="block text-sm font-bold text-slate-700 mb-1">Telefone do Instalador</label>
-            <input type="tel" id="agenda-instalador-tel" value="${agenda?.instalador_telefone || ''}" placeholder="(64) 99999-9999" class="w-full p-2 border rounded-lg">
+            <label class="block text-sm font-bold text-slate-700 mb-1">Observações</label>
+            <textarea id="agenda-obs" rows="3" placeholder="Detalhes da instalação, endereço, etc." class="w-full p-2 border rounded-lg">${agenda?.observacoes || ''}</textarea>
           </div>
-        </div>
 
-        <div>
-          <label class="block text-sm font-bold text-slate-700 mb-1">Observações</label>
-          <textarea id="agenda-obs" rows="3" placeholder="Detalhes da instalação, endereço, etc." class="w-full p-2 border rounded-lg">${agenda?.observacoes || ''}</textarea>
-        </div>
+          <!-- Campo reservado para foto (futuro) -->
+          <div class="border-t pt-3">
+            <p class="text-xs text-slate-400 flex items-center gap-1"><i data-lucide="image" class="w-3 h-3"></i> Reservado para foto do produto instalado (em breve)</p>
+            <div id="foto-preview-area" class="hidden mt-2"></div>
+          </div>
 
-        <!-- Campo reservado para foto (futuro) -->
-        <div class="border-t pt-3">
-          <p class="text-xs text-slate-400 flex items-center gap-1"><i data-lucide="image" class="w-3 h-3"></i> Reservado para foto do produto instalado (em breve)</p>
-          <div id="foto-preview-area" class="hidden mt-2"></div>
-        </div>
-
-        <div class="flex gap-3 pt-4">
-          ${agenda && agenda.status !== 'CANCELADO' ? `
-            <button id="btn-cancelar-agenda" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 font-bold py-2 rounded-lg transition flex items-center justify-center gap-2">
-              <i data-lucide="ban" class="w-4 h-4"></i> Cancelar Instalação
+          <div class="flex gap-3 pt-4">
+            ${agenda && agenda.status !== 'CANCELADO' ? `
+              <button id="btn-cancelar-agenda" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 font-bold py-2 rounded-lg transition flex items-center justify-center gap-2">
+                <i data-lucide="ban" class="w-4 h-4"></i> Cancelar Instalação
+              </button>
+            ` : ''}
+            <button id="btn-salvar-agenda" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg shadow flex items-center justify-center gap-2">
+              <i data-lucide="save"></i> Salvar Agendamento
             </button>
-          ` : ''}
-          <button id="btn-salvar-agenda" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg shadow flex items-center justify-center gap-2">
-            <i data-lucide="save"></i> Salvar Agendamento
-          </button>
-          <button id="btn-whatsapp-instalador" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg shadow flex items-center justify-center gap-2 ${!agenda?.instalador_telefone ? 'opacity-50 cursor-not-allowed' : ''}" ${!agenda?.instalador_telefone ? 'disabled' : ''}>
-            <i data-lucide="message-circle"></i> WhatsApp
-          </button>
+            <button id="btn-whatsapp-instalador" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg shadow flex items-center justify-center gap-2 ${!agenda?.instalador_telefone ? 'opacity-50 cursor-not-allowed' : ''}" ${!agenda?.instalador_telefone ? 'disabled' : ''}>
+              <i data-lucide="message-circle"></i> WhatsApp
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  `;
+    `;
 
-  document.body.appendChild(modal);
-  if (typeof lucide !== 'undefined') lucide.createIcons();
+    document.body.appendChild(modal);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  // Eventos
-  document.getElementById('btn-salvar-agenda').addEventListener('click', () => this.salvarAgenda(orcamentoId, modal));
-  if (agenda && agenda.status !== 'CANCELADO') {
-    document.getElementById('btn-cancelar-agenda')?.addEventListener('click', () => this.cancelarAgenda(orcamentoId, modal));
-  }
-  document.getElementById('btn-whatsapp-instalador')?.addEventListener('click', () => this.enviarWhatsAppInstalador(orcamentoId, agenda));
-}
-
-async salvarAgenda(orcamentoId, modal) {
-  const data = document.getElementById('agenda-data').value;
-  const horario = document.getElementById('agenda-horario').value;
-  const status = document.getElementById('agenda-status').value;
-  const instalador_nome = document.getElementById('agenda-instalador-nome').value;
-  const instalador_telefone = document.getElementById('agenda-instalador-tel').value;
-  const observacoes = document.getElementById('agenda-obs').value;
-
-  if (!data || !horario) {
-    window.showToast('Preencha data e horário.', true);
-    return;
+    // Eventos
+    document.getElementById('btn-salvar-agenda').addEventListener('click', () => this.salvarAgenda(orcamentoId, modal));
+    if (agenda && agenda.status !== 'CANCELADO') {
+      document.getElementById('btn-cancelar-agenda')?.addEventListener('click', () => this.cancelarAgenda(orcamentoId, modal));
+    }
+    document.getElementById('btn-whatsapp-instalador')?.addEventListener('click', () => this.enviarWhatsAppInstalador(orcamentoId, agenda));
   }
 
-  // Verificar se já existe agendamento
-  const { data: existente } = await supabaseClient
-    .from('mdf_agenda')
-    .select('id')
-    .eq('orcamento_id', orcamentoId)
-    .maybeSingle();
+  async salvarAgenda(orcamentoId, modal) {
+    const data = document.getElementById('agenda-data').value;
+    const horario = document.getElementById('agenda-horario').value;
+    const status = document.getElementById('agenda-status').value;
+    const instalador_nome = document.getElementById('agenda-instalador-nome').value;
+    const instalador_telefone = document.getElementById('agenda-instalador-tel').value;
+    const observacoes = document.getElementById('agenda-obs').value;
 
-  let error;
-  if (existente) {
-    const { error: err } = await supabaseClient
+    if (!data || !horario) {
+      window.showToast('Preencha data e horário.', true);
+      return;
+    }
+
+    // Verificar se já existe agendamento
+    const { data: existente } = await supabaseClient
       .from('mdf_agenda')
-      .update({
-        data_agendada: data,
-        horario,
-        status,
-        instalador_nome,
-        instalador_telefone,
-        observacoes,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', existente.id);
-    error = err;
-  } else {
-    const { error: err } = await supabaseClient
+      .select('id')
+      .eq('orcamento_id', orcamentoId)
+      .maybeSingle();
+
+    let error;
+    if (existente) {
+      const { error: err } = await supabaseClient
+        .from('mdf_agenda')
+        .update({
+          data_agendada: data,
+          horario,
+          status,
+          instalador_nome,
+          instalador_telefone,
+          observacoes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existente.id);
+      error = err;
+    } else {
+      const { error: err } = await supabaseClient
+        .from('mdf_agenda')
+        .insert({
+          orcamento_id: orcamentoId,
+          data_agendada: data,
+          horario,
+          status,
+          instalador_nome,
+          instalador_telefone,
+          observacoes
+        });
+      error = err;
+    }
+
+    if (error) {
+      window.showToast('Erro ao salvar agenda: ' + error.message, true);
+    } else {
+      window.showToast('Agendamento salvo com sucesso!');
+      modal.remove();
+      this.renderizarOrcamentos();
+    }
+  }
+
+  async cancelarAgenda(orcamentoId, modal) {
+    if (!confirm('Cancelar esta instalação? O status será alterado para CANCELADO.')) return;
+
+    const { error } = await supabaseClient
       .from('mdf_agenda')
-      .insert({
-        orcamento_id: orcamentoId,
-        data_agendada: data,
-        horario,
-        status,
-        instalador_nome,
-        instalador_telefone,
-        observacoes
+      .update({ status: 'CANCELADO', updated_at: new Date().toISOString() })
+      .eq('orcamento_id', orcamentoId);
+
+    if (error) {
+      window.showToast('Erro ao cancelar: ' + error.message, true);
+    } else {
+      window.showToast('Instalação cancelada.');
+      modal.remove();
+      this.renderizarOrcamentos();
+    }
+  }
+
+  enviarWhatsAppInstalador(orcamentoId, agenda) {
+    if (!agenda || !agenda.instalador_telefone) {
+      window.showToast('Telefone do instalador não cadastrado.', true);
+      return;
+    }
+
+    // Formatar número (remover não dígitos)
+    let numero = agenda.instalador_telefone.replace(/\D/g, '');
+    if (numero.length === 11) numero = '55' + numero;
+    else if (numero.length === 10) numero = '55' + numero;
+
+    // Mensagem padrão
+    const dataFormatada = new Date(agenda.data_agendada + 'T' + agenda.horario).toLocaleString('pt-BR');
+    const msg = `Olá ${agenda.instalador_nome || 'instalador'}! Temos uma instalação agendada para o orçamento #${orcamentoId} no dia ${dataFormatada}. Detalhes: ${agenda.observacoes || 'sem observações adicionais'}. Obrigado!`;
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  }
+
+  // ========== MÉTODOS DE BUSCA DE CLIENTES (MODAL) ==========
+  abrirModalClientes() {
+    // Remove modal existente se houver
+    const modalExistente = document.getElementById('modal-busca-clientes-mdf');
+    if (modalExistente) modalExistente.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-busca-clientes-mdf';
+    modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4';
+    modal.style.backdropFilter = 'blur(2px)';
+
+    modal.innerHTML = `
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center bg-emerald-50 rounded-t-2xl">
+          <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+            <i data-lucide="users" class="text-emerald-600"></i> Selecionar Cliente
+          </h3>
+          <button onclick="this.closest('#modal-busca-clientes-mdf').remove()" class="text-slate-400 hover:text-red-500">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div class="p-4">
+          <div class="relative">
+            <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-4 h-4"></i>
+            <input type="text" id="filtro-cliente-mdf" placeholder="Digite o nome ou parte..." 
+                   class="w-full pl-10 p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto px-4 pb-4" id="lista-clientes-modal">
+          <div class="text-center text-slate-400 py-8">Digite para buscar...</div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    // Foco no input de busca
+    const inputFiltro = document.getElementById('filtro-cliente-mdf');
+    inputFiltro.focus();
+
+    // Evento de busca em tempo real (debounce de 300ms)
+    let timeoutId = null;
+    inputFiltro.addEventListener('input', () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        this.buscarClientesModal(inputFiltro.value);
+      }, 300);
+    });
+
+    // Fechar modal ao clicar fora
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  }
+
+  async buscarClientesModal(filtro) {
+    const lista = document.getElementById('lista-clientes-modal');
+    if (!lista) return;
+
+    if (!filtro || filtro.length < 2) {
+      lista.innerHTML = '<div class="text-center text-slate-400 py-8">Digite pelo menos 2 caracteres para buscar...</div>';
+      return;
+    }
+
+    lista.innerHTML = '<div class="text-center text-slate-400 py-8">Buscando...</div>';
+
+    try {
+      const { data: clientes, error } = await supabaseClient
+        .from('clientes')
+        .select('id, nome')
+        .ilike('nome', `%${filtro}%`)
+        .order('nome')
+        .limit(20); // Limite para performance
+
+      if (error) throw error;
+
+      if (!clientes || clientes.length === 0) {
+        lista.innerHTML = '<div class="text-center text-slate-400 py-8">Nenhum cliente encontrado.</div>';
+        return;
+      }
+
+      lista.innerHTML = clientes.map(cliente => `
+        <div class="cliente-item-modal p-3 border-b hover:bg-emerald-50 cursor-pointer transition flex items-center gap-3"
+             data-id="${cliente.id}" data-nome="${cliente.nome}">
+          <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
+          <span class="font-medium text-slate-700">${cliente.nome}</span>
+        </div>
+      `).join('');
+
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      // Adicionar evento de clique em cada item
+      lista.querySelectorAll('.cliente-item-modal').forEach(item => {
+        item.addEventListener('click', () => {
+          const id = item.dataset.id;
+          const nome = item.dataset.nome;
+          this.selecionarCliente(id, nome);
+          document.getElementById('modal-busca-clientes-mdf').remove();
+        });
       });
-    error = err;
+
+    } catch (err) {
+      console.error(err);
+      lista.innerHTML = `<div class="text-center text-red-400 py-8">Erro ao buscar: ${err.message}</div>`;
+    }
   }
 
-  if (error) {
-    window.showToast('Erro ao salvar agenda: ' + error.message, true);
-  } else {
-    window.showToast('Agendamento salvo com sucesso!');
-    modal.remove();
-    // Opcional: atualizar a listagem de orçamentos para refletir o status
-    this.renderizarOrcamentos();
+  selecionarCliente(id, nome) {
+    document.getElementById('cliente-id-mdf').value = id;
+    document.getElementById('cliente-nome-mdf').value = nome;
+    // Se quiser, pode também disparar atualização de totais ou outra ação
   }
-}
-
-async cancelarAgenda(orcamentoId, modal) {
-  if (!confirm('Cancelar esta instalação? O status será alterado para CANCELADO.')) return;
-
-  const { error } = await supabaseClient
-    .from('mdf_agenda')
-    .update({ status: 'CANCELADO', updated_at: new Date().toISOString() })
-    .eq('orcamento_id', orcamentoId);
-
-  if (error) {
-    window.showToast('Erro ao cancelar: ' + error.message, true);
-  } else {
-    window.showToast('Instalação cancelada.');
-    modal.remove();
-    this.renderizarOrcamentos();
-  }
-}
-
-enviarWhatsAppInstalador(orcamentoId, agenda) {
-  if (!agenda || !agenda.instalador_telefone) {
-    window.showToast('Telefone do instalador não cadastrado.', true);
-    return;
-  }
-
-  // Formatar número (remover não dígitos)
-  let numero = agenda.instalador_telefone.replace(/\D/g, '');
-  if (numero.length === 11) numero = '55' + numero;
-  else if (numero.length === 10) numero = '55' + numero;
-
-  // Mensagem padrão
-  const dataFormatada = new Date(agenda.data_agendada + 'T' + agenda.horario).toLocaleString('pt-BR');
-  const msg = `Olá ${agenda.instalador_nome || 'instalador'}! Temos uma instalação agendada para o orçamento #${orcamentoId} no dia ${dataFormatada}. Detalhes: ${agenda.observacoes || 'sem observações adicionais'}. Obrigado!`;
-  const url = `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
-  window.open(url, '_blank');
-}
   
-}/*fechamento de Orçamentos MDF*/
-
+} // FIM DA CLASSE ORCAMENTOSMDF
 
 // ==================== INICIALIZAÇÃO GLOBAL ====================
 window.iniciarMDF = function() {
