@@ -955,9 +955,19 @@ class OrcamentosMDF {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Cliente *</label>
-                <select id="cliente-mdf" class="w-full p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
-                  <option value="">Selecione um cliente...</option>
-                </select>
+                <div>
+                  <label class="block text-sm font-bold text-slate-700 mb-1">Cliente *</label>
+                  <div class="flex gap-2">
+                    <input type="text" id="cliente-nome-mdf" readonly placeholder="Nenhum cliente selecionado" 
+                           class="flex-1 p-2 border rounded-lg bg-slate-50 text-sm cursor-pointer" 
+                           onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.abrirModalClientes()">
+                    <button type="button" onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.abrirModalClientes()" 
+                            class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 hover:bg-emerald-700">
+                      <i data-lucide="search" class="w-4 h-4"></i> Buscar
+                    </button>
+                  </div>
+                  <input type="hidden" id="cliente-id-mdf" value="">
+                </div>
               </div>
               <div>
                 <label class="block text-sm font-bold text-slate-700 mb-1">Status</label>
@@ -1282,8 +1292,12 @@ class OrcamentosMDF {
   }
 
   async salvarOrcamento() {
-    const selectCliente = document.getElementById('cliente-mdf');
-    const clienteNome = selectCliente.options[selectCliente.selectedIndex]?.text || 'Consumidor Final';
+    const clienteId = document.getElementById('cliente-id-mdf').value;
+    const clienteNome = document.getElementById('cliente-nome-mdf').value.trim() || 'Consumidor Final';
+    if (!clienteId) {
+      window.showToast('Selecione um cliente válido.', true);
+      return;
+    }
     const status = document.getElementById('status-mdf').value;
     const obs = document.getElementById('observacoes-mdf').value.trim();
     const descontoValor = parseFloat(document.getElementById('valor-desconto-mdf').value) || 0;
@@ -1639,6 +1653,8 @@ class OrcamentosMDF {
   }   
 }
 
+
+  
   async estornarOrcamento(id) {
     if (!confirm(`Estornar venda do orçamento #${id}? Isso removerá a venda do financeiro.`)) return;
     if (typeof showLoading === 'function') showLoading(true);
@@ -1948,4 +1964,119 @@ if (document.readyState === 'loading') {
       }
     };
   }
+}
+
+
+abrirModalClientes() {
+  // Remove modal existente se houver
+  const modalExistente = document.getElementById('modal-busca-clientes-mdf');
+  if (modalExistente) modalExistente.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-busca-clientes-mdf';
+  modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4';
+  modal.style.backdropFilter = 'blur(2px)';
+
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+      <div class="p-4 border-b flex justify-between items-center bg-emerald-50 rounded-t-2xl">
+        <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+          <i data-lucide="users" class="text-emerald-600"></i> Selecionar Cliente
+        </h3>
+        <button onclick="this.closest('#modal-busca-clientes-mdf').remove()" class="text-slate-400 hover:text-red-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-4">
+        <div class="relative">
+          <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-4 h-4"></i>
+          <input type="text" id="filtro-cliente-mdf" placeholder="Digite o nome ou parte..." 
+                 class="w-full pl-10 p-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto px-4 pb-4" id="lista-clientes-modal">
+        <div class="text-center text-slate-400 py-8">Digite para buscar...</div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  // Foco no input de busca
+  const inputFiltro = document.getElementById('filtro-cliente-mdf');
+  inputFiltro.focus();
+
+  // Evento de busca em tempo real (debounce de 300ms)
+  let timeoutId = null;
+  inputFiltro.addEventListener('input', () => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      this.buscarClientesModal(inputFiltro.value);
+    }, 300);
+  });
+
+  // Fechar modal ao clicar fora
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+}
+
+
+async buscarClientesModal(filtro) {
+  const lista = document.getElementById('lista-clientes-modal');
+  if (!lista) return;
+
+  if (!filtro || filtro.length < 2) {
+    lista.innerHTML = '<div class="text-center text-slate-400 py-8">Digite pelo menos 2 caracteres para buscar...</div>';
+    return;
+  }
+
+  lista.innerHTML = '<div class="text-center text-slate-400 py-8">Buscando...</div>';
+
+  try {
+    const { data: clientes, error } = await supabaseClient
+      .from('clientes')
+      .select('id, nome')
+      .ilike('nome', `%${filtro}%`)
+      .order('nome')
+      .limit(20); // Limite para performance, pode ajustar
+
+    if (error) throw error;
+
+    if (!clientes || clientes.length === 0) {
+      lista.innerHTML = '<div class="text-center text-slate-400 py-8">Nenhum cliente encontrado.</div>';
+      return;
+    }
+
+    lista.innerHTML = clientes.map(cliente => `
+      <div class="cliente-item-modal p-3 border-b hover:bg-emerald-50 cursor-pointer transition flex items-center gap-3"
+           data-id="${cliente.id}" data-nome="${cliente.nome}">
+        <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
+        <span class="font-medium text-slate-700">${cliente.nome}</span>
+      </div>
+    `).join('');
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    // Adicionar evento de clique em cada item
+    lista.querySelectorAll('.cliente-item-modal').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.dataset.id;
+        const nome = item.dataset.nome;
+        this.selecionarCliente(id, nome);
+        document.getElementById('modal-busca-clientes-mdf').remove();
+      });
+    });
+
+  } catch (err) {
+    console.error(err);
+    lista.innerHTML = `<div class="text-center text-red-400 py-8">Erro ao buscar: ${err.message}</div>`;
+  }
+}
+
+selecionarCliente(id, nome) {
+  document.getElementById('cliente-id-mdf').value = id;
+  document.getElementById('cliente-nome-mdf').value = nome;
+  // Se quiser, pode também disparar atualização de totais ou outra ação
 }
