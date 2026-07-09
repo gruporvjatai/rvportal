@@ -18,7 +18,7 @@
     <script>
         // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800) {
-          window.location.replace("mobile.htmlt=" + Date.now());
+          window.location.replace("mobile.html?t=" + Date.now());
         }
     </script>
     
@@ -3878,7 +3878,7 @@ function loadQuoteToCart(id) {
 }
         function fazerLogout() {
             localStorage.removeItem('rv_user');
-            window.location.replace('index.htmlt=' + Date.now());
+            window.location.href = "index.html?t=" + Date.now();
         }
 
         function renderUsers() {
