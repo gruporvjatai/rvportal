@@ -3462,7 +3462,8 @@ function loadQuoteToCart(id) {
                     <td colspan="3">${cli.phone || '-'}</td>
                 </tr>
             </table>
-            ${obsLimpa ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px; white-space: pre-wrap;"><strong>OBSERVAÇÕES:</strong> ${obsLimpa}</div>` : ''}
+            <!--${obsLimpa ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px; white-space: pre-wrap;"><strong>OBSERVAÇÕES:</strong> ${obsLimpa}</div>` : ''}-->
+            ${obsLimpa ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px;"><strong>OBSERVAÇÕES:</strong><br><span style="white-space: pre-wrap; word-break: break-word;">${obsLimpa}</span></div>` : ''}
         </div>
 
         <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO</div>
