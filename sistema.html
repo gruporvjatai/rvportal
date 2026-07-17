@@ -473,15 +473,33 @@
     </div>
   </div>
 
-  <!-- Conteúdo Contas a Pagar (inicialmente oculto) -->
-  <div id="finance-pagar" class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px] hidden">
-    <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
+ <div id="finance-pagar" class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px] hidden">
+    <div class="p-4 border-b bg-slate-50 rounded-t-xl flex flex-wrap justify-between items-center gap-2">
       <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-up-from-line" class="w-5 h-5 text-red-500"></i> Contas a Pagar</h3>
-      <div class="flex gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <select id="exp-category-filter" onchange="renderFinance()" class="p-1.5 border rounded-lg text-xs font-bold bg-white focus:ring-1 focus:ring-red-500 outline-none">
+          <option value="">Todas as Categorias</option>
+          <option value="Fornecedor">Fornecedor</option>
+          <option value="Salário">Salário</option>
+          <option value="Energia">Energia</option>
+          <option value="Escritorio">Escritório</option>
+          <option value="Água">Água</option>
+          <option value="Internet">Internet</option>
+          <option value="Imposto">Imposto</option>
+          <option value="Sistema">Sistema</option>
+          <option value="Contabilidade">Contabilidade</option>
+          <option value="Combustível">Combustível</option>
+          <option value="Man. Maquinas">Man. Máquinas</option>
+          <option value="Juros/Taxas">Juros/Taxas</option>
+          <option value="Veículos">Veículos</option>
+          <option value="Marcenaria">Marcenaria</option>
+          <option value="Instalação">Instalação</option>
+          <option value="Outros">Outros</option>
+        </select>
         <button onclick="printExpenses()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
-      <button onclick="openNewExpense()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1">
+        <button onclick="openNewExpense()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1">
           <i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída
-      </button>
+        </button>
       </div>
     </div>
 
@@ -501,7 +519,7 @@
         <input type="date" id="exp-start" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
         <span class="text-slate-400 text-xs">até</span>
         <input type="date" id="exp-end" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
-        <button onclick="document.getElementById('exp-search').value=''; document.getElementById('exp-status').value=''; document.getElementById('exp-start').value=''; document.getElementById('exp-end').value=''; renderFinance()" class="p-1.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-600" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="document.getElementById('exp-search').value=''; document.getElementById('exp-status').value=''; document.getElementById('exp-start').value=''; document.getElementById('exp-end').value=''; document.getElementById('exp-category-filter').value=''; renderFinance()" class="p-1.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-600" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
     </div>
 
@@ -3118,70 +3136,7 @@ function loadQuoteToCart(id) {
               recBody.innerHTML = rowsHtml + totalRowHtml;
           }
       
-          /*// ========== CONTAS A PAGAR (DESPESAS) - CORRIGIDO ==========
-          let filteredExp = STATE.expenses.slice();
-          const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
-          const statusExp = document.getElementById('exp-status')?.value || '';
-          const startExp = document.getElementById('exp-start')?.value;
-          const endExp = document.getElementById('exp-end')?.value;
-      
-          if (termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
-          if (statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
-          if (startExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] >= startExp);
-          if (endExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] <= endExp);
-      
-          filteredExp.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      
-          const expBody = document.getElementById('fin-expense-history-list');
-          if (filteredExp.length === 0) {
-              expBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
-          } else {
-              const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost, 0);
-              const rowsHtmlExp = filteredExp.map(e => {
-                  let providerVal = e.note || '-';
-                  if (providerVal.startsWith('Fornecedor:')) providerVal = providerVal.replace('Fornecedor:', '').trim();
-      
-                  const dataVencStr = (e.date || '').split('T')[0];
-                  const isVencido = dataVencStr < hojeLocalStr && e.status !== 'PAGO';
-                  const corFundo = isVencido ? 'bg-red-50/50' : (e.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : 'bg-orange-50/30');
-                  const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
-      
-                  const expenseId = e.id; // Garante que o ID seja passado como string para os eventos
-      
-                  return `<tr class="hover:bg-slate-100 ${corFundo} transition">
-                      <td class="p-3 text-xs border-r border-slate-100">
-                          <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)} ${avisoVenc}</div>
-                       </td>
-                      <td class="p-3 border-r border-slate-100">
-                          <div class="font-bold text-slate-800 text-xs">${e.item}</div>
-                          <div class="text-[10px] text-slate-500 truncate w-32" title="${providerVal}">${providerVal}</div>
-                       </td>
-                      <td class="p-3 border-r border-slate-100">
-                          <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>
-                       </td>
-                      <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                          ${e.status !== 'PAGO' ? `
-                              <button onclick="openEditExpense('${expenseId}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-                              <button onclick="payExpense('${expenseId}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
-                              <button onclick="excluirDespesa('${expenseId}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                          ` : `
-                              <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
-                              <button onclick="estornarDespesaLog('${expenseId}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5 inline"></i></button>
-                          `}
-                       </td>
-                   </tr>`;
-              }).join('');
-      
-              const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                  <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
-                  <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
-                  <td class="p-3 bg-red-50"></td>
-               </tr>`;
-              expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
-          }
-      
-          lucide.createIcons();
-      }*/
+    
 
         // ========== CONTAS A PAGAR (DESPESAS) - CORRIGIDO ==========
     let filteredExp = STATE.expenses.slice();
@@ -3189,11 +3144,13 @@ function loadQuoteToCart(id) {
     const statusExp = document.getElementById('exp-status')?.value || '';
     const startExp = document.getElementById('exp-start')?.value;
     const endExp = document.getElementById('exp-end')?.value;
+    const catFilterExp = document.getElementById('exp-category-filter')?.value || '';
 
     if (termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
     if (statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
     if (startExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] >= startExp);
     if (endExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] <= endExp);
+        if (catFilterExp) filteredExp = filteredExp.filter(e => e.item === catFilterExp);
 
     filteredExp.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
