@@ -1147,6 +1147,43 @@
         let CART = [];
         let CURRENT_QUOTE_ID = null; 
 
+      // ===== FECHAR MODAIS COM TECLA ESC =====
+        const modalCloseMap = {
+            'pos-product-modal': closePosProductModal,
+            'pos-client-modal': closePosClientModal,
+            'modal-delivery': closeDeliveryModal,
+            'client-form-container': () => document.getElementById('client-form-container').classList.add('hidden'),
+            'prod-form-container': () => document.getElementById('prod-form-container').classList.add('hidden'),
+            'user-form-container': () => document.getElementById('user-form-container').classList.add('hidden'),
+            'modal-receivable-edit': () => document.getElementById('modal-receivable-edit').classList.add('hidden'),
+            'modal-revenue': () => document.getElementById('modal-revenue').classList.add('hidden'),
+            'modal-expense': closeExpenseModal,
+            'pos-history-modal': closePosHistoryModal,
+            'modal-period-report': closePeriodReportModal,
+            'modal-partner-report': closePartnerModal,
+            'modal-stock-count-filters': closeStockCountFilters
+        };
+        
+        function closeAllModals() {
+            for (const [modalId, closeFn] of Object.entries(modalCloseMap)) {
+                const element = document.getElementById(modalId);
+                if (element && !element.classList.contains('hidden')) {
+                    closeFn();
+                }
+            }
+        }
+        
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' || event.key === 'Esc') {
+                const tag = document.activeElement?.tagName?.toLowerCase();
+                if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+                    return; // não fecha se estiver digitando
+                }
+                closeAllModals();
+            }
+        });
+        // ===== FIM =====
+
         // ====== 4. INICIALIZAÇÃO E HELPERS ======
         window.onload = function() { 
             if (dadosUsuario) {
@@ -1188,7 +1225,7 @@
     if(viewId === 'quotes') renderQuotesList();
     if(viewId === 'expedition') renderExpedition();
     if(viewId === 'fin') renderFinance();
-    if (viewId === 'equipe') { if (typeof renderEquipe === 'function') renderEquipe(); }
+    if(viewId === 'equipe') { if (typeof renderEquipe === 'function') renderEquipe(); }
     if(viewId === 'clients') renderClients();
     if(viewId === 'prod') renderProducts();
     if(viewId === 'production') renderProductionSelect();
