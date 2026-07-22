@@ -2506,6 +2506,8 @@ function printStockCountSheet() {
           if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
+        
+
         function renderRecentHistory() { 
             const salesMap = {};
             (STATE.logs||[]).filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
@@ -2516,7 +2518,23 @@ function printStockCountSheet() {
                 salesMap[l.id].itemsText += l.productName + " ";
             });
             
-            let recentSales = Object.values(salesMap).sort((a,b) => b.id - a.id); 
+            // ALTERAÇÃO AQUI: ordenar pela data da venda (mais recente primeiro)
+            let recentSales = Object.values(salesMap).sort((a,b) => new Date(b.date) - new Date(a.date)); 
+            
+            // Restante do código permanece igual...
+
+  
+        /*function renderRecentHistory() { 
+            const salesMap = {};
+            (STATE.logs||[]).filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
+                if(!salesMap[l.id]) {
+                    salesMap[l.id] = { id: l.id, date: l.date, client: l.clientName, itemsText: '', valorFinal: 0 };
+                }
+                salesMap[l.id].valorFinal += l.totalValue; 
+                salesMap[l.id].itemsText += l.productName + " ";
+            });
+            
+            let recentSales = Object.values(salesMap).sort((a,b) => b.id - a.id); */
             
             const term = document.getElementById('pos-hist-search')?.value.toLowerCase() || '';
             const startDate = document.getElementById('pos-hist-start')?.value;
