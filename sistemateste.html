@@ -4943,220 +4943,427 @@ function printPartnerReport() {
     setTimeout(() => window.print(), 500);
 }
 
-// ==================== OCR.space INTEGRAÇÃO ====================
+// ==================== OCR.space INTEGRAÇÃO (v2 - blindada) ====================
+// Reescrita com múltiplas estratégias de extração + validação de cada campo.
 
-// Sua chave da API OCR.space (substitua pela sua)
 const OCR_API_KEY = 'K89777209588957';
 
-// Função principal para processar o documento
+// ---------------------------------------------------------------------------
+// UTILITÁRIOS GERAIS
+// ---------------------------------------------------------------------------
+
+/** Remove acentos e baixa a caixa, mantendo o texto pesquisável de forma consistente. */
+function normalize(str) {
+    return (str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+}
+
+/** Converte string monetária BR ("1.234,56" ou "1234,56" ou "1234.56") para Number. */
+function parseBRLNumber(raw) {
+    if (!raw) return NaN;
+    let s = raw.trim();
+
+    const hasComma = s.includes(',');
+    const hasDot = s.includes('.');
+
+    if (hasComma && hasDot) {
+        // formato 1.234,56 -> remove pontos (milhar), troca vírgula por ponto
+        s = s.replace(/\./g, '').replace(',', '.');
+    } else if (hasComma && !hasDot) {
+        // formato 1234,56
+        s = s.replace(',', '.');
+    } else if (!hasComma && hasDot) {
+        // pode ser "1234.56" (decimal) ou "1.234" (milhar sem centavos)
+        const parts = s.split('.');
+        if (parts[parts.length - 1].length === 2) {
+            // último grupo com 2 dígitos = decimal
+            s = s;
+        } else {
+            // trata como separador de milhar
+            s = s.replace(/\./g, '');
+        }
+    }
+
+    const value = parseFloat(s);
+    return isNaN(value) ? NaN : value;
+}
+
+/** Valida se uma data (ano, mes, dia) é uma data real e plausível para um comprovante. */
+function isPlausibleDate(day, month, year) {
+    day = parseInt(day, 10);
+    month = parseInt(month, 10);
+    year = parseInt(year, 10);
+
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+    if (month < 1 || month > 12) return false;
+    if (day < 1 || day > 31) return false;
+
+    const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+    if (day > daysInMonth) return false;
+
+    const currentYear = new Date().getFullYear();
+    if (year < 2000 || year > currentYear + 1) return false;
+
+    return true;
+}
+
+function normalizeYear(rawYear) {
+    let year = String(rawYear);
+    if (year.length === 2) {
+        const currentTwoDigit = new Date().getFullYear() % 100;
+        // assume século 2000, a não ser que fique muito no futuro
+        const asNumber = parseInt(year, 10);
+        year = (asNumber > currentTwoDigit + 1 ? '19' : '20') + year;
+    }
+    return year;
+}
+
+// ---------------------------------------------------------------------------
+// EXTRAÇÃO: FORNECEDOR / NOME
+// ---------------------------------------------------------------------------
+
+const FORNECEDOR_LABEL_PATTERNS = [
+    /(?:Destinat[aá]rio|Favorecido|Benefici[aá]rio|Nome do Destinat[aá]rio|Recebedor)\s*[:\-]?\s*([A-Za-zÀ-ÖØ-öø-ÿ'.\s]{3,60}?)(?=\s+(?:CNPJ|CPF|Institui[cç][aã]o|Chave|Valor|Data|ID|Ag[eê]ncia|Conta|$))/i,
+    /(?:Pagador|Remetente|Origem|De)\s*[:\-]?\s*([A-Za-zÀ-ÖØ-öø-ÿ'.\s]{3,60}?)(?=\s+(?:CNPJ|CPF|Institui[cç][aã]o|Chave|Valor|Data|ID|Ag[eê]ncia|Conta|$))/i,
+    /(?:Fornecedor|Prestador|Empresa|Raz[aã]o Social|Nome Fantasia)\s*[:\-]?\s*([A-Za-zÀ-ÖØ-öø-ÿ0-9'.\s]{3,60})/i,
+    /Destino\s+Nome\s+([A-Za-zÀ-ÖØ-öø-ÿ'.\s]{3,60}?)(?=\s+(?:CNPJ|CPF|Institui[cç][aã]o|Chave|Valor|Data|ID|$))/i,
+];
+
+// Termos que jamais devem ser confundidos com nome de fornecedor.
+const FORNECEDOR_BLACKLIST_REGEX = new RegExp(
+    '^(pix|ted|doc|boleto|transferencia|pagamento|comprovante|recibo|cpf|cnpj|' +
+    'chave|agencia|conta|instituicao|banco|valor|data|hora|id|total|autenticacao|' +
+    'protocolo|nubank|itau|bradesco|santander|caixa|inter|c6 bank|banco do brasil)\\b',
+    'i'
+);
+
+function looksLikeRealName(candidate) {
+    if (!candidate) return false;
+    const trimmed = candidate.trim();
+    if (trimmed.length < 3 || trimmed.length > 60) return false;
+    if (/^\d/.test(trimmed)) return false; // começa com número = não é nome
+    if (/^\d{2}[\/\-]\d{2}/.test(trimmed)) return false; // é data
+    if (/^R?\$?\s*[\d.,]+$/.test(trimmed)) return false; // é valor
+    if (FORNECEDOR_BLACKLIST_REGEX.test(normalize(trimmed))) return false;
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    if (words.length > 8) return false; // nome improvável de ser tão longo
+    return true;
+}
+
+function extractFornecedor(cleanText, lines) {
+    // Estratégia 1: padrões rotulados (mais confiáveis)
+    for (const pattern of FORNECEDOR_LABEL_PATTERNS) {
+        const match = cleanText.match(pattern);
+        if (match) {
+            const candidate = match[1].replace(/\s+/g, ' ').trim();
+            if (looksLikeRealName(candidate)) {
+                return candidate;
+            }
+        }
+    }
+
+    // Estratégia 2: varre linhas procurando algo que pareça um nome próprio
+    const candidateLines = lines
+        .map(l => l.trim())
+        .filter(l => l.length > 5 && l.length < 60);
+
+    for (const line of candidateLines) {
+        if (/^\d{1,2}\s+[A-Za-z]{3,}\s+\d{2,4}/.test(line)) continue; // data por extenso
+        if (/^\d{2}[\/\-]\d{2}[\/\-]\d{2,4}/.test(line)) continue;    // data numérica
+        if (/^R?\$?\s*[\d.,]+$/.test(line)) continue;                 // valor
+        if (/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(line.replace(/\s/g, ''))) continue; // CPF
+        if (/^\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}$/.test(line.replace(/\s/g, ''))) continue; // CNPJ
+
+        if (looksLikeRealName(line)) {
+            const words = line.split(/\s+/);
+            const looksLikeName = words.length >= 2 &&
+                (/^[A-ZÀ-Ö]/.test(line) || line === line.toUpperCase());
+            if (looksLikeName) return line;
+        }
+    }
+
+    return '';
+}
+
+// ---------------------------------------------------------------------------
+// EXTRAÇÃO: VALOR
+// ---------------------------------------------------------------------------
+
+function extractValor(cleanText) {
+    // Junta todos os candidatos monetários encontrados no texto, com contexto.
+    const moneyRegex = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}|\d{1,3}(?:,\d{3})*\.\d{2})/g;
+
+    const candidates = [];
+    let match;
+    while ((match = moneyRegex.exec(cleanText)) !== null) {
+        const value = parseBRLNumber(match[1]);
+        if (isNaN(value) || value <= 0 || value > 100000000) continue;
+
+        const contextStart = Math.max(0, match.index - 25);
+        const context = normalize(cleanText.substring(contextStart, match.index));
+
+        let score = 0;
+        if (/\btotal\b/.test(context)) score += 3;
+        if (/\bvalor\b/.test(context)) score += 2;
+        if (/\bpago\b|\bpagamento\b/.test(context)) score += 1;
+        if (/\bcpf\b|\bcnpj\b|\bagencia\b|\bconta\b|\bid\b/.test(context)) score -= 3;
+
+        candidates.push({ value, score, index: match.index });
+    }
+
+    if (candidates.length === 0) return '';
+
+    // Prioriza maior score; empate = primeira ocorrência no texto.
+    candidates.sort((a, b) => b.score - a.score || a.index - b.index);
+    return candidates[0].value.toFixed(2);
+}
+
+// ---------------------------------------------------------------------------
+// EXTRAÇÃO: DATA
+// ---------------------------------------------------------------------------
+
+const MESES = {
+    'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04', 'mai': '05', 'jun': '06',
+    'jul': '07', 'ago': '08', 'set': '09', 'out': '10', 'nov': '11', 'dez': '12',
+    'janeiro': '01', 'fevereiro': '02', 'marco': '03', 'abril': '04', 'maio': '05',
+    'junho': '06', 'julho': '07', 'agosto': '08', 'setembro': '09', 'outubro': '10',
+    'novembro': '11', 'dezembro': '12'
+};
+
+function extractData(cleanText) {
+    const normalized = normalize(cleanText);
+    const mesKeys = Object.keys(MESES).sort((a, b) => b.length - a.length).join('|');
+
+    // 1) Data por extenso: "23 jul 2026", "23 de julho de 2026"
+    const extRegex = new RegExp('(\\d{1,2})\\s+(?:de\\s+)?(' + mesKeys + ')\\.?\\s+(?:de\\s+)?(\\d{2,4})', 'i');
+    const extMatch = normalized.match(extRegex);
+    if (extMatch) {
+        const day = extMatch[1].padStart(2, '0');
+        const month = MESES[extMatch[2]];
+        const year = normalizeYear(extMatch[3]);
+        if (isPlausibleDate(day, month, year)) {
+            return `${year}-${month}-${day}`;
+        }
+    }
+
+    // 2) Data numérica: dd/mm/aaaa, dd-mm-aaaa, dd.mm.aaaa
+    const numRegex = /(\d{2})[\/\-.](\d{2})[\/\-.](\d{2,4})/g;
+    let numMatch;
+    while ((numMatch = numRegex.exec(cleanText)) !== null) {
+        const day = numMatch[1];
+        const month = numMatch[2];
+        const year = normalizeYear(numMatch[3]);
+        if (isPlausibleDate(day, month, year)) {
+            return `${year}-${month}-${day}`;
+        }
+    }
+
+    // 3) Formato ISO já pronto: aaaa-mm-dd
+    const isoMatch = cleanText.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+        const [, year, month, day] = isoMatch;
+        if (isPlausibleDate(day, month, year)) {
+            return `${year}-${month}-${day}`;
+        }
+    }
+
+    return '';
+}
+
+// ---------------------------------------------------------------------------
+// EXTRAÇÃO: CPF / CNPJ / TIPO DE TRANSAÇÃO (campos extras úteis)
+// ---------------------------------------------------------------------------
+
+function extractDocumento(cleanText) {
+    const cnpjMatch = cleanText.match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/);
+    if (cnpjMatch) return { tipo: 'CNPJ', valor: cnpjMatch[0] };
+
+    const cpfMatch = cleanText.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+    if (cpfMatch) return { tipo: 'CPF', valor: cpfMatch[0] };
+
+    return null;
+}
+
+function extractTipoTransacao(normalizedText) {
+    if (/\bpix\b/.test(normalizedText)) return 'Pix';
+    if (/\bted\b/.test(normalizedText)) return 'TED';
+    if (/\bdoc\b/.test(normalizedText)) return 'DOC';
+    if (/\bboleto\b/.test(normalizedText)) return 'Boleto';
+    return '';
+}
+
+// ---------------------------------------------------------------------------
+// EXTRAÇÃO: CATEGORIA
+// ---------------------------------------------------------------------------
+
+const CATEGORIAS = {
+    'Energia': ['equatorial', 'energia', 'luz', 'eletricidade', 'concessionaria', 'celg', 'cemig'],
+    'Agua': ['saneago', 'brk', 'agua', 'saneamento', 'abastecimento', 'esgoto'],
+    'Internet': ['internet', 'vivo', 'fibra', 'banda larga', 'telecom', 'wifi', 'claro', 'tim', 'oi'],
+    'Combustivel': ['combustivel', 'etanol', 'gasolina', 'diesel', 'posto', 'gnv'],
+    'Salario': ['salario', 'diaria', 'folha', 'pagamento de funcionario', 'holerite'],
+    'Fornecedor': ['fornecedor', 'madeira', 'pinus', 'tauari', 'parafuso', 'arame', 'prego',
+        'porta', 'portal', 'materia prima', 'insumo', 'material de construcao'],
+    'Man. Maquinas': ['manutencao', 'maquina', 'equipamento', 'reparo', 'peca'],
+    'Imposto': ['imposto', 'taxa', 'fgts', 'inss', 'iss', 'icms', 'darf', 'simples nacional'],
+    'Veiculos': ['veiculo', 'carro', 'manutencao veicular', 'pneu', 'oficina'],
+    'Marcenaria': ['marcenaria', 'cola', 'selador', 'seladora', 'estopa', 'carpintaria', 'verniz'],
+    'Instalacao': ['instalacao', 'montagem', 'servico de instalacao'],
+};
+
+function extractCategoria(normalizedText) {
+    for (const [categoria, keywords] of Object.entries(CATEGORIAS)) {
+        for (const keyword of keywords) {
+            const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp('\\b' + escaped + '\\b', 'i');
+            if (regex.test(normalizedText)) {
+                return categoria;
+            }
+        }
+    }
+    return 'Outros';
+}
+
+// ---------------------------------------------------------------------------
+// ORQUESTRADOR PRINCIPAL DE EXTRAÇÃO
+// ---------------------------------------------------------------------------
+
+function extractDataFromText(text) {
+    const cleanText = (text || '').replace(/[ \t]+/g, ' ').replace(/\r/g, '').trim();
+    const normalized = normalize(cleanText);
+
+    const lines = cleanText
+        .split(/\n|\.\s+|,\s{2,}/)
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+
+    const fornecedor = extractFornecedor(cleanText, lines);
+    const valor = extractValor(cleanText);
+    const data = extractData(cleanText);
+    const categoria = extractCategoria(normalized);
+    const documento = extractDocumento(cleanText);
+    const tipoTransacao = extractTipoTransacao(normalized);
+
+    const observacao = [
+        tipoTransacao ? `Tipo: ${tipoTransacao}` : '',
+        documento ? `${documento.tipo}: ${documento.valor}` : '',
+    ].filter(Boolean).join(' | ') || cleanText.substring(0, 200);
+
+    return {
+        fornecedor,
+        valor,
+        data,
+        categoria,
+        documento,
+        tipoTransacao,
+        observacao,
+        textoOriginal: cleanText,
+    };
+}
+
+// ---------------------------------------------------------------------------
+// PROCESSAMENTO DO DOCUMENTO (chamada à API + preenchimento do formulário)
+// ---------------------------------------------------------------------------
+
 async function processDocument(file) {
     if (!file) return;
-    
-    // Valida tamanho (máx 1MB no plano gratuito)
-    if (file.size > 1024 * 1024) {
-        showToast("Arquivo muito grande. O plano gratuito aceita até 1MB.", true);
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+        showToast('Formato não suportado. Envie JPG, PNG, WEBP, BMP ou PDF.', true);
         return;
     }
-    
+
+    if (file.size > 1024 * 1024) {
+        showToast('Arquivo muito grande. O plano gratuito aceita até 1MB.', true);
+        return;
+    }
+
     showLoading(true);
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('apikey', OCR_API_KEY);
-    formData.append('language', 'por');          // Português
-    formData.append('OCREngine', '2');           // Engine 2 = mais preciso (recomendado)
-    formData.append('scale', 'true');            // Melhora qualidade de imagens pequenas
-    formData.append('isTable', 'false');         // Não forçar tabela
+    formData.append('language', 'por');
+    formData.append('OCREngine', '2');
+    formData.append('scale', 'true');
+    formData.append('isTable', 'false');
 
     try {
         const response = await fetch('https://api.ocr.space/parse/image', {
             method: 'POST',
-            body: formData
+            body: formData,
         });
+
+        if (!response.ok) {
+            throw new Error(`Falha na comunicação com o servidor OCR (HTTP ${response.status}).`);
+        }
 
         const data = await response.json();
 
-        if (!data.ParsedResults || data.ParsedResults.length === 0) {
-            throw new Error("Nenhum texto foi reconhecido.");
+        if (data.IsErroredOnProcessing) {
+            const apiMessage = Array.isArray(data.ErrorMessage)
+                ? data.ErrorMessage.join('; ')
+                : (data.ErrorMessage || 'Erro desconhecido no processamento.');
+            throw new Error(apiMessage);
         }
 
-        const text = data.ParsedResults[0].ParsedText;
+        if (!data.ParsedResults || data.ParsedResults.length === 0) {
+            throw new Error('Nenhum texto foi reconhecido no documento.');
+        }
 
-        // Extrai os dados do texto
+        const parsedResult = data.ParsedResults[0];
+        if (parsedResult.ErrorMessage) {
+            throw new Error(parsedResult.ErrorMessage);
+        }
+
+        const text = parsedResult.ParsedText || '';
+        if (!text.trim()) {
+            throw new Error('O documento não contém texto legível.');
+        }
+
         const extracted = extractDataFromText(text);
 
-        // Preenche o modal
-        document.getElementById('exp-item').value = extracted.categoria || 'Outros';
-        document.getElementById('exp-provider').value = extracted.fornecedor || '';
-        document.getElementById('exp-cost').value = extracted.valor || '';
+        fillFieldSafely('exp-item', extracted.categoria || 'Outros');
+        fillFieldSafely('exp-provider', extracted.fornecedor || '');
+        fillFieldSafely('exp-cost', extracted.valor || '');
         if (extracted.data) {
-            document.getElementById('exp-date').value = extracted.data;
+            fillFieldSafely('exp-date', extracted.data);
         }
-        document.getElementById('exp-note').value = extracted.observacao || 'Extraído via OCR';
+        fillFieldSafely('exp-note', extracted.observacao || 'Extraído via OCR');
 
-        showToast("Dados extraídos! Confira e salve.");
+        const camposFaltando = [];
+        if (!extracted.fornecedor) camposFaltando.push('fornecedor');
+        if (!extracted.valor) camposFaltando.push('valor');
+        if (!extracted.data) camposFaltando.push('data');
+
+        if (camposFaltando.length > 0) {
+            showToast(`Dados extraídos parcialmente. Confira: ${camposFaltando.join(', ')}.`, true);
+        } else {
+            showToast('Dados extraídos com sucesso! Confira e salve.');
+        }
     } catch (error) {
-        showToast("Erro ao processar documento: " + error.message, true);
-        console.error(error);
+        showToast('Erro ao processar documento: ' + error.message, true);
+        console.error('[OCR] Erro:', error);
+    } finally {
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) fileInput.value = '';
+        showLoading(false);
     }
-
-    // Limpa o input para permitir reenvio do mesmo arquivo
-    document.getElementById('file-input').value = '';
-    showLoading(false);
 }
 
-function extractDataFromText(text) {
-    // Normaliza o texto: remove espaços extras, quebras de linha, etc.
-    const cleanText = text.replace(/\s+/g, ' ').trim();
-    
-    // Tenta quebrar em linhas separadas por ponto, vírgula, ou espaços longos
-    // para facilitar a busca por padrões
-    const lines = cleanText.split(/\n|\.\s*|,\s*/).filter(line => line.trim().length > 0);
-
-    // ====== 1. EXTRAIR FORNECEDOR ======
-    let fornecedor = '';
-
-    // Padrões para comprovantes bancários (Pix, TED, DOC, etc.)
-    const patterns = [
-        /(?:Destino|Favorecido|Beneficiário|Nome do Destinatário|Para|Transferido para)\s*[:]?\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]+?)(?=\s+(?:CNPJ|CPF|Instituição|Chave|Valor|Data|ID|$))/i,
-        /(?:Pagador|Remetente|Origem)\s*[:]?\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]+?)(?=\s+(?:CNPJ|CPF|Instituição|Chave|Valor|Data|ID|$))/i,
-        /(?:Fornecedor|Prestador|Empresa|Razão Social|Nome)\s*[:]?\s*([^\n\r]+)/i
-    ];
-
-    // Tenta encontrar em todo o texto
-    for (let pattern of patterns) {
-        const match = cleanText.match(pattern);
-        if (match) {
-            fornecedor = match[1].trim();
-            // Se o nome tiver mais de 50 caracteres ou estiver muito longo, descarta
-            if (fornecedor.length > 50 || fornecedor.split(' ').length > 10) {
-                fornecedor = '';
-                continue;
-            }
-            break;
-        }
-    }
-
-    // Se não encontrou, tenta procurar por "CASA DAS MAQUINAS" (exemplo do usuário)
-    // ou qualquer palavra que pareça nome de empresa (pelo menos 2 palavras, com maiúsculas)
-    if (!fornecedor) {
-        const linesClean = lines.filter(line => line.trim().length > 5);
-        for (let line of linesClean) {
-            const trimmed = line.trim();
-            // Ignora linhas que são claramente datas, valores, ou IDs
-            if (/^\d{1,2}\s+[A-Za-z]{3}\s+\d{2,4}/.test(trimmed)) continue; // data
-            if (/^R?\$?\s*[\d,.]+/.test(trimmed)) continue; // valor
-            if (/^[A-Z0-9]{8,}/.test(trimmed)) continue; // ID
-            if (/^(?:Pix|TED|DOC|Transferência|Pagame)/i.test(trimmed)) continue; // tipo
-            // Se a linha tem pelo menos 2 palavras e não é muito curta
-            if (trimmed.split(/\s+/).length >= 2 && trimmed.length > 3) {
-                // Verifica se parece um nome próprio (começa com maiúscula ou tem palavras com maiúsculas)
-                if (/[A-Z]/.test(trimmed[0]) || trimmed.toUpperCase() === trimmed) {
-                    fornecedor = trimmed;
-                    break;
-                }
-            }
-        }
-    }
-
-    // Se ainda não encontrou, pega a primeira palavra após "Destino Nome" ou "Para"
-    const destinoMatch = cleanText.match(/Destino\s+Nome\s+([A-Za-zÀ-ÖØ-öø-ÿ\s]+?)(?=\s+(?:CNPJ|CPF|Instituição|Chave|Valor|Data|ID|$))/i);
-    if (destinoMatch) {
-        fornecedor = destinoMatch[1].trim();
-    }
-
-    // ====== 2. EXTRAIR VALOR TOTAL ======
-    let valor = '';
-    // Padrões para valores monetários
-    const valorMatch = cleanText.match(/(?:Total|Valor|Vlr\.?|R\$)\s*[:]?\s*R?\$?\s*([\d,.]+)/i);
-    if (valorMatch) {
-        let rawValor = valorMatch[1].replace(/\./g, '').replace(',', '.');
-        valor = parseFloat(rawValor);
-        if (!isNaN(valor)) {
-            valor = valor.toFixed(2);
-        } else {
-            valor = '';
-        }
+/** Preenche um campo do DOM apenas se ele existir, evitando erros de referência nula. */
+function fillFieldSafely(elementId, value) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.value = value;
     } else {
-        // Fallback: procura por números com duas casas decimais após vírgula
-        const fallbackMatch = cleanText.match(/(\d{1,3}(?:\.\d{3})*,\d{2})/);
-        if (fallbackMatch) {
-            let rawValor = fallbackMatch[1].replace(/\./g, '').replace(',', '.');
-            valor = parseFloat(rawValor);
-            if (!isNaN(valor)) {
-                valor = valor.toFixed(2);
-            }
-        }
+        console.warn(`[OCR] Campo #${elementId} não encontrado no DOM.`);
     }
-
-    // ====== 3. EXTRAIR DATA DE VENCIMENTO ======
-    let data = '';
-    // Padrão para data com mês por extenso (ex: 23 JUL 2026)
-    const meses = {
-        'JAN': '01', 'FEV': '02', 'MAR': '03', 'ABR': '04', 'MAI': '05', 'JUN': '06',
-        'JUL': '07', 'AGO': '08', 'SET': '09', 'OUT': '10', 'NOV': '11', 'DEZ': '12'
-    };
-    const mesPattern = Object.keys(meses).join('|');
-    const dateMatchExt = cleanText.match(/(\d{1,2})\s+(' + mesPattern + ')\s+(\d{2,4})/i);
-    if (dateMatchExt) {
-        let day = dateMatchExt[1].padStart(2, '0');
-        let month = meses[dateMatchExt[2].toUpperCase()] || '01';
-        let year = dateMatchExt[3];
-        if (year.length === 2) {
-            year = '20' + year;
-        }
-        data = `${year}-${month}-${day}`;
-    } else {
-        // Fallback: padrão numérico (dd/mm/aaaa, dd-mm-aaaa, etc.)
-        const dateMatchNum = cleanText.match(/(\d{2}[\/\-]\d{2}[\/\-]\d{2,4})/);
-        if (dateMatchNum) {
-            let rawDate = dateMatchNum[1];
-            const parts = rawDate.split(/[\/\-]/);
-            let day = parts[0].padStart(2, '0');
-            let month = parts[1].padStart(2, '0');
-            let year = parts[2];
-            if (year.length === 2) {
-                year = '20' + year;
-            }
-            data = `${year}-${month}-${day}`;
-        }
-    }
-
-    // ====== 4. CATEGORIA (mantida igual ao seu código) ======
-    let categoria = 'Outros';
-    const lowerText = cleanText.toLowerCase();
-    const categorias = {
-        'Energia': ['equatorial', 'energia', 'luz', 'eletricidade', 'concessionária'],
-        'Água': ['saneago', 'brk', 'água', 'saneamento', 'abastecimento'],
-        'Internet': ['internet', 'vivo', 'fibra', 'banda larga', 'telecom'],
-        'Combustível': ['combustível', 'etanol', 'gasolina', 'diesel', 'posto'],
-        'Salário': ['salário', 'diaria', 'folha', 'pagamento de funcionário'],
-        'Fornecedor': ['fornecedor', 'madeira', 'pinus', 'tauari', 'parafuso', 'arame', 'prego', 'porta', 'portal', 'matéria-prima', 'insumo', 'material'],
-        'Man. Maquinas': ['manutenção', 'máquina', 'equipamento', 'reparo'],
-        'Imposto': ['imposto', 'taxa', 'fgts', 'inss', 'iss', 'icms'],
-        'Veículos': ['veículo', 'carro', 'manutenção veicular'],
-        'Marcenaria': ['marcenaria', 'cola', 'selador', 'seladora', 'estopa', 'madeira', 'carpintaria'],
-        'Instalação': ['instalação', 'montagem', 'serviço de instalação']
-    };
-
-    for (const [cat, keywords] of Object.entries(categorias)) {
-        if (keywords.some(kw => lowerText.includes(kw))) {
-            categoria = cat;
-            break;
-        }
-    }
-
-    // ====== 5. OBSERVAÇÃO (resumo do texto) ======
-    const observacao = cleanText.substring(0, 200);
-
-    return {
-        fornecedor: fornecedor,
-        valor: valor,
-        data: data,
-        categoria: categoria,
-        observacao: observacao
-    };
-}  
+}
+  
     </script> 
     <script type="importmap">
       {
