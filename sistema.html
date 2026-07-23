@@ -2611,7 +2611,7 @@ function printStockCountSheet() {
                     let num = cli.phone.replace(/\D/g, '');
                     if (num.length >= 10) {
                         if (!num.startsWith('55')) num = '55' + num;
-                        const msg = encodeURIComponent(`Olá ${cli.name}, aqui é da RV Portal. Segue o Orçamento #${q.id} no valor de ${formatMoney(valorLiquido)}. Podemos fechar?`);
+                        const msg = encodeURIComponent(`Olá ${cli.name}, aqui é da RV Portal. Orçamento #${q.id} no valor de ${formatMoney(valorLiquido)}. Podemos fechar?`);
                         zapLink = `https://wa.me/${num}?text=${msg}`;
                         btnZapClass = "text-green-500 hover:text-green-700 bg-white border-green-200 hover:bg-green-50";
                     }
