@@ -14,6 +14,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <script>
         // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
@@ -997,12 +998,22 @@
         </div>
     </div>
 
-    <div id="modal-expense" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+       <div id="modal-expense" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-slate-50">
-                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="minus-circle" class="text-red-500"></i> Registrar Nova Saída</h3>
-                <!--<button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>-->
-                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+                <div class="flex items-center gap-3">
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                        <i data-lucide="minus-circle" class="text-red-500"></i> Registrar Saída
+                    </h3>
+                    <button onclick="document.getElementById('file-input').click()" 
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow transition">
+                        <i data-lucide="upload"></i> Ler Documento
+                    </button>
+                    <input type="file" id="file-input" accept="image/*,application/pdf" style="display:none" onchange="processDocument(this.files[0])">
+                </div>
+                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-red-500">
+                    <i data-lucide="x"></i>
+                </button>
             </div>
             <div class="p-6 space-y-4 overflow-y-auto">
                  <input type="hidden" id="exp-id">
@@ -4931,6 +4942,200 @@ function printPartnerReport() {
     showLoading(false);
     setTimeout(() => window.print(), 500);
 }
+
+// ==================== OCR.space INTEGRAÇÃO ====================
+
+
+
+// Sua chave da API OCR.space (substitua pela sua)
+const OCR_API_KEY = 'K89777209588957';
+
+// Função principal para processar o documento
+async function processDocument(file) {
+    if (!file) return;
+    
+    // Valida tamanho (máx 1MB no plano gratuito)
+    if (file.size > 1024 * 1024) {
+        showToast("Arquivo muito grande. O plano gratuito aceita até 1MB.", true);
+        return;
+    }
+    
+    showLoading(true);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('apikey', OCR_API_KEY);
+    formData.append('language', 'por');          // Português
+    formData.append('OCREngine', '2');           // Engine 2 = mais preciso (recomendado)
+    formData.append('scale', 'true');            // Melhora qualidade de imagens pequenas
+    formData.append('isTable', 'false');         // Não forçar tabela
+
+    try {
+        const response = await fetch('https://api.ocr.space/parse/image', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (!data.ParsedResults || data.ParsedResults.length === 0) {
+            throw new Error("Nenhum texto foi reconhecido.");
+        }
+
+        const text = data.ParsedResults[0].ParsedText;
+        console.log('🔍 Texto bruto do OCR:', text);
+
+        // Extrai os dados do texto
+        const extracted = extractDataFromText(text);
+
+        // Preenche o modal
+        document.getElementById('exp-item').value = extracted.categoria || 'Outros';
+        document.getElementById('exp-provider').value = extracted.fornecedor || '';
+        document.getElementById('exp-cost').value = extracted.valor || '';
+        if (extracted.data) {
+            document.getElementById('exp-date').value = extracted.data;
+        }
+        document.getElementById('exp-note').value = extracted.observacao || 'Extraído via OCR';
+
+        showToast("Dados extraídos! Confira e salve.");
+    } catch (error) {
+        showToast("Erro ao processar documento: " + error.message, true);
+        console.error(error);
+    }
+
+    // Limpa o input para permitir reenvio do mesmo arquivo
+    document.getElementById('file-input').value = '';
+    showLoading(false);
+}
+
+function extractDataFromText(text) {
+    // Remove múltiplos espaços, mas mantém quebras de linha para processamento
+    const clean = text.replace(/\r\n/g, '\n').trim();
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+
+    // ===== 1. VALOR =====
+    let valor = '';
+    // Procura por "Valor" seguido de qualquer coisa até encontrar R$ e número
+    const valorMatch = clean.match(/Valor[\s\S]*?R?\$?\s*([\d,.]+)/);
+    if (valorMatch) {
+        let raw = valorMatch[1].replace(/\./g, '').replace(',', '.');
+        const num = parseFloat(raw);
+        if (!isNaN(num)) valor = num.toFixed(2);
+    }
+
+    // ===== 2. DATA =====
+    let data = '';
+    const meses = {
+        'JAN':'01','FEV':'02','MAR':'03','ABR':'04','MAI':'05','JUN':'06',
+        'JUL':'07','AGO':'08','SET':'09','OUT':'10','NOV':'11','DEZ':'12'
+    };
+    // Busca por dd MMM aaaa
+    const mesPattern = Object.keys(meses).join('|');
+    const dateMatch = clean.match(new RegExp(`(\\d{1,2})\\s+(${mesPattern})\\s+(\\d{4})`, 'i'));
+    if (dateMatch) {
+        const day = dateMatch[1].padStart(2, '0');
+        const month = meses[dateMatch[2].toUpperCase()];
+        const year = dateMatch[3];
+        data = `${year}-${month}-${day}`;
+    } else {
+        // Fallback para dd/mm/aaaa
+        const fb = clean.match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+        if (fb) data = `${fb[3]}-${fb[2]}-${fb[1]}`;
+    }
+
+    // ===== 3. FORNECEDOR =====
+    let fornecedor = '';
+    // Procura por "Destino" seguido de "Nome" e depois captura a próxima linha que não seja "CNPJ" etc.
+    const destinoIndex = clean.search(/Destino/i);
+    if (destinoIndex !== -1) {
+        // Pega a partir de "Destino" até "Origem" ou até o fim
+        const afterDestino = clean.substring(destinoIndex);
+        const lines = afterDestino.split('\n');
+        let found = false;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (/^Nome$/i.test(line)) {
+                // O próximo elemento não vazio é o nome
+                for (let j = i + 1; j < lines.length; j++) {
+                    const next = lines[j].trim();
+                    if (next && !/^(CNPJ|Instituição|Chave|Origem|Nome|$)/i.test(next)) {
+                        fornecedor = next;
+                        found = true;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        if (!found) {
+            // Fallback: pega a linha logo após "Destino" e "Nome" (se existir)
+            const fallbackMatch = clean.match(/Destino\s*\n\s*Nome\s*\n\s*([^\n]+)/i);
+            if (fallbackMatch) fornecedor = fallbackMatch[1].trim();
+        }
+    } else {
+        // Fallback com padrões genéricos
+        const patterns = [
+            /(?:Destino|Favorecido|Beneficiário)\s*[:]?\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]+?)(?=\s*(?:CNPJ|CPF|Instituição|Chave|Valor|Data|ID|$))/i,
+            /(?:Para|Transferido para)\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]+?)(?=\s*(?:CNPJ|CPF|Instituição|Chave|Valor|Data|ID|$))/i
+        ];
+        for (let p of patterns) {
+            const m = clean.match(p);
+            if (m) { fornecedor = m[1].trim(); break; }
+        }
+    }
+
+    // ===== 4. CATEGORIA =====
+    let categoria = 'Outros';
+    const lower = clean.toLowerCase();
+    const catMap = {
+        'Energia': ['equatorial','energia','luz','eletricidade','concessionária'],
+        'Água': ['saneago','brk','água','saneamento','abastecimento'],
+        'Internet': ['internet','vivo','fibra','banda larga','telecom'],
+        'Combustível': ['combustível','etanol','gasolina','diesel','posto'],
+        'Salário': ['salário','diaria','folha','pagamento de funcionário'],
+        'Fornecedor': ['fornecedor','madeira','pinus','tauari','parafuso','arame','prego','porta','portal','matéria-prima','insumo','material','madeiras','máquinas','maquinas'],
+        'Man. Maquinas': ['manutenção','máquina','equipamento','reparo'],
+        'Imposto': ['imposto','taxa','fgts','inss','iss','icms'],
+        'Veículos': ['veículo','carro','manutenção veicular'],
+        'Marcenaria': ['marcenaria','cola','selador','seladora','estopa','madeira','carpintaria'],
+        'Instalação': ['instalação','montagem','serviço de instalação']
+    };
+    for (const [cat, keywords] of Object.entries(catMap)) {
+        if (keywords.some(kw => lower.includes(kw))) {
+            categoria = cat;
+            break;
+        }
+    }
+
+    // ============================================================
+// 5. OBSERVAÇÃO (resumo com tipo e ID) - CORRIGIDO
+// ============================================================
+let observacao = '';
+
+// Extrai o Tipo de transferência (Pix, TED, DOC, etc.)
+const tipoMatch = normalized.match(/Tipo de transferência\s*\n\s*([^\n]+)/i);
+// Extrai o ID da transação
+const idMatch = normalized.match(/ID da transação\s*\n\s*([^\n]+)/i);
+
+let tipo = tipoMatch ? tipoMatch[1].trim() : '';
+let id = idMatch ? idMatch[1].trim() : '';
+
+if (tipo) observacao += `Tipo: ${tipo}`;
+if (id) observacao += (observacao ? ' | ' : '') + `ID: ${id}`;
+
+// Se não encontrou tipo ou ID, usa fallback
+if (!observacao) {
+    observacao = normalized.substring(0, 150).replace(/\n/g, ' ');
+}
+
+    return {
+        fornecedor: fornecedor,
+        valor: valor,
+        data: data,
+        categoria: categoria
+        //observacao: observacao
+    };
+}
   
     </script> 
     <script type="importmap">
@@ -4945,6 +5150,7 @@ function printPartnerReport() {
     <script src="abas/equipe.js"></script>
     <script src="abas/gerencial.js"></script>
     <script src="abas/agenda.js"></script>
+    
    
   </body>
 </html>
