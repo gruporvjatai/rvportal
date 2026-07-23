@@ -2168,7 +2168,14 @@
         }
 
       function openWhatsApp(quoteId, clientName) {
-          // Busca o cliente pelo nome
+          // Busca o orçamento pelo ID
+          const quote = STATE.quotes.find(q => String(q.id) === String(quoteId));
+          if (!quote) {
+              showToast("Orçamento não encontrado.", true);
+              return;
+          }
+      
+          // Busca o cliente pelo nome (para pegar o telefone)
           const client = STATE.clients.find(c => c.name === clientName);
           if (!client || !client.phone) {
               showToast("Cliente não possui telefone cadastrado.", true);
@@ -2186,8 +2193,14 @@
               numero = '55' + numero;
           }
       
-          // Mensagem personalizada
-          const mensagem = `Olá ${clientName}, tudo bem? Seu orçamento #${quoteId} está disponível. Podemos fechar o negócio? Estamos à disposição.`;
+          // Calcula o valor líquido (com desconto)
+          const valorDesconto = Number(quote.absoluteDiscount) || 0;
+          const valorLiquido = Math.max(0, quote.total - valorDesconto);
+          const valorFormatado = formatMoney(valorLiquido);
+      
+          // Mensagem personalizada com as variáveis
+          const mensagem = `Olá ${clientName}, aqui é da RV Portal. Sobre o Orçamento #${quoteId} no valor de ${valorFormatado}. Podemos fechar?`;
+      
           const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`;
       
           // Abre em nova aba/janela
