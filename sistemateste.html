@@ -5008,73 +5008,87 @@ async function processDocument(file) {
 }
 
 function extractDataFromText(text) {
-    // Normaliza quebras de linha (importante para manter a estrutura)
-    const cleanText = text.replace(/\r\n/g, '\n').trim();
-    
-    // ============================================================
-    // PARSER ESPECÍFICO PARA COMPROVANTES DO NUBANK
-    // ============================================================
-    
-    // 1. VALOR
-    let valor = '';
-    const valorMatch = cleanText.match(/Valor\s*\n\s*R?\$?\s*([\d,.]+)/i);
-    if (valorMatch) {
-        let rawValor = valorMatch[1].replace(/\./g, '').replace(',', '.');
-        valor = parseFloat(rawValor);
-        if (!isNaN(valor)) {
-            valor = valor.toFixed(2);
-        } else {
-            valor = '';
-        }
-    }
+    // Remove múltiplos espaços e quebras de linha excessivas, mas mantém estrutura básica
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 
-    // 2. DATA (formato: 23 JUL 2026)
+    // ============================================================
+    // 1. DATA
+    // ============================================================
     let data = '';
+    // Padrão: "23 JUL 2026" ou "23/07/2026"
     const meses = {
         'JAN': '01', 'FEV': '02', 'MAR': '03', 'ABR': '04', 'MAI': '05', 'JUN': '06',
         'JUL': '07', 'AGO': '08', 'SET': '09', 'OUT': '10', 'NOV': '11', 'DEZ': '12'
     };
+    // Tenta primeiro com mês por extenso
     const mesPattern = Object.keys(meses).join('|');
-    const dateMatch = cleanText.match(/(\d{1,2})\s+(' + mesPattern + ')\s+(\d{4})/i);
-    if (dateMatch) {
-        let day = dateMatch[1].padStart(2, '0');
-        let month = meses[dateMatch[2].toUpperCase()];
-        let year = dateMatch[3];
+    const dateMatchExt = normalized.match(/(\d{1,2})\s+(' + mesPattern + ')\s+(\d{4})/);
+    if (dateMatchExt) {
+        const day = dateMatchExt[1].padStart(2, '0');
+        const month = meses[dateMatchExt[2].toUpperCase()];
+        const year = dateMatchExt[3];
         data = `${year}-${month}-${day}`;
     } else {
-        // Fallback para formato numérico
-        const fallbackMatch = cleanText.match(/(\d{2}[\/\-]\d{2}[\/\-]\d{4})/);
-        if (fallbackMatch) {
-            const parts = fallbackMatch[1].split(/[\/\-]/);
-            data = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        // Fallback: dd/mm/aaaa ou dd-mm-aaaa
+        const fallback = normalized.match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+        if (fallback) {
+            data = `${fallback[3]}-${fallback[2]}-${fallback[1]}`;
         }
     }
 
+    // ============================================================
+    // 2. VALOR
+    // ============================================================
+    let valor = '';
+    // Procura por "Valor" seguido de "R$" ou número
+    const valorMatch = normalized.match(/Valor\s*\n\s*R?\$?\s*([\d,.]+)/i);
+    if (valorMatch) {
+        let raw = valorMatch[1].replace(/\./g, '').replace(',', '.');
+        const num = parseFloat(raw);
+        if (!isNaN(num)) valor = num.toFixed(2);
+    }
+
+    // ============================================================
     // 3. FORNECEDOR (Destino Nome)
+    // ============================================================
     let fornecedor = '';
-    // Procura por "Destino" seguido de "Nome" e captura o valor
-    const destinoMatch = cleanText.match(/Destino\s*\n\s*Nome\s*\n\s*([^\n]+)/i);
-    if (destinoMatch) {
-        fornecedor = destinoMatch[1].trim();
+    // Estratégia: encontrar a seção "Destino" e depois "Nome" com o valor
+    const destinoSection = normalized.match(/Destino\s*\n\s*Nome\s*\n\s*([^\n]+)/i);
+    if (destinoSection) {
+        fornecedor = destinoSection[1].trim();
     } else {
-        // Fallback: procura por padrões genéricos
+        // Fallback: tentar outros padrões comuns
         const fallbackPatterns = [
-            /(?:Destino|Favorecido|Beneficiário|Nome do Destinatário|Para|Transferido para)\s*[:]?\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]+?)(?=\s*(?:CNPJ|CPF|Instituição|Chave|Valor|Data|ID|$))/i,
-            /(?:Fornecedor|Prestador|Empresa|Razão Social)\s*[:]?\s*([^\n\r]+)/i
+            /(?:Destino|Favorecido|Beneficiário|Nome do Destinatário)\s*[:]?\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]+?)(?=\s*(?:CNPJ|CPF|Instituição|Chave|Valor|Data|ID|$))/i,
+            /(?:Para|Transferido para)\s*([A-Za-zÀ-ÖØ-öø-ÿ\s]+?)(?=\s*(?:CNPJ|CPF|Instituição|Chave|Valor|Data|ID|$))/i
         ];
         for (let pattern of fallbackPatterns) {
-            const match = cleanText.match(pattern);
+            const match = normalized.match(pattern);
             if (match) {
                 fornecedor = match[1].trim();
                 break;
             }
         }
     }
+    // Se ainda não encontrou, tenta pegar a primeira linha que não seja "Comprovante", "Valor", etc.
+    if (!fornecedor) {
+        const lines = normalized.split('\n').filter(line => line.trim().length > 0);
+        for (let line of lines) {
+            const trimmed = line.trim();
+            if (/^(Comprovante|Valor|Tipo|ID|Destino|Origem|Nome|CNPJ|Instituição|Chave|Pagamento|Nu Pagamentos)/i.test(trimmed)) continue;
+            if (trimmed.length > 3 && /[A-Z]/.test(trimmed[0])) {
+                fornecedor = trimmed;
+                break;
+            }
+        }
+    }
 
-    // 4. CATEGORIA (inferir com base no texto)
+    // ============================================================
+    // 4. CATEGORIA (baseado no texto)
+    // ============================================================
     let categoria = 'Outros';
-    const lowerText = cleanText.toLowerCase();
-    const categorias = {
+    const lower = normalized.toLowerCase();
+    const catMap = {
         'Energia': ['equatorial', 'energia', 'luz', 'eletricidade', 'concessionária'],
         'Água': ['saneago', 'brk', 'água', 'saneamento', 'abastecimento'],
         'Internet': ['internet', 'vivo', 'fibra', 'banda larga', 'telecom'],
@@ -5087,26 +5101,25 @@ function extractDataFromText(text) {
         'Marcenaria': ['marcenaria', 'cola', 'selador', 'seladora', 'estopa', 'madeira', 'carpintaria'],
         'Instalação': ['instalação', 'montagem', 'serviço de instalação']
     };
-
-    for (const [cat, keywords] of Object.entries(categorias)) {
-        if (keywords.some(kw => lowerText.includes(kw))) {
+    for (const [cat, keywords] of Object.entries(catMap)) {
+        if (keywords.some(kw => lower.includes(kw))) {
             categoria = cat;
             break;
         }
     }
 
-    // 5. OBSERVAÇÃO (resumo com informações úteis)
+    // ============================================================
+    // 5. OBSERVAÇÃO (resumo com tipo e ID)
+    // ============================================================
     let observacao = '';
-    // Pega o tipo de transferência e ID
-    const tipoMatch = cleanText.match(/Tipo de transferência\s*\n\s*([^\n]+)/i);
-    const idMatch = cleanText.match(/ID da transação\s*\n\s*([^\n]+)/i);
+    const tipoMatch = normalized.match(/Tipo de transferência\s*\n\s*([^\n]+)/i);
+    const idMatch = normalized.match(/ID da transação\s*\n\s*([^\n]+)/i);
     if (tipoMatch) observacao += `Tipo: ${tipoMatch[1].trim()}`;
     if (idMatch) observacao += ` | ID: ${idMatch[1].trim()}`;
-    if (!observacao) observacao = cleanText.substring(0, 150);
-
-    // ============================================================
-    // FIM DO PARSER ESPECÍFICO
-    // ============================================================
+    if (!observacao) {
+        // fallback: pega as primeiras 150 caracteres
+        observacao = normalized.substring(0, 150).replace(/\n/g, ' ');
+    }
 
     return {
         fornecedor: fornecedor,
