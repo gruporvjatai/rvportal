@@ -5005,37 +5005,73 @@ async function processDocument(file) {
     showLoading(false);
 }
 
-// Função para extrair informações do texto bruto
 function extractDataFromText(text) {
     // Normaliza o texto: remove espaços extras, quebras de linha excessivas
     const cleanText = text.replace(/\s+/g, ' ').trim();
+    const lines = text.split(/\n/).filter(line => line.trim().length > 0);
 
-    // 1. Extrair FORNECEDOR (tenta encontrar padrões comuns)
+    // 1. Extrair FORNECEDOR
     let fornecedor = '';
-    // Procura por "Fornecedor:", "Prestador:", "Empresa:", "Razão Social:", ou linhas que pareçam nome de empresa
-    const fornecedorMatch = cleanText.match(/(?:Fornecedor|Para|Destino|Prestador|Empresa|Razão Social|Nome)\s*[:]\s*([^\n\r]+)/i);
-    if (fornecedorMatch) {
-        fornecedor = fornecedorMatch[1].trim();
-    } else {
-        // Fallback: pega a primeira linha que não seja data ou valor e que tenha mais de 3 palavras
-        const lines = cleanText.split(/\n/).filter(line => line.trim().length > 0);
+
+    // Padrões comuns para identificação do fornecedor
+    const fornecedorPatterns = [
+        /(?:Fornecedor|Prestador|Empresa|Razão Social|Nome|Sacado|Tomador|Cliente)\s*[:]\s*([^\n\r]+)/i,
+        /(?:Nome do Fornecedor|Fornecedor\/Prestador)\s*[:]\s*([^\n\r]+)/i,
+        /(?:de|para|a)\s+([A-Z][A-Za-zÀ-ÖØ-öø-ÿ\s]+(?:LTDA|ME|EIRELI|S\/A|COMERCIO|INDUSTRIA|SERVICOS|CONSTRUTORA|MADEIRAS|MARCENARIA|PORTAS|ESQUADRIAS))/i,
+        /([A-Z][A-Za-zÀ-ÖØ-öø-ÿ\s]{3,}(?:LTDA|ME|EIRELI|S\/A|COMERCIO|INDUSTRIA|SERVICOS|CONSTRUTORA|MADEIRAS|MARCENARIA|PORTAS|ESQUADRIAS))/i
+    ];
+
+    // Tenta cada padrão
+    for (let pattern of fornecedorPatterns) {
+        const match = cleanText.match(pattern);
+        if (match && match[1] && match[1].trim().length > 2) {
+            fornecedor = match[1].trim();
+            break;
+        }
+    }
+
+    // Se ainda não encontrou, tenta identificar linhas que parecem nome de empresa
+    if (!fornecedor) {
         for (let line of lines) {
             const trimmed = line.trim();
-            // Ignora linhas que parecem datas, valores, ou números de documento
-            if (!/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(trimmed) && 
-                !/^R?\$?\s*\d+[,.]\d{2}/.test(trimmed) &&
-                !/^[A-Z0-9]{10,}/.test(trimmed) &&
-                trimmed.length > 5 &&
-                !/^[A-Z]{2}\s*[0-9]/.test(trimmed)) {
+            // Ignora linhas muito curtas, ou que parecem data, valor, ou números
+            if (trimmed.length < 5) continue;
+            if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(trimmed)) continue;
+            if (/^R?\$?\s*[\d,.]+\s*$/.test(trimmed)) continue;
+            if (/^[A-Z]{2}\s*[0-9]{5,}/.test(trimmed)) continue; // Ex: "NF 123456"
+            if (/^(?:PIX|TED|DOC|BOLETO|CHEQUE|CARTAO|TRANSFERENCIA)/i.test(trimmed)) continue;
+            
+            // Se a linha contém palavras-chave de empresa, provavelmente é o fornecedor
+            if (/LTDA|ME|EIRELI|S\/A|COMERCIO|INDUSTRIA|SERVICOS|CONSTRUTORA|MADEIRAS|MARCENARIA|PORTAS|ESQUADRIAS/i.test(trimmed)) {
                 fornecedor = trimmed;
                 break;
             }
         }
     }
 
-    // 2. Extrair VALOR TOTAL
+    // Se ainda não encontrou, pega a primeira linha que não seja um cabeçalho comum
+    if (!fornecedor) {
+        for (let line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.length < 5) continue;
+            if (/^COMPROVANTE|^EXTRATO|^LANCAMENTO|^HISTORICO|^DATA|^VALOR|^DOCUMENTO|^BANCO/i.test(trimmed)) continue;
+            if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(trimmed)) continue;
+            if (/^R?\$?\s*[\d,.]+\s*$/.test(trimmed)) continue;
+            // Pega a primeira linha que pareça um nome (começa com maiúscula e tem mais de 3 palavras)
+            if (/^[A-ZÀ-Ö][a-zà-ö]+/.test(trimmed) && trimmed.split(/\s+/).length >= 2) {
+                fornecedor = trimmed;
+                break;
+            }
+        }
+    }
+
+    // Limita o tamanho do nome
+    if (fornecedor && fornecedor.length > 100) {
+        fornecedor = fornecedor.substring(0, 100) + '...';
+    }
+
+    // 2. Extrair VALOR TOTAL (já estava bom)
     let valor = '';
-    // Procura por padrões como "R$ 123,45", "123,45", "Total: R$ 123,45"
     const valorMatch = cleanText.match(/(?:Total|Valor|Vlr\.?|R\$)\s*[:]?\s*R?\$?\s*([\d,.]+)/i);
     if (valorMatch) {
         let rawValor = valorMatch[1].replace(/\./g, '').replace(',', '.');
@@ -5046,7 +5082,6 @@ function extractDataFromText(text) {
             valor = '';
         }
     } else {
-        // Fallback: procura por números com duas casas decimais após vírgula
         const fallbackMatch = cleanText.match(/(\d{1,3}(?:\.\d{3})*,\d{2})/);
         if (fallbackMatch) {
             let rawValor = fallbackMatch[1].replace(/\./g, '').replace(',', '.');
@@ -5057,13 +5092,12 @@ function extractDataFromText(text) {
         }
     }
 
-    // 3. Extrair DATA de vencimento
+    // 3. Extrair DATA (melhorado)
     let data = '';
     // Procura por padrões de data: dd/mm/aaaa, dd/mm/aa, dd-mm-aaaa, etc.
     const dataMatch = cleanText.match(/(\d{2}[\/\-]\d{2}[\/\-]\d{2,4})/);
     if (dataMatch) {
         let rawDate = dataMatch[1];
-        // Converte para formato yyyy-mm-dd
         const parts = rawDate.split(/[\/\-]/);
         let day = parts[0].padStart(2, '0');
         let month = parts[1].padStart(2, '0');
@@ -5072,14 +5106,28 @@ function extractDataFromText(text) {
             year = '20' + year;
         }
         data = `${year}-${month}-${day}`;
+    } else {
+        // Tenta encontrar data no formato "dd de mês de aaaa"
+        const mesMatch = cleanText.match(/(\d{1,2})\s+de\s+([a-zA-Z]+)\s+de\s+(\d{4})/i);
+        if (mesMatch) {
+            const meses = {
+                'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
+                'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+                'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+            };
+            const mesNum = meses[mesMatch[2].toLowerCase()];
+            if (mesNum) {
+                data = `${mesMatch[3]}-${mesNum}-${mesMatch[1].padStart(2, '0')}`;
+            }
+        }
     }
 
-    // 4. Categoria (tenta inferir a partir do texto)
+    // 4. Categoria (já estava bom)
     let categoria = 'Outros';
     const lowerText = cleanText.toLowerCase();
     const categorias = {
         'Energia': ['equatorial', 'energia', 'luz', 'eletricidade', 'concessionária'],
-        'Água': ['saneago,', 'BRK', 'água', 'saneamento', 'abastecimento'],
+        'Água': ['saneago', 'brk', 'água', 'saneamento', 'abastecimento'],
         'Internet': ['internet', 'vivo', 'fibra', 'banda larga', 'telecom'],
         'Combustível': ['combustível', 'etanol', 'gasolina', 'diesel', 'posto'],
         'Salário': ['salário', 'diaria', 'folha', 'pagamento de funcionário'],
@@ -5098,7 +5146,7 @@ function extractDataFromText(text) {
         }
     }
 
-    // Observação: guarda o texto completo resumido
+    // Observação: guarda o texto completo resumido (já estava)
     const observacao = cleanText.substring(0, 200);
 
     return {
