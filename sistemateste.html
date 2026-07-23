@@ -5106,13 +5106,26 @@ function extractDataFromText(text) {
         }
     }
 
-    // ===== 5. OBSERVAÇÃO =====
-    let observacao = '';
-    const tipoMatch = clean.match(/Tipo de transferência\s*\n\s*([^\n]+)/i);
-    const idMatch = clean.match(/ID da transação\s*\n\s*([^\n]+)/i);
-    if (tipoMatch) observacao += `Tipo: ${tipoMatch[1].trim()}`;
-    if (idMatch) observacao += ` | ID: ${idMatch[1].trim()}`;
-    if (!observacao) observacao = clean.substring(0, 150).replace(/\n/g, ' ');
+    // ============================================================
+// 5. OBSERVAÇÃO (resumo com tipo e ID) - CORRIGIDO
+// ============================================================
+let observacao = '';
+
+// Extrai o Tipo de transferência (Pix, TED, DOC, etc.)
+const tipoMatch = normalized.match(/Tipo de transferência\s*\n\s*([^\n]+)/i);
+// Extrai o ID da transação
+const idMatch = normalized.match(/ID da transação\s*\n\s*([^\n]+)/i);
+
+let tipo = tipoMatch ? tipoMatch[1].trim() : '';
+let id = idMatch ? idMatch[1].trim() : '';
+
+if (tipo) observacao += `Tipo: ${tipo}`;
+if (id) observacao += (observacao ? ' | ' : '') + `ID: ${id}`;
+
+// Se não encontrou tipo ou ID, usa fallback
+if (!observacao) {
+    observacao = normalized.substring(0, 150).replace(/\n/g, ' ');
+}
 
     return {
         fornecedor: fornecedor,
