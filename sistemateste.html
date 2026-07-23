@@ -5015,7 +5015,7 @@ function extractDataFromText(text) {
     // 1. Extrair FORNECEDOR (tenta encontrar padrões comuns)
     let fornecedor = '';
     // Procura por "Fornecedor:", "Prestador:", "Empresa:", "Razão Social:", ou linhas que pareçam nome de empresa
-    const fornecedorMatch = cleanText.match(/(?:Fornecedor|CASA DAS MAQUINAS|Para|Destino|Prestador|Empresa|Razão Social|Nome)\s*[:]\s*([^\n\r]+)/i);
+    const fornecedorMatch = cleanText.match(/(?:Fornecedor|Casa das Maquinas|Para|Destino|Prestador|Empresa|Razão Social|Nome)\s*[:]\s*([^\n\r]+)/i);
     if (fornecedorMatch) {
         fornecedor = fornecedorMatch[1].trim();
     } else {
