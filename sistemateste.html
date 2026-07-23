@@ -5015,10 +5015,10 @@ function extractDataFromText(text) {
 
     // Padrões comuns para identificação do fornecedor
     const fornecedorPatterns = [
-        /(?:Fornecedor|Prestador|Empresa|Razão Social|Nome|Sacado|Tomador|Cliente)\s*[:]\s*([^\n\r]+)/i,
+        /(?:Fornecedor|Para|Destino|Empresa|Razão Social|Nome|Sacado|Tomador|Cliente)\s*[:]\s*([^\n\r]+)/i,
         /(?:Nome do Fornecedor|Fornecedor\/Prestador)\s*[:]\s*([^\n\r]+)/i,
         /(?:de|para|a)\s+([A-Z][A-Za-zÀ-ÖØ-öø-ÿ\s]+(?:LTDA|ME|EIRELI|S\/A|COMERCIO|INDUSTRIA|SERVICOS|CONSTRUTORA|MADEIRAS|MARCENARIA|PORTAS|ESQUADRIAS))/i,
-        /([A-Z][A-Za-zÀ-ÖØ-öø-ÿ\s]{3,}(?:LTDA|ME|EIRELI|S\/A|COMERCIO|INDUSTRIA|SERVICOS|CONSTRUTORA|MADEIRAS|MARCENARIA|PORTAS|ESQUADRIAS))/i
+        /([A-Z][A-Za-zÀ-ÖØ-öø-ÿ\s]{3,}(?:LTDA|ME|EIRELI|S\/A|COMERCIO|MAQUINAS|INDUSTRIA|SERVICOS|CONSTRUTORA|MADEIRAS|MARCENARIA|PORTAS|ESQUADRIAS))/i
     ];
 
     // Tenta cada padrão
