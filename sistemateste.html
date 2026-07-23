@@ -998,16 +998,22 @@
         </div>
     </div>
 
-    <div id="modal-expense" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+       <div id="modal-expense" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-slate-50">
-                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="minus-circle" class="text-red-500"></i> Registrar Nova Saída</h3>
-                    <button onclick="document.getElementById('file-input-expense').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
-                        <i data-lucide="scan"></i> Ler Comprovante
+                <div class="flex items-center gap-3">
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                        <i data-lucide="minus-circle" class="text-red-500"></i> Registrar Saída
+                    </h3>
+                    <button onclick="document.getElementById('file-input').click()" 
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow transition">
+                        <i data-lucide="upload"></i> Ler Documento
                     </button>
-                    <input type="file" id="file-input-expense" accept="image/*,application/pdf" style="display:none" onchange="processExpenseDocument(this.files[0])">
-                <!--<button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>-->
-                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+                    <input type="file" id="file-input" accept="image/*,application/pdf" style="display:none" onchange="processDocument(this.files[0])">
+                </div>
+                <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-red-500">
+                    <i data-lucide="x"></i>
+                </button>
             </div>
             <div class="p-6 space-y-4 overflow-y-auto">
                  <input type="hidden" id="exp-id">
@@ -4937,87 +4943,171 @@ function printPartnerReport() {
     setTimeout(() => window.print(), 500);
 }
 
-  async function processExpenseDocument(file) {
+// ==================== OCR.space INTEGRAÇÃO ====================
+
+// Sua chave da API OCR.space (substitua pela sua)
+const OCR_API_KEY = 'K89777209588957';
+
+// Função principal para processar o documento
+async function processDocument(file) {
     if (!file) return;
+    
+    // Valida tamanho (máx 1MB no plano gratuito)
+    if (file.size > 1024 * 1024) {
+        showToast("Arquivo muito grande. O plano gratuito aceita até 1MB.", true);
+        return;
+    }
+    
     showLoading(true);
 
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('apikey', OCR_API_KEY);
+    formData.append('language', 'por');          // Português
+    formData.append('OCREngine', '2');           // Engine 2 = mais preciso (recomendado)
+    formData.append('scale', 'true');            // Melhora qualidade de imagens pequenas
+    formData.append('isTable', 'false');         // Não forçar tabela
+
     try {
-        const { data: { text } } = await Tesseract.recognize(file, 'por', {
-            logger: m => console.log(m) // opcional, para ver progresso
+        const response = await fetch('https://api.ocr.space/parse/image', {
+            method: 'POST',
+            body: formData
         });
 
-        console.log('Texto extraído:', text);
+        const data = await response.json();
 
-        // Extrai dados usando expressões regulares
-        const extracted = parseExpenseText(text);
-        
-        // Preenche o formulário
-        if (extracted.supplier) document.getElementById('exp-provider').value = extracted.supplier;
-        if (extracted.total) document.getElementById('exp-cost').value = extracted.total;
-        if (extracted.date) document.getElementById('exp-date').value = extracted.date;
-        if (extracted.category) document.getElementById('exp-item').value = extracted.category;
-        if (extracted.note) document.getElementById('exp-note').value = extracted.note;
+        if (!data.ParsedResults || data.ParsedResults.length === 0) {
+            throw new Error("Nenhum texto foi reconhecido.");
+        }
+
+        const text = data.ParsedResults[0].ParsedText;
+
+        // Extrai os dados do texto
+        const extracted = extractDataFromText(text);
+
+        // Preenche o modal
+        document.getElementById('exp-item').value = extracted.categoria || 'Outros';
+        document.getElementById('exp-provider').value = extracted.fornecedor || '';
+        document.getElementById('exp-cost').value = extracted.valor || '';
+        if (extracted.data) {
+            document.getElementById('exp-date').value = extracted.data;
+        }
+        document.getElementById('exp-note').value = extracted.observacao || 'Extraído via OCR';
 
         showToast("Dados extraídos! Confira e salve.");
     } catch (error) {
+        showToast("Erro ao processar documento: " + error.message, true);
         console.error(error);
-        showToast("Erro ao processar o comprovante. Tente novamente ou insira manualmente.", true);
     }
+
+    // Limpa o input para permitir reenvio do mesmo arquivo
+    document.getElementById('file-input').value = '';
     showLoading(false);
 }
 
-function parseExpenseText(text) {
-    // Exemplo de parsing para comprovantes bancários (ajuste conforme seu banco)
-    const result = { supplier: '', total: '', date: '', category: '', note: '' };
+// Função para extrair informações do texto bruto
+function extractDataFromText(text) {
+    // Normaliza o texto: remove espaços extras, quebras de linha excessivas
+    const cleanText = text.replace(/\s+/g, ' ').trim();
 
-    // 1. Valor total (R$ 123,45 ou 123.45)
-    const valorMatch = text.match(/(?:R\$|R\$?)\s*([\d,.]+)/i) || text.match(/([\d,.]+)\s*(?:reais|R\$)/i);
-    if (valorMatch) {
-        // Converte para número com ponto decimal
-        let val = valorMatch[1].replace(/\./g, '').replace(',', '.');
-        result.total = parseFloat(val) || 0;
-    }
-
-    // 2. Data (DD/MM/AAAA ou DD-MM-AAAA)
-    const dateMatch = text.match(/(\d{2}[\/\-]\d{2}[\/\-]\d{4})/);
-    if (dateMatch) {
-        let parts = dateMatch[1].split(/[\/\-]/);
-        result.date = `${parts[2]}-${parts[1]}-${parts[0]}`; // formato YYYY-MM-DD
-    }
-
-    // 3. Fornecedor / Beneficiário (linhas com "favorecido", "beneficiário", "pagador", etc.)
-    const supplierRegex = /(?:favorecido|benefici[áa]rio|pagador|nome)\s*[:;]\s*([^\n]+)/i;
-    const supplierMatch = text.match(supplierRegex);
-    if (supplierMatch) result.supplier = supplierMatch[1].trim();
-
-    // Se não encontrou, tenta pegar a primeira linha não vazia após o tipo de transação (ex: "PIX", "TED")
-    if (!result.supplier) {
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        // Tenta achar algo como "PIX" ou "TED" e pega a linha seguinte
-        for (let i = 0; i < lines.length; i++) {
-            if (/(pix|ted|transferência|pagamento)/i.test(lines[i]) && i+1 < lines.length) {
-                result.supplier = lines[i+1];
+    // 1. Extrair FORNECEDOR (tenta encontrar padrões comuns)
+    let fornecedor = '';
+    // Procura por "Fornecedor:", "Prestador:", "Empresa:", "Razão Social:", ou linhas que pareçam nome de empresa
+    const fornecedorMatch = cleanText.match(/(?:Fornecedor|Prestador|Empresa|Razão Social|Nome)\s*[:]\s*([^\n\r]+)/i);
+    if (fornecedorMatch) {
+        fornecedor = fornecedorMatch[1].trim();
+    } else {
+        // Fallback: pega a primeira linha que não seja data ou valor e que tenha mais de 3 palavras
+        const lines = cleanText.split(/\n/).filter(line => line.trim().length > 0);
+        for (let line of lines) {
+            const trimmed = line.trim();
+            // Ignora linhas que parecem datas, valores, ou números de documento
+            if (!/^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(trimmed) && 
+                !/^R?\$?\s*\d+[,.]\d{2}/.test(trimmed) &&
+                !/^[A-Z0-9]{10,}/.test(trimmed) &&
+                trimmed.length > 5 &&
+                !/^[A-Z]{2}\s*[0-9]/.test(trimmed)) {
+                fornecedor = trimmed;
                 break;
             }
         }
     }
 
-    // 4. Categoria (tenta inferir por palavras-chave)
-    const lowerText = text.toLowerCase();
-    if (lowerText.includes('luz') || lowerText.includes('energia')) result.category = 'Energia';
-    else if (lowerText.includes('água') || lowerText.includes('saneamento')) result.category = 'Água';
-    else if (lowerText.includes('internet') || lowerText.includes('telefone')) result.category = 'Internet';
-    else if (lowerText.includes('combustível') || lowerText.includes('gasolina')) result.category = 'Combustível';
-    else if (lowerText.includes('manutenção') || lowerText.includes('máquina')) result.category = 'Man. Maquinas';
-    else if (lowerText.includes('salário')) result.category = 'Salário';
-    else if (lowerText.includes('imposto')) result.category = 'Imposto';
-    else result.category = 'Outros';
+    // 2. Extrair VALOR TOTAL
+    let valor = '';
+    // Procura por padrões como "R$ 123,45", "123,45", "Total: R$ 123,45"
+    const valorMatch = cleanText.match(/(?:Total|Valor|Vlr\.?|R\$)\s*[:]?\s*R?\$?\s*([\d,.]+)/i);
+    if (valorMatch) {
+        let rawValor = valorMatch[1].replace(/\./g, '').replace(',', '.');
+        valor = parseFloat(rawValor);
+        if (!isNaN(valor)) {
+            valor = valor.toFixed(2);
+        } else {
+            valor = '';
+        }
+    } else {
+        // Fallback: procura por números com duas casas decimais após vírgula
+        const fallbackMatch = cleanText.match(/(\d{1,3}(?:\.\d{3})*,\d{2})/);
+        if (fallbackMatch) {
+            let rawValor = fallbackMatch[1].replace(/\./g, '').replace(',', '.');
+            valor = parseFloat(rawValor);
+            if (!isNaN(valor)) {
+                valor = valor.toFixed(2);
+            }
+        }
+    }
 
-    // 5. Observação (pode ser a linha com "comprovante" ou "identificador")
-    const obsMatch = text.match(/(?:identificador|comprovante|id)\s*[:;]\s*([^\n]+)/i);
-    if (obsMatch) result.note = obsMatch[1].trim();
+    // 3. Extrair DATA de vencimento
+    let data = '';
+    // Procura por padrões de data: dd/mm/aaaa, dd/mm/aa, dd-mm-aaaa, etc.
+    const dataMatch = cleanText.match(/(\d{2}[\/\-]\d{2}[\/\-]\d{2,4})/);
+    if (dataMatch) {
+        let rawDate = dataMatch[1];
+        // Converte para formato yyyy-mm-dd
+        const parts = rawDate.split(/[\/\-]/);
+        let day = parts[0].padStart(2, '0');
+        let month = parts[1].padStart(2, '0');
+        let year = parts[2];
+        if (year.length === 2) {
+            year = '20' + year;
+        }
+        data = `${year}-${month}-${day}`;
+    }
 
-    return result;
+    // 4. Categoria (tenta inferir a partir do texto)
+    let categoria = 'Outros';
+    const lowerText = cleanText.toLowerCase();
+    const categorias = {
+        'Energia': ['energia', 'luz', 'eletricidade', 'concessionária'],
+        'Água': ['água', 'saneamento', 'abastecimento'],
+        'Internet': ['internet', 'fibra', 'banda larga', 'telecom'],
+        'Combustível': ['combustível', 'gasolina', 'diesel', 'posto'],
+        'Salário': ['salário', 'folha', 'pagamento de funcionário'],
+        'Fornecedor': ['fornecedor', 'matéria-prima', 'insumo', 'material'],
+        'Man. Maquinas': ['manutenção', 'máquina', 'equipamento', 'reparo'],
+        'Imposto': ['imposto', 'taxa', 'fgts', 'inss', 'iss', 'icms'],
+        'Veículos': ['veículo', 'carro', 'manutenção veicular'],
+        'Marcenaria': ['marcenaria', 'madeira', 'carpintaria'],
+        'Instalação': ['instalação', 'montagem', 'serviço de instalação']
+    };
+
+    for (const [cat, keywords] of Object.entries(categorias)) {
+        if (keywords.some(kw => lowerText.includes(kw))) {
+            categoria = cat;
+            break;
+        }
+    }
+
+    // Observação: guarda o texto completo resumido
+    const observacao = cleanText.substring(0, 200);
+
+    return {
+        fornecedor: fornecedor,
+        valor: valor,
+        data: data,
+        categoria: categoria,
+        observacao: observacao
+    };
 }
   
     </script> 
