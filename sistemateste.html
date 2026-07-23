@@ -14,11 +14,12 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <script>
         // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
         if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 800) {
-          window.location.replace("mobile.html");
+          window.location.replace("mobile.html?t=" + Date.now());
         }
     </script>
     
@@ -81,7 +82,7 @@
         }
 
         /* CONFIGURAÇÃO DA MARCA D'ÁGUA */
-       /* .invoice-full::before, .invoice-box-orig::before {
+        /*.invoice-full::before, .invoice-box-orig::before {
             content: "";
             position: fixed; 
             top: 50%; 
@@ -473,15 +474,33 @@
     </div>
   </div>
 
-  <!-- Conteúdo Contas a Pagar (inicialmente oculto) -->
-  <div id="finance-pagar" class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px] hidden">
-    <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
+ <div id="finance-pagar" class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px] hidden">
+    <div class="p-4 border-b bg-slate-50 rounded-t-xl flex flex-wrap justify-between items-center gap-2">
       <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-up-from-line" class="w-5 h-5 text-red-500"></i> Contas a Pagar</h3>
-      <div class="flex gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <select id="exp-category-filter" onchange="renderFinance()" class="p-1.5 border rounded-lg text-xs font-bold bg-white focus:ring-1 focus:ring-red-500 outline-none">
+          <option value="">Todas as Categorias</option>
+          <option value="Fornecedor">Fornecedor</option>
+          <option value="Salário">Salário</option>
+          <option value="Energia">Energia</option>
+          <option value="Escritorio">Escritório</option>
+          <option value="Água">Água</option>
+          <option value="Internet">Internet</option>
+          <option value="Imposto">Imposto</option>
+          <option value="Sistema">Sistema</option>
+          <option value="Contabilidade">Contabilidade</option>
+          <option value="Combustível">Combustível</option>
+          <option value="Man. Maquinas">Man. Máquinas</option>
+          <option value="Juros/Taxas">Juros/Taxas</option>
+          <option value="Veículos">Veículos</option>
+          <option value="Marcenaria">Marcenaria</option>
+          <option value="Instalação">Instalação</option>
+          <option value="Outros">Outros</option>
+        </select>
         <button onclick="printExpenses()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
-      <button onclick="openNewExpense()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1">
+        <button onclick="openNewExpense()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1">
           <i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída
-      </button>
+        </button>
       </div>
     </div>
 
@@ -501,20 +520,21 @@
         <input type="date" id="exp-start" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
         <span class="text-slate-400 text-xs">até</span>
         <input type="date" id="exp-end" class="p-1.5 border rounded text-xs flex-1 focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
-        <button onclick="document.getElementById('exp-search').value=''; document.getElementById('exp-status').value=''; document.getElementById('exp-start').value=''; document.getElementById('exp-end').value=''; renderFinance()" class="p-1.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-600" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
+        <button onclick="document.getElementById('exp-search').value=''; document.getElementById('exp-status').value=''; document.getElementById('exp-start').value=''; document.getElementById('exp-end').value=''; document.getElementById('exp-category-filter').value=''; renderFinance()" class="p-1.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-600" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
     </div>
 
     <div class="overflow-y-auto flex-1 p-0">
       <table class="w-full text-sm text-left">
         <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b z-10">
-          <tr>
-            <th class="p-3 font-semibold">Data</th>
-            <th class="p-3 font-semibold">Fornecedor</th>
-            <th class="p-3 font-semibold">Valor</th>
-            <th class="p-3 font-semibold text-right w-[110px]">Ação</th>
-          </tr>
-        </thead>
+            <tr>
+              <th class="p-3 font-semibold">Data</th>
+              <th class="p-3 font-semibold text-center w-12">ID</th>
+              <th class="p-3 font-semibold">Fornecedor</th>
+              <th class="p-3 font-semibold">Valor</th>
+              <th class="p-3 font-semibold text-right w-[110px]">Ação</th>
+            </tr>
+          </thead>
         <tbody id="fin-expense-history-list" class="divide-y"></tbody>
       </table>
     </div>
@@ -982,6 +1002,10 @@
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-slate-50">
                 <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="minus-circle" class="text-red-500"></i> Registrar Nova Saída</h3>
+                    <button onclick="document.getElementById('file-input-expense').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                        <i data-lucide="scan"></i> Ler Comprovante
+                    </button>
+                    <input type="file" id="file-input-expense" accept="image/*,application/pdf" style="display:none" onchange="processExpenseDocument(this.files[0])">
                 <!--<button onclick="document.getElementById('modal-expense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>-->
                 <button onclick="closeExpenseModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
             </div>
@@ -993,6 +1017,7 @@
                         <option value="Fornecedor">Fornecedor</option>
                         <option value="Salário">Salário</option>
                         <option value="Energia">Energia</option>
+                        <option value="Escritorio">Escritório</option>                      
                         <option value="Água">Água</option>
                         <option value="Internet">Internet</option>
                         <option value="Imposto">Imposto</option>
@@ -1003,7 +1028,7 @@
                         <option value="Juros/Taxas">Juros/Taxas</option>
                         <option value="Veículos">Veículos</option>
                         <option value="Marcenaria">Marcenaria</option>
-                        <option value="Instalação">Instalação</option>
+                        <option value="Instalação">Instalação</option>                      
                         <option value="Outros">Outros</option>
                       
                     </select>
@@ -1127,6 +1152,43 @@
         let CART = [];
         let CURRENT_QUOTE_ID = null; 
 
+      // ===== FECHAR MODAIS COM TECLA ESC =====
+        const modalCloseMap = {
+            'pos-product-modal': closePosProductModal,
+            'pos-client-modal': closePosClientModal,
+            'modal-delivery': closeDeliveryModal,
+            'client-form-container': () => document.getElementById('client-form-container').classList.add('hidden'),
+            'prod-form-container': () => document.getElementById('prod-form-container').classList.add('hidden'),
+            'user-form-container': () => document.getElementById('user-form-container').classList.add('hidden'),
+            'modal-receivable-edit': () => document.getElementById('modal-receivable-edit').classList.add('hidden'),
+            'modal-revenue': () => document.getElementById('modal-revenue').classList.add('hidden'),
+            'modal-expense': closeExpenseModal,
+            'pos-history-modal': closePosHistoryModal,
+            'modal-period-report': closePeriodReportModal,
+            'modal-partner-report': closePartnerModal,
+            'modal-stock-count-filters': closeStockCountFilters
+        };
+        
+        function closeAllModals() {
+            for (const [modalId, closeFn] of Object.entries(modalCloseMap)) {
+                const element = document.getElementById(modalId);
+                if (element && !element.classList.contains('hidden')) {
+                    closeFn();
+                }
+            }
+        }
+        
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' || event.key === 'Esc') {
+                const tag = document.activeElement?.tagName?.toLowerCase();
+                if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+                    return; // não fecha se estiver digitando
+                }
+                closeAllModals();
+            }
+        });
+        // ===== FIM =====
+
         // ====== 4. INICIALIZAÇÃO E HELPERS ======
         window.onload = function() { 
             if (dadosUsuario) {
@@ -1168,7 +1230,7 @@
     if(viewId === 'quotes') renderQuotesList();
     if(viewId === 'expedition') renderExpedition();
     if(viewId === 'fin') renderFinance();
-    if (viewId === 'equipe') { if (typeof renderEquipe === 'function') renderEquipe(); }
+    if(viewId === 'equipe') { if (typeof renderEquipe === 'function') renderEquipe(); }
     if(viewId === 'clients') renderClients();
     if(viewId === 'prod') renderProducts();
     if(viewId === 'production') renderProductionSelect();
@@ -2449,6 +2511,8 @@ function printStockCountSheet() {
           if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
+        
+
         function renderRecentHistory() { 
             const salesMap = {};
             (STATE.logs||[]).filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
@@ -2459,7 +2523,23 @@ function printStockCountSheet() {
                 salesMap[l.id].itemsText += l.productName + " ";
             });
             
-            let recentSales = Object.values(salesMap).sort((a,b) => b.id - a.id); 
+            // ALTERAÇÃO AQUI: ordenar pela data da venda (mais recente primeiro)
+            let recentSales = Object.values(salesMap).sort((a,b) => new Date(b.date) - new Date(a.date)); 
+            
+            // Restante do código permanece igual...
+
+  
+        /*function renderRecentHistory() { 
+            const salesMap = {};
+            (STATE.logs||[]).filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
+                if(!salesMap[l.id]) {
+                    salesMap[l.id] = { id: l.id, date: l.date, client: l.clientName, itemsText: '', valorFinal: 0 };
+                }
+                salesMap[l.id].valorFinal += l.totalValue; 
+                salesMap[l.id].itemsText += l.productName + " ";
+            });
+            
+            let recentSales = Object.values(salesMap).sort((a,b) => b.id - a.id); */
             
             const term = document.getElementById('pos-hist-search')?.value.toLowerCase() || '';
             const startDate = document.getElementById('pos-hist-start')?.value;
@@ -2536,7 +2616,7 @@ function printStockCountSheet() {
                     let num = cli.phone.replace(/\D/g, '');
                     if (num.length >= 10) {
                         if (!num.startsWith('55')) num = '55' + num;
-                        const msg = encodeURIComponent(`Olá ${cli.name}, aqui é da RV Portal. Segue o Orçamento #${q.id} no valor de ${formatMoney(valorLiquido)}. Podemos fechar?`);
+                        const msg = encodeURIComponent(`Olá *${cli.name}*, aqui é da RV Portal. Sobre o orçamento *#${q.id}* no valor de *${formatMoney(valorLiquido)}*. Podemos fechar?`);
                         zapLink = `https://wa.me/${num}?text=${msg}`;
                         btnZapClass = "text-green-500 hover:text-green-700 bg-white border-green-200 hover:bg-green-50";
                     }
@@ -3117,70 +3197,89 @@ function loadQuoteToCart(id) {
               recBody.innerHTML = rowsHtml + totalRowHtml;
           }
       
-          // ========== CONTAS A PAGAR (DESPESAS) - CORRIGIDO ==========
-          let filteredExp = STATE.expenses.slice();
-          const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
-          const statusExp = document.getElementById('exp-status')?.value || '';
-          const startExp = document.getElementById('exp-start')?.value;
-          const endExp = document.getElementById('exp-end')?.value;
+    
+
+        // ========== CONTAS A PAGAR (DESPESAS) - CORRIGIDO ==========
+    let filteredExp = STATE.expenses.slice();
+    const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
+    const statusExp = document.getElementById('exp-status')?.value || '';
+    const startExp = document.getElementById('exp-start')?.value;
+    const endExp = document.getElementById('exp-end')?.value;
+    const catFilterExp = document.getElementById('exp-category-filter')?.value || '';
+
+    if (termExp) filteredExp = filteredExp.filter(e => 
+        e.item?.toLowerCase().includes(termExp) || 
+        e.note?.toLowerCase().includes(termExp) || 
+        String(e.id).includes(termExp)
+    );
+    if (statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
+    if (startExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] >= startExp);
+    if (endExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] <= endExp);
+        if (catFilterExp) filteredExp = filteredExp.filter(e => e.item === catFilterExp);
+
+    filteredExp.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    const expBody = document.getElementById('fin-expense-history-list');
+    if (filteredExp.length === 0) {
+        expBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
+    } else {
+        const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost, 0);
+        const rowsHtmlExp = filteredExp.map(e => {
+    // Extrai o fornecedor da observação
+    let providerVal = e.note || '-';
+    if (providerVal.startsWith('Fornecedor:')) {
+        providerVal = providerVal.replace('Fornecedor:', '').trim();
+    }
+
+    let displayName = e.item;          // categoria/tipo
+    let displaySub = '';
+    if (providerVal && providerVal !== '-') {
+        displayName = providerVal;     // fornecedor vira principal
+        displaySub = e.item;           // categoria vira subtítulo
+    }
+
+    const dataVencStr = (e.date || '').split('T')[0];
+    const isVencido = dataVencStr < hojeLocalStr && e.status !== 'PAGO';
+    const corFundo = isVencido ? 'bg-red-50/50' : (e.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : 'bg-orange-50/30');
+    const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
+
+    const expenseId = e.id;
+
+    return `<tr class="hover:bg-slate-100 ${corFundo} transition">
+        <td class="p-3 text-xs border-r border-slate-100">
+            <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)} ${avisoVenc}</div>
+        </td>
+        <td class="p-3 text-xs border-r border-slate-100 text-center font-mono font-bold text-slate-600">#${e.id}</td>
+        <td class="p-3 border-r border-slate-100">
+            <div class="font-bold text-slate-800 text-xs">${displayName}</div>
+            ${displaySub ? `<div class="text-[10px] text-slate-500 truncate w-32" title="${displaySub}">${displaySub}</div>` : ''}
+        </td>
+        <td class="p-3 border-r border-slate-100">
+            <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>
+        </td>
+        <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
+            ${e.status !== 'PAGO' ? `
+                <button onclick="openEditExpense('${expenseId}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
+                <button onclick="payExpense('${expenseId}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
+                <button onclick="excluirDespesa('${expenseId}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            ` : `
+                <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
+                <button onclick="estornarDespesaLog('${expenseId}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5 inline"></i></button>
+            `}
+        </td>
+    </tr>`;
+}).join('');
       
-          if (termExp) filteredExp = filteredExp.filter(e => e.item?.toLowerCase().includes(termExp) || e.note?.toLowerCase().includes(termExp));
-          if (statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
-          if (startExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] >= startExp);
-          if (endExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] <= endExp);
-      
-          filteredExp.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-      
-          const expBody = document.getElementById('fin-expense-history-list');
-          if (filteredExp.length === 0) {
-              expBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
-          } else {
-              const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost, 0);
-              const rowsHtmlExp = filteredExp.map(e => {
-                  let providerVal = e.note || '-';
-                  if (providerVal.startsWith('Fornecedor:')) providerVal = providerVal.replace('Fornecedor:', '').trim();
-      
-                  const dataVencStr = (e.date || '').split('T')[0];
-                  const isVencido = dataVencStr < hojeLocalStr && e.status !== 'PAGO';
-                  const corFundo = isVencido ? 'bg-red-50/50' : (e.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : 'bg-orange-50/30');
-                  const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
-      
-                  const expenseId = e.id; // Garante que o ID seja passado como string para os eventos
-      
-                  return `<tr class="hover:bg-slate-100 ${corFundo} transition">
-                      <td class="p-3 text-xs border-r border-slate-100">
-                          <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)} ${avisoVenc}</div>
-                       </td>
-                      <td class="p-3 border-r border-slate-100">
-                          <div class="font-bold text-slate-800 text-xs">${e.item}</div>
-                          <div class="text-[10px] text-slate-500 truncate w-32" title="${providerVal}">${providerVal}</div>
-                       </td>
-                      <td class="p-3 border-r border-slate-100">
-                          <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>
-                       </td>
-                      <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                          ${e.status !== 'PAGO' ? `
-                              <button onclick="openEditExpense('${expenseId}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-                              <button onclick="payExpense('${expenseId}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
-                              <button onclick="excluirDespesa('${expenseId}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-                          ` : `
-                              <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
-                              <button onclick="estornarDespesaLog('${expenseId}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5 inline"></i></button>
-                          `}
-                       </td>
-                   </tr>`;
-              }).join('');
-      
-              const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                  <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
-                  <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
-                  <td class="p-3 bg-red-50"></td>
-               </tr>`;
-              expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
-          }
-      
-          lucide.createIcons();
-      }
+        const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
+            <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
+            <td class="p-3 bg-red-50"></td>
+        </tr>`;
+        expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
+    }
+
+    lucide.createIcons();
+}
 
   
         function openEditReceivable(id, total, paid, due, method) {
@@ -3286,7 +3385,7 @@ function loadQuoteToCart(id) {
                     <tbody>${itemsHtml}</tbody>
                 </table>
                 <div class="footer-section">
-                    <div class="notes-area"><div class="notes-title">Observações:</div><div class="notes-text">${obsText}</div></div>
+                    <div class="notes-area"><div class="notes-title">Observações:</div><div class="notes-text" style="white-space: pre-wrap;">${obsText}</div>
                     <div class="totals-area">
                         <div class="total-row"><span>Subtotal:</span><span>${formatMoney(subtotal)}</span></div>
                         ${discount > 0 ? `<div class="total-row" style="color:red"><span>Desconto:</span><span>- ${formatMoney(discount)}</span></div>` : ''}
@@ -3383,7 +3482,8 @@ function loadQuoteToCart(id) {
                     <td colspan="3">${cli.phone || '-'}</td>
                 </tr>
             </table>
-            ${obsLimpa ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px;"><strong>OBSERVAÇÕES:</strong> ${obsLimpa}</div>` : ''}
+            <!--${obsLimpa ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px; white-space: pre-wrap;"><strong>OBSERVAÇÕES:</strong> ${obsLimpa}</div>` : ''}-->
+            ${obsLimpa ? `<div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #ccc; padding-top: 5px;"><strong>OBSERVAÇÕES:</strong><br><span style="white-space: pre-wrap; word-break: break-word;">${obsLimpa}</span></div>` : ''}
         </div>
 
         <div class="section-title-orig" style="background-color: #eee; border: 1px solid #000; font-weight: bold; padding: 5px; font-size: 11px; text-transform: uppercase;">ITENS DO PEDIDO</div>
@@ -3479,7 +3579,8 @@ function loadQuoteToCart(id) {
                 return `
                     <tr>
                         <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${formatDate(l.date)}</td>
-                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; font-weight: bold;">${l.note || '-'}</td>
+                        <!--<td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; font-weight: bold;">${l.note || '-'}</td>-->
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; font-weight: bold; white-space: pre-wrap;">${l.note || '-'}</td>
                         <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; font-weight: bold;">${l.clientName || '-'}</td>
                         <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${l.productName}</td>
                         <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align: center; font-weight: bold;">${l.quantity}</td>
@@ -3799,7 +3900,7 @@ function loadQuoteToCart(id) {
 }
         function fazerLogout() {
             localStorage.removeItem('rv_user');
-            window.location.replace('index.html');
+            window.location.href = "index.html?t=" + Date.now();
         }
 
         function renderUsers() {
@@ -3924,7 +4025,7 @@ function loadQuoteToCart(id) {
         <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
             
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-               <!-- <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />-->
+                <!--<img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />-->
             </div>
 
             <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
@@ -3985,7 +4086,7 @@ function loadQuoteToCart(id) {
                     <td valign="top" style="padding-right: 30px;">
                         <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
                             <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                            <div style="font-size: 10px; color: #334155;">${obsText}</div>
+                            <div style="font-size: 10px; color: #334155; white-space: pre-wrap;">${obsText}</div>
                         </div>
                     </td>
                     <td width="250" valign="top">
@@ -4641,7 +4742,7 @@ async function downloadSalePDF(id) {
                     <td valign="top" style="padding-right: 30px;">
                         <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
                             <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                            <div style="font-size: 10px; color: #334155;">${obsText}</div>
+                            <div style="font-size: 10px; color: #334155; white-space: pre-wrap;">${obsText}</div>
                         </div>
                     </td>
                     <td width="250" valign="top">
@@ -4835,6 +4936,89 @@ function printPartnerReport() {
     showLoading(false);
     setTimeout(() => window.print(), 500);
 }
+
+  async function processExpenseDocument(file) {
+    if (!file) return;
+    showLoading(true);
+
+    try {
+        const { data: { text } } = await Tesseract.recognize(file, 'por', {
+            logger: m => console.log(m) // opcional, para ver progresso
+        });
+
+        console.log('Texto extraído:', text);
+
+        // Extrai dados usando expressões regulares
+        const extracted = parseExpenseText(text);
+        
+        // Preenche o formulário
+        if (extracted.supplier) document.getElementById('exp-provider').value = extracted.supplier;
+        if (extracted.total) document.getElementById('exp-cost').value = extracted.total;
+        if (extracted.date) document.getElementById('exp-date').value = extracted.date;
+        if (extracted.category) document.getElementById('exp-item').value = extracted.category;
+        if (extracted.note) document.getElementById('exp-note').value = extracted.note;
+
+        showToast("Dados extraídos! Confira e salve.");
+    } catch (error) {
+        console.error(error);
+        showToast("Erro ao processar o comprovante. Tente novamente ou insira manualmente.", true);
+    }
+    showLoading(false);
+}
+
+function parseExpenseText(text) {
+    // Exemplo de parsing para comprovantes bancários (ajuste conforme seu banco)
+    const result = { supplier: '', total: '', date: '', category: '', note: '' };
+
+    // 1. Valor total (R$ 123,45 ou 123.45)
+    const valorMatch = text.match(/(?:R\$|R\$?)\s*([\d,.]+)/i) || text.match(/([\d,.]+)\s*(?:reais|R\$)/i);
+    if (valorMatch) {
+        // Converte para número com ponto decimal
+        let val = valorMatch[1].replace(/\./g, '').replace(',', '.');
+        result.total = parseFloat(val) || 0;
+    }
+
+    // 2. Data (DD/MM/AAAA ou DD-MM-AAAA)
+    const dateMatch = text.match(/(\d{2}[\/\-]\d{2}[\/\-]\d{4})/);
+    if (dateMatch) {
+        let parts = dateMatch[1].split(/[\/\-]/);
+        result.date = `${parts[2]}-${parts[1]}-${parts[0]}`; // formato YYYY-MM-DD
+    }
+
+    // 3. Fornecedor / Beneficiário (linhas com "favorecido", "beneficiário", "pagador", etc.)
+    const supplierRegex = /(?:favorecido|benefici[áa]rio|pagador|nome)\s*[:;]\s*([^\n]+)/i;
+    const supplierMatch = text.match(supplierRegex);
+    if (supplierMatch) result.supplier = supplierMatch[1].trim();
+
+    // Se não encontrou, tenta pegar a primeira linha não vazia após o tipo de transação (ex: "PIX", "TED")
+    if (!result.supplier) {
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        // Tenta achar algo como "PIX" ou "TED" e pega a linha seguinte
+        for (let i = 0; i < lines.length; i++) {
+            if (/(pix|ted|transferência|pagamento)/i.test(lines[i]) && i+1 < lines.length) {
+                result.supplier = lines[i+1];
+                break;
+            }
+        }
+    }
+
+    // 4. Categoria (tenta inferir por palavras-chave)
+    const lowerText = text.toLowerCase();
+    if (lowerText.includes('luz') || lowerText.includes('energia')) result.category = 'Energia';
+    else if (lowerText.includes('água') || lowerText.includes('saneamento')) result.category = 'Água';
+    else if (lowerText.includes('internet') || lowerText.includes('telefone')) result.category = 'Internet';
+    else if (lowerText.includes('combustível') || lowerText.includes('gasolina')) result.category = 'Combustível';
+    else if (lowerText.includes('manutenção') || lowerText.includes('máquina')) result.category = 'Man. Maquinas';
+    else if (lowerText.includes('salário')) result.category = 'Salário';
+    else if (lowerText.includes('imposto')) result.category = 'Imposto';
+    else result.category = 'Outros';
+
+    // 5. Observação (pode ser a linha com "comprovante" ou "identificador")
+    const obsMatch = text.match(/(?:identificador|comprovante|id)\s*[:;]\s*([^\n]+)/i);
+    if (obsMatch) result.note = obsMatch[1].trim();
+
+    return result;
+}
   
     </script> 
     <script type="importmap">
@@ -4849,6 +5033,7 @@ function printPartnerReport() {
     <script src="abas/equipe.js"></script>
     <script src="abas/gerencial.js"></script>
     <script src="abas/agenda.js"></script>
+    
    
   </body>
 </html>
