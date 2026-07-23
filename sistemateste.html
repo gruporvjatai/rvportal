@@ -4945,68 +4945,7 @@ function printPartnerReport() {
 
 // ==================== OCR.space INTEGRAÇÃO ====================
 
-// Sua chave da API OCR.space (substitua pela sua)
-const OCR_API_KEY = 'K89777209588957';
 
-// Função principal para processar o documento
-async function processDocument(file) {
-    if (!file) return;
-    
-    // Valida tamanho (máx 1MB no plano gratuito)
-    if (file.size > 1024 * 1024) {
-        showToast("Arquivo muito grande. O plano gratuito aceita até 1MB.", true);
-        return;
-    }
-    
-    showLoading(true);
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('apikey', OCR_API_KEY);
-    formData.append('language', 'por');          // Português
-    formData.append('OCREngine', '2');           // Engine 2 = mais preciso (recomendado)
-    formData.append('scale', 'true');            // Melhora qualidade de imagens pequenas
-    formData.append('isTable', 'false');         // Não forçar tabela
-
-    try {
-        const response = await fetch('https://api.ocr.space/parse/image', {
-            method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (!data.ParsedResults || data.ParsedResults.length === 0) {
-            throw new Error("Nenhum texto foi reconhecido.");
-        }
-
-        const text = data.ParsedResults[0].ParsedText;
-
-        // Extrai os dados do texto
-        const extracted = extractDataFromText(text);
-
-        // Preenche o modal
-        document.getElementById('exp-item').value = extracted.categoria || 'Outros';
-        document.getElementById('exp-provider').value = extracted.fornecedor || '';
-        document.getElementById('exp-cost').value = extracted.valor || '';
-        if (extracted.data) {
-            document.getElementById('exp-date').value = extracted.data;
-        }
-        document.getElementById('exp-note').value = extracted.observacao || 'Extraído via OCR';
-
-        showToast("Dados extraídos! Confira e salve.");
-    } catch (error) {
-        showToast("Erro ao processar documento: " + error.message, true);
-        console.error(error);
-    }
-
-    // Limpa o input para permitir reenvio do mesmo arquivo
-    document.getElementById('file-input').value = '';
-    showLoading(false);
-}
-
-// Função para extrair informações do texto bruto
-// ==================== OCR.space INTEGRAÇÃO ====================
 
 // Sua chave da API OCR.space (substitua pela sua)
 const OCR_API_KEY = 'K89777209588957';
