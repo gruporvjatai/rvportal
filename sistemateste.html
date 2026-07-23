@@ -402,9 +402,13 @@
       </div>
       
       <div id="view-fin" class="hidden-section">
-  <div class="flex justify-between items-center mb-6">
-    <h2 class="text-2xl font-bold text-slate-800">Financeiro & Caixa</h2>
-  </div>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-slate-800">Financeiro & Caixa</h2>
+            <button onclick="openReceiptModal()" 
+                    class="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1">
+            <i data-lucide="file-text" class="w-4 h-4"></i> Recibo
+            </button>
+        </div>
 
   <!-- Cards de resumo (mantidos) -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1132,6 +1136,57 @@
           </div>
       </div>
   </div>
+
+
+  <!-- ========== MODAL RECIBO ========== -->
+    <div id="modal-receipt" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+            <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <i data-lucide="file-text" class="text-emerald-600"></i> Gerar Recibo
+            </h3>
+            <button onclick="closeReceiptModal()" class="text-slate-400 hover:text-red-500">
+                <i data-lucide="x"></i>
+            </button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto">
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Cliente / Pagador *</label>
+                <input type="text" id="receipt-client" placeholder="Nome do cliente" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Valor (R$) *</label>
+                <input type="number" id="receipt-amount" placeholder="0,00" class="w-full p-3 border rounded-xl font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-600 outline-none" step="0.01">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Data *</label>
+                <input type="date" id="receipt-date" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Descrição (opcional)</label>
+                <input type="text" id="receipt-desc" placeholder="Ex: Pagamento de serviços" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Forma de Pagamento</label>
+                <select id="receipt-payment" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
+                <option value="">Selecione</option>
+                <option>Dinheiro</option>
+                <option>PIX</option>
+                <option>Cartão Débito</option>
+                <option>Cartão Crédito</option>
+                <option>Transferência</option>
+                <option>Boleto</option>
+                </select>
+            </div>
+            </div>
+            <div class="p-5 border-t bg-slate-50 flex gap-3">
+            <button onclick="closeReceiptModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+            <button onclick="printReceipt()" class="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-white hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2">
+                <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Recibo
+            </button>
+            </div>
+        </div>
+    </div>
 
     
 
@@ -5135,6 +5190,124 @@ if (!observacao) {
         categoria: categoria
         //observacao: observacao
     };
+}
+
+// ========== RECIBO INSTANTÂNEO ==========
+function openReceiptModal() {
+  const today = getHojeLocalStr();
+  document.getElementById('receipt-date').value = today;
+  document.getElementById('receipt-client').value = '';
+  document.getElementById('receipt-amount').value = '';
+  document.getElementById('receipt-desc').value = '';
+  document.getElementById('receipt-payment').value = '';
+  document.getElementById('modal-receipt').classList.remove('hidden');
+}
+
+function closeReceiptModal() {
+  document.getElementById('modal-receipt').classList.add('hidden');
+}
+
+function printReceipt() {
+  const client = document.getElementById('receipt-client').value.trim();
+  const amount = parseFloat(document.getElementById('receipt-amount').value);
+  const date = document.getElementById('receipt-date').value;
+  const desc = document.getElementById('receipt-desc').value.trim();
+  const payment = document.getElementById('receipt-payment').value;
+
+  if (!client || !amount || amount <= 0 || !date) {
+    showToast("Preencha todos os campos obrigatórios (Cliente, Valor, Data).", true);
+    return;
+  }
+
+  const valorFormatado = formatMoney(amount);
+  const dataFormatada = formatDate(date + 'T00:00:00');
+
+  const company = {
+    name: "RV PORTAL MADEIRAS",
+    cnpj: "30.942.123/0001-02",
+    phone: "(64) 3636-4861",
+    address: "Rua Mineiros, 532 - Jataí - GO",
+    logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+  };
+
+  const receiptHTML = `
+<div style="font-family: 'Helvetica', Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 10px;">   
+  <div style="border: 2px solid #0f172a; border-radius: 10px; padding: 25px; background: white;">
+    <!-- Cabeçalho -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-bottom: 15px;">
+      <img src="${company.logoUrl}" style="height: 60px;" />
+      <div style="text-align: right;">
+        <h2 style="margin: 0; color: #059669; font-size: 18px; font-weight: 900;">${company.name}</h2>
+        <p style="margin: 2px 0; font-size: 11px; color: #475569;">CNPJ: ${company.cnpj}</p>
+        <p style="margin: 2px 0; font-size: 11px; color: #475569;">${company.address}</p>
+        <p style="margin: 2px 0; font-size: 11px; color: #475569;">${company.phone}</p>
+      </div>
+    </div>
+    
+    <!-- Título -->
+    <div style="text-align: center; margin: 15px 0;">
+      <h3 style="font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin: 0;">RECIBO</h3>
+    </div>
+    
+    <!-- Dados principais -->
+    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+      <div><strong>Data:</strong> ${dataFormatada}</div>
+      <div><strong>Valor:</strong> <span style="font-size: 18px; font-weight: 900; color: #059669;">${valorFormatado}</span></div>
+    </div>
+    
+    <!-- Texto do recibo -->
+    <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.8;">
+      <p>Declaro que recebi de <strong>${company.name}</strong> a importância de <strong>${valorFormatado}</strong>, pago a <strong>${client}</strong>, referente a: <strong>${desc || 'Pagamento de serviços/prestação'}</strong>.</p>
+      ${payment ? `<p><strong>Forma de Pagamento:</strong> ${payment}</p>` : ''}
+    </div>
+    
+    <!-- Assinaturas -->
+    <div style="margin-top: 50px; display: flex; justify-content: space-between; gap: 20px;">
+      <div style="text-align: center; width: 45%;">
+        <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
+        <span style="font-size: 11px; font-weight: bold;">${client}</span>
+        <p style="margin: 2px 0; font-size: 10px; color: #64748b;">Assinatura do Recebedor</p>
+      </div>
+      <div style="text-align: center; width: 45%;">
+        <div style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
+        <span style="font-size: 11px; font-weight: bold;">${company.name}</span>
+        <p style="margin: 2px 0; font-size: 10px; color: #64748b;">Assinatura da Empresa</p>
+      </div>
+    </div>
+    
+    <!-- Rodapé -->
+    <div style="margin-top: 20px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
+      Documento emitido por sistema RV PORTAL - Válido como recibo de pagamento.
+    </div>
+  </div>
+</div>
+`;
+
+  const printWindow = window.open('', '_blank', 'width=800,height=600');
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Recibo - RV PORTAL</title>
+        <style>
+          body { margin: 0; padding: 0; background: #f1f5f9; }
+          @media print {
+            body { background: white; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        ${receiptHTML}
+        <div style="text-align: center; margin-top: 20px; font-size: 14px;" class="no-print">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #059669; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">🖨️ Imprimir / Salvar PDF</button>
+          <button onclick="window.close()" style="padding: 10px 20px; background: #e2e8f0; color: #0f172a; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-left: 10px;">Fechar</button>
+        </div>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+
+  closeReceiptModal();
 }
   
     </script> 
