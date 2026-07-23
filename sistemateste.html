@@ -5013,7 +5013,7 @@ function extractDataFromText(text) {
     // 1. Extrair FORNECEDOR (tenta encontrar padrões comuns)
     let fornecedor = '';
     // Procura por "Fornecedor:", "Prestador:", "Empresa:", "Razão Social:", ou linhas que pareçam nome de empresa
-    const fornecedorMatch = cleanText.match(/(?:Fornecedor|Prestador|Empresa|Razão Social|Nome)\s*[:]\s*([^\n\r]+)/i);
+    const fornecedorMatch = cleanText.match(/(?:Fornecedor|Para|Destino|Prestador|Empresa|Razão Social|Nome)\s*[:]\s*([^\n\r]+)/i);
     if (fornecedorMatch) {
         fornecedor = fornecedorMatch[1].trim();
     } else {
@@ -5078,16 +5078,16 @@ function extractDataFromText(text) {
     let categoria = 'Outros';
     const lowerText = cleanText.toLowerCase();
     const categorias = {
-        'Energia': ['energia', 'luz', 'eletricidade', 'concessionária'],
-        'Água': ['água', 'saneamento', 'abastecimento'],
-        'Internet': ['internet', 'fibra', 'banda larga', 'telecom'],
-        'Combustível': ['combustível', 'gasolina', 'diesel', 'posto'],
-        'Salário': ['salário', 'folha', 'pagamento de funcionário'],
-        'Fornecedor': ['fornecedor', 'matéria-prima', 'insumo', 'material'],
+        'Energia': ['equatorial', 'energia', 'luz', 'eletricidade', 'concessionária'],
+        'Água': ['saneago,', 'BRK', 'água', 'saneamento', 'abastecimento'],
+        'Internet': ['internet', 'vivo', 'fibra', 'banda larga', 'telecom'],
+        'Combustível': ['combustível', 'etanol', 'gasolina', 'diesel', 'posto'],
+        'Salário': ['salário', 'diaria', 'folha', 'pagamento de funcionário'],
+        'Fornecedor': ['fornecedor', 'madeira', 'pinus', 'tauari', 'parafuso', 'arame', 'prego', 'porta', 'portal', 'matéria-prima', 'insumo', 'material'],
         'Man. Maquinas': ['manutenção', 'máquina', 'equipamento', 'reparo'],
         'Imposto': ['imposto', 'taxa', 'fgts', 'inss', 'iss', 'icms'],
         'Veículos': ['veículo', 'carro', 'manutenção veicular'],
-        'Marcenaria': ['marcenaria', 'madeira', 'carpintaria'],
+        'Marcenaria': ['marcenaria', 'cola', 'selador', 'seladora', 'estopa', 'madeira', 'carpintaria'],
         'Instalação': ['instalação', 'montagem', 'serviço de instalação']
     };
 
