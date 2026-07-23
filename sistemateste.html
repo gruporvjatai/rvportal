@@ -4983,6 +4983,7 @@ async function processDocument(file) {
         }
 
         const text = data.ParsedResults[0].ParsedText;
+        console.log('🔍 Texto bruto do OCR:', text);
 
         // Extrai os dados do texto
         const extracted = extractDataFromText(text);
