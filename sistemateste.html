@@ -5385,6 +5385,22 @@ function openReceiptFromExpense(expenseId) {
       }
       return formatMoney(val);
   }
+
+  function toggleFinanceVisibility() {
+    // Garante que o elemento existe antes de tentar manipulá-lo
+    setTimeout(() => {
+        showFinanceValues = !showFinanceValues;
+        const btn = document.getElementById('finance-eye-btn');
+        if (!btn) return;
+        
+        const icon = btn.querySelector('i');
+        if (!icon) return;
+        
+        icon.setAttribute('data-lucide', showFinanceValues ? 'eye' : 'eye-off');
+        lucide.createIcons();
+        renderFinance();
+    }, 0);
+}
   
     </script> 
     <script type="importmap">
