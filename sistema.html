@@ -378,6 +378,7 @@
                       <option value="ABERTO">Abertos</option>
                       <option value="EM NEGOCIAÇÃO">Em Negociação</option>
                       <option value="APROVADO">Aprovados</option>
+                      <option value="ENVIADO">Msg Enviada</option>
                       <option value="PERDIDO">Perdidos</option>
                   </select>
               </div>
@@ -2691,6 +2692,8 @@ function printStockCountSheet() {
                 if (q.status === 'APROVADO') { corStatus = "text-emerald-700 font-bold bg-emerald-50 border-emerald-200"; bgStatusClass = "bg-emerald-50/40"; }
                 else if (q.status === 'PERDIDO') { corStatus = "text-red-700 font-bold bg-red-50 border-red-200"; bgStatusClass = "bg-red-50/40"; }
                 else if (q.status === 'EM NEGOCIAÇÃO') { corStatus = "text-indigo-700 font-bold bg-indigo-50 border-indigo-200"; bgStatusClass = "bg-indigo-50/40"; }
+                else if (q.status === 'ENVIADO') { corStatus = "text-amber-800 font-bold bg-amber-50 border-amber-300"; bgStatusClass = "bg-amber-50/40"; }
+              
 
                 return `
                 <tr class="transition ${bgStatusClass ? bgStatusClass : 'hover:bg-slate-50'} border-b">
@@ -2710,6 +2713,7 @@ function printStockCountSheet() {
                             <option value="ABERTO" ${q.status === 'ABERTO' ? 'selected' : ''}>Aberto</option>
                             <option value="EM NEGOCIAÇÃO" ${q.status === 'EM NEGOCIAÇÃO' ? 'selected' : ''}>Em Negociação</option>
                             <option value="APROVADO" ${q.status === 'APROVADO' ? 'selected' : ''}>Aprovado</option>
+                            <option value="ENVIADO" ${q.status === 'ENVIADO' ? 'selected' : ''}>Msg Enviada</option>
                             <option value="PERDIDO" ${q.status === 'PERDIDO' ? 'selected' : ''}>Perdido</option>
                         </select>
                     </td>
