@@ -404,12 +404,18 @@
       
       <div id="view-fin" class="hidden-section">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-slate-800">Financeiro & Caixa</h2>
+        <h2 class="text-2xl font-bold text-slate-800">Financeiro & Caixa</h2>
+        <div class="flex gap-2">
+           <button onclick="toggleCardVisibility()" id="finance-eye-btn"
+                    class="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1">
+                <i data-lucide="eye-off" class="w-4 h-4"></i>
+            </button>
             <button onclick="openReceiptModal()" 
                     class="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1">
-            <i data-lucide="file-text" class="w-4 h-4"></i> Recibo Avulso
+                <i data-lucide="file-text" class="w-4 h-4"></i> Recibo Avulso
             </button>
         </div>
+    </div>
 
   <!-- Cards de resumo (mantidos) -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -3195,9 +3201,10 @@ function loadQuoteToCart(id) {
           
           const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
           
-          document.getElementById('fin-income').innerText = formatMoney(income);
-          document.getElementById('fin-expenses').innerText = formatMoney(expenses);
-          document.getElementById('fin-balance').innerText = formatMoney(income - expenses);
+          lastIncome = income;
+          lastExpenses = expenses;
+          lastBalance = income - expenses;
+          updateCardValues();
       
           const termRec = document.getElementById('rec-search')?.value.toLowerCase() || '';
           const statusRec = document.getElementById('rec-status')?.value || '';
@@ -5347,6 +5354,38 @@ function openReceiptFromExpense(expenseId) {
 
     // Abre o modal
     document.getElementById('modal-receipt').classList.remove('hidden');
+}
+
+  // ========== CONTROLE DE VISIBILIDADE DOS CARDS ==========
+let showCardsValues = false; // começa oculto
+let lastIncome = 0;
+let lastExpenses = 0;
+let lastBalance = 0;
+
+function toggleCardVisibility() {
+    showCardsValues = !showCardsValues;
+    const btn = document.getElementById('finance-eye-btn');
+    if (btn) {
+        const icon = btn.querySelector('i');
+        if (icon) {
+            icon.setAttribute('data-lucide', showCardsValues ? 'eye' : 'eye-off');
+        }
+        lucide.createIcons();
+    }
+    updateCardValues();
+}
+
+function formatCardValue(val) {
+    if (!showCardsValues) {
+        return 'R$ ****';
+    }
+    return formatMoney(val);
+}
+
+function updateCardValues() {
+    document.getElementById('fin-income').innerText = formatCardValue(lastIncome);
+    document.getElementById('fin-expenses').innerText = formatCardValue(lastExpenses);
+    document.getElementById('fin-balance').innerText = formatCardValue(lastBalance);
 }
   
     </script> 
