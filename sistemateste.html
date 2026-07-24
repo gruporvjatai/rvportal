@@ -5360,23 +5360,8 @@ function openReceiptFromExpense(expenseId) {
 }
 
                             // ========== CONTROLE DE VISIBILIDADE DOS VALORES ==========
-  let showFinanceValues = true;
-  
-  function toggleFinanceVisibility() {
-      showFinanceValues = !showFinanceValues;
-      const btn = document.getElementById('finance-eye-btn');
-      const icon = btn.querySelector('i');
-      
-      // Troca o ícone
-      if (showFinanceValues) {
-          icon.setAttribute('data-lucide', 'eye');
-      } else {
-          icon.setAttribute('data-lucide', 'eye-off');
-      }
-      lucide.createIcons(); // Atualiza o ícone na tela
-      
-      renderFinance(); // Recarrega a lista com os valores ocultos/visíveis
-  }
+  let showFinanceValues = true; 
+
   
   // Função que formata ou oculta o valor
   function formatMoneySafe(val) {
