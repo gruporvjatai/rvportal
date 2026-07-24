@@ -3318,7 +3318,8 @@ function loadQuoteToCart(id) {
         <td class="p-3 border-r border-slate-100">
             <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>
         </td>
-        <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
+                <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
+            <button onclick="openReceiptFromExpense('${expenseId}')" class="bg-amber-500 hover:bg-amber-600 text-white p-1.5 rounded shadow" title="Gerar Recibo"><i data-lucide="file-text" class="w-3.5 h-3.5"></i></button>
             ${e.status !== 'PAGO' ? `
                 <button onclick="openEditExpense('${expenseId}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
                 <button onclick="payExpense('${expenseId}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
@@ -5257,7 +5258,7 @@ function printReceipt() {
     
     <!-- Texto do recibo -->
     <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.8;">
-      <p>Declaro que recebi de <strong>${company.name}</strong> a importância de <strong>${valorFormatado}</strong>, pago a <strong>${client}</strong>, referente a: <strong>${desc || 'Pagamento de serviços/prestação'}</strong>.</p>
+      <p>Eu, <strong>${client}</strong>, declaro que recebi de <strong>${company.name}</strong> a importância de <strong>${valorFormatado}</strong>, referente a <strong>${desc || 'Pagamento de serviços/prestação'}</strong>.</p>
       ${payment ? `<p><strong>Forma de Pagamento:</strong> ${payment}</p>` : ''}
     </div>
     
@@ -5308,6 +5309,38 @@ function printReceipt() {
   printWindow.document.close();
 
   closeReceiptModal();
+}
+
+  // ========== ABRIR RECIBO A PARTIR DE UMA DESPESA ==========
+function openReceiptFromExpense(expenseId) {
+    const exp = STATE.expenses.find(e => String(e.id) === String(expenseId));
+    if (!exp) {
+        showToast("Despesa não encontrada!", true);
+        return;
+    }
+
+    // Extrai o nome do fornecedor (se houver)
+    let fornecedor = exp.item; // fallback: categoria
+    let descricao = exp.note || '';
+    if (descricao.startsWith('Fornecedor:')) {
+        const parts = descricao.split('|');
+        fornecedor = parts[0].replace('Fornecedor:', '').trim();
+        descricao = parts.slice(1).join('|').trim();
+    }
+
+    // Preenche o modal
+    document.getElementById('receipt-client').value = fornecedor;
+    document.getElementById('receipt-amount').value = exp.cost;
+    if (exp.date) {
+        document.getElementById('receipt-date').value = exp.date.split('T')[0];
+    } else {
+        document.getElementById('receipt-date').value = getHojeLocalStr();
+    }
+    document.getElementById('receipt-desc').value = descricao || exp.item;
+    document.getElementById('receipt-payment').value = ''; // deixa vazio ou "a definir"
+
+    // Abre o modal
+    document.getElementById('modal-receipt').classList.remove('hidden');
 }
   
     </script> 
