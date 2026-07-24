@@ -5372,19 +5372,19 @@ function openReceiptFromExpense(expenseId) {
   }
 
   function toggleFinanceVisibility() {
-    // Garante que o elemento existe antes de tentar manipulá-lo
-    setTimeout(() => {
-        showFinanceValues = !showFinanceValues;
-        const btn = document.getElementById('finance-eye-btn');
-        if (!btn) return;
-        
+    showFinanceValues = !showFinanceValues;
+    const btn = document.getElementById('finance-eye-btn');
+    if (btn) {
         const icon = btn.querySelector('i');
-        if (!icon) return;
-        
-        icon.setAttribute('data-lucide', showFinanceValues ? 'eye' : 'eye-off');
-        lucide.createIcons();
+        if (icon) {
+            icon.setAttribute('data-lucide', showFinanceValues ? 'eye' : 'eye-off');
+        }
+    }
+    // Força a recriação dos ícones e a atualização
+    setTimeout(() => {
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         renderFinance();
-    }, 0);
+    }, 50);
 }
   
     </script> 
