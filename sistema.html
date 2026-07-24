@@ -5257,7 +5257,7 @@ function printReceipt() {
     
     <!-- Texto do recibo -->
     <div style="margin-bottom: 15px; font-size: 14px; line-height: 1.8;">
-      <p>Declaro que recebi de <strong>${company.name}</strong> a importância de <strong>${valorFormatado}</strong>, pago a <strong>${client}</strong> referente a <strong>${desc || 'Pagamento de serviços/prestação'}</strong>.</p>
+      <p>Eu, <strong>${client || '________________________________________'}</strong>, declaro que recebi de <strong>${company.name}</strong> a importância de <strong>${valorFormatado}</strong>, referente a <strong>${desc || 'Pagamento de serviços/prestação'}</strong>.</p>
       ${payment ? `<p><strong>Forma de Pagamento:</strong> ${payment}</p>` : ''}
     </div>
     
