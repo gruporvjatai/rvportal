@@ -403,12 +403,12 @@
       </div>
       
       <div id="view-fin" class="hidden-section">
-       <div class="flex justify-between items-center mb-6">
+        <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-slate-800">Financeiro & Caixa</h2>
         <div class="flex gap-2">
-            <button onclick="toggleFinanceVisibility()" id="finance-eye-btn"
+           <button onclick="toggleCardVisibility()" id="finance-eye-btn"
                     class="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1">
-                <i data-lucide="eye" class="w-4 h-4"></i>
+                <i data-lucide="eye-off" class="w-4 h-4"></i>
             </button>
             <button onclick="openReceiptModal()" 
                     class="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1">
@@ -3201,13 +3201,10 @@ function loadQuoteToCart(id) {
           
           const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
           
-          /*document.getElementById('fin-income').innerText = formatMoney(income);
-          document.getElementById('fin-expenses').innerText = formatMoney(expenses);
-          document.getElementById('fin-balance').innerText = formatMoney(income - expenses);*/
-
-          document.getElementById('fin-income').innerText = formatMoneySafe(income);
-          document.getElementById('fin-expenses').innerText = formatMoneySafe(expenses);
-          document.getElementById('fin-balance').innerText = formatMoneySafe(income - expenses);
+          lastIncome = income;
+          lastExpenses = expenses;
+          lastBalance = income - expenses;
+          updateCardValues();
       
           const termRec = document.getElementById('rec-search')?.value.toLowerCase() || '';
           const statusRec = document.getElementById('rec-status')?.value || '';
@@ -3251,8 +3248,8 @@ function loadQuoteToCart(id) {
                           <div class="text-[10px] text-slate-500 truncate w-32" title="${r.desc}">${r.desc}</div>
                        </td>
                       <td class="p-3 border-r border-slate-100">
-                          <div class="font-bold text-slate-800 text-sm">${formatMoneySafe(r.val)}</div>
-                          ${r.status !== 'PAGO' && r.paid > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoneySafe(rest)}</div>` : ''}
+                          <div class="font-bold text-slate-800 text-sm">${formatMoney(r.val)}</div>
+                          ${r.status !== 'PAGO' && r.paid > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoney(rest)}</div>` : ''}
                        </td>
                       <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
                           ${r.status !== 'PAGO' ? 
@@ -3268,7 +3265,7 @@ function loadQuoteToCart(id) {
       
               const totalRowHtml = `<tr class="bg-indigo-50 border-t-2 border-indigo-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                   <td colspan="2" class="p-3 text-right font-bold text-indigo-900 text-xs uppercase">Totais da Pesquisa:</td>
-                  <td class="p-3 font-black text-indigo-700 text-sm border-r border-indigo-200">${formatMoneySafe(totalValRec)}</td>
+                  <td class="p-3 font-black text-indigo-700 text-sm border-r border-indigo-200">${formatMoney(totalValRec)}</td>
                   <td class="p-3 bg-indigo-50"></td>
                </tr>`;
               recBody.innerHTML = rowsHtml + totalRowHtml;
@@ -3332,7 +3329,7 @@ function loadQuoteToCart(id) {
             ${displaySub ? `<div class="text-[10px] text-slate-500 truncate w-32" title="${displaySub}">${displaySub}</div>` : ''}            
         </td>
         <td class="p-3 border-r border-slate-100">
-            <div class="font-bold text-slate-800 text-sm">${formatMoneySafe(e.cost)}</div>           
+            <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>           
         </td>
                 <td class="p-3 text-right flex items-center justify-end gap-1 h-full">                
                 ${e.status !== 'PAGO' ? `
@@ -3350,7 +3347,7 @@ function loadQuoteToCart(id) {
       
         const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
             <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
-            <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoneySafe(totalValExp)}</td>
+            <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
             <td class="p-3 bg-red-50"></td>
         </tr>`;
         expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
@@ -5359,32 +5356,36 @@ function openReceiptFromExpense(expenseId) {
     document.getElementById('modal-receipt').classList.remove('hidden');
 }
 
-                            // ========== CONTROLE DE VISIBILIDADE DOS VALORES ==========
-  let showFinanceValues = true; 
+  // ========== CONTROLE DE VISIBILIDADE DOS CARDS ==========
+let showCardsValues = false; // começa oculto
+let lastIncome = 0;
+let lastExpenses = 0;
+let lastBalance = 0;
 
-  
-  // Função que formata ou oculta o valor
-  function formatMoneySafe(val) {
-      if (!showFinanceValues) {
-          return 'R$ ****';
-      }
-      return formatMoney(val);
-  }
-
-  function toggleFinanceVisibility() {
-    showFinanceValues = !showFinanceValues;
+function toggleCardVisibility() {
+    showCardsValues = !showCardsValues;
     const btn = document.getElementById('finance-eye-btn');
     if (btn) {
         const icon = btn.querySelector('i');
         if (icon) {
-            icon.setAttribute('data-lucide', showFinanceValues ? 'eye' : 'eye-off');
+            icon.setAttribute('data-lucide', showCardsValues ? 'eye' : 'eye-off');
         }
+        lucide.createIcons();
     }
-    // Força a recriação dos ícones e a atualização
-    setTimeout(() => {
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        renderFinance();
-    }, 50);
+    updateCardValues();
+}
+
+function formatCardValue(val) {
+    if (!showCardsValues) {
+        return 'R$ ****';
+    }
+    return formatMoney(val);
+}
+
+function updateCardValues() {
+    document.getElementById('fin-income').innerText = formatCardValue(lastIncome);
+    document.getElementById('fin-expenses').innerText = formatCardValue(lastExpenses);
+    document.getElementById('fin-balance').innerText = formatCardValue(lastBalance);
 }
   
     </script> 
