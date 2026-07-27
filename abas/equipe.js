@@ -122,6 +122,9 @@
         <div class="bg-white rounded-xl border shadow-sm overflow-hidden mt-4">
           <div class="p-3 bg-slate-50 border-b flex justify-between items-center">
             <h3 class="font-bold text-slate-700 text-sm"><i data-lucide="minus-circle" class="w-4 h-4 inline mr-1 text-amber-600"></i> Vales Lançados</h3>
+            <button onclick="imprimirValesGeral()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow flex items-center gap-1">
+              <i data-lucide="printer" class="w-3.5 h-3.5"></i> Imprimir Vales do Mês
+            </button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
@@ -717,6 +720,76 @@
     janela.print();
   };
 
+  // ========== IMPRIMIR VALES DO MÊS ==========
+    window.imprimirValesGeral = async function() {
+      const mesRef = document.getElementById('eq-filtro-mes')?.value;
+      if (!mesRef) {
+        alert('Selecione um mês de referência para imprimir os vales.');
+        return;
+      }
+  
+      const { data: vales } = await sb.from('vales').select('*, equipe(nome)')
+        .eq('mes_referencia', mesRef).order('equipe(nome)');
+      if (!vales || vales.length === 0) {
+        alert('Nenhum vale encontrado para este mês.');
+        return;
+      }
+  
+      let totalGeral = 0;
+      const linhas = vales.map(v => {
+        totalGeral += v.valor;
+        return `
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 8px 5px;">${v.equipe?.nome || '–'}</td>
+            <td style="padding: 8px 5px; text-align: right; color: #b91c1c; font-weight: bold;">${formatMoney(v.valor)}</td>
+          </tr>`;
+      }).join('');
+  
+      const corpo = `
+        <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 700px; margin: auto; background: white;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 50px;" alt="Logo">
+              <div>
+                <h2 style="margin:0; color: #059669; font-size: 18px;">RV PORTAL MADEIRAS</h2>
+                <p style="margin:2px 0; font-size: 10px; color: #475569;">CNPJ: 30.942.123/0001-02</p>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <h3 style="margin:0; font-size: 16px;">VALES LANÇADOS</h3>
+              <p style="margin:2px 0; font-size: 12px;">Mês Referência: ${mesRef}</p>
+            </div>
+          </div>
+  
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9em;">
+            <thead>
+              <tr style="background: #1e293b; color: white;">
+                <th style="padding: 10px 8px; text-align: left;">Funcionário</th>
+                <th style="padding: 10px 8px; text-align: right;">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${linhas}
+            </tbody>
+            <tfoot>
+              <tr style="font-weight: bold; background: #f1f5f9; border-top: 2px solid #1e293b;">
+                <td style="padding: 10px 8px; text-align: right;">TOTAL DE VALES:</td>
+                <td style="padding: 10px 8px; text-align: right; font-size: 1.1em; color: #b91c1c;">${formatMoney(totalGeral)}</td>
+              </tr>
+            </tfoot>
+          </table>
+  
+          <div style="font-size: 0.7em; color: #94a3b8; text-align: center; margin-top: 30px;">
+            Emitido em ${new Date().toLocaleDateString('pt-BR')} pelo sistema RV Portal
+          </div>
+        </div>
+      `;
+      const janela = window.open('', '_blank', 'width=800,height=600');
+      janela.document.write(corpo);
+      janela.document.close();
+      janela.print();
+    };
+
   // ========== CADASTRO DE FUNCIONÁRIOS ==========
   async function carregarCadastro() {
     const tipoFiltro = document.getElementById('eq-filtro-tipo')?.value;
@@ -871,6 +944,8 @@
   window.excluirVale = excluirVale;
   window.carregarLancamentos = carregarLancamentos;
   window.carregarCadastro = carregarCadastro;
+  window.imprimirValesGeral = imprimirValesGeral;
+  
 
   // ========== ALTERNAR SUB‑ABA ==========
 function alternarSubAbaEquipe(aba) {
