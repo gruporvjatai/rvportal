@@ -491,22 +491,22 @@
       <div class="flex items-center gap-2 flex-wrap">
         <select id="exp-category-filter" onchange="renderFinance()" class="p-1.5 border rounded-lg text-xs font-bold bg-white focus:ring-1 focus:ring-red-500 outline-none">
           <option value="">Todas as Categorias</option>
-          <option value="Fornecedor">Fornecedor</option>
-          <option value="Salário">Salário</option>
-          <option value="Energia">Energia</option>
-          <option value="Escritorio">Escritório</option>
-          <option value="Água">Água</option>
-          <option value="Internet">Internet</option>
-          <option value="Imposto">Imposto</option>
-          <option value="Sistema">Sistema</option>
-          <option value="Contabilidade">Contabilidade</option>
-          <option value="Combustível">Combustível</option>
-          <option value="Man. Maquinas">Man. Máquinas</option>
-          <option value="Juros/Taxas">Juros/Taxas</option>
-          <option value="Veículos">Veículos</option>
-          <option value="Marcenaria">Marcenaria</option>
-          <option value="Instalação">Instalação</option>
-          <option value="Outros">Outros</option>
+          <option value="FORNECEDOR">FORNECEDOR</option>
+          <option value="SALÁRIO">SALÁRIO</option>
+          <option value="ENERGIA">ENERGIA</option>
+          <option value="ESCRITORIO">ESCRITÓRIO</option>
+          <option value="ÁGUA">ÁGUA</option>
+          <option value="INTERNET">INTERNET</option>
+          <option value="IMPOSTO">IMPOSTO</option>
+          <option value="SISTEMA">SISTEMA</option>
+          <option value="CONTABILIDADE">CONTABILIDADE</option>
+          <option value="COMBUSTÍVEL">COMBUSTÍVEL</option>
+          <option value="MAN. MAQUINAS">MAN. MAQUINAS</option>
+          <option value="JUROS/TAXAS">JUROS/TAXAS</option>
+          <option value="VEÍCULOS">VEÍCULOS</option>
+          <option value="MARCENARIA">MARCENARIA</option>
+          <option value="INSTALAÇÃO">INSTALAÇÃO</option>
+          <option value="OUTROS">OUTROS</option>
         </select>
         <button onclick="printExpenses()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
         <button onclick="openNewExpense()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1">
@@ -675,7 +675,14 @@
                 <p class="text-xs text-slate-500 font-medium">Relatório de vendas de produtos de parceiros, com total de metros, valor de venda, custo e lucro.</p>
             </div>
 
-              
+            <!-- 🟢 NOVO CARD 4: Despesas -->
+            <div onclick="openExpenseReportModal()" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-red-500 hover:shadow-md cursor-pointer transition-all flex flex-col items-center text-center gap-3">
+                <div class="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center">
+                    <i data-lucide="file-minus" class="w-7 h-7"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-lg">Despesas</h3>
+                <p class="text-xs text-slate-500 font-medium">Relatório detalhado de despesas com filtros por período, categoria e status.</p>
+            </div>              
           </div>
       </div>
 
@@ -1031,23 +1038,22 @@
                  <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Categoria da Despesa</label>
                     <select id="exp-item" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
-                        <option value="Fornecedor">Fornecedor</option>
-                        <option value="Salário">Salário</option>
-                        <option value="Energia">Energia</option>
-                        <option value="Escritorio">Escritório</option>                      
-                        <option value="Água">Água</option>
-                        <option value="Internet">Internet</option>
-                        <option value="Imposto">Imposto</option>
-                        <option value="Sistema">Sistema</option>
-                        <option value="Contabilidade">Contabilidade</option>
-                        <option value="Combustível">Combustível</option>
-                        <option value="Man. Maquinas">Man. Máquinas</option>
-                        <option value="Juros/Taxas">Juros/Taxas</option>
-                        <option value="Veículos">Veículos</option>
-                        <option value="Marcenaria">Marcenaria</option>
-                        <option value="Instalação">Instalação</option>                      
-                        <option value="Outros">Outros</option>
-                      
+                      <option value="FORNECEDOR">FORNECEDOR</option>
+                      <option value="SALÁRIO">SALÁRIO</option>
+                      <option value="ENERGIA">ENERGIA</option>
+                      <option value="ESCRITORIO">ESCRITÓRIO</option>
+                      <option value="ÁGUA">ÁGUA</option>
+                      <option value="INTERNET">INTERNET</option>
+                      <option value="IMPOSTO">IMPOSTO</option>
+                      <option value="SISTEMA">SISTEMA</option>
+                      <option value="CONTABILIDADE">CONTABILIDADE</option>
+                      <option value="COMBUSTÍVEL">COMBUSTÍVEL</option>
+                      <option value="MAN. MAQUINAS">MAN. MAQUINAS</option>
+                      <option value="JUROS/TAXAS">JUROS/TAXAS</option>
+                      <option value="VEÍCULOS">VEÍCULOS</option>
+                      <option value="MARCENARIA">MARCENARIA</option>
+                      <option value="INSTALAÇÃO">INSTALAÇÃO</option>
+                      <option value="OUTROS">OUTROS</option>                      
                     </select>
                 </div>
                 <div>
@@ -1193,6 +1199,65 @@
             <button onclick="printReceipt()" class="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-white hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2">
                 <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Recibo
             </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL RELATÓRIO DE DESPESAS ========== -->
+    <div id="modal-expense-report" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <i data-lucide="file-minus" class="text-red-600"></i> Relatório de Despesas
+                </h3>
+                <button onclick="closeExpenseReportModal()" class="text-slate-400 hover:text-red-500">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+    
+            <!-- Filtros -->
+            <div class="p-5 bg-white border-b flex flex-wrap gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Inicial</label>
+                    <input type="date" id="exp-report-start" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Final</label>
+                    <input type="date" id="exp-report-end" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                    <select id="exp-report-category" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none bg-white">
+                        <option value="">Todas</option>
+                        <!-- Preenchido via JS -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                    <select id="exp-report-status" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none bg-white">
+                        <option value="">Todos</option>
+                        <option value="PENDENTE">Pendentes (Abertos)</option>
+                        <option value="VENCIDO">Vencidos</option>
+                        <option value="PAGO">Pagos</option>
+                        <option value="NAO_PAGO">Não Pagos (Pendentes + Vencidos)</option>
+                    </select>
+                </div>
+                <button onclick="applyExpenseFilters()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold shadow-md transition flex items-center gap-2">
+                    <i data-lucide="search" class="w-4 h-4"></i> Filtrar
+                </button>
+                <button onclick="printExpenseReport()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold shadow-md transition flex items-center gap-2">
+                    <i data-lucide="printer" class="w-4 h-4"></i> Imprimir
+                </button>
+            </div>
+    
+            <!-- Resultados -->
+            <div class="flex-1 overflow-y-auto p-4 bg-slate-50">
+                <div id="expense-report-results" class="space-y-3">
+                    <div class="text-center text-slate-400 py-10">
+                        <i data-lucide="file-search" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                        <p class="font-medium">Aplique os filtros para visualizar as despesas.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -5401,6 +5466,7 @@ function updateCardValues() {
     <script src="abas/equipe.js"></script>
     <script src="abas/gerencial.js"></script>
     <script src="abas/agenda.js"></script>
+    <script src="abas/relatoriodespesas.js"></script>
     
    
   </body>
