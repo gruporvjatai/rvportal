@@ -194,8 +194,10 @@
     showLoading(true);
     const { data: equipe } = await sb.from('equipe').select('*').eq('ativo', true);
     const { data: vales } = await sb.from('vales').select('*').eq('mes_referencia', mesRef);
+    const { data: folhasExistentes } = await sb.from('folhas').select('equipe_id').eq('mes_referencia', mesRef);
     const valesMap = {};
     (vales||[]).forEach(v => { valesMap[v.equipe_id] = (valesMap[v.equipe_id]||0) + v.valor; });
+    const jaLancados = new Set((folhasExistentes||[]).map(f => f.equipe_id));
 
     let html = `
       <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" id="modal-folha">
@@ -217,25 +219,30 @@
                 </tr>
               </thead>
               <tbody>`;
+    let algumBloqueado = false;
     equipe.forEach(f => {
-      const vales = valesMap[f.id] || 0;
-      let base = f.tipo === 'Mensal' ? (f.valor_mensal || 0) : (f.valor_diaria || 0) * 0;
-      const liquido = base - vales;
+      const valeFuncionario = valesMap[f.id] || 0;
+      const bloqueado = jaLancados.has(f.id);
+      if (bloqueado) algumBloqueado = true;
+      const base = f.tipo === 'Mensal' ? (f.valor_mensal || 0) : 0; // diarista começa em 0 dia até informar dias trabalhados
+      const liquido = base - valeFuncionario;
       html += `
-        <tr class="border-b" data-id="${f.id}" data-diaria="${f.valor_diaria || 0}" data-vales="${vales}">
-          <td class="p-2 font-bold">${f.nome}</td>
+        <tr class="border-b ${bloqueado ? 'opacity-50 bg-slate-50' : ''}" data-id="${f.id}" data-diaria="${f.valor_diaria || 0}" data-vales="${valeFuncionario}" data-bloqueado="${bloqueado ? '1' : '0'}">
+          <td class="p-2 font-bold">${f.nome}${bloqueado ? '<span class="ml-2 text-[10px] font-bold text-amber-600 uppercase">Já lançada</span>' : ''}</td>
           <td class="p-2 text-center">${f.tipo}</td>
           <td class="p-2 text-center">${formatMoney(base)}</td>
-          <td class="p-2 text-center text-red-600">-${formatMoney(vales)}</td>
+          <td class="p-2 text-center text-red-600">-${formatMoney(valeFuncionario)}</td>
           <td class="p-2 text-center">
-            ${f.tipo === 'Diarista' ? `<input type="number" id="dias-${f.id}" value="0" min="0" class="w-16 p-1 border rounded text-center text-sm" onchange="recalcularFolhaItem('${f.id}')">` : '–'}
+            ${f.tipo === 'Diarista' ? `<input type="number" id="dias-${f.id}" value="0" min="0" ${bloqueado ? 'disabled' : ''} class="w-16 p-1 border rounded text-center text-sm disabled:bg-slate-100" onchange="recalcularFolhaItem('${f.id}')">` : '–'}
           </td>
           <td class="p-2 text-center">
-            <input type="number" id="liquido-${f.id}" value="${liquido.toFixed(2)}" step="0.01" class="w-24 p-1 border rounded text-center font-bold text-emerald-700 text-sm" />
+            <input type="number" id="liquido-${f.id}" value="${liquido.toFixed(2)}" step="0.01" ${bloqueado ? 'disabled' : ''} class="w-24 p-1 border rounded text-center font-bold text-sm disabled:bg-slate-100 ${liquido < 0 ? 'text-red-600' : 'text-emerald-700'}" />
           </td>
         </tr>`;
     });
-    html += `</tbody></table></div>
+    html += `</tbody></table>
+          ${algumBloqueado ? `<p class="text-xs text-amber-600 font-bold mt-2"><i data-lucide="alert-triangle" class="w-3 h-3 inline"></i> Funcionários marcados como "Já lançada" já possuem folha neste mês e não serão duplicados. Exclua a folha existente em Lançamentos caso queira recriá-la.</p>` : ''}
+          </div>
           <div class="p-4 border-t bg-slate-50 rounded-b-2xl flex gap-2">
             <button onclick="document.getElementById('modal-folha').remove()" class="flex-1 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg font-bold text-slate-700">Cancelar</button>
             <button onclick="salvarFolha('${mesRef}')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow">Salvar Folha</button>
@@ -256,7 +263,11 @@
     const base = dias * valDiaria;
     const liquido = base - vales;
     const inputLiq = document.getElementById(`liquido-${id}`);
-    if (inputLiq) inputLiq.value = liquido.toFixed(2);
+    if (inputLiq) {
+      inputLiq.value = liquido.toFixed(2);
+      inputLiq.classList.toggle('text-red-600', liquido < 0);
+      inputLiq.classList.toggle('text-emerald-700', liquido >= 0);
+    }
   };
 
   async function salvarFolha(mesRef) {
@@ -268,6 +279,8 @@
 
     const folhas = [];
     equipe.forEach(f => {
+      const row = document.querySelector(`#modal-folha tr[data-id="${f.id}"]`);
+      if (row && row.dataset.bloqueado === '1') return; // já possui folha neste mês, não duplicar
       const valesTotal = valesMap[f.id] || 0;
       const liquidoEl = document.getElementById(`liquido-${f.id}`);
       if (!liquidoEl) return;
@@ -290,6 +303,12 @@
         data_criacao: new Date().toISOString()
       });
     });
+
+    if (folhas.length === 0) {
+      showLoading(false);
+      alert('Nenhuma folha nova para salvar (todos os funcionários já possuem folha neste mês).');
+      return;
+    }
 
     const { error } = await sb.from('folhas').insert(folhas);
     if (error) { showLoading(false); alert('Erro ao salvar folha: ' + error.message); return; }
@@ -341,7 +360,7 @@
     const funcId = document.getElementById('vale-funcionario')?.value;
     const valor = parseFloat(document.getElementById('vale-valor')?.value);
     const mes = document.getElementById('vale-mes')?.value;
-    if (!funcId || isNaN(valor) || !mes) return alert('Preencha todos os campos.');
+    if (!funcId || isNaN(valor) || valor <= 0 || !mes) return alert('Preencha todos os campos corretamente.');
 
     const { error } = await sb.from('vales').insert([{
       equipe_id: funcId,
@@ -350,9 +369,35 @@
       data: new Date().toISOString()
     }]);
     if (error) return alert('Erro: ' + error.message);
+
+    // Se já existir uma folha PENDENTE deste funcionário nesse mês, atualiza o total de vales
+    // e o líquido dela automaticamente, para que o recibo/folha final sempre reflita o vale lançado.
+    await sincronizarFolhaComVale(funcId, mes, valor);
+
     document.getElementById('modal-vale')?.remove();
     alert('Vale lançado!');
     carregarLancamentos();
+  }
+
+  // Ajusta (delta) o vales_total e o valor_pago de folhas PENDENTES do funcionário/mês,
+  // sem sobrescrever eventuais ajustes manuais feitos no valor líquido.
+  async function sincronizarFolhaComVale(equipeId, mesRef, delta) {
+    const { data: folhasPendentes, error } = await sb.from('folhas')
+      .select('id, vales_total, valor_pago')
+      .eq('equipe_id', equipeId)
+      .eq('mes_referencia', mesRef)
+      .eq('status', 'PENDENTE');
+
+    if (error || !folhasPendentes || folhasPendentes.length === 0) return;
+
+    for (const folha of folhasPendentes) {
+      const novoValesTotal = (parseFloat(folha.vales_total) || 0) + delta;
+      const novoValorPago = (parseFloat(folha.valor_pago) || 0) - delta;
+      await sb.from('folhas').update({
+        vales_total: novoValesTotal,
+        valor_pago: novoValorPago
+      }).eq('id', folha.id);
+    }
   }
 
   // ========== LISTAGEM DE FOLHAS ==========
@@ -389,15 +434,11 @@
     }
 
     // Carregar vales (nova lista)
-    const { data: vales, error: errVales } = await sb.from('vales').select('*, equipe(nome)')
-      .order('data', { ascending: false });
-    if (mesFiltro) {
-      // filtrar vales pelo mes
-      const valesFiltrados = (vales||[]).filter(v => v.mes_referencia === mesFiltro);
-      preencherTabelaVales(valesFiltrados);
-    } else {
-      preencherTabelaVales(vales || []);
-    }
+    let queryVales = sb.from('vales').select('*, equipe(nome)').order('data', { ascending: false });
+    if (mesFiltro) queryVales = queryVales.eq('mes_referencia', mesFiltro);
+    const { data: vales, error: errVales } = await queryVales;
+    if (errVales) return alert('Erro ao carregar vales.');
+    preencherTabelaVales(vales || []);
 
     lucide.createIcons();
   }
@@ -521,7 +562,13 @@
 
   window.excluirVale = async function(id) {
     if (!confirm('Excluir este vale?')) return;
+
+    const { data: vale } = await sb.from('vales').select('*').eq('id', id).single();
     await sb.from('vales').delete().eq('id', id);
+
+    // Devolve o valor do vale para o líquido de eventual folha PENDENTE já criada nesse mês
+    if (vale) await sincronizarFolhaComVale(vale.equipe_id, vale.mes_referencia, -vale.valor);
+
     alert('Vale excluído.');
     carregarLancamentos();
   };
@@ -598,15 +645,21 @@
       return;
     }
 
+    let totalBase = 0;
+    let totalVales = 0;
     let totalGeral = 0;
     const linhas = folhas.map(f => {
+      totalBase += (f.salario_base || 0);
+      totalVales += (f.vales_total || 0);
       totalGeral += f.valor_pago;
       return `
         <tr style="border-bottom: 1px solid #ddd;">
           <td style="padding: 8px 5px;">${f.equipe?.nome || '–'}</td>
           <td style="padding: 8px 5px;">${f.tipo}</td>
           <td style="padding: 8px 5px; text-align: center;">${f.tipo === 'Diarista' ? f.dias_trabalhados : '–'}</td>
-          <td style="padding: 8px 5px; text-align: right;">${formatMoney(f.valor_pago)}</td>
+          <td style="padding: 8px 5px; text-align: right;">${formatMoney(f.salario_base)}</td>
+          <td style="padding: 8px 5px; text-align: right; color: #b91c1c;">-${formatMoney(f.vales_total)}</td>
+          <td style="padding: 8px 5px; text-align: right; font-weight: bold;">${formatMoney(f.valor_pago)}</td>
           <td style="padding: 8px 5px; font-size: 0.85em; color: #444;">${f.chave_pix || ''}</td>
         </tr>`;
     }).join('');
@@ -633,7 +686,9 @@
               <th style="padding: 10px 8px; text-align: left;">Funcionário</th>
               <th style="padding: 10px 8px; text-align: left;">Tipo</th>
               <th style="padding: 10px 8px; text-align: center;">Dias</th>
-              <th style="padding: 10px 8px; text-align: right;">Valor Pago</th>
+              <th style="padding: 10px 8px; text-align: right;">Salário Base</th>
+              <th style="padding: 10px 8px; text-align: right;">Vales</th>
+              <th style="padding: 10px 8px; text-align: right;">Valor Líquido</th>
               <th style="padding: 10px 8px; text-align: left;">Chave PIX</th>
             </tr>
           </thead>
@@ -642,7 +697,9 @@
           </tbody>
           <tfoot>
             <tr style="font-weight: bold; background: #f1f5f9; border-top: 2px solid #1e293b;">
-              <td colspan="3" style="padding: 10px 8px; text-align: right;">TOTAL DA FOLHA:</td>
+              <td colspan="3" style="padding: 10px 8px; text-align: right;">TOTAIS:</td>
+              <td style="padding: 10px 8px; text-align: right;">${formatMoney(totalBase)}</td>
+              <td style="padding: 10px 8px; text-align: right; color: #b91c1c;">-${formatMoney(totalVales)}</td>
               <td style="padding: 10px 8px; text-align: right; font-size: 1.1em;">${formatMoney(totalGeral)}</td>
               <td></td>
             </tr>
