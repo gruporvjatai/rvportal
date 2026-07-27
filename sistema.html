@@ -675,7 +675,14 @@
                 <p class="text-xs text-slate-500 font-medium">Relatório de vendas de produtos de parceiros, com total de metros, valor de venda, custo e lucro.</p>
             </div>
 
-              
+            <!-- 🟢 NOVO CARD 4: Despesas -->
+            <div onclick="openExpenseReportModal()" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-red-500 hover:shadow-md cursor-pointer transition-all flex flex-col items-center text-center gap-3">
+                <div class="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center">
+                    <i data-lucide="file-minus" class="w-7 h-7"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-lg">Despesas</h3>
+                <p class="text-xs text-slate-500 font-medium">Relatório detalhado de despesas com filtros por período, categoria e status.</p>
+            </div>              
           </div>
       </div>
 
@@ -1192,6 +1199,78 @@
             <button onclick="printReceipt()" class="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-white hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2">
                 <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Recibo
             </button>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- ========== MODAL RELATÓRIO DE DESPESAS ========== -->
+    <div id="modal-expense-report" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <i data-lucide="file-text" class="text-red-600"></i> Relatório de Despesas
+                </h3>
+                <button onclick="closeExpenseReportModal()" class="text-slate-400 hover:text-red-500">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto">
+                <!-- Período -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Data Inicial</label>
+                        <input type="date" id="exp-report-start" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-500 outline-none bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Data Final</label>
+                        <input type="date" id="exp-report-end" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-500 outline-none bg-white">
+                    </div>
+                </div>
+    
+                <!-- Categoria -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
+                    <select id="exp-report-category" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-500 outline-none bg-white">
+                        <option value="TODAS">Todas as Categorias</option>
+                        <option value="FORNECEDOR">FORNECEDOR</option>
+                        <option value="SALÁRIO">SALÁRIO</option>
+                        <option value="ENERGIA">ENERGIA</option>
+                        <option value="ESCRITORIO">ESCRITÓRIO</option>
+                        <option value="ÁGUA">ÁGUA</option>
+                        <option value="INTERNET">INTERNET</option>
+                        <option value="IMPOSTO">IMPOSTO</option>
+                        <option value="SISTEMA">SISTEMA</option>
+                        <option value="CONTABILIDADE">CONTABILIDADE</option>
+                        <option value="COMBUSTÍVEL">COMBUSTÍVEL</option>
+                        <option value="MAN. MAQUINAS">MAN. MAQUINAS</option>
+                        <option value="JUROS/TAXAS">JUROS/TAXAS</option>
+                        <option value="VEÍCULOS">VEÍCULOS</option>
+                        <option value="MARCENARIA">MARCENARIA</option>
+                        <option value="INSTALAÇÃO">INSTALAÇÃO</option>
+                        <option value="OUTROS">OUTROS</option>
+                    </select>
+                </div>
+    
+                <!-- Status -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Status</label>
+                    <select id="exp-report-status" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-500 outline-none bg-white">
+                        <option value="TODOS">Todos</option>
+                        <option value="PAGO">Baixados (Pagos)</option>
+                        <option value="PENDENTE">Não baixados (Pendentes)</option>
+                        <option value="VENCIDO">Vencidos (não pagos)</option>
+                        <option value="NAO_BAIXADOS">Em aberto + Vencidos</option>
+                    </select>
+                </div>
+    
+                <!-- Botões -->
+                <div class="flex gap-2 mt-4">
+                    <button onclick="clearExpenseReportFilters()" class="flex-1 py-2 bg-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-300">Limpar Filtros</button>
+                    <button onclick="printFilteredExpenses()" class="flex-1 py-2 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg flex items-center justify-center gap-2">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Gerar e Imprimir
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -5400,6 +5479,7 @@ function updateCardValues() {
     <script src="abas/equipe.js"></script>
     <script src="abas/gerencial.js"></script>
     <script src="abas/agenda.js"></script>
+    <script src="js/relatoriodespesas.js"></script>
     
    
   </body>
