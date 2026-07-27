@@ -457,7 +457,8 @@
         <td class="p-3 font-medium">${v.equipe?.nome || '–'}</td>
         <td class="p-3">${v.mes_referencia}</td>
         <td class="p-3 text-right font-bold text-red-600">${formatMoney(v.valor)}</td>
-        <td class="p-3 text-center">
+        <td class="p-3 text-center flex gap-2 justify-center">
+          <button onclick="imprimirReciboVale('${v.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border p-1.5 rounded shadow-sm" title="Imprimir Recibo"><i data-lucide="printer" class="w-4 h-4"></i></button>
           <button onclick="excluirVale('${v.id}')" class="text-red-500 hover:text-red-700 bg-white border p-1.5 rounded shadow-sm" title="Excluir Vale"><i data-lucide="x-circle" class="w-4 h-4"></i></button>
         </td>
       </tr>
@@ -790,6 +791,61 @@
       janela.print();
     };
 
+  // ========== IMPRIMIR RECIBO INDIVIDUAL DE VALE ==========
+    window.imprimirReciboVale = async function(id) {
+      const { data: vale, error } = await sb.from('vales').select('*, equipe(*)').eq('id', id).single();
+      if (error || !vale) return alert('Vale não encontrado.');
+  
+      const dataVale = vale.data ? new Date(vale.data).toLocaleDateString('pt-BR') : '–';
+  
+      const corpo = `
+        <div style="font-family: 'Helvetica', sans-serif; padding: 30px; max-width: 700px; margin: auto; border: 1px solid #ccc; background: #fff;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 15px; margin-bottom: 25px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 70px;" alt="Logo">
+              <div>
+                <h2 style="margin:0; color: #059669; font-size: 20px;">RV PORTAL MADEIRAS</h2>
+                <p style="margin:2px 0; font-size: 11px; color: #475569;">CNPJ: 30.942.123/0001-02</p>
+                <p style="margin:2px 0; font-size: 11px; color: #475569;">Rua Mineiros, 532 - Jataí - GO</p>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <h3 style="margin:0; font-size: 16px; font-weight: bold;">RECIBO DE VALE</h3>
+              <p style="margin:2px 0; font-size: 11px;">Mês Ref: ${vale.mes_referencia}</p>
+            </div>
+          </div>
+  
+          <div style="margin-bottom: 25px;">
+            <strong>Funcionário:</strong> ${vale.equipe?.nome || '–'}<br>
+            <strong>Data do Lançamento:</strong> ${dataVale}<br>
+            <strong>Chave PIX:</strong> ${vale.equipe?.chave_pix || 'Não informada'}
+          </div>
+  
+          <div style="text-align: center; margin: 30px 0;">
+            <p style="font-size: 0.9em; color: #475569; margin-bottom: 5px;">Valor do Vale</p>
+            <p style="font-size: 2em; font-weight: bold; color: #b91c1c; margin: 0;">${formatMoney(vale.valor)}</p>
+          </div>
+  
+          <div style="border: 1px dashed #94a3b8; padding: 12px; border-radius: 6px; background: #f8fafc; margin-bottom: 25px; font-size: 0.9em;">
+            Recebi de RV PORTAL MADEIRAS a importância acima, referente a adiantamento (vale) do mês de <strong>${vale.mes_referencia}</strong>, a ser descontado da folha de pagamento correspondente.
+          </div>
+  
+          <div style="margin-top: 60px; text-align: center;">
+            <div style="width: 50%; border-top: 1px solid #000; margin: 0 auto 5px auto;"></div>
+            <span style="font-weight: bold; font-size: 0.85em;">Assinatura do Funcionário</span>
+          </div>
+  
+          <div style="margin-top: 30px; font-size: 0.7em; color: #94a3b8; text-align: center;">
+            Documento gerado em ${new Date().toLocaleDateString('pt-BR')} pelo sistema RV Portal
+          </div>
+        </div>
+      `;
+      const janela = window.open('', '_blank', 'width=800,height=600');
+      janela.document.write(corpo);
+      janela.document.close();
+      janela.print();
+    };
+
   // ========== CADASTRO DE FUNCIONÁRIOS ==========
   async function carregarCadastro() {
     const tipoFiltro = document.getElementById('eq-filtro-tipo')?.value;
@@ -945,6 +1001,7 @@
   window.carregarLancamentos = carregarLancamentos;
   window.carregarCadastro = carregarCadastro;
   window.imprimirValesGeral = imprimirValesGeral;
+  window.imprimirReciboVale = imprimirReciboVale;
   
 
   // ========== ALTERNAR SUB‑ABA ==========
