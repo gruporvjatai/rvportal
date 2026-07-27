@@ -20,6 +20,8 @@
     <meta name="theme-color" content="#0f172a"> 
     <link rel="manifest" href="manifest.json"> 
 
+    <script src="js/relatoriodespesas.js"></script>
+
     <style>
       body { background-color: #f8fafc; font-family: 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
       
@@ -147,6 +149,18 @@
                   <i data-lucide="users" class="w-6 h-6"></i>
               </div>
           </button>
+
+          <button onclick="openExpenseReportModal()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
+              <div>
+                  <h3 class="text-base font-black text-slate-800 mb-1">Despesas</h3>
+                  <p class="text-xs text-slate-500 font-medium">Relatório detalhado com filtros.</p>
+              </div>
+              <div class="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                  <i data-lucide="file-text" class="w-6 h-6"></i>
+              </div>
+          </button>
+          
+          
         </div>
     </div>
 
@@ -647,6 +661,77 @@
                 <button type="submit" class="flex-1 p-4 bg-orange-500 text-white rounded-xl font-bold shadow-lg shadow-orange-200 active:scale-95 transition-transform">Salvar</button>
             </div>
         </form>
+    </div>
+
+    <!-- ========== MODAL RELATÓRIO DE DESPESAS (MOBILE) ========== -->
+    <div id="modal-expense-report" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-center justify-center p-4 animate-[fadeIn_0.2s]">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-black text-slate-800 text-lg flex items-center gap-2">
+                    <i data-lucide="file-text" class="text-red-600 w-5 h-5"></i> Relatório de Despesas
+                </h3>
+                <button onclick="closeExpenseReportModal()" class="text-slate-400 hover:text-red-500 bg-white rounded-full p-1">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <!-- Datas -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Início</label>
+                        <input type="date" id="exp-report-start" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Fim</label>
+                        <input type="date" id="exp-report-end" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+                </div>
+    
+                <!-- Categoria -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                    <select id="exp-report-category" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500">
+                        <option value="TODAS">Todas as Categorias</option>
+                        <option value="FORNECEDOR">FORNECEDOR</option>
+                        <option value="SALÁRIO">SALÁRIO</option>
+                        <option value="ENERGIA">ENERGIA</option>
+                        <option value="ESCRITORIO">ESCRITÓRIO</option>
+                        <option value="ÁGUA">ÁGUA</option>
+                        <option value="INTERNET">INTERNET</option>
+                        <option value="IMPOSTO">IMPOSTO</option>
+                        <option value="SISTEMA">SISTEMA</option>
+                        <option value="CONTABILIDADE">CONTABILIDADE</option>
+                        <option value="COMBUSTÍVEL">COMBUSTÍVEL</option>
+                        <option value="MAN. MAQUINAS">MAN. MAQUINAS</option>
+                        <option value="JUROS/TAXAS">JUROS/TAXAS</option>
+                        <option value="VEÍCULOS">VEÍCULOS</option>
+                        <option value="MARCENARIA">MARCENARIA</option>
+                        <option value="INSTALAÇÃO">INSTALAÇÃO</option>
+                        <option value="OUTROS">OUTROS</option>
+                    </select>
+                </div>
+    
+                <!-- Status -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                    <select id="exp-report-status" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500">
+                        <option value="TODOS">Todos</option>
+                        <option value="PAGO">Baixados (Pagos)</option>
+                        <option value="PENDENTE">Não baixados (Pendentes)</option>
+                        <option value="VENCIDO">Vencidos (não pagos)</option>
+                        <option value="NAO_BAIXADOS">Em aberto + Vencidos</option>
+                    </select>
+                </div>
+    
+                <!-- Botões -->
+                <div class="flex gap-2 mt-4">
+                    <button onclick="clearExpenseReportFilters()" class="flex-1 py-3 bg-slate-200 text-slate-700 rounded-xl font-bold active:scale-95 transition-transform">Limpar</button>
+                    <button onclick="showFilteredExpenses()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+                        <i data-lucide="eye" class="w-4 h-4"></i> Visualizar
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
