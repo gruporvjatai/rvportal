@@ -2621,7 +2621,7 @@ function printStockCountSheet() {
           const descTotalEl = document.getElementById('pos-total-desconto');
           if (descTotalEl) {
               if (descontoReal > 0.01) {
-                  descTotalEl.innerText = `Desconto Geral /n ${percentual.toFixed(1)}% (${formatMoney(descontoReal)})`;
+                  descTotalEl.innerText = `Desconto Geral \n ${percentual.toFixed(1)}% (${formatMoney(descontoReal)})`;
                   descTotalEl.style.display = 'block';
               } else {
                   descTotalEl.innerText = '';
