@@ -2532,43 +2532,54 @@ function printStockCountSheet() {
 
   
         function addModalToCart(id) {
-            const p = STATE.products.find(x => x.id == id);
-            if (!p) return;
-        
-            if (p.parceiro) {
-                const compInput = document.getElementById(`comp-${id}`);
-                const pecasInput = document.getElementById(`pecas-${id}`);
-                const comprimento = parseFloat(compInput?.value) || 0;
-                const pecas = parseInt(pecasInput?.value) || 0;
-                if (comprimento <= 0 || pecas <= 0) return showToast("Informe comprimento e quantidade de peças", true);
-        
-                const totalMetros = comprimento * pecas;
-                // Cria sempre uma nova linha (não agrupa)
-                CART.push({
-                    prodId: p.id, name: p.name, price: p.price,
-                    qty: totalMetros,      // total de metros lineares
-                    comprimento: comprimento,
-                    pecas: pecas,
-                    total: totalMetros * p.price,
-                    parceiro: true
-                });
-                if (compInput) compInput.value = '';
-                if (pecasInput) pecasInput.value = '';
-            } else {
-                // Produto de estoque (comportamento original)
-                const qtyInput = document.getElementById(`qty-modal-${id}`);
-                const qty = parseFloat(qtyInput?.value) || 1;
-                const existing = CART.find(x => x.prodId == id && !x.parceiro);
-                if (existing) {
-                    existing.qty += qty;
-                    existing.total = existing.qty * existing.price;
-                } else {
-                    CART.push({prodId: p.id, name: p.name, price: p.price, qty: qty, total: p.price * qty, parceiro: false});
-                }
-                if (qtyInput) qtyInput.value = "1";
-            }
-            renderCart();
-        }
+          const p = STATE.products.find(x => x.id == id);
+          if (!p) return;
+      
+          if (p.parceiro) {
+              const compInput = document.getElementById(`comp-${id}`);
+              const pecasInput = document.getElementById(`pecas-${id}`);
+              const comprimento = parseFloat(compInput?.value) || 0;
+              const pecas = parseInt(pecasInput?.value) || 0;
+              if (comprimento <= 0 || pecas <= 0) return showToast("Informe comprimento e quantidade de peças", true);
+      
+              const totalMetros = comprimento * pecas;
+              const fixedPrice = p.price;
+              CART.push({
+                  prodId: p.id,
+                  name: p.name,
+                  price: fixedPrice,          // preço inicial = preço fixo
+                  fixedPrice: fixedPrice,     // guarda o original
+                  qty: totalMetros,
+                  comprimento: comprimento,
+                  pecas: pecas,
+                  total: totalMetros * fixedPrice,
+                  parceiro: true
+              });
+              if (compInput) compInput.value = '';
+              if (pecasInput) pecasInput.value = '';
+          } else {
+              const qtyInput = document.getElementById(`qty-modal-${id}`);
+              const qty = parseFloat(qtyInput?.value) || 1;
+              const fixedPrice = p.price;
+              const existing = CART.find(x => x.prodId == id && !x.parceiro);
+              if (existing) {
+                  existing.qty += qty;
+                  existing.total = existing.qty * existing.price;
+              } else {
+                  CART.push({
+                      prodId: p.id,
+                      name: p.name,
+                      price: fixedPrice,
+                      fixedPrice: fixedPrice,
+                      qty: qty,
+                      total: fixedPrice * qty,
+                      parceiro: false
+                  });
+              }
+              if (qtyInput) qtyInput.value = "1";
+          }
+          renderCart();
+      }
 
         function updateCartItem(idx, field, value) {
             const item = CART[idx];
@@ -2580,36 +2591,69 @@ function printStockCountSheet() {
 
         function renderCart() {
             const box = document.getElementById('pos-cart-items');
-            document.getElementById('edit-mode-indicator').style.display = CURRENT_QUOTE_ID ? 'inline-block' : 'none';
-            if(!CART.length) { 
-                box.innerHTML='<p class="text-center text-slate-400 mt-10 text-sm">Vazio</p>'; 
-                document.getElementById('pos-total-display').innerText=formatMoney(0); 
-                document.getElementById('cart-count').innerText='0'; 
-                return; 
+            const totalDisplay = document.getElementById('pos-total-display');
+            const countDisplay = document.getElementById('cart-count');
+        
+            if (!CART.length) {
+                box.innerHTML = '<p class="text-center text-slate-400 mt-10 text-sm">Vazio</p>';
+                totalDisplay.innerText = formatMoney(0);
+                countDisplay.innerText = '0';
+                return;
             }
-            const totals = calculateTotal();
-            
-                box.innerHTML = CART.map((i,idx) => {
-                    let descExtra = '';
-                    if (i.parceiro) descExtra = `${i.pecas} pçs de ${i.comprimento}m (${i.qty}m)`;
-                    return `
-                    <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition">
-                        <div class="flex-1 min-w-0">
-                            <div class="text-[11px] font-bold text-slate-700 leading-tight truncate" title="${i.name}">${i.name}</div>
-                            ${descExtra ? `<div class="text-[10px] text-slate-500">${descExtra}</div>` : ''}
+        
+            let sub = 0;
+            box.innerHTML = CART.map((i, idx) => {
+                const fixedPrice = i.fixedPrice || i.price;
+                const unitPrice = i.price;
+                const qty = i.qty;
+                const totalItem = qty * unitPrice;
+                sub += totalItem;
+        
+                let descontoPercentual = 0;
+                if (fixedPrice > 0) {
+                    descontoPercentual = ((fixedPrice - unitPrice) / fixedPrice) * 100;
+                }
+                const isDescontoAlto = descontoPercentual > 30;
+                const descontoStr = descontoPercentual > 0 ? `${descontoPercentual.toFixed(1)}% off` : '';
+        
+                // Monta a descrição (com metragem se for parceiro)
+                let descricao = i.name;
+                if (i.parceiro) {
+                    descricao += ` (${i.pecas} pçs de ${i.comprimento}m)`;
+                }
+        
+                // Monta as informações extras: preço base e desconto
+                let infoExtra = '';
+                if (descontoStr) {
+                    infoExtra = `<span class="text-[10px] ${isDescontoAlto ? 'text-red-600 font-bold animate-pulse' : 'text-orange-600 font-bold'}">${descontoStr}</span>`;
+                }
+                if (isDescontoAlto) {
+                    infoExtra += ` <span class="text-[10px] text-red-500 font-bold bg-red-100 px-1.5 py-0.5 rounded">⚠️</span>`;
+                }
+        
+                const cardClass = isDescontoAlto ? 'border-l-4 border-l-red-500 bg-red-50/30' : '';
+        
+                return `
+                <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition ${cardClass}">
+                    <div class="flex-1 min-w-0 flex items-center gap-2">
+                        <span class="text-[11px] font-bold text-slate-700 truncate" title="${i.name}">${descricao}</span>
+                        <div class="flex items-center gap-1 shrink-0 text-[10px] text-slate-500 whitespace-nowrap">
+                            <span>     base: <span class="text-slate-700">${formatMoney(fixedPrice)}</span></span>
+                            ${infoExtra}
                         </div>
-                        <div class="flex items-center gap-1 shrink-0">
-                            <input type="number" value="${i.qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Quantidade total">
-                            <span class="text-slate-400 text-xs font-bold">x</span>
-                            <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Valor Unitário">
-                        </div>
-                        <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(i.total)}</div>
-                        <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
-                    </div>`;
-                }).join('');
-                
-            document.getElementById('pos-total-display').innerText = formatMoney(totals.total);
-            document.getElementById('cart-count').innerText = CART.length;
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <input type="number" value="${qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Qtd">
+                        <span class="text-slate-400 text-xs font-bold">x</span>
+                        <input type="number" step="0.01" value="${unitPrice}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Unitário">
+                    </div>
+                    <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(totalItem)}</div>
+                    <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
+                </div>`;
+            }).join('');
+        
+            totalDisplay.innerText = formatMoney(sub);
+            countDisplay.innerText = CART.length;
             lucide.createIcons();
         }
 
@@ -2829,50 +2873,46 @@ function printStockCountSheet() {
         }
 
 function loadQuoteToCart(id) {
-    const q = STATE.quotes.find(x => x.id == id);
-    if(!q) return;
-    
+    let q = STATE.quotes.find(x => String(x.id) === String(id));
+    if (!q) q = STATE.sales.find(x => String(x.id) === String(id));
+    if (!q) return;
+
     let customObsRestored = false;
     CART = q.items.map(item => {
         const prod = STATE.products.find(p => p.name === item.name);
         const isPartner = prod ? prod.parceiro : false;
         let comprimento = 0, pecas = 0, qty = item.qty;
-        let obs = item.obs || '';
-        
-        if (isPartner && obs) {
-            // Tenta extrair metragem mesmo sem separador (formato "XpçsYm")
-            const match = obs.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+        let obsItem = item.obs || '';
+        const fixedPrice = prod ? prod.price : item.price;
+
+        if (isPartner && obsItem) {
+            const parts = obsItem.split(' | ');
+            const metragemPart = parts[0];
+            const match = metragemPart.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
             if (match) {
                 pecas = parseInt(match[1]) || 0;
                 comprimento = parseFloat(match[2]) || 0;
                 qty = pecas * comprimento;
-                // Remove a metragem da observação para não duplicar
-                obs = obs.replace(match[0], '').trim();
-                // Remove possível separador restante (" | " no início ou fim)
-                obs = obs.replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, '');
             }
-            
-            // Se ainda restou algo, é a observação extra; restaura apenas uma vez
-            if (obs && !customObsRestored) {
-                document.getElementById('pos-custom-obs').value = obs;
+            if (parts.length > 1 && !customObsRestored) {
+                const extraObs = parts.slice(1).join(' | ');
+                document.getElementById('pos-custom-obs').value = extraObs;
                 document.getElementById('pos-custom-obs-check').checked = true;
                 document.getElementById('pos-custom-obs-container').classList.remove('hidden');
                 customObsRestored = true;
             }
-        } else if (!isPartner && obs) {
-            // Para itens não parceiros: a observação é comum (ex.: "Urgente")
-            if (!customObsRestored) {
-                document.getElementById('pos-custom-obs').value = obs;
-                document.getElementById('pos-custom-obs-check').checked = true;
-                document.getElementById('pos-custom-obs-container').classList.remove('hidden');
-                customObsRestored = true;
-            }
+        } else if (!isPartner && obsItem && !customObsRestored) {
+            document.getElementById('pos-custom-obs').value = obsItem;
+            document.getElementById('pos-custom-obs-check').checked = true;
+            document.getElementById('pos-custom-obs-container').classList.remove('hidden');
+            customObsRestored = true;
         }
-        
+
         return {
             prodId: prod ? prod.id : null,
             name: item.name,
             price: item.price,
+            fixedPrice: fixedPrice,
             qty: qty,
             comprimento: comprimento,
             pecas: pecas,
