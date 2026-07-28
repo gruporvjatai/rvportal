@@ -2601,13 +2601,15 @@ function printStockCountSheet() {
                 return;
             }
         
-            let sub = 0;
+            // CORREÇÃO: chama calculateTotal() para aplicar o desconto geral do rodapé
+            const totals = calculateTotal();
+        
+            // Monta a lista de itens (layout compacto, tudo em uma linha)
             box.innerHTML = CART.map((i, idx) => {
                 const fixedPrice = i.fixedPrice || i.price;
                 const unitPrice = i.price;
                 const qty = i.qty;
                 const totalItem = qty * unitPrice;
-                sub += totalItem;
         
                 let descontoPercentual = 0;
                 if (fixedPrice > 0) {
@@ -2638,7 +2640,7 @@ function printStockCountSheet() {
                     <div class="flex-1 min-w-0 flex items-center gap-2">
                         <span class="text-[11px] font-bold text-slate-700 truncate" title="${i.name}">${descricao}</span>
                         <div class="flex items-center gap-1 shrink-0 text-[10px] text-slate-500 whitespace-nowrap">
-                            <span>     base: <span class="text-slate-700">${formatMoney(fixedPrice)}</span></span>
+                            <span>base: <span class="font-bold text-slate-700">${formatMoney(fixedPrice)}</span></span>
                             ${infoExtra}
                         </div>
                     </div>
@@ -2652,7 +2654,8 @@ function printStockCountSheet() {
                 </div>`;
             }).join('');
         
-            totalDisplay.innerText = formatMoney(sub);
+            // CORREÇÃO: exibe o total com desconto (calculado por calculateTotal)
+            totalDisplay.innerText = formatMoney(totals.total);
             countDisplay.innerText = CART.length;
             lucide.createIcons();
         }
