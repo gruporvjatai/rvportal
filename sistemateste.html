@@ -2616,30 +2616,39 @@ function printStockCountSheet() {
                 const isDescontoAlto = descontoPercentual > 30;
                 const descontoStr = descontoPercentual > 0 ? `${descontoPercentual.toFixed(1)}% off` : '';
         
-                let descExtra = '';
-                if (i.parceiro) descExtra = `${i.pecas} pçs de ${i.comprimento}m (${i.qty}m)`;
+                // Monta a descrição (com metragem se for parceiro)
+                let descricao = i.name;
+                if (i.parceiro) {
+                    descricao += ` (${i.pecas} pçs de ${i.comprimento}m)`;
+                }
+        
+                // Monta as informações extras: preço base e desconto
+                let infoExtra = '';
+                if (descontoStr) {
+                    infoExtra = `<span class="text-[10px] ${isDescontoAlto ? 'text-red-600 font-bold animate-pulse' : 'text-orange-600 font-bold'}">${descontoStr}</span>`;
+                }
+                if (isDescontoAlto) {
+                    infoExtra += ` <span class="text-[10px] text-red-500 font-bold bg-red-100 px-1.5 py-0.5 rounded">⚠️</span>`;
+                }
+        
+                const cardClass = isDescontoAlto ? 'border-l-4 border-l-red-500 bg-red-50/30' : '';
         
                 return `
-                <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex flex-col gap-1 shadow-sm hover:border-emerald-500 transition ${isDescontoAlto ? 'border-l-4 border-l-red-500 bg-red-50/30' : ''}">
-                    <div class="flex items-center justify-between gap-2">
-                        <div class="flex-1 min-w-0">
-                            <div class="text-[11px] font-bold text-slate-700 leading-tight truncate" title="${i.name}">${i.name}</div>
-                            ${descExtra ? `<div class="text-[10px] text-slate-500">${descExtra}</div>` : ''}
+                <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition ${cardClass}">
+                    <div class="flex-1 min-w-0 flex items-center gap-2">
+                        <span class="text-[11px] font-bold text-slate-700 truncate" title="${i.name}">${descricao}</span>
+                        <div class="flex items-center gap-1 shrink-0 text-[10px] text-slate-500 whitespace-nowrap">
+                            <span>base: <span class="font-bold text-slate-700">${formatMoney(fixedPrice)}</span></span>
+                            ${infoExtra}
                         </div>
-                        <div class="flex items-center gap-1 shrink-0">
-                            <input type="number" value="${qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Quantidade total">
-                            <span class="text-slate-400 text-xs font-bold">x</span>
-                            <input type="number" step="0.01" value="${unitPrice}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Valor Unitário">
-                        </div>
-                        <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(totalItem)}</div>
-                        <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
                     </div>
-                    <!-- Nova linha: exibe preço base e desconto -->
-                    <div class="flex flex-wrap items-center gap-2 text-[10px] mt-0.5 pl-1">
-                        <span class="text-slate-500 font-medium">Preço base: <span class="font-bold text-slate-700">${formatMoney(fixedPrice)}</span></span>
-                        ${descontoStr ? `<span class="text-orange-600 font-bold ${isDescontoAlto ? 'text-red-600 animate-pulse' : ''}">${descontoStr}</span>` : ''}
-                        ${isDescontoAlto ? `<span class="text-[10px] text-red-500 font-bold bg-red-100 px-1.5 py-0.5 rounded">⚠️ Desconto elevado!</span>` : ''}
+                    <div class="flex items-center gap-1 shrink-0">
+                        <input type="number" value="${qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Qtd">
+                        <span class="text-slate-400 text-xs font-bold">x</span>
+                        <input type="number" step="0.01" value="${unitPrice}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Unitário">
                     </div>
+                    <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(totalItem)}</div>
+                    <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
                 </div>`;
             }).join('');
         
