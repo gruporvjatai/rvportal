@@ -2814,16 +2814,27 @@ function printStockCountSheet() {
 
             let filteredQuotes = STATE.quotes.slice().reverse();
 
-            //if (term) filteredQuotes = filteredQuotes.filter(q => q.clientName && q.clientName.toLowerCase().includes(term));
             if (term) {
                 filteredQuotes = filteredQuotes.filter(q => {
-                    const valorLiquido = q.total - (q.discount || 0);
-                    const valorStr = formatMoney(valorLiquido).replace(/[^0-9,.]/g, ''); // remove R$, espaços, etc. para comparação
-                    const idStr = String(q.id);
-                    // Verifica se o termo está presente no nome do cliente, no ID ou no valor (como string)
-                    return (q.clientName && q.clientName.toLowerCase().includes(term)) ||
-                           idStr.includes(term) ||
-                           valorStr.includes(term.replace(/[^0-9,.]/g, '')); // remove caracteres não numéricos do termo para comparar com valor
+                    // 1. Busca por nome do cliente
+                    if (q.clientName && q.clientName.toLowerCase().includes(term)) return true;
+            
+                    // 2. Busca por ID (número do pedido)
+                    if (String(q.id).includes(term)) return true;
+            
+                    // 3. Busca por valor (apenas se o termo parecer numérico)
+                    // Verifica se o termo contém pelo menos um dígito
+                    if (/\d/.test(term)) {
+                        const valorLiquido = q.total - (q.discount || 0);
+                        // Compara com o valor numérico (sem formatação)
+                        if (String(valorLiquido).includes(term)) return true;
+                        // Compara com o valor formatado (limpo de caracteres não numéricos)
+                        const valorFormatadoLimpo = formatMoney(valorLiquido).replace(/[^0-9,.]/g, '');
+                        const termLimpo = term.replace(/[^0-9,.]/g, '');
+                        if (termLimpo && valorFormatadoLimpo.includes(termLimpo)) return true;
+                    }
+            
+                    return false;
                 });
             }
             if (statusFilter) filteredQuotes = filteredQuotes.filter(q => q.status === statusFilter);
