@@ -2814,7 +2814,18 @@ function printStockCountSheet() {
 
             let filteredQuotes = STATE.quotes.slice().reverse();
 
-            if (term) filteredQuotes = filteredQuotes.filter(q => q.clientName && q.clientName.toLowerCase().includes(term));
+            //if (term) filteredQuotes = filteredQuotes.filter(q => q.clientName && q.clientName.toLowerCase().includes(term));
+            if (term) {
+                filteredQuotes = filteredQuotes.filter(q => {
+                    const valorLiquido = q.total - (q.discount || 0);
+                    const valorStr = formatMoney(valorLiquido).replace(/[^0-9,.]/g, ''); // remove R$, espaços, etc. para comparação
+                    const idStr = String(q.id);
+                    // Verifica se o termo está presente no nome do cliente, no ID ou no valor (como string)
+                    return (q.clientName && q.clientName.toLowerCase().includes(term)) ||
+                           idStr.includes(term) ||
+                           valorStr.includes(term.replace(/[^0-9,.]/g, '')); // remove caracteres não numéricos do termo para comparar com valor
+                });
+            }
             if (statusFilter) filteredQuotes = filteredQuotes.filter(q => q.status === statusFilter);
 
             if(!filteredQuotes.length) { 
