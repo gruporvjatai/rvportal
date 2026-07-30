@@ -1302,7 +1302,8 @@
         let sortColumn = 'id';       // coluna padrão: id (ou pode ser 'name')
         let sortDirection = 'asc';   // 'asc' ou 'desc'
         let CART = [];
-        let CURRENT_QUOTE_ID = null; 
+        let CURRENT_QUOTE_ID = null;
+        let CURRENT_QUOTE_STATUS = null;
 
       // ===== FECHAR MODAIS COM TECLA ESC =====
         const modalCloseMap = {
@@ -1964,7 +1965,8 @@ function printStockCountSheet() {
                 })(),
               valor_total: item.total, 
               cliente_nome: clientName, 
-              forma_pagamento: document.getElementById('pos-payment').value, status: 'ABERTO', 
+              forma_pagamento: document.getElementById('pos-payment').value,
+              status: CURRENT_QUOTE_STATUS || 'ABERTO',
               desconto: totals.disc, 
               status_financeiro: document.getElementById('pos-discount-type').value, 
               endereco_entrega: deliveryAddr, 
@@ -2683,7 +2685,8 @@ function printStockCountSheet() {
 
         function clearCart() { 
             CART=[]; 
-            CURRENT_QUOTE_ID=null; 
+            CURRENT_QUOTE_ID=null;
+            CURRENT_QUOTE_STATUS = null;
             document.getElementById('pos-discount').value=0; 
             
             document.getElementById('pos-client').value = '';
@@ -2967,7 +2970,8 @@ function loadQuoteToCart(id) {
         };
     });
     
-    CURRENT_QUOTE_ID = q.id; 
+    CURRENT_QUOTE_ID = q.id;
+    CURRENT_QUOTE_STATUS = q.status;
     
     // Cliente e configurações padrão do orçamento
     const clientSelectBtn = document.getElementById('pos-client-btn').querySelector('span');
