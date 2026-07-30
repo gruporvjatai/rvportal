@@ -2424,7 +2424,7 @@ function printStockCountSheet() {
           await loadData();
       }
 
-       function openEditExpense(id) {
+       /*function openEditExpense(id) {
           const expenseId = String(id);
           const exp = STATE.expenses.find(e => String(e.id) === expenseId);
           if (!exp) {
@@ -2451,6 +2451,48 @@ function printStockCountSheet() {
           document.getElementById('exp-provider').value = provider;
           document.getElementById('exp-note').value = obsNote;
           
+          document.getElementById('modal-expense').classList.remove('hidden');
+      }*/
+
+
+        function openEditExpense(id) {
+          const expenseId = String(id);
+          const exp = STATE.expenses.find(e => String(e.id) === expenseId);
+          if (!exp) {
+              showToast("Despesa não encontrada! ID: " + expenseId, true);
+              return;
+          }
+          
+          // Preenche os campos básicos
+          document.getElementById('exp-id').value = exp.id;
+          document.getElementById('exp-item').value = exp.item;
+          document.getElementById('exp-cost').value = exp.cost;
+          document.getElementById('exp-date').value = exp.date ? exp.date.split('T')[0] : '';
+          
+          let note = exp.note || '';
+          let provider = '';
+          let obsNote = '';
+          
+          // Tenta extrair o fornecedor da observação (formato "Fornecedor: NOME | OBS")
+          const providerMatch = note.match(/^Fornecedor:\s*([^|]+)/);
+          if (providerMatch) {
+              provider = providerMatch[1].trim();
+              // O restante após o "|" (se houver) é a observação
+              const rest = note.substring(providerMatch[0].length);
+              if (rest.startsWith('|')) {
+                  obsNote = rest.substring(1).trim();
+              } else {
+                  obsNote = rest.trim();
+              }
+          } else {
+              // Caso não tenha o prefixo "Fornecedor:", considera toda a nota como observação
+              obsNote = note;
+          }
+          
+          document.getElementById('exp-provider').value = provider;
+          document.getElementById('exp-note').value = obsNote;
+          
+          // Abre o modal
           document.getElementById('modal-expense').classList.remove('hidden');
       }
 
