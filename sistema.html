@@ -145,6 +145,13 @@
         .signature-orig { margin-top: 30px; text-align: center; font-size: 10px; }
         .signature-line-orig { width: 50%; border-top: 1px solid #000; margin: 0 auto 5px auto; }
       }
+      
+      .sortable-ghost {
+          background-color: #ecfdf5 !important;
+          border: 2px solid #34d399 !important;
+          opacity: 0.8;
+      }
+      
       #pos-discount-info {
         white-space: pre-line;
       }
@@ -160,10 +167,11 @@
         
         input[type="number"] {
           -moz-appearance: textfield; /* Firefox */
-        }
+        }     
 
       
       .print-only { display: none; }
+      
     </style>
   </head>
   <body>
@@ -2790,26 +2798,21 @@ function printStockCountSheet() {
         countDisplay.innerText = CART.length;
     
         // ===== INICIALIZAÇÃO DO SORTABLE =====
-        // Destroi instância anterior se existir
         if (window.sortableInstance) {
             window.sortableInstance.destroy();
         }
-    
-        // Cria nova instância
+        
         window.sortableInstance = new Sortable(box, {
             animation: 150,
-            handle: '.drag-handle', // só arrasta clicando no ícone (opcional)
-            ghostClass: 'bg-emerald-50 border-2 border-emerald-400', // classe visual durante arrasto
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost',  // <-- classe única
             onEnd: function(evt) {
                 const oldIndex = evt.oldIndex;
                 const newIndex = evt.newIndex;
                 if (oldIndex === newIndex) return;
-    
-                // Reordena o array CART com base no uid
+        
                 const movedItem = CART.splice(oldIndex, 1)[0];
                 CART.splice(newIndex, 0, movedItem);
-    
-                // Re-renderiza para atualizar índices e sincronizar
                 renderCart();
             }
         });
