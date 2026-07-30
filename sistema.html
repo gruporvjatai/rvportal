@@ -2462,7 +2462,6 @@ function printStockCountSheet() {
               showToast("Despesa não encontrada! ID: " + expenseId, true);
               return;
           }
-          
           // Preenche os campos básicos
           document.getElementById('exp-id').value = exp.id;
           document.getElementById('exp-item').value = exp.item;
@@ -2473,26 +2472,25 @@ function printStockCountSheet() {
           let provider = '';
           let obsNote = '';
           
-          // Tenta extrair o fornecedor da observação (formato "Fornecedor: NOME | OBS")
-          const providerMatch = note.match(/^Fornecedor:\s*([^|]+)/);
-          if (providerMatch) {
-              provider = providerMatch[1].trim();
+          // Tenta extrair o fornecedor usando regex: "Fornecedor: NOME" no início, opcionalmente seguido de " | OBS"
+          const match = note.match(/^Fornecedor:\s*([^|]+)/);
+          if (match) {
+              provider = match[1].trim();
               // O restante após o "|" (se houver) é a observação
-              const rest = note.substring(providerMatch[0].length);
-              if (rest.startsWith('|')) {
-                  obsNote = rest.substring(1).trim();
+              const rest = note.substring(match[0].length);
+              if (rest.trim().startsWith('|')) {
+                  obsNote = rest.trim().substring(1).trim();
               } else {
                   obsNote = rest.trim();
               }
           } else {
-              // Caso não tenha o prefixo "Fornecedor:", considera toda a nota como observação
+              // Se não começar com "Fornecedor:", toda a nota é observação
               obsNote = note;
           }
           
           document.getElementById('exp-provider').value = provider;
           document.getElementById('exp-note').value = obsNote;
           
-          // Abre o modal
           document.getElementById('modal-expense').classList.remove('hidden');
       }
 
