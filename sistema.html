@@ -1535,7 +1535,9 @@
 
         STATE.expenses = (resDesp.data || []).map(e => ({
             id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
-            cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
+            cost: Number(e.custo), date: e.data, note: e.observacao,
+            provider: e.fornecedor || '',
+            status: e.status || 'PENDENTE'
         }));
 
         /*STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;*/
@@ -2323,7 +2325,7 @@ function printStockCountSheet() {
 
         function openRevenueModal() { document.getElementById('modal-revenue').classList.remove('hidden'); }
 
-        async function saveExpense() {
+        /*async function saveExpense() {
             const idVal = document.getElementById('exp-id').value;
             const isNew = !idVal;
             const item = document.getElementById('exp-item').value;
@@ -2379,7 +2381,61 @@ function printStockCountSheet() {
             showToast(isNew ? "Despesa lançada com sucesso!" : "Despesa atualizada!");
             await loadData();
             closeExpenseModal();
-        }
+        }*/
+
+
+      async function saveExpense() {
+          const idVal = document.getElementById('exp-id').value;
+          const isNew = !idVal;
+          const item = document.getElementById('exp-item').value;
+          const provider = document.getElementById('exp-provider').value.trim();
+          const cost = parseFloat(document.getElementById('exp-cost').value);
+          const date = document.getElementById('exp-date').value || getHojeLocalStr();
+          const note = document.getElementById('exp-note').value.trim();
+      
+          if (!item || isNaN(cost) || cost <= 0) {
+              showToast("Preencha a categoria e o valor corretamente", true);
+              return;
+          }
+      
+          showLoading(true);
+      
+          const payload = {
+              item: item,
+              quantidade: 1,
+              unidade: 'Un',
+              custo: cost,
+              data: date,
+              fornecedor: provider,   // agora vai para sua própria coluna
+              observacao: note,       // observação fica só com o que o usuário digitou nela
+              status: 'PENDENTE'
+          };
+      
+          let error;
+          if (isNew) {
+              payload.id = getNextId(STATE.expenses);
+              const { error: err } = await sb.from('despesas').insert([payload]);
+              error = err;
+          } else {
+              const { error: err } = await sb.from('despesas').update(payload).eq('id', idVal);
+              error = err;
+          }
+      
+          if (error) {
+              showLoading(false);
+              return showToast("Erro ao salvar: " + error.message, true);
+          }
+      
+          document.getElementById('exp-id').value = '';
+          document.getElementById('exp-provider').value = '';
+          document.getElementById('exp-cost').value = '';
+          document.getElementById('exp-note').value = '';
+          document.getElementById('modal-expense').classList.add('hidden');
+      
+          showToast(isNew ? "Despesa lançada com sucesso!" : "Despesa atualizada!");
+          await loadData();
+          closeExpenseModal();
+      }
 
        async function payExpense(id) {
           if (!confirm("Confirmar o pagamento desta despesa? O valor será lançado no caixa como saída.")) return;
@@ -2456,43 +2512,23 @@ function printStockCountSheet() {
 
 
         function openEditExpense(id) {
-          const expenseId = String(id);
-          const exp = STATE.expenses.find(e => String(e.id) === expenseId);
-          if (!exp) {
-              showToast("Despesa não encontrada! ID: " + expenseId, true);
-              return;
-          }
-          // Preenche os campos básicos
-          document.getElementById('exp-id').value = exp.id;
-          document.getElementById('exp-item').value = exp.item;
-          document.getElementById('exp-cost').value = exp.cost;
-          document.getElementById('exp-date').value = exp.date ? exp.date.split('T')[0] : '';
-          
-          let note = exp.note || '';
-          let provider = '';
-          let obsNote = '';
-          
-          // Tenta extrair o fornecedor usando regex: "Fornecedor: NOME" no início, opcionalmente seguido de " | OBS"
-          const match = note.match(/^Fornecedor:\s*([^|]+)/);
-          if (match) {
-              provider = match[1].trim();
-              // O restante após o "|" (se houver) é a observação
-              const rest = note.substring(match[0].length);
-              if (rest.trim().startsWith('|')) {
-                  obsNote = rest.trim().substring(1).trim();
-              } else {
-                  obsNote = rest.trim();
-              }
-          } else {
-              // Se não começar com "Fornecedor:", toda a nota é observação
-              obsNote = note;
-          }
-          
-          document.getElementById('exp-provider').value = provider;
-          document.getElementById('exp-note').value = obsNote;
-          
-          document.getElementById('modal-expense').classList.remove('hidden');
-      }
+            const expenseId = String(id);
+            const exp = STATE.expenses.find(e => String(e.id) === expenseId);
+            if (!exp) {
+                showToast("Despesa não encontrada! ID: " + expenseId, true);
+                return;
+            }
+            document.getElementById('exp-id').value = exp.id;
+            document.getElementById('exp-item').value = exp.item;
+            document.getElementById('exp-cost').value = exp.cost;
+            document.getElementById('exp-date').value = exp.date ? exp.date.split('T')[0] : '';
+        
+            // Sem parsing de texto — lê direto das colunas certas
+            document.getElementById('exp-provider').value = exp.provider || '';
+            document.getElementById('exp-note').value = exp.note || '';
+        
+            document.getElementById('modal-expense').classList.remove('hidden');
+        }
 
         function updateClientSelects() { }
 
