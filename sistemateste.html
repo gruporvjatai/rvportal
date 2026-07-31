@@ -3024,18 +3024,20 @@ function printStockCountSheet() {
         countDisplay.innerText = CART.length;
         if (countHeader) countHeader.innerText = CART.length; // atualiza o cabeçalho
     
+       // ===== INICIALIZAÇÃO DO SORTABLE =====
         if (window.sortableInstance) {
             window.sortableInstance.destroy();
         }
-    
+        
         window.sortableInstance = new Sortable(box, {
             animation: 150,
             handle: '.drag-handle',
-            ghostClass: 'bg-emerald-50 border-2 border-emerald-400',
+            ghostClass: 'sortable-ghost',  // <-- classe única
             onEnd: function(evt) {
                 const oldIndex = evt.oldIndex;
                 const newIndex = evt.newIndex;
                 if (oldIndex === newIndex) return;
+        
                 const movedItem = CART.splice(oldIndex, 1)[0];
                 CART.splice(newIndex, 0, movedItem);
                 renderCart();
@@ -3545,7 +3547,7 @@ function loadQuoteToCart(id) {
             }
         }
 
-      function renderProducts() {
+     function renderProducts() {
         const list = document.getElementById('prod-list');
         if (!list) return;
       
@@ -3563,49 +3565,38 @@ function loadQuoteToCart(id) {
           });
         }
       
-        // Primeiro filtra
         let filtered = STATE.products.slice();
         if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
         if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
       
-        // Depois ordena
+        // Ordenação (mantida)
         filtered.sort((a, b) => {
           let valA, valB;
           switch (sortColumn) {
-            case 'name':
-              valA = a.name.toLowerCase();
-              valB = b.name.toLowerCase();
-              break;
-            case 'price':
-              valA = a.price;
-              valB = b.price;
-              break;
-            case 'stock':
-              valA = a.stock;
-              valB = b.stock;
-              break;
-            default:
-              valA = a.id;
-              valB = b.id;
+            case 'name': valA = a.name.toLowerCase(); valB = b.name.toLowerCase(); break;
+            case 'price': valA = a.price; valB = b.price; break;
+            case 'stock': valA = a.stock; valB = b.stock; break;
+            default: valA = a.id; valB = b.id;
           }
           if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
           if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
           return 0;
         });
       
-        // Atualiza os ícones nos cabeçalhos
+        // Atualiza ícones de ordenação
         document.getElementById('sort-icon-name').innerHTML = sortColumn === 'name' ? (sortDirection === 'asc' ? '🔼' : '🔽') : '🔽';
         document.getElementById('sort-icon-price').innerHTML = sortColumn === 'price' ? (sortDirection === 'asc' ? '🔼' : '🔽') : '🔽';
         document.getElementById('sort-icon-stock').innerHTML = sortColumn === 'stock' ? (sortDirection === 'asc' ? '🔼' : '🔽') : '🔽';
       
         if (filtered.length === 0) {
-          list.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">Nenhum produto encontrado.</td></tr>';
+          list.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400">Nenhum produto encontrado.</td></tr>';
           return;
         }
       
         list.innerHTML = filtered.map(p => {
           const inputId = `adj-${p.id}`;
           const previewId = `preview-${p.id}`;
+          const disponivel = p.available; // stock - committed
           return `
             <tr class="hover:bg-slate-50">
               <td class="p-4 font-bold text-slate-700">
@@ -3614,13 +3605,14 @@ function loadQuoteToCart(id) {
               </td>
               <td class="p-4 font-medium">${formatMoney(p.price)}</td>
               <td class="p-4 font-bold">${p.stock}</td>
+              <td class="p-4 font-bold text-emerald-600">${disponivel}</td>
               <td class="p-4">
                 <div class="flex gap-1 items-center">
-                  <input type="number" id="${inputId}" class="w-24 p-1 border rounded text-center text-sm" placeholder="+ / -" step="0.01" value="0" oninput="document.getElementById('${previewId}').innerText = (${p.stock} + parseFloat(this.value || 0)).toFixed(2)">
+                  <input type="number" id="${inputId}" class="w-24 p-1 border rounded text-center text-sm" placeholder="+ / -" step="0.01" value="0" oninput="document.getElementById('${previewId}').innerText = (${p.stock} + parseFloat(this.value || 0) - ${p.committed}).toFixed(2)">
                   <button onclick="adjustStock(${p.id}, document.getElementById('${inputId}').value, '${p.name.replace(/'/g, "\\'")}')" class="bg-emerald-600 text-white px-2 py-1 rounded text-xs hover:bg-emerald-700">Aplicar</button>
                 </div>
               </td>
-              <td class="p-4 font-bold text-indigo-600" id="${previewId}">${p.stock}</td>
+              <td class="p-4 font-bold text-indigo-600" id="${previewId}">${disponivel}</td>
               <td class="p-4 text-center">
                 <button onclick="openProductForm('${p.id}')" class="text-indigo-600 hover:text-indigo-800">
                   <i data-lucide="edit-3" width="16"></i>
@@ -3631,7 +3623,6 @@ function loadQuoteToCart(id) {
         }).join('');
         lucide.createIcons();
       }
-
        function openProductForm(id) { 
           document.getElementById('prod-form-container').classList.remove('hidden'); 
           if(id) { 
