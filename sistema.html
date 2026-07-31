@@ -3024,18 +3024,20 @@ function printStockCountSheet() {
         countDisplay.innerText = CART.length;
         if (countHeader) countHeader.innerText = CART.length; // atualiza o cabeçalho
     
+       // ===== INICIALIZAÇÃO DO SORTABLE =====
         if (window.sortableInstance) {
             window.sortableInstance.destroy();
         }
-    
+        
         window.sortableInstance = new Sortable(box, {
             animation: 150,
             handle: '.drag-handle',
-            ghostClass: 'bg-emerald-50 border-2 border-emerald-400',
+            ghostClass: 'sortable-ghost',  // <-- classe única
             onEnd: function(evt) {
                 const oldIndex = evt.oldIndex;
                 const newIndex = evt.newIndex;
                 if (oldIndex === newIndex) return;
+        
                 const movedItem = CART.splice(oldIndex, 1)[0];
                 CART.splice(newIndex, 0, movedItem);
                 renderCart();
