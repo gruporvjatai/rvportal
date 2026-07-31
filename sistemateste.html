@@ -15,6 +15,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
     <script>
         // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
@@ -144,6 +147,13 @@
         .signature-orig { margin-top: 30px; text-align: center; font-size: 10px; }
         .signature-line-orig { width: 50%; border-top: 1px solid #000; margin: 0 auto 5px auto; }
       }
+      
+      .sortable-ghost {
+          background-color: #ecfdf5 !important;
+          border: 2px solid #34d399 !important;
+          opacity: 0.8;
+      }
+      
       #pos-discount-info {
         white-space: pre-line;
       }
@@ -159,10 +169,11 @@
         
         input[type="number"] {
           -moz-appearance: textfield; /* Firefox */
-        }
+        }     
 
       
       .print-only { display: none; }
+      
     </style>
   </head>
   <body>
@@ -231,8 +242,9 @@
             
             <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
                 <div class="font-bold text-slate-700 flex gap-2 items-center">
-                    <i data-lucide="list"></i> ITENS DA VENDA 
-                    <span id="edit-mode-indicator" class="hidden text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded ml-2">EDITANDO</span>
+                  <i data-lucide="list"></i> ITENS DA VENDA 
+                  <span id="cart-count-header" class="text-sm bg-slate-200 text-slate-700 px-2.5 py-0.5 rounded-full font-bold ml-1">0</span>
+                  <span id="edit-mode-indicator" class="hidden text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded ml-2">EDITANDO</span>
                 </div>
                 <button onclick="clearCart()" class="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 px-3 py-1.5 rounded bg-white shadow-sm">LIMPAR CARRINHO</button>
             </div>
@@ -1302,7 +1314,9 @@
         let sortColumn = 'id';       // coluna padrão: id (ou pode ser 'name')
         let sortDirection = 'asc';   // 'asc' ou 'desc'
         let CART = [];
-        let CURRENT_QUOTE_ID = null; 
+        let CURRENT_QUOTE_ID = null;
+        let CURRENT_QUOTE_STATUS = null;
+        let sortableInstance = null;
 
       // ===== FECHAR MODAIS COM TECLA ESC =====
         const modalCloseMap = {
@@ -1523,7 +1537,9 @@
 
         STATE.expenses = (resDesp.data || []).map(e => ({
             id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
-            cost: Number(e.custo), date: e.data, note: e.observacao, status: e.status || 'PENDENTE'
+            cost: Number(e.custo), date: e.data, note: e.observacao,
+            provider: e.fornecedor || '',
+            status: e.status || 'PENDENTE'
         }));
 
         /*STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;*/
@@ -1964,7 +1980,8 @@ function printStockCountSheet() {
                 })(),
               valor_total: item.total, 
               cliente_nome: clientName, 
-              forma_pagamento: document.getElementById('pos-payment').value, status: 'ABERTO', 
+              forma_pagamento: document.getElementById('pos-payment').value,
+              status: CURRENT_QUOTE_STATUS || 'ABERTO',
               desconto: totals.disc, 
               status_financeiro: document.getElementById('pos-discount-type').value, 
               endereco_entrega: deliveryAddr, 
@@ -2310,7 +2327,7 @@ function printStockCountSheet() {
 
         function openRevenueModal() { document.getElementById('modal-revenue').classList.remove('hidden'); }
 
-        async function saveExpense() {
+        /*async function saveExpense() {
             const idVal = document.getElementById('exp-id').value;
             const isNew = !idVal;
             const item = document.getElementById('exp-item').value;
@@ -2366,7 +2383,61 @@ function printStockCountSheet() {
             showToast(isNew ? "Despesa lançada com sucesso!" : "Despesa atualizada!");
             await loadData();
             closeExpenseModal();
-        }
+        }*/
+
+
+      async function saveExpense() {
+          const idVal = document.getElementById('exp-id').value;
+          const isNew = !idVal;
+          const item = document.getElementById('exp-item').value;
+          const provider = document.getElementById('exp-provider').value.trim();
+          const cost = parseFloat(document.getElementById('exp-cost').value);
+          const date = document.getElementById('exp-date').value || getHojeLocalStr();
+          const note = document.getElementById('exp-note').value.trim();
+      
+          if (!item || isNaN(cost) || cost <= 0) {
+              showToast("Preencha a categoria e o valor corretamente", true);
+              return;
+          }
+      
+          showLoading(true);
+      
+          const payload = {
+              item: item,
+              quantidade: 1,
+              unidade: 'Un',
+              custo: cost,
+              data: date,
+              fornecedor: provider,   // agora vai para sua própria coluna
+              observacao: note,       // observação fica só com o que o usuário digitou nela
+              status: 'PENDENTE'
+          };
+      
+          let error;
+          if (isNew) {
+              payload.id = getNextId(STATE.expenses);
+              const { error: err } = await sb.from('despesas').insert([payload]);
+              error = err;
+          } else {
+              const { error: err } = await sb.from('despesas').update(payload).eq('id', idVal);
+              error = err;
+          }
+      
+          if (error) {
+              showLoading(false);
+              return showToast("Erro ao salvar: " + error.message, true);
+          }
+      
+          document.getElementById('exp-id').value = '';
+          document.getElementById('exp-provider').value = '';
+          document.getElementById('exp-cost').value = '';
+          document.getElementById('exp-note').value = '';
+          document.getElementById('modal-expense').classList.add('hidden');
+      
+          showToast(isNew ? "Despesa lançada com sucesso!" : "Despesa atualizada!");
+          await loadData();
+          closeExpenseModal();
+      }
 
        async function payExpense(id) {
           if (!confirm("Confirmar o pagamento desta despesa? O valor será lançado no caixa como saída.")) return;
@@ -2411,7 +2482,7 @@ function printStockCountSheet() {
           await loadData();
       }
 
-       function openEditExpense(id) {
+       /*function openEditExpense(id) {
           const expenseId = String(id);
           const exp = STATE.expenses.find(e => String(e.id) === expenseId);
           if (!exp) {
@@ -2439,7 +2510,27 @@ function printStockCountSheet() {
           document.getElementById('exp-note').value = obsNote;
           
           document.getElementById('modal-expense').classList.remove('hidden');
-      }
+      }*/
+
+
+        function openEditExpense(id) {
+            const expenseId = String(id);
+            const exp = STATE.expenses.find(e => String(e.id) === expenseId);
+            if (!exp) {
+                showToast("Despesa não encontrada! ID: " + expenseId, true);
+                return;
+            }
+            document.getElementById('exp-id').value = exp.id;
+            document.getElementById('exp-item').value = exp.item;
+            document.getElementById('exp-cost').value = exp.cost;
+            document.getElementById('exp-date').value = exp.date ? exp.date.split('T')[0] : '';
+        
+            // Sem parsing de texto — lê direto das colunas certas
+            document.getElementById('exp-provider').value = exp.provider || '';
+            document.getElementById('exp-note').value = exp.note || '';
+        
+            document.getElementById('modal-expense').classList.remove('hidden');
+        }
 
         function updateClientSelects() { }
 
@@ -2557,7 +2648,8 @@ function printStockCountSheet() {
                   comprimento: comprimento,
                   pecas: pecas,
                   total: totalMetros * fixedPrice,
-                  parceiro: true
+                  parceiro: true,
+                  uid: Date.now() + '_' + Math.random().toString(36).substr(2, 6)
               });
               if (compInput) compInput.value = '';
               if (pecasInput) pecasInput.value = '';
@@ -2593,7 +2685,7 @@ function printStockCountSheet() {
             renderCart();
         }
 
-        function renderCart() {
+       /*function renderCart() {
           const box = document.getElementById('pos-cart-items');
           const totalDisplay = document.getElementById('pos-total-display');
           const countDisplay = document.getElementById('cart-count');
@@ -2679,11 +2771,260 @@ function printStockCountSheet() {
           totalDisplay.innerText = formatMoney(totals.total);
           countDisplay.innerText = CART.length;
           lucide.createIcons();
-      }
+      }*/
+
+      /*function renderCart() {
+        const box = document.getElementById('pos-cart-items');
+        const totalDisplay = document.getElementById('pos-total-display');
+        const countDisplay = document.getElementById('cart-count');
+    
+        // Se o carrinho estiver vazio
+        if (!CART.length) {
+            box.innerHTML = '<p class="text-center text-slate-400 mt-10 text-sm">Vazio</p>';
+            totalDisplay.innerText = formatMoney(0);
+            countDisplay.innerText = '0';
+            const descTotalEl = document.getElementById('pos-total-desconto');
+            if (descTotalEl) descTotalEl.innerText = '';
+            // Destroi instância do Sortable se existir
+            if (window.sortableInstance) {
+                window.sortableInstance.destroy();
+                window.sortableInstance = null;
+            }
+            return;
+        }
+    
+        const totals = calculateTotal();
+        let subBruto = 0;
+        CART.forEach(item => {
+            const fixedPrice = item.fixedPrice || item.price;
+            subBruto += fixedPrice * item.qty;
+        });
+        const descontoReal = subBruto - totals.total;
+        const percentual = subBruto > 0 ? (descontoReal / subBruto) * 100 : 0;
+    
+        // Linha de desconto total
+        const descTotalEl = document.getElementById('pos-total-desconto');
+        if (descTotalEl) {
+            if (descontoReal > 0.01) {
+                descTotalEl.innerText = `Totais de Desconto \n ${percentual.toFixed(1)}% (${formatMoney(descontoReal)})`;
+                descTotalEl.style.display = 'block';
+            } else {
+                descTotalEl.innerText = '';
+                descTotalEl.style.display = 'none';
+            }
+        }
+    
+        // Monta o HTML dos itens (cada um com data-uid)
+        box.innerHTML = CART.map((i, idx) => {
+            const fixedPrice = i.fixedPrice || i.price;
+            const unitPrice = i.price;
+            const qty = i.qty;
+            const totalItem = qty * unitPrice;
+    
+            let descontoPercentual = 0;
+            if (fixedPrice > 0) {
+                descontoPercentual = ((fixedPrice - unitPrice) / fixedPrice) * 100;
+            }
+            const isDescontoAlto = descontoPercentual > 30;
+            const descontoStr = descontoPercentual > 0 ? `${descontoPercentual.toFixed(1)}% off` : '';
+    
+            let descricao = i.name;
+            if (i.parceiro) {
+                descricao += ` (${i.pecas} pçs de ${i.comprimento}m)`;
+            }
+    
+            let infoExtra = '';
+            if (descontoStr) {
+                infoExtra = `<span class="text-[10px] ${isDescontoAlto ? 'text-red-600 font-bold animate-pulse' : 'text-orange-600 font-bold'}">${descontoStr}</span>`;
+            }
+            if (isDescontoAlto) {
+                infoExtra += ` <span class="text-[10px] text-red-500 font-bold bg-red-100 px-1.5 py-0.5 rounded">⚠️</span>`;
+            }
+    
+            const cardClass = isDescontoAlto ? 'border-l-4 border-l-red-500 bg-red-50/30' : '';
+    
+            return `
+            <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition ${cardClass}" data-uid="${i.uid}">
+                <!-- Ícone de arrastar (grip) -->
+                <div class="drag-handle cursor-grab text-slate-400 hover:text-slate-600 shrink-0" title="Arraste para reordenar">
+                    <i data-lucide="grip-vertical" width="16"></i>
+                </div>
+    
+                <div class="flex-1 min-w-0 flex items-center gap-2">
+                    <span class="text-[11px] font-bold text-slate-700 truncate" title="${i.name}">${descricao}</span>
+                    <div class="flex items-center gap-1 shrink-0 text-[10px] text-slate-500 whitespace-nowrap">
+                        <span>base: <span class="text-slate-700">${formatMoney(fixedPrice)}</span></span>
+                        ${infoExtra}
+                    </div>
+                </div>
+    
+                <div class="flex items-center gap-1 shrink-0">
+                    <input type="number" value="${qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Qtd">
+                    <span class="text-slate-400 text-xs font-bold">x</span>
+                    <input type="number" step="0.01" value="${unitPrice}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Unitário">
+                </div>
+    
+                <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(totalItem)}</div>
+                
+                <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded">
+                    <i data-lucide="x-circle" width="14"></i>
+                </button>
+            </div>`;
+        }).join('');
+    
+        // Atualiza totais
+        totalDisplay.innerText = formatMoney(totals.total);
+        countDisplay.innerText = CART.length;
+    
+        // ===== INICIALIZAÇÃO DO SORTABLE =====
+        if (window.sortableInstance) {
+            window.sortableInstance.destroy();
+        }
+        
+        window.sortableInstance = new Sortable(box, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost',  // <-- classe única
+            onEnd: function(evt) {
+                const oldIndex = evt.oldIndex;
+                const newIndex = evt.newIndex;
+                if (oldIndex === newIndex) return;
+        
+                const movedItem = CART.splice(oldIndex, 1)[0];
+                CART.splice(newIndex, 0, movedItem);
+                renderCart();
+            }
+        });
+    
+        // Recria os ícones do Lucide (incluindo o grip-vertical)
+        lucide.createIcons();
+    }*/
+
+      function renderCart() {
+        const box = document.getElementById('pos-cart-items');
+        const totalDisplay = document.getElementById('pos-total-display');
+        const countDisplay = document.getElementById('cart-count');
+        const countHeader = document.getElementById('cart-count-header'); // novo
+    
+        if (!CART.length) {
+            box.innerHTML = '<p class="text-center text-slate-400 mt-10 text-sm">Vazio</p>';
+            totalDisplay.innerText = formatMoney(0);
+            countDisplay.innerText = '0';
+            if (countHeader) countHeader.innerText = '0';
+            const descTotalEl = document.getElementById('pos-total-desconto');
+            if (descTotalEl) descTotalEl.innerText = '';
+            if (window.sortableInstance) {
+                window.sortableInstance.destroy();
+                window.sortableInstance = null;
+            }
+            return;
+        }
+    
+        const totals = calculateTotal();
+        let subBruto = 0;
+        CART.forEach(item => {
+            const fixedPrice = item.fixedPrice || item.price;
+            subBruto += fixedPrice * item.qty;
+        });
+        const descontoReal = subBruto - totals.total;
+        const percentual = subBruto > 0 ? (descontoReal / subBruto) * 100 : 0;
+    
+        const descTotalEl = document.getElementById('pos-total-desconto');
+        if (descTotalEl) {
+            if (descontoReal > 0.01) {
+                descTotalEl.innerText = `Totais de Desconto \n ${percentual.toFixed(1)}% (${formatMoney(descontoReal)})`;
+                descTotalEl.style.display = 'block';
+            } else {
+                descTotalEl.innerText = '';
+                descTotalEl.style.display = 'none';
+            }
+        }
+    
+        box.innerHTML = CART.map((i, idx) => {
+            const fixedPrice = i.fixedPrice || i.price;
+            const unitPrice = i.price;
+            const qty = i.qty;
+            const totalItem = qty * unitPrice;
+    
+            let descontoPercentual = 0;
+            if (fixedPrice > 0) {
+                descontoPercentual = ((fixedPrice - unitPrice) / fixedPrice) * 100;
+            }
+            const isDescontoAlto = descontoPercentual > 30;
+            const descontoStr = descontoPercentual > 0 ? `${descontoPercentual.toFixed(1)}% off` : '';
+    
+            let descricao = i.name;
+            if (i.parceiro) {
+                descricao += ` (${i.pecas} pçs de ${i.comprimento}m)`;
+            }
+    
+            let infoExtra = '';
+            if (descontoStr) {
+                infoExtra = `<span class="text-[10px] ${isDescontoAlto ? 'text-red-600 font-bold animate-pulse' : 'text-orange-600 font-bold'}">${descontoStr}</span>`;
+            }
+            if (isDescontoAlto) {
+                infoExtra += ` <span class="text-[10px] text-red-500 font-bold bg-red-100 px-1.5 py-0.5 rounded">⚠️</span>`;
+            }
+    
+            const cardClass = isDescontoAlto ? 'border-l-4 border-l-red-500 bg-red-50/30' : '';
+    
+            return `
+            <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition ${cardClass}" data-uid="${i.uid}">
+                <div class="drag-handle cursor-grab text-slate-400 hover:text-slate-600 shrink-0" title="Arraste para reordenar">
+                    <i data-lucide="grip-vertical" width="16"></i>
+                </div>
+    
+                <div class="flex-1 min-w-0 flex items-center gap-2">
+                    <span class="text-[11px] font-bold text-slate-700 truncate" title="${i.name}">${descricao}</span>
+                    <div class="flex items-center gap-1 shrink-0 text-[10px] text-slate-500 whitespace-nowrap">
+                        <span>base: <span class="text-slate-700">${formatMoney(fixedPrice)}</span></span>
+                        ${infoExtra}
+                    </div>
+                </div>
+    
+                <div class="flex items-center gap-1 shrink-0">
+                    <input type="number" value="${qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Qtd">
+                    <span class="text-slate-400 text-xs font-bold">x</span>
+                    <input type="number" step="0.01" value="${unitPrice}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Unitário">
+                </div>
+    
+                <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(totalItem)}</div>
+                
+                <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded">
+                    <i data-lucide="x-circle" width="14"></i>
+                </button>
+            </div>`;
+        }).join('');
+    
+        totalDisplay.innerText = formatMoney(totals.total);
+        countDisplay.innerText = CART.length;
+        if (countHeader) countHeader.innerText = CART.length; // atualiza o cabeçalho
+    
+        if (window.sortableInstance) {
+            window.sortableInstance.destroy();
+        }
+    
+        window.sortableInstance = new Sortable(box, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'bg-emerald-50 border-2 border-emerald-400',
+            onEnd: function(evt) {
+                const oldIndex = evt.oldIndex;
+                const newIndex = evt.newIndex;
+                if (oldIndex === newIndex) return;
+                const movedItem = CART.splice(oldIndex, 1)[0];
+                CART.splice(newIndex, 0, movedItem);
+                renderCart();
+            }
+        });
+    
+        lucide.createIcons();
+    }
 
         function clearCart() { 
             CART=[]; 
-            CURRENT_QUOTE_ID=null; 
+            CURRENT_QUOTE_ID=null;
+            CURRENT_QUOTE_STATUS = null;
             document.getElementById('pos-discount').value=0; 
             
             document.getElementById('pos-client').value = '';
@@ -2967,7 +3308,8 @@ function loadQuoteToCart(id) {
         };
     });
     
-    CURRENT_QUOTE_ID = q.id; 
+    CURRENT_QUOTE_ID = q.id;
+    CURRENT_QUOTE_STATUS = q.status;
     
     // Cliente e configurações padrão do orçamento
     const clientSelectBtn = document.getElementById('pos-client-btn').querySelector('span');
@@ -4211,169 +4553,179 @@ function loadQuoteToCart(id) {
             loadData();
         }
 
-        function downloadQuotePDF(id) {
-    const q = STATE.quotes.find(x => x.id == id);
-    if(!q) return;
-
-    showLoading(true);
-
-    const clientName = q.clientName || 'Consumidor Final';
-    const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
-
-    let subtotal = 0;
-    const itemsHtml = q.items.map((i, index) => {
-        const itemTotal = i.qty * i.price;
-        subtotal += itemTotal;
-        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-        
-        // Extrai metragem do campo obs do item
-        let metragem = '';
-        const obsItem = i.obs || '';
-        const match = obsItem.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
-        if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
-        
-        return `
-            <tr style="background-color: ${bgColor};">
-                <td style="border-bottom: 1px solid #000; padding: 8px;">
-                    ${i.name}
-                    ${metragem ? `<br><span style="font-size:9px;">${metragem}</span>` : ''}
-                </td>
-                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
-            </tr>`;
-    }).join('');
-
-    const discount = Number(q.discount) || 0;
-    const finalTotal = subtotal - discount;
-    const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
-    
-    // Observação geral: remover metragem se existir (parte antes do primeiro " | ")
-    let obsText = '';
-    const fullObs = q.observacao || '';
-    if (fullObs.includes(' | ')) {
-        obsText = fullObs.split(' | ').slice(1).join(' | '); // pega tudo após o primeiro " | "
-    } else if (fullObs.match(/\d+pçs\d+(\.\d+)?m/)) {
-        // Se só tem metragem, não colocar nada extra
-        obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
-    } else {
-        obsText = fullObs || 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
-    }
-
-    const htmlString = `
-        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
-            
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-                <!--<img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />-->
-            </div>
-
-            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <tr>
-                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
-                    </td>
-                    <td valign="middle" style="padding-left: 15px;">
-                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
-                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                    </td>
-                    <td align="right" valign="top">
-                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">ORÇAMENTO</h2>
-                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
-                        <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
-                    </td>
-                </tr>
-            </table>
-
-            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
-                <tr>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>${cli.name}</strong><br>
-                            ${cli.doc || ''}<br>
-                            ${cli.phone || ''}<br>
-                            ${addressToShow}
-                        </div>
-                    </td>
-                    <td width="4%"></td> <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br>
-                            <strong>Vendedor:</strong> RV PORTAL
-                        </div>
-                    </td>
-                </tr>
-            </table>
-
-            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
-                <thead>
-                    <tr>
-                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
-                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
-
-            <table width="100%" style="margin-top: 10px;">
-                <tr>
-                    <td valign="top" style="padding-right: 30px;">
-                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                            <div style="font-size: 10px; color: #334155; white-space: pre-wrap;">${obsText}</div>
-                        </div>
-                    </td>
-                    <td width="250" valign="top">
-                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
-                            </tr>
-                            ${discount > 0 ? `
-                            <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td>
-                            </tr>` : ''}
-                            <tr>
-                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
-                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-            
-        </div>
-    `;
-
-    setTimeout(() => {
-        const opt = {
-            margin:       10, 
-            filename:     `RV PORTAL - ${clientName} - #${q.id}.pdf`,
-            image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                letterRendering: true 
-            },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        html2pdf().set(opt).from(htmlString).save().then(() => {
-            showLoading(false);
-            showToast("PDF Baixado com Sucesso!");
-        }).catch(err => {
-            console.error("Erro PDF:", err);
-            showLoading(false);
-            showToast("Erro ao gerar PDF", true);
-        });
-    }, 500); 
-}
+       async function downloadQuotePDF(id) {
+          const q = STATE.quotes.find(x => x.id == id);
+          if(!q) return;
+      
+          showLoading(true);
+      
+          const clientName = q.clientName || 'Consumidor Final';
+          const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+      
+          let subtotal = 0;
+          const bodyTabela = [
+              [
+                  { text: 'Descrição', style: 'tableHeader', alignment: 'left' },
+                  { text: 'Qtd', style: 'tableHeader', alignment: 'center' },
+                  { text: 'Unit.', style: 'tableHeader', alignment: 'right' },
+                  { text: 'Total', style: 'tableHeader', alignment: 'right' }
+              ]
+          ];
+      
+          q.items.forEach((i, index) => {
+              const itemTotal = i.qty * i.price;
+              subtotal += itemTotal;
+              const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+      
+              let metragem = '';
+              const obsItem = i.obs || '';
+              const match = obsItem.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+              if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+      
+              bodyTabela.push([
+                  {
+                      text: metragem ? [ { text: i.name + '\n' }, { text: metragem, fontSize: 8, color: '#64748b' } ] : i.name,
+                      fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10
+                  },
+                  { text: i.qty.toString(), alignment: 'center', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+                  { text: formatMoney(i.price), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+                  { text: formatMoney(itemTotal), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 }
+              ]);
+          });
+      
+          const discount = Number(q.discount) || 0;
+          const finalTotal = subtotal - discount;
+          const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
+      
+          let obsText = '';
+          const fullObs = q.observacao || '';
+          if (fullObs.includes(' | ')) {
+              obsText = fullObs.split(' | ').slice(1).join(' | ');
+          } else if (fullObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+              obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+          } else {
+              obsText = fullObs || 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+          }
+      
+          const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
+      
+          const totalRows = [
+              [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
+          ];
+          if (discount > 0) {
+              totalRows.push([
+                  { text: 'Desconto:', color: 'red', border: [false,false,false,true] },
+                  { text: '- ' + formatMoney(discount), color: 'red', alignment: 'right', border: [false,false,false,true] }
+              ]);
+          }
+          totalRows.push([
+              { text: 'TOTAL A PAGAR:', bold: true, fontSize: 12, fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] },
+              { text: formatMoney(finalTotal), bold: true, fontSize: 13, alignment: 'right', fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] }
+          ]);
+      
+          const docDefinition = {
+              pageSize: 'A4',
+              pageMargins: [40, 40, 40, 40],
+              defaultStyle: { font: 'Roboto' },
+      
+              background: function () {
+                  return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
+              },
+      
+              content: [
+                  {
+                      table: {
+                          widths: [90, '*', 'auto'],
+                          body: [[
+                              logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
+                              {
+                                  text: [
+                                      { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
+                                      { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                      { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
+                                  ],
+                                  margin: [0, 10, 0, 0]
+                              },
+                              {
+                                  text: [
+                                      { text: 'ORÇAMENTO\n', fontSize: 13, bold: true },
+                                      { text: `Nº: ${q.id}\n`, fontSize: 9 },
+                                      { text: `Data: ${new Date(q.date).toLocaleDateString('pt-BR')}`, fontSize: 9 }
+                                  ],
+                                  alignment: 'right', margin: [0, 10, 0, 0]
+                              }
+                          ]]
+                      },
+                      layout: 'noBorders', margin: [0, 0, 0, 10]
+                  },
+                  { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }], margin: [0, 0, 0, 20] },
+                  {
+                      columns: [
+                          {
+                              width: '48%',
+                              table: {
+                                  widths: ['*'],
+                                  body: [
+                                      [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                      [{ text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}\n${addressToShow}`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                                  ]
+                              },
+                              layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                          },
+                          { width: '4%', text: '' },
+                          {
+                              width: '48%',
+                              table: {
+                                  widths: ['*'],
+                                  body: [
+                                      [{ text: 'PAGAMENTO', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                      [{ text: `Forma: ${q.paymentMethod || 'A Combinar'}\nVendedor: RV PORTAL`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                                  ]
+                              },
+                              layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                          }
+                      ],
+                      margin: [0, 0, 0, 20]
+                  },
+                  {
+                      table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: bodyTabela },
+                      layout: {
+                          hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
+                          vLineWidth: function () { return 0; },
+                          hLineColor: function () { return '#000000'; }
+                      },
+                      margin: [0, 0, 0, 20]
+                  },
+                  {
+                      columns: [
+                          {
+                              width: '58%',
+                              table: {
+                                  widths: ['*'],
+                                  body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]
+                              },
+                              layout: {
+                                  hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
+                                  hLineStyle: () => ({dash: {length: 4, space: 4}}), vLineStyle: () => ({dash: {length: 4, space: 4}})
+                              }
+                          },
+                          { width: '2%', text: '' },
+                          {
+                              width: '40%',
+                              table: { widths: ['*', 'auto'], body: totalRows },
+                              layout: { hLineColor: () => '#e2e8f0', vLineWidth: () => 0 }
+                          }
+                      ],
+                      margin: [0, 0, 0, 10]
+                  }
+              ],
+              styles: { tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] } }
+          };
+      
+          pdfMake.createPdf(docDefinition).download(`RV PORTAL - ${clientName} - #${q.id}.pdf`);
+          showLoading(false);
+          showToast("PDF Baixado com Sucesso!");
+      }
 
        function printDailyRevenue() {
     showLoading(true);
@@ -4853,54 +5205,60 @@ function closePosHistoryModal() {
 
 async function downloadSalePDF(id) {
     closePosHistoryModal();
-    
+
     const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
     if(!items.length) {
         showToast("Venda não encontrada", true);
         return;
     }
     showLoading(true);
-    
+
     const totalDiscount = items[0].discount || 0;
     const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
     const grossTotal = netTotal + totalDiscount;
     const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
-    
+
     const clientName = items[0].clientName || 'Consumidor Final';
     const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
-    
+
     let subtotal = 0;
-    const itemsHtml = items.map((i, index) => {
+    const bodyTabela = [
+        [
+            { text: 'Descrição', style: 'tableHeader', alignment: 'left' },
+            { text: 'Qtd', style: 'tableHeader', alignment: 'center' },
+            { text: 'Unit.', style: 'tableHeader', alignment: 'right' },
+            { text: 'Total', style: 'tableHeader', alignment: 'right' }
+        ]
+    ];
+
+    items.forEach((i, index) => {
         const grossItemTotal = i.totalValue * fator;
         const unitPrice = i.quantity > 0 ? (grossItemTotal / i.quantity) : 0;
         const itemTotal = grossItemTotal;
         subtotal += itemTotal;
         const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-        
-        // Extrai metragem
+
         let metragem = '';
         if (i.note) {
             const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
             if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
         }
-        
-        return `
-            <tr style="background-color: ${bgColor};">
-                <td style="border-bottom: 1px solid #000; padding: 8px;">
-                    ${i.productName}
-                    ${metragem ? `<br><span style="font-size:9px;">${metragem}</span>` : ''}
-                </td>
-                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.quantity}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(unitPrice)}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
-            </tr>`;
-    }).join('');
-    
+
+        bodyTabela.push([
+            {
+                text: metragem ? [ { text: i.productName + '\n' }, { text: metragem, fontSize: 8, color: '#64748b' } ] : i.productName,
+                fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10
+            },
+            { text: i.quantity.toString(), alignment: 'center', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(unitPrice), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(itemTotal), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 }
+        ]);
+    });
+
     const discount = totalDiscount;
     const finalTotal = subtotal - discount;
     const addressToShow = items[0].deliveryAddress ? `ENTREGA: ${items[0].deliveryAddress}` : (cli.address || 'Não informado');
-    
-    // Extrai observação geral sem metragem
+
     const rawNote = items[0].note || '';
     let obsText = '';
     if (rawNote.includes(' | ')) {
@@ -4912,122 +5270,126 @@ async function downloadSalePDF(id) {
     } else {
         obsText = rawNote;
     }
-    
+
     const paymentMethod = items[0].paymentMethod || 'Não informado';
-    
-    const htmlString = `
-        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
-            
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-               <!-- <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" /> -->
-            </div>
+    const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
 
-            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <tr>
-                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
-                    </td>
-                    <td valign="middle" style="padding-left: 15px;">
-                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
-                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                    </td>
-                    <td align="right" valign="top">
-                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">PEDIDO DE VENDA</h2>
-                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${id}</div>
-                        <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(items[0].date).toLocaleDateString('pt-BR')}</div>
-                    </td>
-                </tr>
-            </table>
+    const totalRows = [
+        [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
+    ];
+    if (discount > 0) {
+        totalRows.push([
+            { text: 'Desconto:', color: 'red', border: [false,false,false,true] },
+            { text: '- ' + formatMoney(discount), color: 'red', alignment: 'right', border: [false,false,false,true] }
+        ]);
+    }
+    totalRows.push([
+        { text: 'TOTAL A PAGAR:', bold: true, fontSize: 12, fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] },
+        { text: formatMoney(finalTotal), bold: true, fontSize: 13, alignment: 'right', fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] }
+    ]);
 
-            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
-                <tr>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>${cli.name}</strong><br>
-                            ${cli.doc || ''}<br>
-                            ${cli.phone || ''}<br>
-                            ${addressToShow}
-                        </div>
-                    </td>
-                    <td width="4%"></td>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>Forma:</strong> ${paymentMethod}<br>
-                            <strong>Vendedor:</strong> RV PORTAL
-                        </div>
-                    </td>
-                </tr>
-            </table>
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 40],
+        defaultStyle: { font: 'Roboto' },
 
-            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
-                <thead>
-                    <tr>
-                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
-                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
+        background: function () {
+            return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
+        },
 
-            <table width="100%" style="margin-top: 10px;">
-                <tr>
-                    <td valign="top" style="padding-right: 30px;">
-                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                            <div style="font-size: 10px; color: #334155; white-space: pre-wrap;">${obsText}</div>
-                        </div>
-                    </td>
-                    <td width="250" valign="top">
-                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
-                            </tr>
-                            ${discount > 0 ? `
-                            <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td>
-                            </tr>` : ''}
-                            <tr>
-                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
-                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-            
-        </div>
-    `;
-
-    setTimeout(() => {
-        const opt = {
-            margin:       10, 
-            filename:     `RV PORTAL - ${clientName} - Venda ${id}.pdf`,
-            image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                letterRendering: true 
+        content: [
+            {
+                table: {
+                    widths: [90, '*', 'auto'],
+                    body: [[
+                        logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
+                        {
+                            text: [
+                                { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
+                                { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
+                            ],
+                            margin: [0, 10, 0, 0]
+                        },
+                        {
+                            text: [
+                                { text: 'PEDIDO DE VENDA\n', fontSize: 13, bold: true },
+                                { text: `Nº: ${id}\n`, fontSize: 9 },
+                                { text: `Data: ${new Date(items[0].date).toLocaleDateString('pt-BR')}`, fontSize: 9 }
+                            ],
+                            alignment: 'right', margin: [0, 10, 0, 0]
+                        }
+                    ]]
+                },
+                layout: 'noBorders', margin: [0, 0, 0, 10]
             },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(htmlString).save().then(() => {
-            showLoading(false);
-            showToast("PDF Baixado com Sucesso!");
-        }).catch(err => {
-            console.error("Erro PDF:", err);
-            showLoading(false);
-            showToast("Erro ao gerar PDF", true);
-        });
-    }, 500);
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }], margin: [0, 0, 0, 20] },
+            {
+                columns: [
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}\n${addressToShow}`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    },
+                    { width: '4%', text: '' },
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'PAGAMENTO', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ text: `Forma: ${paymentMethod}\nVendedor: RV PORTAL`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: bodyTabela },
+                layout: {
+                    hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
+                    vLineWidth: function () { return 0; },
+                    hLineColor: function () { return '#000000'; }
+                },
+                margin: [0, 0, 0, 20]
+            },
+            {
+                columns: [
+                    {
+                        width: '58%',
+                        table: {
+                            widths: ['*'],
+                            body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]
+                        },
+                        layout: {
+                            hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
+                            hLineStyle: () => ({dash: {length: 4, space: 4}}), vLineStyle: () => ({dash: {length: 4, space: 4}})
+                        }
+                    },
+                    { width: '2%', text: '' },
+                    {
+                        width: '40%',
+                        table: { widths: ['*', 'auto'], body: totalRows },
+                        layout: { hLineColor: () => '#e2e8f0', vLineWidth: () => 0 }
+                    }
+                ],
+                margin: [0, 0, 0, 10]
+            }
+        ],
+        styles: { tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] } }
+    };
+
+    pdfMake.createPdf(docDefinition).download(`RV PORTAL - ${clientName} - Venda ${id}.pdf`);
+    showLoading(false);
+    showToast("PDF Baixado com Sucesso!");
 }
 
   // FUNÇÕES DO PARCEIRO =============================================================
@@ -5551,8 +5913,27 @@ function updateCardValues() {
     document.getElementById('fin-expenses').innerText = formatCardValue(lastExpenses);
     document.getElementById('fin-balance').innerText = formatCardValue(lastBalance);
 }
+
+  async function getLogoBase64RV(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+    });
+}
+  
   
     </script> 
+    
     <script type="importmap">
       {
         "imports": {
@@ -5560,6 +5941,8 @@ function updateCardValues() {
           "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
         }
       }
+
+      
     </script>
     <script type="module" src="abas/mdf.js"></script>
     <script src="abas/equipe.js"></script>
