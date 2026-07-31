@@ -3816,10 +3816,12 @@ function loadQuoteToCart(id) {
     const startExp = document.getElementById('exp-start')?.value;
     const endExp = document.getElementById('exp-end')?.value;
     const catFilterExp = document.getElementById('exp-category-filter')?.value || '';
+        
 
     if (termExp) filteredExp = filteredExp.filter(e => 
         e.item?.toLowerCase().includes(termExp) || 
         e.note?.toLowerCase().includes(termExp) || 
+        e.provider?.toLowerCase().includes(termExp) ||
         String(e.id).includes(termExp)
     );
     if (statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
@@ -3836,17 +3838,11 @@ function loadQuoteToCart(id) {
         const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost, 0);
         const rowsHtmlExp = filteredExp.map(e => {
     // Extrai o fornecedor da observação
-    let providerVal = e.note || '-';
-    if (providerVal.startsWith('Fornecedor:')) {
-        providerVal = providerVal.replace('Fornecedor:', '').trim();
-    }
+    // Fornecedor vem direto da coluna própria (e.provider); observação fica só com a nota do usuário
+    const providerVal = (e.provider || '').trim();
 
-    let displayName = e.item;          // categoria/tipo
-    let displaySub = '';
-    if (providerVal && providerVal !== '-') {
-        displayName = providerVal;     // fornecedor vira principal
-        displaySub = e.item;           // categoria vira subtítulo
-    }
+    let displayName = providerVal || e.item;   // fornecedor vira principal (se houver); senão, categoria
+    let displaySub = providerVal ? e.item : ''; // se mostrou fornecedor em cima, categoria vira subtítulo
 
     const dataVencStr = (e.date || '').split('T')[0];
     const isVencido = dataVencStr < hojeLocalStr && e.status !== 'PAGO';
