@@ -13,7 +13,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
@@ -4580,7 +4581,7 @@ function loadQuoteToCart(id) {
             loadData();
         }
 
-        function downloadQuotePDF(id) {
+        async function downloadQuotePDF(id) {
     const q = STATE.quotes.find(x => x.id == id);
     if(!q) return;
 
@@ -4590,158 +4591,168 @@ function loadQuoteToCart(id) {
     const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
 
     let subtotal = 0;
-    const itemsHtml = q.items.map((i, index) => {
+    const bodyTabela = [
+        [
+            { text: 'Descrição', style: 'tableHeader', alignment: 'left' },
+            { text: 'Qtd', style: 'tableHeader', alignment: 'center' },
+            { text: 'Unit.', style: 'tableHeader', alignment: 'right' },
+            { text: 'Total', style: 'tableHeader', alignment: 'right' }
+        ]
+    ];
+
+    q.items.forEach((i, index) => {
         const itemTotal = i.qty * i.price;
         subtotal += itemTotal;
         const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-        
-        // Extrai metragem do campo obs do item
+
         let metragem = '';
         const obsItem = i.obs || '';
         const match = obsItem.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
         if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
-        
-        return `
-            <tr style="background-color: ${bgColor};">
-                <td style="border-bottom: 1px solid #000; padding: 8px;">
-                    ${i.name}
-                    ${metragem ? `<br><span style="font-size:9px;">${metragem}</span>` : ''}
-                </td>
-                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
-            </tr>`;
-    }).join('');
+
+        bodyTabela.push([
+            {
+                text: metragem ? [ { text: i.name + '\n' }, { text: metragem, fontSize: 8, color: '#64748b' } ] : i.name,
+                fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10
+            },
+            { text: i.qty.toString(), alignment: 'center', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(i.price), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(itemTotal), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 }
+        ]);
+    });
 
     const discount = Number(q.discount) || 0;
     const finalTotal = subtotal - discount;
     const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
-    
-    // Observação geral: remover metragem se existir (parte antes do primeiro " | ")
+
     let obsText = '';
     const fullObs = q.observacao || '';
     if (fullObs.includes(' | ')) {
-        obsText = fullObs.split(' | ').slice(1).join(' | '); // pega tudo após o primeiro " | "
+        obsText = fullObs.split(' | ').slice(1).join(' | ');
     } else if (fullObs.match(/\d+pçs\d+(\.\d+)?m/)) {
-        // Se só tem metragem, não colocar nada extra
         obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
     } else {
         obsText = fullObs || 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
     }
 
-    const htmlString = `
-        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
-            
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-                <!--<img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />-->
-            </div>
+    const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
 
-            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <tr>
-                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
-                    </td>
-                    <td valign="middle" style="padding-left: 15px;">
-                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
-                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                    </td>
-                    <td align="right" valign="top">
-                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">ORÇAMENTO</h2>
-                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
-                        <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(q.date).toLocaleDateString('pt-BR')}</div>
-                    </td>
-                </tr>
-            </table>
+    const totalRows = [
+        [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
+    ];
+    if (discount > 0) {
+        totalRows.push([
+            { text: 'Desconto:', color: 'red', border: [false,false,false,true] },
+            { text: '- ' + formatMoney(discount), color: 'red', alignment: 'right', border: [false,false,false,true] }
+        ]);
+    }
+    totalRows.push([
+        { text: 'TOTAL A PAGAR:', bold: true, fontSize: 12, fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] },
+        { text: formatMoney(finalTotal), bold: true, fontSize: 13, alignment: 'right', fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] }
+    ]);
 
-            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
-                <tr>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>${cli.name}</strong><br>
-                            ${cli.doc || ''}<br>
-                            ${cli.phone || ''}<br>
-                            ${addressToShow}
-                        </div>
-                    </td>
-                    <td width="4%"></td> <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br>
-                            <strong>Vendedor:</strong> RV PORTAL
-                        </div>
-                    </td>
-                </tr>
-            </table>
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 40],
+        defaultStyle: { font: 'Roboto' },
 
-            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
-                <thead>
-                    <tr>
-                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
-                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
+        background: function () {
+            return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
+        },
 
-            <table width="100%" style="margin-top: 10px;">
-                <tr>
-                    <td valign="top" style="padding-right: 30px;">
-                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                            <div style="font-size: 10px; color: #334155; white-space: pre-wrap;">${obsText}</div>
-                        </div>
-                    </td>
-                    <td width="250" valign="top">
-                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
-                            </tr>
-                            ${discount > 0 ? `
-                            <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td>
-                            </tr>` : ''}
-                            <tr>
-                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
-                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-            
-        </div>
-    `;
-
-    setTimeout(() => {
-        const opt = {
-            margin:       10, 
-            filename:     `RV PORTAL - ${clientName} - #${q.id}.pdf`,
-            image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                letterRendering: true 
+        content: [
+            {
+                table: {
+                    widths: [90, '*', 'auto'],
+                    body: [[
+                        logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
+                        {
+                            text: [
+                                { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
+                                { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
+                            ],
+                            margin: [0, 10, 0, 0]
+                        },
+                        {
+                            text: [
+                                { text: 'ORÇAMENTO\n', fontSize: 13, bold: true },
+                                { text: `Nº: ${q.id}\n`, fontSize: 9 },
+                                { text: `Data: ${new Date(q.date).toLocaleDateString('pt-BR')}`, fontSize: 9 }
+                            ],
+                            alignment: 'right', margin: [0, 10, 0, 0]
+                        }
+                    ]]
+                },
+                layout: 'noBorders', margin: [0, 0, 0, 10]
             },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }], margin: [0, 0, 0, 20] },
+            {
+                columns: [
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}\n${addressToShow}`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    },
+                    { width: '4%', text: '' },
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'PAGAMENTO', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ text: `Forma: ${q.paymentMethod || 'A Combinar'}\nVendedor: RV PORTAL`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: bodyTabela },
+                layout: {
+                    hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
+                    vLineWidth: function () { return 0; },
+                    hLineColor: function () { return '#000000'; }
+                },
+                margin: [0, 0, 0, 20]
+            },
+            {
+                columns: [
+                    {
+                        width: '58%',
+                        table: {
+                            widths: ['*'],
+                            body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]
+                        },
+                        layout: {
+                            hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
+                            hLineStyle: () => ({dash: {length: 4, space: 4}}), vLineStyle: () => ({dash: {length: 4, space: 4}})
+                        }
+                    },
+                    { width: '2%', text: '' },
+                    {
+                        width: '40%',
+                        table: { widths: ['*', 'auto'], body: totalRows },
+                        layout: { hLineColor: () => '#e2e8f0', vLineWidth: () => 0 }
+                    }
+                ],
+                margin: [0, 0, 0, 10]
+            }
+        ],
+        styles: { tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] } }
+    };
 
-        html2pdf().set(opt).from(htmlString).save().then(() => {
-            showLoading(false);
-            showToast("PDF Baixado com Sucesso!");
-        }).catch(err => {
-            console.error("Erro PDF:", err);
-            showLoading(false);
-            showToast("Erro ao gerar PDF", true);
-        });
-    }, 500); 
+    pdfMake.createPdf(docDefinition).download(`RV PORTAL - ${clientName} - #${q.id}.pdf`);
+    showLoading(false);
+    showToast("PDF Baixado com Sucesso!");
 }
 
        function printDailyRevenue() {
@@ -5222,54 +5233,90 @@ function closePosHistoryModal() {
 
 async function downloadSalePDF(id) {
     closePosHistoryModal();
-    
+
     const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
     if(!items.length) {
         showToast("Venda não encontrada", true);
         return;
     }
     showLoading(true);
-    
+
     const totalDiscount = items[0].discount || 0;
     const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
     const grossTotal = netTotal + totalDiscount;
     const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
-    
+
     const clientName = items[0].clientName || 'Consumidor Final';
     const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
-    
+
     let subtotal = 0;
-    const itemsHtml = items.map((i, index) => {
+    const bodyTabela = [
+        [
+            { text: 'Descrição', style: 'tableHeader', alignment: 'left' },
+            { text: 'Qtd', style: 'tableHeader', alignment: 'center' },
+            { text: 'Unit.', style: 'tableHeader', alignment: 'right' },
+            { text: 'Total', style: 'tableHeader', alignment: 'right' }
+        ]
+    ];
+
+    items.forEach((i, index) => {
         const grossItemTotal = i.totalValue * fator;
         const unitPrice = i.quantity > 0 ? (grossItemTotal / i.quantity) : 0;
         const itemTotal = grossItemTotal;
         subtotal += itemTotal;
         const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-        
-        // Extrai metragem
+
         let metragem = '';
         if (i.note) {
             const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
             if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
         }
-        
-        return `
-            <tr style="background-color: ${bgColor};">
-                <td style="border-bottom: 1px solid #000; padding: 8px;">
-                    ${i.productName}
-                    ${metragem ? `<br><span style="font-size:9px;">${metragem}</span>` : ''}
-                </td>
-                <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.quantity}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(unitPrice)}</td>
-                <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
-            </tr>`;
-    }).join('');
-    
+
+        bodyTabela.push([
+            {
+                text: metragem ? [ { text: i.productName + '\n' }, { text: metragem, fontSize: 8, color: '#64748b' } ] : i.productName,
+                fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10
+            },
+            { text: i.quantity.toString(), alignment: 'center', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(unitPrice), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(itemTotal), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 }
+        ]);
+    });
+
     const discount = totalDiscount;
     const finalTotal = subtotal - discount;
-    const addressToShow = items[0].deliveryAddress ? `ENTREGA: ${items[0].deliveryAddress}` : (cli.address || 'Não informado');
-    
-    // Extrai observação geral sem metragem
+
+    // ---- BLOCO DO ENDEREÇO (com destaque quando marcado "Adicionar Endereço de Entrega") ----
+    const clienteInfoStack = [
+        { text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}`, fontSize: 9, lineHeight: 1.4 }
+    ];
+
+    if (items[0].deliveryAddress) {
+        clienteInfoStack.push({
+            table: {
+                widths: ['*'],
+                body: [[
+                    {
+                        text: [
+                            { text: 'ENTREGA: ', bold: true, color: '#047857' },
+                            { text: items[0].deliveryAddress, color: '#047857' }
+                        ],
+                        fontSize: 9, fillColor: '#ecfdf5', margin: [5, 4, 5, 4]
+                    }
+                ]]
+            },
+            layout: {
+                hLineWidth: () => 1, vLineWidth: () => 1,
+                hLineColor: () => '#059669', vLineColor: () => '#059669',
+                hLineStyle: () => ({dash: {length: 3, space: 2}}), vLineStyle: () => ({dash: {length: 3, space: 2}})
+            },
+            margin: [0, 5, 0, 0]
+        });
+    } else {
+        clienteInfoStack.push({ text: cli.address || 'Não informado', fontSize: 9, margin: [0, 5, 0, 0] });
+    }
+    // ---- FIM DO BLOCO DO ENDEREÇO ----
+
     const rawNote = items[0].note || '';
     let obsText = '';
     if (rawNote.includes(' | ')) {
@@ -5281,124 +5328,127 @@ async function downloadSalePDF(id) {
     } else {
         obsText = rawNote;
     }
-    
+
     const paymentMethod = items[0].paymentMethod || 'Não informado';
-    
-    const htmlString = `
-        <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
-            
-            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-               <!-- <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" /> -->
-            </div>
+    const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
 
-            <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <tr>
-                    <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
-                    </td>
-                    <td valign="middle" style="padding-left: 15px;">
-                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
-                        <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                    </td>
-                    <td align="right" valign="top">
-                        <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">PEDIDO DE VENDA</h2>
-                        <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${id}</div>
-                        <div style="font-size: 11px;"><strong>Data:</strong> ${new Date(items[0].date).toLocaleDateString('pt-BR')}</div>
-                    </td>
-                </tr>
-            </table>
+    const totalRows = [
+        [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
+    ];
+    if (discount > 0) {
+        totalRows.push([
+            { text: 'Desconto:', color: 'red', border: [false,false,false,true] },
+            { text: '- ' + formatMoney(discount), color: 'red', alignment: 'right', border: [false,false,false,true] }
+        ]);
+    }
+    totalRows.push([
+        { text: 'TOTAL A PAGAR:', bold: true, fontSize: 12, fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] },
+        { text: formatMoney(finalTotal), bold: true, fontSize: 13, alignment: 'right', fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] }
+    ]);
 
-            <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
-                <tr>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>${cli.name}</strong><br>
-                            ${cli.doc || ''}<br>
-                            ${cli.phone || ''}<br>
-                            ${addressToShow}
-                        </div>
-                    </td>
-                    <td width="4%"></td>
-                    <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                        <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                        <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                            <strong>Forma:</strong> ${paymentMethod}<br>
-                            <strong>Vendedor:</strong> RV PORTAL
-                        </div>
-                    </td>
-                </tr>
-            </table>
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 40],
+        defaultStyle: { font: 'Roboto' },
 
-            <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
-                <thead>
-                    <tr>
-                        <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase;">Descrição</th>
-                        <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 50px;">Qtd</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Unit.</th>
-                        <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; font-size: 10px; text-transform: uppercase; width: 90px;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
+        background: function () {
+            return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
+        },
 
-            <table width="100%" style="margin-top: 10px;">
-                <tr>
-                    <td valign="top" style="padding-right: 30px;">
-                        <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
-                            <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                            <div style="font-size: 10px; color: #334155; white-space: pre-wrap;">${obsText}</div>
-                        </div>
-                    </td>
-                    <td width="250" valign="top">
-                        <table width="100%" style="font-size: 11px; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
-                            </tr>
-                            ${discount > 0 ? `
-                            <tr>
-                                <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
-                                <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(discount)}</td>
-                            </tr>` : ''}
-                            <tr>
-                                <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">TOTAL A PAGAR:</td>
-                                <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9; margin-top: 5px;">${formatMoney(finalTotal)}</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-            
-        </div>
-    `;
-
-    setTimeout(() => {
-        const opt = {
-            margin:       10, 
-            filename:     `RV PORTAL - ${clientName} - Venda ${id}.pdf`,
-            image:        { type: 'jpeg', quality: 1 },
-            html2canvas:  { 
-                scale: 2, 
-                useCORS: true, 
-                letterRendering: true 
+        content: [
+            {
+                table: {
+                    widths: [90, '*', 'auto'],
+                    body: [[
+                        logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
+                        {
+                            text: [
+                                { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
+                                { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
+                            ],
+                            margin: [0, 10, 0, 0]
+                        },
+                        {
+                            text: [
+                                { text: 'PEDIDO DE VENDA\n', fontSize: 13, bold: true },
+                                { text: `Nº: ${id}\n`, fontSize: 9 },
+                                { text: `Data: ${new Date(items[0].date).toLocaleDateString('pt-BR')}`, fontSize: 9 }
+                            ],
+                            alignment: 'right', margin: [0, 10, 0, 0]
+                        }
+                    ]]
+                },
+                layout: 'noBorders', margin: [0, 0, 0, 10]
             },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(htmlString).save().then(() => {
-            showLoading(false);
-            showToast("PDF Baixado com Sucesso!");
-        }).catch(err => {
-            console.error("Erro PDF:", err);
-            showLoading(false);
-            showToast("Erro ao gerar PDF", true);
-        });
-    }, 500);
-}
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }], margin: [0, 0, 0, 20] },
+            {
+                columns: [
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ stack: clienteInfoStack, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    },
+                    { width: '4%', text: '' },
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'PAGAMENTO', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ text: `Forma: ${paymentMethod}\nVendedor: RV PORTAL`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: bodyTabela },
+                layout: {
+                    hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
+                    vLineWidth: function () { return 0; },
+                    hLineColor: function () { return '#000000'; }
+                },
+                margin: [0, 0, 0, 20]
+            },
+            {
+                columns: [
+                    {
+                        width: '58%',
+                        table: {
+                            widths: ['*'],
+                            body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]
+                        },
+                        layout: {
+                            hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
+                            hLineStyle: () => ({dash: {length: 4, space: 4}}), vLineStyle: () => ({dash: {length: 4, space: 4}})
+                        }
+                    },
+                    { width: '2%', text: '' },
+                    {
+                        width: '40%',
+                        table: { widths: ['*', 'auto'], body: totalRows },
+                        layout: { hLineColor: () => '#e2e8f0', vLineWidth: () => 0 }
+                    }
+                ],
+                margin: [0, 0, 0, 10]
+            }
+        ],
+        styles: { tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] } }
+    };
 
+    pdfMake.createPdf(docDefinition).download(`RV PORTAL - ${clientName} - Venda ${id}.pdf`);
+    showLoading(false);
+    showToast("PDF Baixado com Sucesso!");
+}
   // FUNÇÕES DO PARCEIRO =============================================================
 
   // Modal de relatório de parceiro
@@ -5919,6 +5969,23 @@ function updateCardValues() {
     document.getElementById('fin-income').innerText = formatCardValue(lastIncome);
     document.getElementById('fin-expenses').innerText = formatCardValue(lastExpenses);
     document.getElementById('fin-balance').innerText = formatCardValue(lastBalance);
+}
+
+  async function getLogoBase64RV(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+    });
 }
   
     </script> 
