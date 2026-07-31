@@ -5257,7 +5257,37 @@ async function downloadSalePDF(id) {
 
     const discount = totalDiscount;
     const finalTotal = subtotal - discount;
-    const addressToShow = items[0].deliveryAddress ? `ENTREGA: ${items[0].deliveryAddress}` : (cli.address || 'Não informado');
+
+    // ---- BLOCO DO ENDEREÇO (com destaque quando marcado "Adicionar Endereço de Entrega") ----
+    const clienteInfoStack = [
+        { text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}`, fontSize: 9, lineHeight: 1.4 }
+    ];
+
+    if (items[0].deliveryAddress) {
+        clienteInfoStack.push({
+            table: {
+                widths: ['*'],
+                body: [[
+                    {
+                        text: [
+                            { text: 'ENTREGA: ', bold: true, color: '#047857' },
+                            { text: items[0].deliveryAddress, color: '#047857' }
+                        ],
+                        fontSize: 9, fillColor: '#ecfdf5', margin: [5, 4, 5, 4]
+                    }
+                ]]
+            },
+            layout: {
+                hLineWidth: () => 1, vLineWidth: () => 1,
+                hLineColor: () => '#059669', vLineColor: () => '#059669',
+                hLineStyle: () => ({dash: {length: 3, space: 2}}), vLineStyle: () => ({dash: {length: 3, space: 2}})
+            },
+            margin: [0, 5, 0, 0]
+        });
+    } else {
+        clienteInfoStack.push({ text: cli.address || 'Não informado', fontSize: 9, margin: [0, 5, 0, 0] });
+    }
+    // ---- FIM DO BLOCO DO ENDEREÇO ----
 
     const rawNote = items[0].note || '';
     let obsText = '';
@@ -5332,7 +5362,7 @@ async function downloadSalePDF(id) {
                             widths: ['*'],
                             body: [
                                 [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
-                                [{ text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}\n${addressToShow}`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                                [{ stack: clienteInfoStack, margin: [6, 8, 6, 8] }]
                             ]
                         },
                         layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
