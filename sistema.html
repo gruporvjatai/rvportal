@@ -13,10 +13,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
     <script>
         // Se detectar que a tela é de celular ou tablet, joga direto pro mobile.html
@@ -905,6 +905,15 @@
                   <div id="prd-fornecedor-container" class="hidden">
                       <input type="text" id="prd-fornecedor" placeholder="Nome do fornecedor parceiro" class="w-full p-2 border rounded">
                   </div>
+
+                  <!-- Tipo de venda do parceiro: metro (pçs x comprimento) ou unidade simples (visível apenas se checkbox marcado) -->
+                  <div id="prd-tipo-venda-container" class="hidden">
+                      <label class="block text-xs font-bold text-slate-500 mb-1">Como esse produto de parceiro é vendido?</label>
+                      <select id="prd-venda-metro" class="w-full p-2 border rounded">
+                          <option value="nao">Por Unidade (quantidade simples)</option>
+                          <option value="sim">Por Metro (peças x comprimento) — vigotas, caibros, tábuas</option>
+                      </select>
+                  </div>
       
                   <!-- Unidade de medida -->
                   <div>
@@ -1485,6 +1494,7 @@
             stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
             available: Number(p.estoque_fisico) - Number(p.estoque_comprometido),
             parceiro: Boolean(p.produto_parceiro),
+            porMetro: Boolean(p.venda_por_metro),
             fornecedor: p.fornecedor_parceiro || '',
             unidade: p.unidade_medida || 'un'
         }));
@@ -1634,7 +1644,10 @@
                 // Novos campos
                 produto_parceiro: document.getElementById('prd-parceiro').checked,
                 fornecedor_parceiro: document.getElementById('prd-fornecedor').value.trim(),
-                unidade_medida: document.getElementById('prd-unidade').value
+                unidade_medida: document.getElementById('prd-unidade').value,
+                venda_por_metro: document.getElementById('prd-parceiro').checked
+                    ? (document.getElementById('prd-venda-metro').value === 'sim')
+                    : false
             };
         
             const { error } = await sb.from('produtos').upsert(payload);
@@ -1648,12 +1661,19 @@
       function toggleProdutoParceiro() {
             const checkbox = document.getElementById('prd-parceiro');
             const container = document.getElementById('prd-fornecedor-container');
+            const tipoContainer = document.getElementById('prd-tipo-venda-container');
             if (!checkbox || !container) return;
             if (checkbox.checked) {
                 container.classList.remove('hidden');
+                if (tipoContainer) tipoContainer.classList.remove('hidden');
             } else {
                 container.classList.add('hidden');
                 document.getElementById('prd-fornecedor').value = '';
+                if (tipoContainer) {
+                    tipoContainer.classList.add('hidden');
+                    const tipoSelect = document.getElementById('prd-venda-metro');
+                    if (tipoSelect) tipoSelect.value = 'nao';
+                }
             }
         }
 
@@ -1722,7 +1742,7 @@
                       })(),*/
                       observacao: (() => {
                         let metragem = '';
-                        if (item.parceiro) metragem = `${item.pecas}pçs${item.comprimento}m`;
+                        if (item.porMetro) metragem = `${item.pecas}pçs${item.comprimento}m`;
                         let obsCustom = customObs ? customObs.trim() : '';
                         let partes = [metragem, obsCustom].filter(s => s);
                         return partes.join(' | ');
@@ -1973,7 +1993,7 @@ function printStockCountSheet() {
               data: date, 
               observacao: (() => {
                     let metragem = '';
-                    if (item.parceiro) metragem = `${item.pecas}pçs${item.comprimento}m`;
+                    if (item.porMetro) metragem = `${item.pecas}pçs${item.comprimento}m`;
                     let partes = [metragem, obs].filter(s => s);
                     return partes.join(' | ');
                 })(),
@@ -2599,6 +2619,7 @@ function printStockCountSheet() {
         
             grid.innerHTML = sliced.map(p => {
                 const isPartner = p.parceiro;
+                const isMetro = p.parceiro && p.porMetro;
                 return `
                 <div class="p-4 border border-slate-200 rounded-xl hover:shadow-md bg-white flex items-center justify-between group transition">
                     <div class="flex flex-col w-1/2">
@@ -2608,8 +2629,8 @@ function printStockCountSheet() {
                         </span>
                     </div>
                     <div class="flex items-center gap-3 w-1/2 justify-end">
-                        <span class="text-emerald-700 font-bold">${formatMoney(p.price)}${isPartner ? '/m' : ''}</span>
-                        ${isPartner ? `
+                        <span class="text-emerald-700 font-bold">${formatMoney(p.price)}${isMetro ? '/m' : ''}</span>
+                        ${isMetro ? `
                             <input type="number" id="comp-${p.id}" placeholder="Comp.(m)" step="0.01" min="0.01" class="w-16 p-1 border rounded text-xs bg-slate-50 text-center" title="Comprimento do metro linear">
                             <input type="number" id="pecas-${p.id}" placeholder="Peças" step="1" min="1" class="w-14 p-1 border rounded text-xs bg-slate-50 text-center" title="Quantidade de peças">
                         ` : `
@@ -2628,8 +2649,10 @@ function printStockCountSheet() {
         function addModalToCart(id) {
           const p = STATE.products.find(x => x.id == id);
           if (!p) return;
-      
-          if (p.parceiro) {
+
+          const isMetro = p.parceiro && p.porMetro;
+
+          if (isMetro) {
               const compInput = document.getElementById(`comp-${id}`);
               const pecasInput = document.getElementById(`pecas-${id}`);
               const comprimento = parseFloat(compInput?.value) || 0;
@@ -2648,6 +2671,7 @@ function printStockCountSheet() {
                   pecas: pecas,
                   total: totalMetros * fixedPrice,
                   parceiro: true,
+                  porMetro: true,
                   uid: Date.now() + '_' + Math.random().toString(36).substr(2, 6)
               });
               if (compInput) compInput.value = '';
@@ -2656,7 +2680,7 @@ function printStockCountSheet() {
               const qtyInput = document.getElementById(`qty-modal-${id}`);
               const qty = parseFloat(qtyInput?.value) || 1;
               const fixedPrice = p.price;
-              const existing = CART.find(x => x.prodId == id && !x.parceiro);
+              const existing = CART.find(x => x.prodId == id && !x.porMetro);
               if (existing) {
                   existing.qty += qty;
                   existing.total = existing.qty * existing.price;
@@ -2668,7 +2692,8 @@ function printStockCountSheet() {
                       fixedPrice: fixedPrice,
                       qty: qty,
                       total: fixedPrice * qty,
-                      parceiro: false
+                      parceiro: p.parceiro,
+                      porMetro: false
                   });
               }
               if (qtyInput) qtyInput.value = "1";
@@ -2953,7 +2978,7 @@ function printStockCountSheet() {
             const descontoStr = descontoPercentual > 0 ? `${descontoPercentual.toFixed(1)}% off` : '';
     
             let descricao = i.name;
-            if (i.parceiro) {
+            if (i.porMetro) {
                 descricao += ` (${i.pecas} pçs de ${i.comprimento}m)`;
             }
     
@@ -3267,11 +3292,12 @@ function loadQuoteToCart(id) {
     CART = q.items.map(item => {
         const prod = STATE.products.find(p => p.name === item.name);
         const isPartner = prod ? prod.parceiro : false;
+        const isMetro = prod ? (prod.parceiro && prod.porMetro) : false;
         let comprimento = 0, pecas = 0, qty = item.qty;
         let obsItem = item.obs || '';
         const fixedPrice = prod ? prod.price : item.price;
 
-        if (isPartner && obsItem) {
+        if (isMetro && obsItem) {
             const parts = obsItem.split(' | ');
             const metragemPart = parts[0];
             const match = metragemPart.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
@@ -3287,7 +3313,7 @@ function loadQuoteToCart(id) {
                 document.getElementById('pos-custom-obs-container').classList.remove('hidden');
                 customObsRestored = true;
             }
-        } else if (!isPartner && obsItem && !customObsRestored) {
+        } else if (!isMetro && obsItem && !customObsRestored) {
             document.getElementById('pos-custom-obs').value = obsItem;
             document.getElementById('pos-custom-obs-check').checked = true;
             document.getElementById('pos-custom-obs-container').classList.remove('hidden');
@@ -3303,7 +3329,8 @@ function loadQuoteToCart(id) {
             comprimento: comprimento,
             pecas: pecas,
             total: item.total,
-            parceiro: isPartner
+            parceiro: isPartner,
+            porMetro: isMetro
         };
     });
     
@@ -3620,7 +3647,8 @@ function loadQuoteToCart(id) {
               document.getElementById('prd-parceiro').checked = p.parceiro;
               document.getElementById('prd-fornecedor').value = p.fornecedor || '';
               document.getElementById('prd-unidade').value = p.unidade || 'un';
-              toggleProdutoParceiro(); // ajusta visibilidade do fornecedor
+              document.getElementById('prd-venda-metro').value = p.porMetro ? 'sim' : 'nao';
+              toggleProdutoParceiro(); // ajusta visibilidade do fornecedor e do tipo de venda
           } else { 
               document.getElementById('prd-id').value = ''; 
               document.getElementById('prd-name').value = ''; 
@@ -3632,6 +3660,7 @@ function loadQuoteToCart(id) {
               document.getElementById('prd-parceiro').checked = false;
               document.getElementById('prd-fornecedor').value = '';
               document.getElementById('prd-unidade').value = 'un';
+              document.getElementById('prd-venda-metro').value = 'nao';
               toggleProdutoParceiro();
           } 
       }
@@ -4552,179 +4581,179 @@ function loadQuoteToCart(id) {
             loadData();
         }
 
-       async function downloadQuotePDF(id) {
-          const q = STATE.quotes.find(x => x.id == id);
-          if(!q) return;
-      
-          showLoading(true);
-      
-          const clientName = q.clientName || 'Consumidor Final';
-          const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
-      
-          let subtotal = 0;
-          const bodyTabela = [
-              [
-                  { text: 'Descrição', style: 'tableHeader', alignment: 'left' },
-                  { text: 'Qtd', style: 'tableHeader', alignment: 'center' },
-                  { text: 'Unit.', style: 'tableHeader', alignment: 'right' },
-                  { text: 'Total', style: 'tableHeader', alignment: 'right' }
-              ]
-          ];
-      
-          q.items.forEach((i, index) => {
-              const itemTotal = i.qty * i.price;
-              subtotal += itemTotal;
-              const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-      
-              let metragem = '';
-              const obsItem = i.obs || '';
-              const match = obsItem.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
-              if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
-      
-              bodyTabela.push([
-                  {
-                      text: metragem ? [ { text: i.name + '\n' }, { text: metragem, fontSize: 8, color: '#64748b' } ] : i.name,
-                      fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10
-                  },
-                  { text: i.qty.toString(), alignment: 'center', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
-                  { text: formatMoney(i.price), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
-                  { text: formatMoney(itemTotal), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 }
-              ]);
-          });
-      
-          const discount = Number(q.discount) || 0;
-          const finalTotal = subtotal - discount;
-          const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
-      
-          let obsText = '';
-          const fullObs = q.observacao || '';
-          if (fullObs.includes(' | ')) {
-              obsText = fullObs.split(' | ').slice(1).join(' | ');
-          } else if (fullObs.match(/\d+pçs\d+(\.\d+)?m/)) {
-              obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
-          } else {
-              obsText = fullObs || 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
-          }
-      
-          const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
-      
-          const totalRows = [
-              [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
-          ];
-          if (discount > 0) {
-              totalRows.push([
-                  { text: 'Desconto:', color: 'red', border: [false,false,false,true] },
-                  { text: '- ' + formatMoney(discount), color: 'red', alignment: 'right', border: [false,false,false,true] }
-              ]);
-          }
-          totalRows.push([
-              { text: 'TOTAL A PAGAR:', bold: true, fontSize: 12, fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] },
-              { text: formatMoney(finalTotal), bold: true, fontSize: 13, alignment: 'right', fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] }
-          ]);
-      
-          const docDefinition = {
-              pageSize: 'A4',
-              pageMargins: [40, 40, 40, 40],
-              defaultStyle: { font: 'Roboto' },
-      
-              background: function () {
-                  return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
-              },
-      
-              content: [
-                  {
-                      table: {
-                          widths: [90, '*', 'auto'],
-                          body: [[
-                              logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
-                              {
-                                  text: [
-                                      { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
-                                      { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
-                                      { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
-                                  ],
-                                  margin: [0, 10, 0, 0]
-                              },
-                              {
-                                  text: [
-                                      { text: 'ORÇAMENTO\n', fontSize: 13, bold: true },
-                                      { text: `Nº: ${q.id}\n`, fontSize: 9 },
-                                      { text: `Data: ${new Date(q.date).toLocaleDateString('pt-BR')}`, fontSize: 9 }
-                                  ],
-                                  alignment: 'right', margin: [0, 10, 0, 0]
-                              }
-                          ]]
-                      },
-                      layout: 'noBorders', margin: [0, 0, 0, 10]
-                  },
-                  { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }], margin: [0, 0, 0, 20] },
-                  {
-                      columns: [
-                          {
-                              width: '48%',
-                              table: {
-                                  widths: ['*'],
-                                  body: [
-                                      [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
-                                      [{ text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}\n${addressToShow}`, fontSize: 9, margin: [6, 8, 6, 8] }]
-                                  ]
-                              },
-                              layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
-                          },
-                          { width: '4%', text: '' },
-                          {
-                              width: '48%',
-                              table: {
-                                  widths: ['*'],
-                                  body: [
-                                      [{ text: 'PAGAMENTO', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
-                                      [{ text: `Forma: ${q.paymentMethod || 'A Combinar'}\nVendedor: RV PORTAL`, fontSize: 9, margin: [6, 8, 6, 8] }]
-                                  ]
-                              },
-                              layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
-                          }
-                      ],
-                      margin: [0, 0, 0, 20]
-                  },
-                  {
-                      table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: bodyTabela },
-                      layout: {
-                          hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
-                          vLineWidth: function () { return 0; },
-                          hLineColor: function () { return '#000000'; }
-                      },
-                      margin: [0, 0, 0, 20]
-                  },
-                  {
-                      columns: [
-                          {
-                              width: '58%',
-                              table: {
-                                  widths: ['*'],
-                                  body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]
-                              },
-                              layout: {
-                                  hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
-                                  hLineStyle: () => ({dash: {length: 4, space: 4}}), vLineStyle: () => ({dash: {length: 4, space: 4}})
-                              }
-                          },
-                          { width: '2%', text: '' },
-                          {
-                              width: '40%',
-                              table: { widths: ['*', 'auto'], body: totalRows },
-                              layout: { hLineColor: () => '#e2e8f0', vLineWidth: () => 0 }
-                          }
-                      ],
-                      margin: [0, 0, 0, 10]
-                  }
-              ],
-              styles: { tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] } }
-          };
-      
-          pdfMake.createPdf(docDefinition).download(`RV PORTAL - ${clientName} - #${q.id}.pdf`);
-          showLoading(false);
-          showToast("PDF Baixado com Sucesso!");
-      }
+        async function downloadQuotePDF(id) {
+    const q = STATE.quotes.find(x => x.id == id);
+    if(!q) return;
+
+    showLoading(true);
+
+    const clientName = q.clientName || 'Consumidor Final';
+    const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+
+    let subtotal = 0;
+    const bodyTabela = [
+        [
+            { text: 'Descrição', style: 'tableHeader', alignment: 'left' },
+            { text: 'Qtd', style: 'tableHeader', alignment: 'center' },
+            { text: 'Unit.', style: 'tableHeader', alignment: 'right' },
+            { text: 'Total', style: 'tableHeader', alignment: 'right' }
+        ]
+    ];
+
+    q.items.forEach((i, index) => {
+        const itemTotal = i.qty * i.price;
+        subtotal += itemTotal;
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+        let metragem = '';
+        const obsItem = i.obs || '';
+        const match = obsItem.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+        if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+
+        bodyTabela.push([
+            {
+                text: metragem ? [ { text: i.name + '\n' }, { text: metragem, fontSize: 8, color: '#64748b' } ] : i.name,
+                fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10
+            },
+            { text: i.qty.toString(), alignment: 'center', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(i.price), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(itemTotal), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 }
+        ]);
+    });
+
+    const discount = Number(q.discount) || 0;
+    const finalTotal = subtotal - discount;
+    const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
+
+    let obsText = '';
+    const fullObs = q.observacao || '';
+    if (fullObs.includes(' | ')) {
+        obsText = fullObs.split(' | ').slice(1).join(' | ');
+    } else if (fullObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+        obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    } else {
+        obsText = fullObs || 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+    }
+
+    const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
+
+    const totalRows = [
+        [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
+    ];
+    if (discount > 0) {
+        totalRows.push([
+            { text: 'Desconto:', color: 'red', border: [false,false,false,true] },
+            { text: '- ' + formatMoney(discount), color: 'red', alignment: 'right', border: [false,false,false,true] }
+        ]);
+    }
+    totalRows.push([
+        { text: 'TOTAL A PAGAR:', bold: true, fontSize: 12, fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] },
+        { text: formatMoney(finalTotal), bold: true, fontSize: 13, alignment: 'right', fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] }
+    ]);
+
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 40],
+        defaultStyle: { font: 'Roboto' },
+
+        background: function () {
+            return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
+        },
+
+        content: [
+            {
+                table: {
+                    widths: [90, '*', 'auto'],
+                    body: [[
+                        logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
+                        {
+                            text: [
+                                { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
+                                { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
+                            ],
+                            margin: [0, 10, 0, 0]
+                        },
+                        {
+                            text: [
+                                { text: 'ORÇAMENTO\n', fontSize: 13, bold: true },
+                                { text: `Nº: ${q.id}\n`, fontSize: 9 },
+                                { text: `Data: ${new Date(q.date).toLocaleDateString('pt-BR')}`, fontSize: 9 }
+                            ],
+                            alignment: 'right', margin: [0, 10, 0, 0]
+                        }
+                    ]]
+                },
+                layout: 'noBorders', margin: [0, 0, 0, 10]
+            },
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }], margin: [0, 0, 0, 20] },
+            {
+                columns: [
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}\n${addressToShow}`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    },
+                    { width: '4%', text: '' },
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'PAGAMENTO', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ text: `Forma: ${q.paymentMethod || 'A Combinar'}\nVendedor: RV PORTAL`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: bodyTabela },
+                layout: {
+                    hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
+                    vLineWidth: function () { return 0; },
+                    hLineColor: function () { return '#000000'; }
+                },
+                margin: [0, 0, 0, 20]
+            },
+            {
+                columns: [
+                    {
+                        width: '58%',
+                        table: {
+                            widths: ['*'],
+                            body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]
+                        },
+                        layout: {
+                            hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
+                            hLineStyle: () => ({dash: {length: 4, space: 4}}), vLineStyle: () => ({dash: {length: 4, space: 4}})
+                        }
+                    },
+                    { width: '2%', text: '' },
+                    {
+                        width: '40%',
+                        table: { widths: ['*', 'auto'], body: totalRows },
+                        layout: { hLineColor: () => '#e2e8f0', vLineWidth: () => 0 }
+                    }
+                ],
+                margin: [0, 0, 0, 10]
+            }
+        ],
+        styles: { tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] } }
+    };
+
+    pdfMake.createPdf(docDefinition).download(`RV PORTAL - ${clientName} - #${q.id}.pdf`);
+    showLoading(false);
+    showToast("PDF Baixado com Sucesso!");
+}
 
        function printDailyRevenue() {
     showLoading(true);
@@ -5420,7 +5449,6 @@ async function downloadSalePDF(id) {
     showLoading(false);
     showToast("PDF Baixado com Sucesso!");
 }
-
   // FUNÇÕES DO PARCEIRO =============================================================
 
   // Modal de relatório de parceiro
@@ -5960,9 +5988,7 @@ function updateCardValues() {
     });
 }
   
-  
     </script> 
-    
     <script type="importmap">
       {
         "imports": {
@@ -5970,8 +5996,6 @@ function updateCardValues() {
           "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
         }
       }
-
-      
     </script>
     <script type="module" src="abas/mdf.js"></script>
     <script src="abas/equipe.js"></script>
