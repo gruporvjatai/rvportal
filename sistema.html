@@ -4162,7 +4162,7 @@ function loadQuoteToCart(id) {
             setTimeout(() => window.print(), 500);
         }
 
-        function printExpenses() {
+        /*function printExpenses() {
             const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
             const statusExp = document.getElementById('exp-status')?.value || '';
             const startExp = document.getElementById('exp-start')?.value;
@@ -4254,56 +4254,198 @@ function loadQuoteToCart(id) {
                 </div>
             `;
             setTimeout(() => window.print(), 500);
+        }*/
+
+
+          function printExpenses() {
+            // Captura os filtros da interface
+            const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
+            const statusExp = document.getElementById('exp-status')?.value || '';
+            const startExp = document.getElementById('exp-start')?.value;
+            const endExp = document.getElementById('exp-end')?.value;
+            const catFilterExp = document.getElementById('exp-category-filter')?.value || '';
+            const hojeLocalStr = getHojeLocalStr();
+        
+            // Copia e aplica os filtros
+            let filteredExp = STATE.expenses.slice();
+        
+            // Filtro de busca textual (item, nota, fornecedor)
+            if (termExp) {
+                filteredExp = filteredExp.filter(e =>
+                    (e.item && e.item.toLowerCase().includes(termExp)) ||
+                    (e.note && e.note.toLowerCase().includes(termExp)) ||
+                    (e.provider && e.provider.toLowerCase().includes(termExp))
+                );
+            }
+        
+            // Filtro por status
+            if (statusExp) {
+                filteredExp = filteredExp.filter(e => e.status === statusExp);
+            }
+        
+            // Filtro por período (data de vencimento)
+            if (startExp) {
+                filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] >= startExp);
+            }
+            if (endExp) {
+                filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] <= endExp);
+            }
+        
+            // Filtro por categoria (item)
+            if (catFilterExp) {
+                filteredExp = filteredExp.filter(e => e.item === catFilterExp);
+            }
+        
+            // Ordena por data (mais antiga primeiro, para manter o mesmo padrão da tela)
+            filteredExp.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        
+            // Se não houver dados, exibe mensagem e encerra
+            if (filteredExp.length === 0) {
+                showToast("Nenhum dado para imprimir com os filtros atuais.", true);
+                return;
+            }
+        
+            // Total geral da lista
+            let totalGeral = 0;
+        
+            // Monta as linhas da tabela
+            const rowsHtml = filteredExp.map(e => {
+                totalGeral += e.cost;
+                const dataVencStr = (e.date || '').split('T')[0];
+                const situacao = e.status === 'PAGO' ? 'PAGO' : (dataVencStr < hojeLocalStr ? 'VENCIDO' : 'PENDENTE');
+        
+                // Nome principal: fornecedor se existir, senão categoria
+                const displayName = (e.provider && e.provider.trim()) ? e.provider.trim() : e.item;
+                // Subtítulo: se mostrou fornecedor, exibe a categoria; senão, exibe a observação
+                let subLine = '';
+                if (e.provider && e.provider.trim()) {
+                    subLine = e.item;
+                    if (e.note && e.note.trim()) subLine += ' | ' + e.note.trim();
+                } else {
+                    subLine = e.note || '';
+                }
+        
+                return `
+                    <tr>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${formatDate(e.date)}</td>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; font-weight: bold;">${e.item}</td>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${displayName}</td>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align: center;">${situacao}</td>
+                        <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align: right; font-weight: bold;">${formatMoney(e.cost)}</td>
+                    </tr>`;
+            }).join('');
+        
+            // Monta os filtros aplicados para exibir no cabeçalho do relatório
+            let filterText = [];
+            if (statusExp) filterText.push(`Status: ${statusExp}`);
+            if (startExp) filterText.push(`De: ${formatDate(startExp)}`);
+            if (endExp) filterText.push(`Até: ${formatDate(endExp)}`);
+            if (termExp) filterText.push(`Busca: "${termExp}"`);
+            if (catFilterExp) filterText.push(`Categoria: ${catFilterExp}`);
+            const subheader = filterText.length > 0 ? filterText.join(' | ') : 'Todos os registros';
+        
+            // Dados da empresa para o cabeçalho
+            const company = {
+                name: "RV PORTAL MADEIRAS",
+                cnpj: "30.942.123/0001-02",
+                logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+            };
+        
+            // Insere o HTML no elemento de impressão
+            const el = document.getElementById('print-area');
+            el.innerHTML = `
+                <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 15px;">
+                    <div class="header-orig" style="display: flex; border: 1px solid #000; margin-bottom: 0;">
+                        <div class="logo-box-orig" style="width: 100px; padding: 5px; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center;">
+                            <img src="${company.logoUrl}" style="max-height: 80px; max-width: 100%;" />
+                        </div>
+                        <div class="company-box-orig" style="flex: 1; padding: 10px; border-right: 1px solid #000;">
+                            <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                            <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj}</p>
+                        </div>
+                        <div class="info-box-orig" style="width: 250px; padding: 10px; background-color: #f9f9f9; text-align: right;">
+                            <h3 style="margin: 0; font-size: 14px; font-weight: bold;">RELATÓRIO: CONTAS A PAGAR</h3>
+                            <p style="margin: 5px 0; font-size: 12px;">Emissão: ${new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+        
+                    <div style="background-color: #f8fafc; border: 1px solid #000; border-top: none; padding: 8px; margin-bottom: 15px; font-size: 12px;">
+                        <strong>Filtros aplicados:</strong> ${subheader}
+                    </div>
+        
+                    <table class="items-table-orig" style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000;">
+                        <thead>
+                            <tr style="background-color: #f1f5f9;">
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Data</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Categoria</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Fornecedor / Obs</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Status</th>
+                                <th style="border-bottom: 1px solid #000; padding: 6px; text-align: right;">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                        <tfoot>
+                            <tr style="background-color: #fef2f2;">
+                                <td colspan="4" style="border-top: 2px solid #000; border-right: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 12px;">TOTAL DAS DESPESAS NA LISTA:</td>
+                                <td style="border-top: 2px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 14px; color: #dc2626;">${formatMoney(totalGeral)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+        
+            // Dispara a impressão após um pequeno delay para garantir que o DOM foi atualizado
+            setTimeout(() => window.print(), 500);
         }
 
           function reprintSale(id) {
-    const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
-    if(!items.length) return;
-    
-    const totalDiscount = items[0].discount || 0;
-    const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
-    const grossTotal = netTotal + totalDiscount;
-    const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
-    
-    // Extrai apenas a observação extra (após o pipe), removendo a metragem
-    let obsLimpa = '';
-    const rawObs = items[0].note || '';
-    if (rawObs.includes(' | ')) {
-        obsLimpa = rawObs.split(' | ').slice(1).join(' | ').trim();
-    } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
-        // Se não tem metragem, usa a observação inteira
-        obsLimpa = rawObs;
-    }
-    
-    const saleObj = {
-        id: id, 
-        date: items[0].date, 
-        clientName: items[0].clientName, 
-        paymentMethod: items[0].paymentMethod, 
-        discount: totalDiscount,
-        deliveryAddress: items[0].deliveryAddress,
-        observacao: obsLimpa,  // <-- agora só a parte extra, sem a metragem
-        items: items.map(i => {
-            const grossItemTotal = i.totalValue * fator;
-            let metragem = '';
-            if (i.note) {
-                const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
-                if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+            const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
+            if(!items.length) return;
+            
+            const totalDiscount = items[0].discount || 0;
+            const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
+            const grossTotal = netTotal + totalDiscount;
+            const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
+            
+            // Extrai apenas a observação extra (após o pipe), removendo a metragem
+            let obsLimpa = '';
+            const rawObs = items[0].note || '';
+            if (rawObs.includes(' | ')) {
+                obsLimpa = rawObs.split(' | ').slice(1).join(' | ').trim();
+            } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+                // Se não tem metragem, usa a observação inteira
+                obsLimpa = rawObs;
             }
-            return { 
-                name: i.productName, 
-                qty: i.quantity, 
-                price: i.quantity > 0 ? (grossItemTotal / i.quantity) : 0, 
-                total: grossItemTotal,
-                metragem: metragem
+            
+            const saleObj = {
+                id: id, 
+                date: items[0].date, 
+                clientName: items[0].clientName, 
+                paymentMethod: items[0].paymentMethod, 
+                discount: totalDiscount,
+                deliveryAddress: items[0].deliveryAddress,
+                observacao: obsLimpa,  // <-- agora só a parte extra, sem a metragem
+                items: items.map(i => {
+                    const grossItemTotal = i.totalValue * fator;
+                    let metragem = '';
+                    if (i.note) {
+                        const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+                        if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+                    }
+                    return { 
+                        name: i.productName, 
+                        qty: i.quantity, 
+                        price: i.quantity > 0 ? (grossItemTotal / i.quantity) : 0, 
+                        total: grossItemTotal,
+                        metragem: metragem
+                    };
+                })
             };
-        })
-    };
-    
-    renderInvoice(saleObj, false); 
-    if (typeof closePosHistoryModal === 'function') closePosHistoryModal();
-    setTimeout(() => window.print(), 500);
-}
+            
+            renderInvoice(saleObj, false); 
+            if (typeof closePosHistoryModal === 'function') closePosHistoryModal();
+            setTimeout(() => window.print(), 500);
+        }
         function fazerLogout() {
             localStorage.removeItem('rv_user');
             window.location.href = "index.html?t=" + Date.now();
