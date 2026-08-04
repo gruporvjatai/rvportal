@@ -1,243 +1,607 @@
 // ============================================================
-// calculadora.js - Calculadora Financeira para PDV
-// Dependência: mathjs (carregado via CDN)
+// CALCULADORA FINANCEIRA – RV PORTAL
+// ============================================================
+// Este script cria uma calculadora flutuante com funções
+// financeiras (juros compostos, parcelas, valor presente,
+// valor futuro, etc.) usando a biblioteca mathjs.
 // ============================================================
 
 (function() {
     'use strict';
 
-    // === VERIFICAÇÃO DE CARREGAMENTO DO MATHJS ===
-    function verificarMathJS() {
-        if (typeof math === 'undefined' && typeof window.math === 'undefined') {
-            console.error('❌ mathjs não encontrado. Verifique o CDN.');
-            return false;
-        }
-        // Se math estiver no window, atribui para uso local
-        if (typeof math === 'undefined' && typeof window.math !== 'undefined') {
-            window.math = window.math;
-        }
-        return true;
+    // ---------- Verifica se o mathjs foi carregado ----------
+    if (typeof math === 'undefined') {
+        console.error('❌ mathjs não encontrado. Verifique o CDN.');
+        return;
     }
+    console.log('✅ Calculadora Financeira carregada.');
 
-    // === VARIÁVEIS DE ESTADO ===
-    let calculadoraAberta = false;
-    let containerCalculadora = null;
+    // ---------- Cria o container da calculadora ----------
+    const calcContainer = document.createElement('div');
+    calcContainer.id = 'calculadora-financeira';
+    calcContainer.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 380px;
+        max-width: 90vw;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        z-index: 9999;
+        display: none;
+        font-family: 'Segoe UI', sans-serif;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+    `;
 
-    // === CONFIGURAÇÕES ===
-    const CONFIG = {
-        titulo: 'Calculadora Financeira',
-        corPrimaria: '#059669',
-        corSecundaria: '#f1f5f9'
-    };
+    // ---------- Cabeçalho da calculadora (com botão fechar) ----------
+    const header = document.createElement('div');
+    header.style.cssText = `
+        background: #0f172a;
+        color: white;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: move;
+        user-select: none;
+    `;
+    header.innerHTML = `
+        <span style="font-weight: bold; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M12 2v4M8 6V2M16 6V2"/></svg>
+            Calculadora Financeira
+        </span>
+        <button id="calc-fechar" style="
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            transition: color 0.2s;
+        ">✕</button>
+    `;
+    calcContainer.appendChild(header);
 
-    // === FUNÇÕES FINANCEIRAS ===
-    function calcularValorFuturo() {
-        const pv = parseFloat(document.getElementById('cf-pv').value) || 0;
-        const taxa = parseFloat(document.getElementById('cf-taxa').value) / 100 || 0;
-        const n = parseFloat(document.getElementById('cf-n').value) || 0;
-        if (n <= 0) { document.getElementById('cf-resultado').innerText = 'Período deve ser > 0'; return; }
-        const fv = math.fv(taxa, n, 0, -pv);
-        document.getElementById('cf-resultado').innerHTML = `<strong>Valor Futuro:</strong> ${formatMoney(fv)}`;
-    }
+    // ---------- Corpo da calculadora ----------
+    const body = document.createElement('div');
+    body.style.cssText = `
+        padding: 16px;
+        max-height: 70vh;
+        overflow-y: auto;
+        background: #f8fafc;
+    `;
 
-    function calcularValorPresente() {
-        const fv = parseFloat(document.getElementById('cf-fv').value) || 0;
-        const taxa = parseFloat(document.getElementById('cf-taxa2').value) / 100 || 0;
-        const n = parseFloat(document.getElementById('cf-n2').value) || 0;
-        if (n <= 0) { document.getElementById('cf-resultado2').innerText = 'Período deve ser > 0'; return; }
-        const pv = math.pv(taxa, n, 0, fv);
-        document.getElementById('cf-resultado2').innerHTML = `<strong>Valor Presente:</strong> ${formatMoney(-pv)}`;
-    }
-
-    function calcularParcela() {
-        const pv = parseFloat(document.getElementById('cp-pv').value) || 0;
-        const taxa = parseFloat(document.getElementById('cp-taxa').value) / 100 || 0;
-        const n = parseFloat(document.getElementById('cp-n').value) || 0;
-        if (n <= 0) { document.getElementById('cp-resultado').innerText = 'Período deve ser > 0'; return; }
-        const pmt = math.pmt(taxa, n, pv);
-        document.getElementById('cp-resultado').innerHTML = `<strong>Parcela:</strong> ${formatMoney(pmt)}`;
-    }
-
-    function calcularTaxa() {
-        const pv = parseFloat(document.getElementById('ct-pv').value) || 0;
-        const pmt = parseFloat(document.getElementById('ct-pmt').value) || 0;
-        const n = parseFloat(document.getElementById('ct-n').value) || 0;
-        if (n <= 0 || pv <= 0) { document.getElementById('ct-resultado').innerText = 'Valores inválidos'; return; }
-        try {
-            const taxa = math.rate(n, pmt, pv);
-            document.getElementById('ct-resultado').innerHTML = `<strong>Taxa de Juros:</strong> ${(taxa * 100).toFixed(2)}% a.m.`;
-        } catch (e) {
-            document.getElementById('ct-resultado').innerText = 'Erro: verifique os valores';
-        }
-    }
-
-    // === HELPER: Formatação de moeda ===
-    function formatMoney(val) {
-        return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    }
-
-    // === CRIAÇÃO DA INTERFACE ===
-    function criarHTMLCalculadora() {
-        return `
-        <div id="calculadora-financeira" style="
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 95%;
-            max-width: 600px;
-            max-height: 90vh;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            z-index: 9999;
-            display: none;
-            flex-direction: column;
-            overflow: hidden;
-            font-family: 'Segoe UI', sans-serif;
-            border: 1px solid #e2e8f0;
-        ">
-            <!-- HEADER -->
-            <div style="background: #059669; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
-                <span style="font-size: 18px; font-weight: bold;">🧮 Calculadora Financeira</span>
-                <button id="btn-fechar-calculadora" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 8px;">✕</button>
-            </div>
-
-            <!-- CORPO COM ABAS -->
-            <div style="padding: 16px; overflow-y: auto; flex: 1; background: #f8fafc;">
-                <!-- Abas -->
-                <div style="display: flex; gap: 6px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; flex-wrap: wrap;">
-                    <button class="aba-btn ativo" data-aba="vf" style="padding: 8px 16px; border: none; background: transparent; font-weight: bold; color: #059669; border-bottom: 3px solid #059669; cursor: pointer;">Valor Futuro</button>
-                    <button class="aba-btn" data-aba="vp" style="padding: 8px 16px; border: none; background: transparent; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; cursor: pointer;">Valor Presente</button>
-                    <button class="aba-btn" data-aba="pmt" style="padding: 8px 16px; border: none; background: transparent; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; cursor: pointer;">Parcela</button>
-                    <button class="aba-btn" data-aba="taxa" style="padding: 8px 16px; border: none; background: transparent; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; cursor: pointer;">Taxa</button>
-                </div>
-
-                <!-- ABAS CONTEÚDO -->
-                <div id="aba-vf" class="aba-conteudo">
-                    <div style="background: white; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Valor Presente (R$)</label><input type="number" id="cf-pv" value="1000" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Taxa (% a.m.)</label><input type="number" id="cf-taxa" value="2" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <div style="margin-bottom: 16px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Períodos (meses)</label><input type="number" id="cf-n" value="12" step="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <button onclick="calcularValorFuturo()" style="width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">Calcular</button>
-                        <div id="cf-resultado" style="margin-top: 12px; font-size: 16px; font-weight: bold; color: #0f172a; text-align: center;"></div>
-                    </div>
-                </div>
-
-                <div id="aba-vp" class="aba-conteudo" style="display: none;">
-                    <div style="background: white; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Valor Futuro (R$)</label><input type="number" id="cf-fv" value="1500" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Taxa (% a.m.)</label><input type="number" id="cf-taxa2" value="2" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <div style="margin-bottom: 16px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Períodos (meses)</label><input type="number" id="cf-n2" value="12" step="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <button onclick="calcularValorPresente()" style="width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">Calcular</button>
-                        <div id="cf-resultado2" style="margin-top: 12px; font-size: 16px; font-weight: bold; color: #0f172a; text-align: center;"></div>
-                    </div>
-                </div>
-
-                <div id="aba-pmt" class="aba-conteudo" style="display: none;">
-                    <div style="background: white; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Valor Presente (R$)</label><input type="number" id="cp-pv" value="5000" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Taxa (% a.m.)</label><input type="number" id="cp-taxa" value="2" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <div style="margin-bottom: 16px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Períodos (meses)</label><input type="number" id="cp-n" value="24" step="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <button onclick="calcularParcela()" style="width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">Calcular</button>
-                        <div id="cp-resultado" style="margin-top: 12px; font-size: 16px; font-weight: bold; color: #0f172a; text-align: center;"></div>
-                    </div>
-                </div>
-
-                <div id="aba-taxa" class="aba-conteudo" style="display: none;">
-                    <div style="background: white; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
-                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Valor Presente (R$)</label><input type="number" id="ct-pv" value="5000" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Parcela (R$)</label><input type="number" id="ct-pmt" value="264" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <div style="margin-bottom: 16px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Períodos (meses)</label><input type="number" id="ct-n" value="24" step="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
-                        <button onclick="calcularTaxa()" style="width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">Calcular</button>
-                        <div id="ct-resultado" style="margin-top: 12px; font-size: 16px; font-weight: bold; color: #0f172a; text-align: center;"></div>
-                    </div>
-                </div>
-            </div>
+    // ---------- Display de entrada e resultado ----------
+    body.innerHTML = `
+        <div style="margin-bottom: 12px;">
+            <input type="text" id="calc-input" placeholder="Ex: 1000 * (1 + 0.05)^12" style="
+                width: 100%;
+                padding: 10px 12px;
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                font-size: 14px;
+                font-family: 'Courier New', monospace;
+                outline: none;
+                background: white;
+                transition: border-color 0.2s;
+            " onfocus="this.style.borderColor='#059669'" onblur="this.style.borderColor='#e2e8f0'">
         </div>
-        `;
+        <div id="calc-resultado" style="
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #0f172a;
+            border: 2px solid #e2e8f0;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            font-family: 'Courier New', monospace;
+        ">R$ 0,00</div>
+
+        <!-- Botões principais -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;">
+            <button class="calc-btn calc-oper" data-op="7">7</button>
+            <button class="calc-btn calc-oper" data-op="8">8</button>
+            <button class="calc-btn calc-oper" data-op="9">9</button>
+            <button class="calc-btn calc-oper" data-op="/">÷</button>
+
+            <button class="calc-btn calc-oper" data-op="4">4</button>
+            <button class="calc-btn calc-oper" data-op="5">5</button>
+            <button class="calc-btn calc-oper" data-op="6">6</button>
+            <button class="calc-btn calc-oper" data-op="*">×</button>
+
+            <button class="calc-btn calc-oper" data-op="1">1</button>
+            <button class="calc-btn calc-oper" data-op="2">2</button>
+            <button class="calc-btn calc-oper" data-op="3">3</button>
+            <button class="calc-btn calc-oper" data-op="-">−</button>
+
+            <button class="calc-btn calc-oper" data-op="0">0</button>
+            <button class="calc-btn calc-oper" data-op=".">.</button>
+            <button class="calc-btn calc-oper" data-op="(">(</button>
+            <button class="calc-btn calc-oper" data-op=")">)</button>
+        </div>
+
+        <!-- Funções financeiras -->
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <button class="calc-fn" data-fn="fv">FV</button>
+            <button class="calc-fn" data-fn="pv">PV</button>
+            <button class="calc-fn" data-fn="pmt">PMT</button>
+            <button class="calc-fn" data-fn="nper">NPER</button>
+            <button class="calc-fn" data-fn="rate">TAXA</button>
+            <button class="calc-fn" data-fn="compound">JUROS COMP.</button>
+        </div>
+
+        <!-- Campos para funções financeiras (aparecem ao clicar em uma função) -->
+        <div id="calc-fn-fields" style="display: none; background: white; padding: 12px; border-radius: 8px; border: 2px solid #e2e8f0; margin-bottom: 12px;">
+            <div id="calc-fn-content"></div>
+            <button id="calc-fn-calcular" style="
+                margin-top: 10px;
+                width: 100%;
+                padding: 8px;
+                background: #059669;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-weight: bold;
+                cursor: pointer;
+            ">Calcular</button>
+        </div>
+
+        <!-- Botões de ação -->
+        <div style="display: flex; gap: 8px;">
+            <button id="calc-limpar" style="
+                flex: 1;
+                padding: 10px;
+                background: #e2e8f0;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                color: #1e293b;
+            ">Limpar</button>
+            <button id="calc-igual" style="
+                flex: 2;
+                padding: 10px;
+                background: #059669;
+                border: none;
+                border-radius: 8px;
+                font-weight: bold;
+                cursor: pointer;
+                color: white;
+            ">= Calcular</button>
+        </div>
+    `;
+
+    calcContainer.appendChild(body);
+    document.body.appendChild(calcContainer);
+
+    // ---------- Estilos dos botões ----------
+    const style = document.createElement('style');
+    style.textContent = `
+        .calc-btn {
+            padding: 12px 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: #0f172a;
+            font-family: 'Courier New', monospace;
+        }
+        .calc-btn:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+        .calc-btn:active {
+            transform: scale(0.95);
+            background: #e2e8f0;
+        }
+        .calc-fn {
+            padding: 10px 0;
+            background: #1e293b;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: white;
+        }
+        .calc-fn:hover {
+            background: #0f172a;
+        }
+        .calc-fn:active {
+            transform: scale(0.95);
+        }
+        #calc-fn-fields input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            outline: none;
+        }
+        #calc-fn-fields input:focus {
+            border-color: #059669;
+        }
+        #calc-fn-fields label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #475569;
+            display: block;
+            margin-bottom: 2px;
+        }
+        #calc-fn-fields .fn-row {
+            margin-bottom: 6px;
+        }
+        .calc-resultado-erro {
+            color: #dc2626 !important;
+            font-size: 14px !important;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // ---------- Variáveis ----------
+    const input = document.getElementById('calc-input');
+    const resultado = document.getElementById('calc-resultado');
+
+    // ---------- Funções auxiliares ----------
+    function formatMoney(val) {
+        if (typeof val !== 'number' || isNaN(val)) return 'R$ 0,00';
+        return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     }
 
-    // === TOGGLE: ABRIR/FECHAR CALCULADORA ===
-    function toggleCalculadora() {
-        if (!verificarMathJS()) {
-            alert('Calculadora não disponível: mathjs não carregado.');
+    function showResult(value) {
+        if (typeof value === 'number' && !isNaN(value)) {
+            resultado.textContent = formatMoney(value);
+            resultado.style.color = '#0f172a';
+            resultado.classList.remove('calc-resultado-erro');
+        } else {
+            resultado.textContent = String(value);
+            resultado.style.color = '#dc2626';
+            resultado.classList.add('calc-resultado-erro');
+        }
+    }
+
+    function evaluateExpression(expr) {
+        try {
+            // Substitui operadores para compatibilidade
+            let sanitized = expr
+                .replace(/×/g, '*')
+                .replace(/÷/g, '/')
+                .replace(/−/g, '-')
+                .replace(/,/g, '.')
+                .trim();
+
+            // Se a expressão estiver vazia, retorna 0
+            if (!sanitized) return 0;
+
+            // Avalia usando mathjs
+            const result = math.evaluate(sanitized);
+            if (typeof result === 'number') {
+                return result;
+            } else {
+                return String(result);
+            }
+        } catch (e) {
+            return 'Erro: ' + e.message;
+        }
+    }
+
+    // ---------- Inserir texto no input ----------
+    function insertText(text) {
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+        const before = input.value.substring(0, start);
+        const after = input.value.substring(end);
+        input.value = before + text + after;
+        input.focus();
+        // Coloca o cursor após o texto inserido
+        const newPos = start + text.length;
+        input.setSelectionRange(newPos, newPos);
+        // Dispara o evento input para atualizar o preview
+        input.dispatchEvent(new Event('input'));
+    }
+
+    // ---------- Eventos dos botões numéricos ----------
+    document.querySelectorAll('.calc-oper').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const op = this.dataset.op;
+            insertText(op);
+        });
+    });
+
+    // ---------- Limpar ----------
+    document.getElementById('calc-limpar').addEventListener('click', function() {
+        input.value = '';
+        resultado.textContent = 'R$ 0,00';
+        resultado.style.color = '#0f172a';
+        resultado.classList.remove('calc-resultado-erro');
+        // Esconde os campos de função financeira
+        document.getElementById('calc-fn-fields').style.display = 'none';
+        input.focus();
+    });
+
+    // ---------- Calcular (igual) ----------
+    document.getElementById('calc-igual').addEventListener('click', function() {
+        const expr = input.value.trim();
+        if (!expr) {
+            resultado.textContent = 'Digite uma expressão';
+            resultado.style.color = '#dc2626';
             return;
         }
-
-        if (!containerCalculadora) {
-            // Cria o container e insere no body
-            containerCalculadora = document.createElement('div');
-            containerCalculadora.innerHTML = criarHTMLCalculadora();
-            document.body.appendChild(containerCalculadora);
-
-            // Evento para fechar
-            const btnFechar = document.getElementById('btn-fechar-calculadora');
-            if (btnFechar) {
-                btnFechar.addEventListener('click', function() {
-                    fecharCalculadora();
-                });
-            }
-
-            // Evento para abas
-            const botoesAba = containerCalculadora.querySelectorAll('.aba-btn');
-            botoesAba.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const abaId = this.dataset.aba;
-                    // Remove ativo de todos
-                    botoesAba.forEach(b => {
-                        b.classList.remove('ativo');
-                        b.style.color = '#64748b';
-                        b.style.borderBottom = '3px solid transparent';
-                    });
-                    this.classList.add('ativo');
-                    this.style.color = '#059669';
-                    this.style.borderBottom = '3px solid #059669';
-
-                    // Mostra/esconde conteúdos
-                    const conteudos = containerCalculadora.querySelectorAll('.aba-conteudo');
-                    conteudos.forEach(c => c.style.display = 'none');
-                    const alvo = document.getElementById(`aba-${abaId}`);
-                    if (alvo) alvo.style.display = 'block';
-                });
-            });
-
-            // Fechar ao clicar fora (backdrop)
-            const overlay = document.createElement('div');
-            overlay.id = 'overlay-calculadora';
-            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9998;display:none;';
-            document.body.appendChild(overlay);
-            overlay.addEventListener('click', fecharCalculadora);
-        }
-
-        // Toggle
-        const calcEl = document.getElementById('calculadora-financeira');
-        const overlayEl = document.getElementById('overlay-calculadora');
-        if (calculadoraAberta) {
-            fecharCalculadora();
+        const result = evaluateExpression(expr);
+        if (typeof result === 'number') {
+            showResult(result);
         } else {
-            calcEl.style.display = 'flex';
-            overlayEl.style.display = 'block';
-            calculadoraAberta = true;
+            resultado.textContent = result;
+            resultado.style.color = '#dc2626';
         }
+    });
+
+    // ---------- Fechar calculadora ----------
+    document.getElementById('calc-fechar').addEventListener('click', function() {
+        calcContainer.style.display = 'none';
+    });
+
+    // ---------- Funções financeiras ----------
+    const fnFields = document.getElementById('calc-fn-fields');
+    const fnContent = document.getElementById('calc-fn-content');
+
+    const fnConfigs = {
+        'fv': {
+            label: 'Valor Futuro (FV)',
+            fields: [
+                { id: 'fv-taxa', label: 'Taxa de juros (ex: 0.05 = 5%)', placeholder: '0.05' },
+                { id: 'fv-nper', label: 'Número de períodos', placeholder: '12' },
+                { id: 'fv-pmt', label: 'Pagamento periódico (R$)', placeholder: '100' },
+                { id: 'fv-pv', label: 'Valor presente (R$)', placeholder: '0' }
+            ],
+            calc: function(values) {
+                const taxa = parseFloat(values.fvTaxa) || 0;
+                const nper = parseInt(values.fvNper) || 0;
+                const pmt = parseFloat(values.fvPmt) || 0;
+                const pv = parseFloat(values.fvPv) || 0;
+                if (nper <= 0) return 'Número de períodos deve ser maior que zero';
+                return math.fv(taxa, nper, -pmt, -pv);
+            }
+        },
+        'pv': {
+            label: 'Valor Presente (PV)',
+            fields: [
+                { id: 'pv-taxa', label: 'Taxa de juros (ex: 0.05 = 5%)', placeholder: '0.05' },
+                { id: 'pv-nper', label: 'Número de períodos', placeholder: '12' },
+                { id: 'pv-pmt', label: 'Pagamento periódico (R$)', placeholder: '100' },
+                { id: 'pv-fv', label: 'Valor futuro (R$)', placeholder: '0' }
+            ],
+            calc: function(values) {
+                const taxa = parseFloat(values.pvTaxa) || 0;
+                const nper = parseInt(values.pvNper) || 0;
+                const pmt = parseFloat(values.pvPmt) || 0;
+                const fv = parseFloat(values.pvFv) || 0;
+                if (nper <= 0) return 'Número de períodos deve ser maior que zero';
+                return math.pv(taxa, nper, -pmt, -fv);
+            }
+        },
+        'pmt': {
+            label: 'Pagamento periódico (PMT)',
+            fields: [
+                { id: 'pmt-taxa', label: 'Taxa de juros (ex: 0.05 = 5%)', placeholder: '0.05' },
+                { id: 'pmt-nper', label: 'Número de períodos', placeholder: '12' },
+                { id: 'pmt-pv', label: 'Valor presente (R$)', placeholder: '1000' },
+                { id: 'pmt-fv', label: 'Valor futuro (R$)', placeholder: '0' }
+            ],
+            calc: function(values) {
+                const taxa = parseFloat(values.pmtTaxa) || 0;
+                const nper = parseInt(values.pmtNper) || 0;
+                const pv = parseFloat(values.pmtPv) || 0;
+                const fv = parseFloat(values.pmtFv) || 0;
+                if (nper <= 0) return 'Número de períodos deve ser maior que zero';
+                return math.pmt(taxa, nper, -pv, -fv);
+            }
+        },
+        'nper': {
+            label: 'Número de períodos (NPER)',
+            fields: [
+                { id: 'nper-taxa', label: 'Taxa de juros (ex: 0.05 = 5%)', placeholder: '0.05' },
+                { id: 'nper-pmt', label: 'Pagamento periódico (R$)', placeholder: '100' },
+                { id: 'nper-pv', label: 'Valor presente (R$)', placeholder: '1000' },
+                { id: 'nper-fv', label: 'Valor futuro (R$)', placeholder: '0' }
+            ],
+            calc: function(values) {
+                const taxa = parseFloat(values.nperTaxa) || 0;
+                const pmt = parseFloat(values.nperPmt) || 0;
+                const pv = parseFloat(values.nperPv) || 0;
+                const fv = parseFloat(values.nperFv) || 0;
+                return math.nper(taxa, -pmt, -pv, -fv);
+            }
+        },
+        'rate': {
+            label: 'Taxa de juros (RATE)',
+            fields: [
+                { id: 'rate-nper', label: 'Número de períodos', placeholder: '12' },
+                { id: 'rate-pmt', label: 'Pagamento periódico (R$)', placeholder: '100' },
+                { id: 'rate-pv', label: 'Valor presente (R$)', placeholder: '1000' },
+                { id: 'rate-fv', label: 'Valor futuro (R$)', placeholder: '0' }
+            ],
+            calc: function(values) {
+                const nper = parseInt(values.rateNper) || 0;
+                const pmt = parseFloat(values.ratePmt) || 0;
+                const pv = parseFloat(values.ratePv) || 0;
+                const fv = parseFloat(values.rateFv) || 0;
+                if (nper <= 0) return 'Número de períodos deve ser maior que zero';
+                const result = math.rate(nper, -pmt, -pv, -fv);
+                return result !== null ? result : 'Não foi possível calcular a taxa';
+            }
+        },
+        'compound': {
+            label: 'Juros Compostos',
+            fields: [
+                { id: 'comp-capital', label: 'Capital inicial (R$)', placeholder: '1000' },
+                { id: 'comp-taxa', label: 'Taxa de juros (% ao mês)', placeholder: '5' },
+                { id: 'comp-meses', label: 'Número de meses', placeholder: '12' },
+                { id: 'comp-aporte', label: 'Aporte mensal (R$)', placeholder: '0' }
+            ],
+            calc: function(values) {
+                const capital = parseFloat(values.compCapital) || 0;
+                const taxa = (parseFloat(values.compTaxa) || 0) / 100;
+                const meses = parseInt(values.compMeses) || 0;
+                const aporte = parseFloat(values.compAporte) || 0;
+                if (meses <= 0) return 'Número de meses deve ser maior que zero';
+                let total = capital;
+                for (let i = 0; i < meses; i++) {
+                    total = total * (1 + taxa) + aporte;
+                }
+                return total;
+            }
+        }
+    };
+
+    // ---------- Montar campos da função ----------
+    function buildFnFields(fnKey) {
+        const config = fnConfigs[fnKey];
+        if (!config) return;
+
+        // Limpa conteúdo anterior
+        fnContent.innerHTML = '';
+
+        // Título
+        const title = document.createElement('div');
+        title.style.cssText = 'font-weight: bold; margin-bottom: 8px; font-size: 14px; color: #0f172a;';
+        title.textContent = config.label;
+        fnContent.appendChild(title);
+
+        // Campos
+        config.fields.forEach(field => {
+            const row = document.createElement('div');
+            row.className = 'fn-row';
+
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label;
+            row.appendChild(label);
+
+            const inputField = document.createElement('input');
+            inputField.type = 'text';
+            inputField.id = field.id;
+            inputField.placeholder = field.placeholder || '';
+            row.appendChild(inputField);
+            fnContent.appendChild(row);
+        });
     }
 
-    function fecharCalculadora() {
-        const calcEl = document.getElementById('calculadora-financeira');
-        const overlayEl = document.getElementById('overlay-calculadora');
-        if (calcEl) calcEl.style.display = 'none';
-        if (overlayEl) overlayEl.style.display = 'none';
-        calculadoraAberta = false;
-    }
+    // ---------- Evento: clicar nos botões de função ----------
+    document.querySelectorAll('.calc-fn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const fn = this.dataset.fn;
+            // Mostra o painel de campos
+            fnFields.style.display = 'block';
+            // Constrói os campos
+            buildFnFields(fn);
+            // Guarda a função atual para usar no cálculo
+            fnFields.dataset.currentFn = fn;
+        });
+    });
 
-    // === EXPOR FUNÇÕES GLOBAIS (para uso no HTML) ===
-    window.toggleCalculadora = toggleCalculadora;
-    window.fecharCalculadora = fecharCalculadora;
-    window.calcularValorFuturo = calcularValorFuturo;
-    window.calcularValorPresente = calcularValorPresente;
-    window.calcularParcela = calcularParcela;
-    window.calcularTaxa = calcularTaxa;
-    window.formatMoney = formatMoney;
+    // ---------- Evento: calcular função financeira ----------
+    document.getElementById('calc-fn-calcular').addEventListener('click', function() {
+        const fnKey = fnFields.dataset.currentFn;
+        const config = fnConfigs[fnKey];
+        if (!config) return;
 
-    console.log('✅ Calculadora Financeira carregada.');
+        // Coleta os valores dos campos
+        const values = {};
+        config.fields.forEach(field => {
+            const el = document.getElementById(field.id);
+            if (el) {
+                // Converte para o nome da chave (tira hífen, etc)
+                const key = field.id.replace(/-/g, '').replace(/_/g, '');
+                // Mapeia para camelCase: ex: fv-taxa -> fvTaxa
+                const parts = key.split(/(?=[A-Z])/);
+                if (parts.length > 1) {
+                    // mantém como está
+                }
+                // Ajuste para o padrão usado no calc
+                const fieldKey = field.id.replace(/-/g, '').replace(/_/g, '');
+                // Tenta converter para o nome esperado no calc
+                // Ex: fv-taxa -> fvTaxa
+                const camelKey = fieldKey.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+                values[camelKey] = el.value;
+            }
+        });
+
+        // Chama a função de cálculo
+        const result = config.calc(values);
+        if (typeof result === 'number') {
+            showResult(result);
+            // Coloca o resultado também no input para referência
+            input.value = result.toString();
+        } else {
+            resultado.textContent = String(result);
+            resultado.style.color = '#dc2626';
+            resultado.classList.add('calc-resultado-erro');
+        }
+    });
+
+    // ---------- Tecla Enter no input ----------
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('calc-igual').click();
+        }
+    });
+
+    // ---------- Preview ao digitar ----------
+    input.addEventListener('input', function() {
+        const expr = this.value.trim();
+        if (!expr) {
+            resultado.textContent = 'R$ 0,00';
+            resultado.style.color = '#0f172a';
+            resultado.classList.remove('calc-resultado-erro');
+            return;
+        }
+        const result = evaluateExpression(expr);
+        if (typeof result === 'number') {
+            showResult(result);
+        } else {
+            resultado.textContent = result;
+            resultado.style.color = '#dc2626';
+        }
+    });
+
+    // ---------- Função de toggle (abrir/fechar) ----------
+    window.toggleCalculadora = function() {
+        const container = document.getElementById('calculadora-financeira');
+        if (container.style.display === 'none' || container.style.display === '') {
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    };
+
+    // ---------- Inicialização: exibir a calculadora ao carregar (opcional) ----------
+    // Por padrão, ela fica oculta; o usuário clica no botão para abrir.
+    calcContainer.style.display = 'none';
+
+    // ---------- (Opcional) Fechar ao clicar fora ----------
+    document.addEventListener('click', function(e) {
+        const container = document.getElementById('calculadora-financeira');
+        if (!container) return;
+        // Se clicou fora do container e não no botão de toggle
+        if (!container.contains(e.target) && e.target.id !== 'btn-calculadora' && !e.target.closest('#btn-calculadora')) {
+            // Não fecha automaticamente para não atrapalhar; o usuário fecha pelo "X".
+        }
+    });
+
 })();
