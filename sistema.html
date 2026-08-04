@@ -460,12 +460,11 @@
   <!-- Conteúdo Contas a Receber -->
   <div id="finance-receber" class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px]">
     <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">      
-      <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-down-to-line" class="w-5 h-5 text-indigo-600"></i> Contas a Receber</h3>
-      <button onclick="printReceivables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+      <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-down-to-line" class="w-5 h-5 text-indigo-600"></i> Contas a Receber</h3>      
       <div class="flex gap-2">
-        <button onclick="refresh()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="list-restart" class="w-4 h-4"></i></button>        
+        <button onclick="refresh()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1" title="Atualizar Lista"><i data-lucide="list-restart" class="w-4 h-4"></i></button>        
         <button onclick="openRevenueModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Nova</button>
-        <!--<button onclick="printReceivables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>-->
+        <button onclick="printReceivables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
         
       </div>
     </div>
@@ -528,11 +527,10 @@
           <option value="MARCENARIA">MARCENARIA</option>
           <option value="INSTALAÇÃO">INSTALAÇÃO</option>
           <option value="OUTROS">OUTROS</option>
-        </select>
-        <button onclick="printExpenses()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
-        <button onclick="openNewExpense()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1">
-          <i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída
-        </button>
+        </select>             
+        <button onclick="refresh()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1" title="Atualizar Lista"><i data-lucide="list-restart" class="w-4 h-4"></i></button>
+        <button onclick="openNewExpense()"class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída</button>
+        <button onclick="printExpenses()"class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>   
       </div>
     </div>
 
@@ -2720,220 +2718,7 @@ function printStockCountSheet() {
             renderCart();
         }
 
-       /*function renderCart() {
-          const box = document.getElementById('pos-cart-items');
-          const totalDisplay = document.getElementById('pos-total-display');
-          const countDisplay = document.getElementById('cart-count');
-      
-          if (!CART.length) {
-              box.innerHTML = '<p class="text-center text-slate-400 mt-10 text-sm">Vazio</p>';
-              totalDisplay.innerText = formatMoney(0);
-              countDisplay.innerText = '0';
-              // Atualiza a linha de desconto total para 0
-              const descTotalEl = document.getElementById('pos-total-desconto');
-              if (descTotalEl) descTotalEl.innerText = '';
-              return;
-          }
-      
-          const totals = calculateTotal();
-          let subBruto = 0;
-          CART.forEach(item => {
-              const fixedPrice = item.fixedPrice || item.price;
-              subBruto += fixedPrice * item.qty;
-          });
-          const descontoReal = subBruto - totals.total;
-          const percentual = subBruto > 0 ? (descontoReal / subBruto) * 100 : 0;
-      
-          // Atualiza a linha de desconto total (se existir)
-          const descTotalEl = document.getElementById('pos-total-desconto');
-          if (descTotalEl) {
-              if (descontoReal > 0.01) {
-                  descTotalEl.innerText = `Totais de Desconto \n ${percentual.toFixed(1)}% (${formatMoney(descontoReal)})`;
-                  descTotalEl.style.display = 'block';
-              } else {
-                  descTotalEl.innerText = '';
-                  descTotalEl.style.display = 'none';
-              }
-          }
-      
-          box.innerHTML = CART.map((i, idx) => {
-              const fixedPrice = i.fixedPrice || i.price;
-              const unitPrice = i.price;
-              const qty = i.qty;
-              const totalItem = qty * unitPrice;
-      
-              let descontoPercentual = 0;
-              if (fixedPrice > 0) {
-                  descontoPercentual = ((fixedPrice - unitPrice) / fixedPrice) * 100;
-              }
-              const isDescontoAlto = descontoPercentual > 30;
-              const descontoStr = descontoPercentual > 0 ? `${descontoPercentual.toFixed(1)}% off` : '';
-      
-              let descricao = i.name;
-              if (i.parceiro) {
-                  descricao += ` (${i.pecas} pçs de ${i.comprimento}m)`;
-              }
-      
-              let infoExtra = '';
-              if (descontoStr) {
-                  infoExtra = `<span class="text-[10px] ${isDescontoAlto ? 'text-red-600 font-bold animate-pulse' : 'text-orange-600 font-bold'}">${descontoStr}</span>`;
-              }
-              if (isDescontoAlto) {
-                  infoExtra += ` <span class="text-[10px] text-red-500 font-bold bg-red-100 px-1.5 py-0.5 rounded">⚠️</span>`;
-              }
-      
-              const cardClass = isDescontoAlto ? 'border-l-4 border-l-red-500 bg-red-50/30' : '';
-      
-              return `
-              <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition ${cardClass}">
-                  <div class="flex-1 min-w-0 flex items-center gap-2">
-                      <span class="text-[11px] font-bold text-slate-700 truncate" title="${i.name}">${descricao}</span>
-                      <div class="flex items-center gap-1 shrink-0 text-[10px] text-slate-500 whitespace-nowrap">
-                          <span>     base: <span class="text-slate-700">${formatMoney(fixedPrice)}</span></span>
-                          ${infoExtra}
-                      </div>
-                  </div>
-                  <div class="flex items-center gap-1 shrink-0">
-                      <input type="number" value="${qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Qtd">
-                      <span class="text-slate-400 text-xs font-bold">x</span>
-                      <input type="number" step="0.01" value="${unitPrice}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Unitário">
-                  </div>
-                  <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(totalItem)}</div>
-                  <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded"><i data-lucide="x-circle" width="14"></i></button>
-              </div>`;
-          }).join('');
-      
-          totalDisplay.innerText = formatMoney(totals.total);
-          countDisplay.innerText = CART.length;
-          lucide.createIcons();
-      }*/
-
-      /*function renderCart() {
-        const box = document.getElementById('pos-cart-items');
-        const totalDisplay = document.getElementById('pos-total-display');
-        const countDisplay = document.getElementById('cart-count');
-    
-        // Se o carrinho estiver vazio
-        if (!CART.length) {
-            box.innerHTML = '<p class="text-center text-slate-400 mt-10 text-sm">Vazio</p>';
-            totalDisplay.innerText = formatMoney(0);
-            countDisplay.innerText = '0';
-            const descTotalEl = document.getElementById('pos-total-desconto');
-            if (descTotalEl) descTotalEl.innerText = '';
-            // Destroi instância do Sortable se existir
-            if (window.sortableInstance) {
-                window.sortableInstance.destroy();
-                window.sortableInstance = null;
-            }
-            return;
-        }
-    
-        const totals = calculateTotal();
-        let subBruto = 0;
-        CART.forEach(item => {
-            const fixedPrice = item.fixedPrice || item.price;
-            subBruto += fixedPrice * item.qty;
-        });
-        const descontoReal = subBruto - totals.total;
-        const percentual = subBruto > 0 ? (descontoReal / subBruto) * 100 : 0;
-    
-        // Linha de desconto total
-        const descTotalEl = document.getElementById('pos-total-desconto');
-        if (descTotalEl) {
-            if (descontoReal > 0.01) {
-                descTotalEl.innerText = `Totais de Desconto \n ${percentual.toFixed(1)}% (${formatMoney(descontoReal)})`;
-                descTotalEl.style.display = 'block';
-            } else {
-                descTotalEl.innerText = '';
-                descTotalEl.style.display = 'none';
-            }
-        }
-    
-        // Monta o HTML dos itens (cada um com data-uid)
-        box.innerHTML = CART.map((i, idx) => {
-            const fixedPrice = i.fixedPrice || i.price;
-            const unitPrice = i.price;
-            const qty = i.qty;
-            const totalItem = qty * unitPrice;
-    
-            let descontoPercentual = 0;
-            if (fixedPrice > 0) {
-                descontoPercentual = ((fixedPrice - unitPrice) / fixedPrice) * 100;
-            }
-            const isDescontoAlto = descontoPercentual > 30;
-            const descontoStr = descontoPercentual > 0 ? `${descontoPercentual.toFixed(1)}% off` : '';
-    
-            let descricao = i.name;
-            if (i.parceiro) {
-                descricao += ` (${i.pecas} pçs de ${i.comprimento}m)`;
-            }
-    
-            let infoExtra = '';
-            if (descontoStr) {
-                infoExtra = `<span class="text-[10px] ${isDescontoAlto ? 'text-red-600 font-bold animate-pulse' : 'text-orange-600 font-bold'}">${descontoStr}</span>`;
-            }
-            if (isDescontoAlto) {
-                infoExtra += ` <span class="text-[10px] text-red-500 font-bold bg-red-100 px-1.5 py-0.5 rounded">⚠️</span>`;
-            }
-    
-            const cardClass = isDescontoAlto ? 'border-l-4 border-l-red-500 bg-red-50/30' : '';
-    
-            return `
-            <div class="bg-white p-2 border border-slate-200 rounded-lg mb-1.5 flex items-center justify-between gap-2 shadow-sm hover:border-emerald-500 transition ${cardClass}" data-uid="${i.uid}">
-                <!-- Ícone de arrastar (grip) -->
-                <div class="drag-handle cursor-grab text-slate-400 hover:text-slate-600 shrink-0" title="Arraste para reordenar">
-                    <i data-lucide="grip-vertical" width="16"></i>
-                </div>
-    
-                <div class="flex-1 min-w-0 flex items-center gap-2">
-                    <span class="text-[11px] font-bold text-slate-700 truncate" title="${i.name}">${descricao}</span>
-                    <div class="flex items-center gap-1 shrink-0 text-[10px] text-slate-500 whitespace-nowrap">
-                        <span>base: <span class="text-slate-700">${formatMoney(fixedPrice)}</span></span>
-                        ${infoExtra}
-                    </div>
-                </div>
-    
-                <div class="flex items-center gap-1 shrink-0">
-                    <input type="number" value="${qty}" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Qtd">
-                    <span class="text-slate-400 text-xs font-bold">x</span>
-                    <input type="number" step="0.01" value="${unitPrice}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-16 p-1 border rounded bg-slate-50 text-center text-xs font-bold focus:border-emerald-500 outline-none" title="Unitário">
-                </div>
-    
-                <div class="font-black text-slate-800 w-16 text-right shrink-0 text-xs">${formatMoney(totalItem)}</div>
-                
-                <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 shrink-0 p-1 bg-red-50 rounded">
-                    <i data-lucide="x-circle" width="14"></i>
-                </button>
-            </div>`;
-        }).join('');
-    
-        // Atualiza totais
-        totalDisplay.innerText = formatMoney(totals.total);
-        countDisplay.innerText = CART.length;
-    
-        // ===== INICIALIZAÇÃO DO SORTABLE =====
-        if (window.sortableInstance) {
-            window.sortableInstance.destroy();
-        }
-        
-        window.sortableInstance = new Sortable(box, {
-            animation: 150,
-            handle: '.drag-handle',
-            ghostClass: 'sortable-ghost',  // <-- classe única
-            onEnd: function(evt) {
-                const oldIndex = evt.oldIndex;
-                const newIndex = evt.newIndex;
-                if (oldIndex === newIndex) return;
-        
-                const movedItem = CART.splice(oldIndex, 1)[0];
-                CART.splice(newIndex, 0, movedItem);
-                renderCart();
-            }
-        });
-    
-        // Recria os ícones do Lucide (incluindo o grip-vertical)
-        lucide.createIcons();
-    }*/
+       
 
       function renderCart() {
         const box = document.getElementById('pos-cart-items');
