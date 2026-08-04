@@ -1,290 +1,243 @@
+// ============================================================
+// calculadora.js - Calculadora Financeira para PDV
+// Dependência: mathjs (carregado via CDN)
+// ============================================================
+
 (function() {
-    // Aguarda o mathjs carregar
-    function initCalculator() {
-        if (typeof math !== 'undefined') {
-            criarCalculadora();
-        } else if (typeof window.math !== 'undefined') {
-            window.math = window.math || math;
-            criarCalculadora();
-        } else {
-            // Tenta carregar dinamicamente
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.2.3/math.min.js';
-            script.onload = function() {
-                window.math = math;
-                criarCalculadora();
-            };
-            script.onerror = function() {
-                alert('Erro ao carregar a biblioteca de cálculos. Recarregue a página.');
-            };
-            document.head.appendChild(script);
+    'use strict';
+
+    // === VERIFICAÇÃO DE CARREGAMENTO DO MATHJS ===
+    function verificarMathJS() {
+        if (typeof math === 'undefined' && typeof window.math === 'undefined') {
+            console.error('❌ mathjs não encontrado. Verifique o CDN.');
+            return false;
+        }
+        // Se math estiver no window, atribui para uso local
+        if (typeof math === 'undefined' && typeof window.math !== 'undefined') {
+            window.math = window.math;
+        }
+        return true;
+    }
+
+    // === VARIÁVEIS DE ESTADO ===
+    let calculadoraAberta = false;
+    let containerCalculadora = null;
+
+    // === CONFIGURAÇÕES ===
+    const CONFIG = {
+        titulo: 'Calculadora Financeira',
+        corPrimaria: '#059669',
+        corSecundaria: '#f1f5f9'
+    };
+
+    // === FUNÇÕES FINANCEIRAS ===
+    function calcularValorFuturo() {
+        const pv = parseFloat(document.getElementById('cf-pv').value) || 0;
+        const taxa = parseFloat(document.getElementById('cf-taxa').value) / 100 || 0;
+        const n = parseFloat(document.getElementById('cf-n').value) || 0;
+        if (n <= 0) { document.getElementById('cf-resultado').innerText = 'Período deve ser > 0'; return; }
+        const fv = math.fv(taxa, n, 0, -pv);
+        document.getElementById('cf-resultado').innerHTML = `<strong>Valor Futuro:</strong> ${formatMoney(fv)}`;
+    }
+
+    function calcularValorPresente() {
+        const fv = parseFloat(document.getElementById('cf-fv').value) || 0;
+        const taxa = parseFloat(document.getElementById('cf-taxa2').value) / 100 || 0;
+        const n = parseFloat(document.getElementById('cf-n2').value) || 0;
+        if (n <= 0) { document.getElementById('cf-resultado2').innerText = 'Período deve ser > 0'; return; }
+        const pv = math.pv(taxa, n, 0, fv);
+        document.getElementById('cf-resultado2').innerHTML = `<strong>Valor Presente:</strong> ${formatMoney(-pv)}`;
+    }
+
+    function calcularParcela() {
+        const pv = parseFloat(document.getElementById('cp-pv').value) || 0;
+        const taxa = parseFloat(document.getElementById('cp-taxa').value) / 100 || 0;
+        const n = parseFloat(document.getElementById('cp-n').value) || 0;
+        if (n <= 0) { document.getElementById('cp-resultado').innerText = 'Período deve ser > 0'; return; }
+        const pmt = math.pmt(taxa, n, pv);
+        document.getElementById('cp-resultado').innerHTML = `<strong>Parcela:</strong> ${formatMoney(pmt)}`;
+    }
+
+    function calcularTaxa() {
+        const pv = parseFloat(document.getElementById('ct-pv').value) || 0;
+        const pmt = parseFloat(document.getElementById('ct-pmt').value) || 0;
+        const n = parseFloat(document.getElementById('ct-n').value) || 0;
+        if (n <= 0 || pv <= 0) { document.getElementById('ct-resultado').innerText = 'Valores inválidos'; return; }
+        try {
+            const taxa = math.rate(n, pmt, pv);
+            document.getElementById('ct-resultado').innerHTML = `<strong>Taxa de Juros:</strong> ${(taxa * 100).toFixed(2)}% a.m.`;
+        } catch (e) {
+            document.getElementById('ct-resultado').innerText = 'Erro: verifique os valores';
         }
     }
 
-    function criarCalculadora() {
-        // Se já existe, não recria
-        if (document.getElementById('financial-calculator-modal')) return;
+    // === HELPER: Formatação de moeda ===
+    function formatMoney(val) {
+        return parseFloat(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
 
-        const math = window.math || math;
+    // === CRIAÇÃO DA INTERFACE ===
+    function criarHTMLCalculadora() {
+        return `
+        <div id="calculadora-financeira" style="
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 95%;
+            max-width: 600px;
+            max-height: 90vh;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            border: 1px solid #e2e8f0;
+        ">
+            <!-- HEADER -->
+            <div style="background: #059669; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; color: white;">
+                <span style="font-size: 18px; font-weight: bold;">🧮 Calculadora Financeira</span>
+                <button id="btn-fechar-calculadora" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 8px;">✕</button>
+            </div>
 
-        // HTML do modal
-        const modalHTML = `
-            <div id="financial-calculator-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" style="display:none;">
-                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-                    <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-2xl">
-                        <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
-                            <i data-lucide="calculator" class="w-5 h-5 text-emerald-600"></i> Calculadora Financeira
-                        </h3>
-                        <button onclick="fecharCalculadora()" class="text-slate-400 hover:text-red-500">
-                            <i data-lucide="x" class="w-5 h-5"></i>
-                        </button>
+            <!-- CORPO COM ABAS -->
+            <div style="padding: 16px; overflow-y: auto; flex: 1; background: #f8fafc;">
+                <!-- Abas -->
+                <div style="display: flex; gap: 6px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; flex-wrap: wrap;">
+                    <button class="aba-btn ativo" data-aba="vf" style="padding: 8px 16px; border: none; background: transparent; font-weight: bold; color: #059669; border-bottom: 3px solid #059669; cursor: pointer;">Valor Futuro</button>
+                    <button class="aba-btn" data-aba="vp" style="padding: 8px 16px; border: none; background: transparent; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; cursor: pointer;">Valor Presente</button>
+                    <button class="aba-btn" data-aba="pmt" style="padding: 8px 16px; border: none; background: transparent; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; cursor: pointer;">Parcela</button>
+                    <button class="aba-btn" data-aba="taxa" style="padding: 8px 16px; border: none; background: transparent; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; cursor: pointer;">Taxa</button>
+                </div>
+
+                <!-- ABAS CONTEÚDO -->
+                <div id="aba-vf" class="aba-conteudo">
+                    <div style="background: white; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Valor Presente (R$)</label><input type="number" id="cf-pv" value="1000" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Taxa (% a.m.)</label><input type="number" id="cf-taxa" value="2" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <div style="margin-bottom: 16px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Períodos (meses)</label><input type="number" id="cf-n" value="12" step="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <button onclick="calcularValorFuturo()" style="width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">Calcular</button>
+                        <div id="cf-resultado" style="margin-top: 12px; font-size: 16px; font-weight: bold; color: #0f172a; text-align: center;"></div>
                     </div>
-                    <div class="p-4 space-y-4">
-                        <!-- Abas -->
-                        <div class="flex gap-2 border-b">
-                            <button onclick="switchCalcTab('simples')" class="tab-btn px-3 py-2 text-sm font-bold text-emerald-600 border-b-2 border-emerald-600" data-tab="simples">Básica</button>
-                            <button onclick="switchCalcTab('juros')" class="tab-btn px-3 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700" data-tab="juros">Juros Compostos</button>
-                            <button onclick="switchCalcTab('parcela')" class="tab-btn px-3 py-2 text-sm font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-700" data-tab="parcela">Parcelas</button>
-                        </div>
+                </div>
 
-                        <!-- Aba Básica -->
-                        <div id="calc-tab-simples" class="calc-tab">
-                            <div class="bg-slate-100 p-3 rounded-lg mb-3">
-                                <div id="calc-display" class="text-right text-2xl font-mono font-bold text-slate-800 bg-white p-3 rounded border">0</div>
-                            </div>
-                            <div class="grid grid-cols-4 gap-2">
-                                <button onclick="calcInput('7')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">7</button>
-                                <button onclick="calcInput('8')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">8</button>
-                                <button onclick="calcInput('9')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">9</button>
-                                <button onclick="calcInput('/')" class="p-3 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-amber-600">÷</button>
-                                
-                                <button onclick="calcInput('4')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">4</button>
-                                <button onclick="calcInput('5')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">5</button>
-                                <button onclick="calcInput('6')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">6</button>
-                                <button onclick="calcInput('*')" class="p-3 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-amber-600">×</button>
-                                
-                                <button onclick="calcInput('1')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">1</button>
-                                <button onclick="calcInput('2')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">2</button>
-                                <button onclick="calcInput('3')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">3</button>
-                                <button onclick="calcInput('-')" class="p-3 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 font-bold text-amber-600">−</button>
-                                
-                                <button onclick="calcInput('0')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">0</button>
-                                <button onclick="calcInput('.')" class="p-3 bg-white border rounded-lg hover:bg-slate-50 font-bold">.</button>
-                                <button onclick="calcClear()" class="p-3 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 font-bold text-red-600">C</button>
-                                <button onclick="calcResult()" class="p-3 bg-emerald-600 border border-emerald-600 rounded-lg hover:bg-emerald-700 font-bold text-white">=</button>
-                            </div>
-                        </div>
+                <div id="aba-vp" class="aba-conteudo" style="display: none;">
+                    <div style="background: white; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Valor Futuro (R$)</label><input type="number" id="cf-fv" value="1500" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Taxa (% a.m.)</label><input type="number" id="cf-taxa2" value="2" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <div style="margin-bottom: 16px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Períodos (meses)</label><input type="number" id="cf-n2" value="12" step="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <button onclick="calcularValorPresente()" style="width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">Calcular</button>
+                        <div id="cf-resultado2" style="margin-top: 12px; font-size: 16px; font-weight: bold; color: #0f172a; text-align: center;"></div>
+                    </div>
+                </div>
 
-                        <!-- Aba Juros Compostos -->
-                        <div id="calc-tab-juros" class="calc-tab hidden">
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase">Valor Presente (PV)</label>
-                                    <input type="number" id="calc-pv" value="1000" class="w-full p-2 border rounded focus:ring-2 focus:ring-emerald-200 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase">Taxa de Juros (% ao período)</label>
-                                    <input type="number" id="calc-rate" value="2" step="0.01" class="w-full p-2 border rounded focus:ring-2 focus:ring-emerald-200 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase">Número de Períodos</label>
-                                    <input type="number" id="calc-nper" value="12" class="w-full p-2 border rounded focus:ring-2 focus:ring-emerald-200 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase">Aporte Mensal (PMT)</label>
-                                    <input type="number" id="calc-pmt" value="0" class="w-full p-2 border rounded focus:ring-2 focus:ring-emerald-200 outline-none">
-                                </div>
-                                <button onclick="calcJurosCompostos()" class="w-full p-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700">
-                                    Calcular Valor Futuro
-                                </button>
-                                <div id="calc-result-juros" class="p-4 bg-slate-50 rounded-lg border text-center">
-                                    <span class="text-sm text-slate-500">Resultado:</span>
-                                    <span class="block text-2xl font-bold text-emerald-700">R$ 0,00</span>
-                                </div>
-                            </div>
-                        </div>
+                <div id="aba-pmt" class="aba-conteudo" style="display: none;">
+                    <div style="background: white; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Valor Presente (R$)</label><input type="number" id="cp-pv" value="5000" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Taxa (% a.m.)</label><input type="number" id="cp-taxa" value="2" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <div style="margin-bottom: 16px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Períodos (meses)</label><input type="number" id="cp-n" value="24" step="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <button onclick="calcularParcela()" style="width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">Calcular</button>
+                        <div id="cp-resultado" style="margin-top: 12px; font-size: 16px; font-weight: bold; color: #0f172a; text-align: center;"></div>
+                    </div>
+                </div>
 
-                        <!-- Aba Parcelas -->
-                        <div id="calc-tab-parcela" class="calc-tab hidden">
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase">Valor Total (PV)</label>
-                                    <input type="number" id="calc-parc-pv" value="1000" class="w-full p-2 border rounded focus:ring-2 focus:ring-emerald-200 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase">Taxa de Juros (% ao mês)</label>
-                                    <input type="number" id="calc-parc-rate" value="2" step="0.01" class="w-full p-2 border rounded focus:ring-2 focus:ring-emerald-200 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-500 uppercase">Número de Parcelas</label>
-                                    <input type="number" id="calc-parc-nper" value="12" class="w-full p-2 border rounded focus:ring-2 focus:ring-emerald-200 outline-none">
-                                </div>
-                                <button onclick="calcParcela()" class="w-full p-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700">
-                                    Calcular Valor da Parcela
-                                </button>
-                                <div id="calc-result-parcela" class="p-4 bg-slate-50 rounded-lg border text-center">
-                                    <span class="text-sm text-slate-500">Valor da Parcela:</span>
-                                    <span class="block text-2xl font-bold text-emerald-700">R$ 0,00</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Botão para inserir no carrinho -->
-                        <div class="border-t pt-4 mt-4 flex gap-2">
-                            <button onclick="fecharCalculadora()" class="flex-1 p-2 bg-slate-200 rounded font-bold hover:bg-slate-300">Fechar</button>
-                            <button onclick="inserirResultadoNoCarrinho()" class="flex-1 p-2 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 flex items-center justify-center gap-1">
-                                <i data-lucide="shopping-cart" class="w-4 h-4"></i> Inserir no Carrinho
-                            </button>
-                        </div>
+                <div id="aba-taxa" class="aba-conteudo" style="display: none;">
+                    <div style="background: white; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Valor Presente (R$)</label><input type="number" id="ct-pv" value="5000" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <div style="margin-bottom: 12px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Parcela (R$)</label><input type="number" id="ct-pmt" value="264" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <div style="margin-bottom: 16px;"><label style="font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px;">Períodos (meses)</label><input type="number" id="ct-n" value="24" step="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;"></div>
+                        <button onclick="calcularTaxa()" style="width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer;">Calcular</button>
+                        <div id="ct-resultado" style="margin-top: 12px; font-size: 16px; font-weight: bold; color: #0f172a; text-align: center;"></div>
                     </div>
                 </div>
             </div>
+        </div>
         `;
-
-        // Insere o HTML no body
-        const div = document.createElement('div');
-        div.innerHTML = modalHTML;
-        document.body.appendChild(div.firstElementChild);
-
-        // Cria o botão flutuante
-        const btn = document.createElement('button');
-        btn.id = 'calc-toggle-btn';
-        btn.className = 'fixed bottom-24 right-6 bg-emerald-600 hover:bg-emerald-700 text-white p-4 rounded-full shadow-lg z-30 no-print transition-all hover:scale-110';
-        btn.innerHTML = '<i data-lucide="calculator" class="w-6 h-6"></i>';
-        btn.onclick = abrirCalculadora;
-        document.body.appendChild(btn);
-
-        // Funções globais
-        window.abrirCalculadora = function() {
-            const modal = document.getElementById('financial-calculator-modal');
-            if (modal) {
-                modal.style.display = 'flex';
-                modal.classList.remove('hidden');
-                lucide.createIcons();
-            }
-        };
-
-        window.fecharCalculadora = function() {
-            const modal = document.getElementById('financial-calculator-modal');
-            if (modal) {
-                modal.style.display = 'none';
-                modal.classList.add('hidden');
-            }
-        };
-
-        window.switchCalcTab = function(tab) {
-            document.querySelectorAll('.calc-tab').forEach(el => el.classList.add('hidden'));
-            document.getElementById('calc-tab-' + tab).classList.remove('hidden');
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('text-emerald-600', 'border-emerald-600');
-                btn.classList.add('text-slate-500', 'border-transparent');
-            });
-            const activeBtn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
-            if (activeBtn) {
-                activeBtn.classList.remove('text-slate-500', 'border-transparent');
-                activeBtn.classList.add('text-emerald-600', 'border-emerald-600');
-            }
-        };
-
-        // Variáveis para a calculadora básica
-        let calcDisplay = '';
-
-        window.calcInput = function(val) {
-            calcDisplay += val;
-            document.getElementById('calc-display').innerText = calcDisplay || '0';
-        };
-
-        window.calcClear = function() {
-            calcDisplay = '';
-            document.getElementById('calc-display').innerText = '0';
-        };
-
-        window.calcResult = function() {
-            try {
-                const result = math.evaluate(calcDisplay);
-                document.getElementById('calc-display').innerText = result;
-                calcDisplay = String(result);
-            } catch (e) {
-                alert('Expressão inválida');
-            }
-        };
-
-        window.calcJurosCompostos = function() {
-            const pv = parseFloat(document.getElementById('calc-pv').value) || 0;
-            const rate = parseFloat(document.getElementById('calc-rate').value) || 0;
-            const nper = parseFloat(document.getElementById('calc-nper').value) || 0;
-            const pmt = parseFloat(document.getElementById('calc-pmt').value) || 0;
-
-            const r = rate / 100;
-            // FV = PV*(1+r)^n + PMT * ((1+r)^n - 1) / r
-            let fv;
-            if (r === 0) {
-                fv = pv + pmt * nper;
-            } else {
-                fv = pv * Math.pow(1 + r, nper) + pmt * ((Math.pow(1 + r, nper) - 1) / r);
-            }
-            document.getElementById('calc-result-juros').innerHTML = `
-                <span class="text-sm text-slate-500">Valor Futuro:</span>
-                <span class="block text-2xl font-bold text-emerald-700">${formatMoney(fv)}</span>
-            `;
-            window._calcResultado = fv;
-        };
-
-        window.calcParcela = function() {
-            const pv = parseFloat(document.getElementById('calc-parc-pv').value) || 0;
-            const rate = parseFloat(document.getElementById('calc-parc-rate').value) || 0;
-            const nper = parseFloat(document.getElementById('calc-parc-nper').value) || 0;
-
-            if (nper === 0) {
-                alert('Número de parcelas deve ser maior que zero.');
-                return;
-            }
-
-            const r = rate / 100;
-            let pmt;
-            if (r === 0) {
-                pmt = pv / nper;
-            } else {
-                pmt = pv * (r * Math.pow(1 + r, nper)) / (Math.pow(1 + r, nper) - 1);
-            }
-            document.getElementById('calc-result-parcela').innerHTML = `
-                <span class="text-sm text-slate-500">Valor da Parcela:</span>
-                <span class="block text-2xl font-bold text-emerald-700">${formatMoney(pmt)}</span>
-            `;
-            window._calcResultado = pmt;
-        };
-
-        window.inserirResultadoNoCarrinho = function() {
-            const valor = window._calcResultado;
-            if (!valor || isNaN(valor) || valor <= 0) {
-                alert('Calcule primeiro um valor financeiro!');
-                return;
-            }
-            // Adiciona como item no carrinho
-            if (typeof CART !== 'undefined' && typeof renderCart === 'function') {
-                CART.push({
-                    prodId: 'calc_' + Date.now(),
-                    name: 'Resultado Calculadora',
-                    price: valor,
-                    fixedPrice: valor,
-                    qty: 1,
-                    total: valor,
-                    parceiro: false,
-                    porMetro: false,
-                    uid: Date.now() + '_' + Math.random().toString(36).substr(2, 6)
-                });
-                renderCart();
-                fecharCalculadora();
-                showToast('Valor inserido no carrinho!');
-            } else {
-                alert('Não foi possível inserir no carrinho.');
-            }
-        };
-
-        // Inicializa ícones
-        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    // Inicia
-    initCalculator();
+    // === TOGGLE: ABRIR/FECHAR CALCULADORA ===
+    function toggleCalculadora() {
+        if (!verificarMathJS()) {
+            alert('Calculadora não disponível: mathjs não carregado.');
+            return;
+        }
+
+        if (!containerCalculadora) {
+            // Cria o container e insere no body
+            containerCalculadora = document.createElement('div');
+            containerCalculadora.innerHTML = criarHTMLCalculadora();
+            document.body.appendChild(containerCalculadora);
+
+            // Evento para fechar
+            const btnFechar = document.getElementById('btn-fechar-calculadora');
+            if (btnFechar) {
+                btnFechar.addEventListener('click', function() {
+                    fecharCalculadora();
+                });
+            }
+
+            // Evento para abas
+            const botoesAba = containerCalculadora.querySelectorAll('.aba-btn');
+            botoesAba.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const abaId = this.dataset.aba;
+                    // Remove ativo de todos
+                    botoesAba.forEach(b => {
+                        b.classList.remove('ativo');
+                        b.style.color = '#64748b';
+                        b.style.borderBottom = '3px solid transparent';
+                    });
+                    this.classList.add('ativo');
+                    this.style.color = '#059669';
+                    this.style.borderBottom = '3px solid #059669';
+
+                    // Mostra/esconde conteúdos
+                    const conteudos = containerCalculadora.querySelectorAll('.aba-conteudo');
+                    conteudos.forEach(c => c.style.display = 'none');
+                    const alvo = document.getElementById(`aba-${abaId}`);
+                    if (alvo) alvo.style.display = 'block';
+                });
+            });
+
+            // Fechar ao clicar fora (backdrop)
+            const overlay = document.createElement('div');
+            overlay.id = 'overlay-calculadora';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9998;display:none;';
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', fecharCalculadora);
+        }
+
+        // Toggle
+        const calcEl = document.getElementById('calculadora-financeira');
+        const overlayEl = document.getElementById('overlay-calculadora');
+        if (calculadoraAberta) {
+            fecharCalculadora();
+        } else {
+            calcEl.style.display = 'flex';
+            overlayEl.style.display = 'block';
+            calculadoraAberta = true;
+        }
+    }
+
+    function fecharCalculadora() {
+        const calcEl = document.getElementById('calculadora-financeira');
+        const overlayEl = document.getElementById('overlay-calculadora');
+        if (calcEl) calcEl.style.display = 'none';
+        if (overlayEl) overlayEl.style.display = 'none';
+        calculadoraAberta = false;
+    }
+
+    // === EXPOR FUNÇÕES GLOBAIS (para uso no HTML) ===
+    window.toggleCalculadora = toggleCalculadora;
+    window.fecharCalculadora = fecharCalculadora;
+    window.calcularValorFuturo = calcularValorFuturo;
+    window.calcularValorPresente = calcularValorPresente;
+    window.calcularParcela = calcularParcela;
+    window.calcularTaxa = calcularTaxa;
+    window.formatMoney = formatMoney;
+
+    console.log('✅ Calculadora Financeira carregada.');
 })();
