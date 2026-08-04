@@ -6061,24 +6061,7 @@ function updateCardValues() {
         img.onerror = () => resolve(null);
         img.src = url;
     });
-}
-
-  function toggleCalculadora() {
-    const modal = document.getElementById('modal-calculadora');
-    const container = document.getElementById('calc-container');
-    if (modal.classList.contains('hidden')) {
-        modal.classList.remove('hidden');
-        // Inicializa a calculadora se ainda não foi
-        if (!container.dataset.initialized) {
-            window.initCalculadoraFinanceira(container);
-            container.dataset.initialized = 'true';
-        }
-    } else {
-        modal.classList.add('hidden');
-    }
-    // Atualiza ícones
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-}
+}  
   
     </script> 
     <script type="importmap">
