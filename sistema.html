@@ -459,12 +459,13 @@
 
   <!-- Conteúdo Contas a Receber -->
   <div id="finance-receber" class="bg-white rounded-xl border shadow-sm flex flex-col h-[650px]">
-    <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">
+    <div class="p-4 border-b bg-slate-50 rounded-t-xl flex justify-between items-center">      
       <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="arrow-down-to-line" class="w-5 h-5 text-indigo-600"></i> Contas a Receber</h3>
+      <button onclick="printReceivables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
       <div class="flex gap-2">
-        <button onclick="refresh()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="list-restart" class="w-4 h-4"></i></button>
-        <button onclick="printReceivables()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+        <button onclick="refresh()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="list-restart" class="w-4 h-4"></i></button>        
         <button onclick="openRevenueModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Nova</button>
+        
       </div>
     </div>
 
