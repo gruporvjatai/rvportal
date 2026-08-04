@@ -1381,7 +1381,7 @@
     if(activeBtn) activeBtn.classList.add('bg-emerald-700', 'text-white', 'shadow-lg');
     
     // ===== INÍCIO DA ALTERAÇÃO: PREENCHER DATAS PADRÃO NA ABA FINANCEIRO =====
-    if(viewId === 'fin') {
+    /*if(viewId === 'fin') {
         const range = getCurrentMonthRange();
         // Só preenche se o campo estiver vazio (para não sobrescrever escolhas do usuário)
         if (!document.getElementById('rec-start').value) {
@@ -1396,7 +1396,7 @@
         if (!document.getElementById('exp-end').value) {
             document.getElementById('exp-end').value = range.end;
         }
-    }
+    }*/
     // ===== FIM DA ALTERAÇÃO =====
     
     if(viewId === 'dash') renderDashboard();
