@@ -522,7 +522,7 @@
     // Restaura a página original
     document.body.innerHTML = originalContents;
     //window.location.reload(); // Necessário para reativar os scripts da página
-    carregarLancamentos();
+    renderGerencial()
   };
 
   // Expor funções globais
