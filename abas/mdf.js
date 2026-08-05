@@ -25,8 +25,8 @@ class MDFManager {
 
   init() {
     this.renderizarInterface();
-    this.mostrarSubAba('projetos');
     this.atualizarEstiloBotoes('projetos'); // adicionado aqui / manter ??
+    this.mostrarSubAba('projetos');  
   }
 
   renderizarInterface() {
