@@ -323,7 +323,7 @@ function printFilteredExpenses() {
             <tr>
                 <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px;">${formatDate(e.date)}</td>
                 <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px; font-weight:bold;">${e.item}</td>
-                <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px;">${fornecedor} - ${providerVal} - ${e.fornecedor}</td>
+                <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px;">${fornecedor} - ${providerVal}</td>
                 <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px; text-align:center;">
                     <span style="font-weight:bold; ${e.status === 'PAGO' ? 'color:green;' : (isVencido ? 'color:red;' : 'color:orange;')}">${situacao}</span>
                 </td>
