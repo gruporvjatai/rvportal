@@ -318,12 +318,13 @@ function printFilteredExpenses() {
         if (providerVal.startsWith('Fornecedor:')) {
             providerVal = providerVal.replace('Fornecedor:', '').trim();
         }
+        const fornecedord = (providerVal.startsWith('Fornecedor:'))
 
         return `
             <tr>
                 <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px;">${formatDate(e.date)}</td>
                 <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px; font-weight:bold;">${e.item}</td>
-                <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px;">${fornecedor} - ${providerVal}</td>
+                <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px;">${fornecedord} - ${providerVal}</td>
                 <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px; text-align:center;">
                     <span style="font-weight:bold; ${e.status === 'PAGO' ? 'color:green;' : (isVencido ? 'color:red;' : 'color:orange;')}">${situacao}</span>
                 </td>
