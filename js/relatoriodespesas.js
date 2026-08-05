@@ -309,6 +309,7 @@ function printFilteredExpenses() {
         const isVencido = venc < hojeLocalStr && e.status !== 'PAGO';
         const situacao = e.status === 'PAGO' ? 'PAGO' : (isVencido ? 'VENCIDO' : 'PENDENTE');
         const valor = e.cost;
+        const fornecedord = e.fornecedor;
 
         totalGeral += valor;
         if (e.status === 'PAGO') totalPagos += valor;
@@ -317,8 +318,7 @@ function printFilteredExpenses() {
         let providerVal = e.note || '-';
         if (providerVal.startsWith('Fornecedor:')) {
             providerVal = providerVal.replace('Fornecedor:', '').trim();
-        }
-        const fornecedord = (providerVal.startsWith('Fornecedor:'))
+        }        
 
         return `
             <tr>
