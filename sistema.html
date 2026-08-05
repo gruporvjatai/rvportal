@@ -5520,7 +5520,7 @@ async function downloadSalePDF(id) {
         styles: { tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] } }
     };
 
-    pdfMake.createPdf(docDefinition).download(`RV PORTAL - ${clientName} - Venda ${id}.pdf`);
+    pdfMake.createPdf(docDefinition).download(`RV PORTAL - ${clientName} - #${id}.pdf`);
     showLoading(false);
     showToast("PDF Baixado com Sucesso!");
 }
