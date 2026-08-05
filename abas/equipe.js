@@ -95,6 +95,7 @@
           <input type="month" id="eq-filtro-mes" class="p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 outline-none" />
           <button onclick="carregarLancamentos()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow">Filtrar</button>
           <button onclick="document.getElementById('eq-filtro-mes').value=''; carregarLancamentos()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-lg text-sm font-bold">Limpar</button>
+          <button onclick="refresh()" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow flex items-center gap-2" title="Atualizar Lista"><i data-lucide="list-restart" class="w-4 h-4"></i></button>          
         </div>
 
         <!-- Tabela de folhas -->
