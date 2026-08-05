@@ -26,6 +26,7 @@ class MDFManager {
   init() {
     this.renderizarInterface();
     this.mostrarSubAba('projetos');
+    this.atualizarEstiloBotoes('projetos'); // adicionado aqui / manter ??
   }
 
   renderizarInterface() {
@@ -52,7 +53,7 @@ class MDFManager {
     `;
 
     // Aplica o estilo ativo no botão correto
-    this.atualizarEstiloBotoes('projetos');
+    //this.atualizarEstiloBotoes('projetos');
 
     // Sincroniza a profundidade com o input (se existir)
     const profundidadeInput = document.getElementById('profundidade-input-mdf');
