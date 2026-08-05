@@ -25,6 +25,7 @@ class MDFManager {
 
   init() {
     this.renderizarInterface();
+    lucide.createIcons();
     this.atualizarEstiloBotoes('projetos'); // adicionado aqui / manter ??
     this.mostrarSubAba('projetos');  
   }
