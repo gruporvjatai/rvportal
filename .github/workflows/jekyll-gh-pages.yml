@@ -74,6 +74,6 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./artifact
-        publish_branch: main   # você pode mudar para 'main' se preferir
+        publish_branch: gh-pages   # você pode mudar para 'main' se preferir
         force_orphan: true         # (opcional) limpa o histórico da branch
           NODE_OPTIONS: '--no-deprecation'
