@@ -1881,254 +1881,252 @@
     }
 }*/
 
-      async function shareQuote(id) {
-          let q = STATE.quotes.find(x => String(x.id) === String(id));
-          const isVenda = !q;
-          if (!q) q = STATE.sales.find(x => String(x.id) === String(id));
-          if (!q) return;
-          
-          showLoading(true);
-      
-          const clientName = q.clientName || 'Consumidor Final';
-          const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
-      
-          // Preparar itens com metragem
-          let itemsParaRender = q.items.map(item => {
-              let metragem = '';
-              const obsItem = item.obs || '';
-              const match = obsItem.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
-              if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
-              return { ...item, metragem };
-          });
-      
-          let valorDesconto = Number(q.absoluteDiscount) || 0;
-      
-          if (isVenda) {
-              const netTotal = q.items.reduce((acc, i) => acc + i.total, 0);
-              const grossTotal = netTotal + valorDesconto;
-              const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
-              itemsParaRender = itemsParaRender.map(i => ({
-                  ...i,
-                  price: i.qty > 0 ? (i.total * fator / i.qty) : 0,
-                  total: i.total * fator
-              }));
-          }
-      
-          // Calcular subtotal
-          let subtotal = 0;
-          itemsParaRender.forEach(i => subtotal += i.total);
-          const finalTotal = subtotal - valorDesconto;
-          const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
-      
-          // Observações (sem metragem)
-          const rawObs = q.observacao || '';
-          let obsText = '';
-          if (rawObs.includes(' | ')) {
-              obsText = rawObs.split(' | ').slice(1).join(' | ').trim();
-          } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
-              obsText = rawObs;
-          }
-          if (!obsText) obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
-      
-          const tituloDoc = isVenda ? "PEDIDO DE VENDA" : "ORÇAMENTO";
-      
-          // ====== DEFINIÇÃO DO PDF COM PDFMAKE ======
-          // Carregar logo em base64 (já existe a função getLogoBase64RV)
-          const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
-      
-          // Montar corpo da tabela de itens
-          const tableBody = [
-              [
-                  { text: 'Descrição', style: 'tableHeader', alignment: 'left' },
-                  { text: 'Qtd', style: 'tableHeader', alignment: 'center' },
-                  { text: 'Unit.', style: 'tableHeader', alignment: 'right' },
-                  { text: 'Total', style: 'tableHeader', alignment: 'right' }
-              ]
-          ];
-      
-          itemsParaRender.forEach((i, index) => {
-              const itemTotal = i.total;
-              const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-              const descricao = i.metragem ? { text: [ { text: i.name + '\n' }, { text: i.metragem, fontSize: 8, color: '#64748b' } ] } : i.name;
-              tableBody.push([
-                  { text: descricao, fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
-                  { text: i.qty.toString(), alignment: 'center', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
-                  { text: formatMoney(i.price), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
-                  { text: formatMoney(itemTotal), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 }
-              ]);
-          });
-      
-          // Totais
-          const totalRows = [
-              [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
-          ];
-          if (valorDesconto > 0) {
-              totalRows.push([
-                  { text: 'Desconto:', color: 'red', border: [false,false,false,true] },
-                  { text: '- ' + formatMoney(valorDesconto), color: 'red', alignment: 'right', border: [false,false,false,true] }
-              ]);
-          }
-          totalRows.push([
-              { text: 'TOTAL A PAGAR:', bold: true, fontSize: 12, fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] },
-              { text: formatMoney(finalTotal), bold: true, fontSize: 13, alignment: 'right', fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] }
-          ]);
-      
-          const docDefinition = {
-              pageSize: 'A4',
-              pageMargins: [40, 40, 40, 40],
-              defaultStyle: { font: 'Roboto' },
-              background: function () {
-                  return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
-              },
-              content: [
-                  {
-                      table: {
-                          widths: [90, '*', 'auto'],
-                          body: [[
-                              logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
-                              {
-                                  text: [
-                                      { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
-                                      { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
-                                      { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
-                                  ],
-                                  margin: [0, 10, 0, 0]
-                              },
-                              {
-                                  text: [
-                                      { text: tituloDoc + '\n', fontSize: 13, bold: true },
-                                      { text: `Nº: ${q.id}\n`, fontSize: 9 },
-                                      { text: `Data: ${formatDate(q.date)}`, fontSize: 9 }
-                                  ],
-                                  alignment: 'right', margin: [0, 10, 0, 0]
-                              }
-                          ]]
-                      },
-                      layout: 'noBorders', margin: [0, 0, 0, 10]
-                  },
-                  { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }], margin: [0, 0, 0, 20] },
-                  {
-                      columns: [
-                          {
-                              width: '48%',
-                              table: {
-                                  widths: ['*'],
-                                  body: [
-                                      [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
-                                      [{ text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}\n${addressToShow}`, fontSize: 9, margin: [6, 8, 6, 8] }]
-                                  ]
-                              },
-                              layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
-                          },
-                          { width: '4%', text: '' },
-                          {
-                              width: '48%',
-                              table: {
-                                  widths: ['*'],
-                                  body: [
-                                      [{ text: 'PAGAMENTO', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
-                                      [{ text: `Forma: ${q.paymentMethod || 'A Combinar'}\nVendedor: RV PORTAL`, fontSize: 9, margin: [6, 8, 6, 8] }]
-                                  ]
-                              },
-                              layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
-                          }
-                      ],
-                      margin: [0, 0, 0, 20]
-                  },
-                  {
-                      table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: tableBody },
-                      layout: {
-                          hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
-                          vLineWidth: function () { return 0; },
-                          hLineColor: function () { return '#000000'; }
-                      },
-                      margin: [0, 0, 0, 20]
-                  },
-                  {
-                      columns: [
-                          {
-                              width: '58%',
-                              table: {
-                                  widths: ['*'],
-                                  body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]
-                              },
-                              layout: {
-                                  hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
-                                  hLineStyle: () => ({dash: {length: 4, space: 4}}), vLineStyle: () => ({dash: {length: 4, space: 4}})
-                              }
-                          },
-                          { width: '2%', text: '' },
-                          {
-                              width: '40%',
-                              table: { widths: ['*', 'auto'], body: totalRows },
-                              layout: { hLineColor: () => '#e2e8f0', vLineWidth: () => 0 }
-                          }
-                      ],
-                      margin: [0, 0, 0, 10]
-                  }
-              ],
-              styles: {
-                  tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] }
-              }
-          };
-      
-          // ====== GERAR PDF E COMPARTILHAR ======
-          try {
-              // Gerar o PDF como Blob
-              const pdfBlob = await new Promise((resolve, reject) => {
-                  pdfMake.createPdf(docDefinition).getBlob((blob) => {
-                      if (blob) resolve(blob);
-                      else reject(new Error('Falha ao gerar o blob do PDF'));
-                  });
-              });
-      
-              const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
-              const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-      
-              // Tentar compartilhar via API nativa (mobile)
-              if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                  try {
-                      await navigator.share({
-                          title: `${tituloDoc} #${q.id}`,
-                          text: `Olá ${clientName}, segue o documento solicitado.`,
-                          files: [file]
-                      });
-                      showToast("Documento compartilhado!");
-                      showLoading(false);
-                      return;
-                  } catch (shareErr) {
-                      // Se o usuário cancelar ou o compartilhamento falhar, baixamos como fallback
-                      console.warn('Compartilhamento cancelado ou falhou:', shareErr);
-                      // Fallback: download
-                      downloadPDF(pdfBlob, filename);
-                      showToast("PDF baixado (compartilhamento não disponível)");
-                      showLoading(false);
-                      return;
-                  }
-              } else {
-                  // Fallback: download
-                  downloadPDF(pdfBlob, filename);
-                  showToast("PDF baixado!");
-                  showLoading(false);
-              }
-          } catch (err) {
-              console.error('Erro na geração do PDF:', err);
-              showToast("Falha ao gerar o PDF", true);
-              showLoading(false);
-          }
-      }
-      
-      // Função auxiliar para download do PDF (fallback)
-      function downloadPDF(blob, filename) {
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(link.href), 10000);
-      }
+     async function shareQuote(id) {
+    let q = STATE.quotes.find(x => String(x.id) === String(id));
+    const isVenda = !q;
+    if (!q) q = STATE.sales.find(x => String(x.id) === String(id));
+    if (!q) return;
 
+    showLoading(true);
+
+    const clientName = q.clientName || 'Consumidor Final';
+    const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
+
+    // Preparar itens com metragem (se houver)
+    let itemsParaRender = q.items.map(item => {
+        let metragem = '';
+        const obsItem = item.obs || '';
+        const match = obsItem.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+        if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+        return { ...item, metragem };
+    });
+
+    // Desconto absoluto (já calculado no STATE)
+    let valorDesconto = Number(q.absoluteDiscount) || 0;
+
+    // Se for venda, recalcula os preços unitários com o fator de desconto (igual ao sistema principal)
+    if (isVenda) {
+        const netTotal = q.items.reduce((acc, i) => acc + i.total, 0);
+        const grossTotal = netTotal + valorDesconto;
+        const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
+        itemsParaRender = itemsParaRender.map(i => ({
+            ...i,
+            price: i.qty > 0 ? (i.total * fator / i.qty) : 0,
+            total: i.total * fator
+        }));
+    }
+
+    // Calcular subtotal bruto e final
+    let subtotal = 0;
+    itemsParaRender.forEach(i => subtotal += i.total);
+    const finalTotal = subtotal - valorDesconto;
+
+    const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
+
+    // Observações (sem metragem)
+    const rawObs = q.observacao || '';
+    let obsText = '';
+    if (rawObs.includes(' | ')) {
+        obsText = rawObs.split(' | ').slice(1).join(' | ').trim();
+    } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+        obsText = rawObs;
+    }
+    if (!obsText) obsText = 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
+
+    const tituloDoc = isVenda ? "PEDIDO DE VENDA" : "ORÇAMENTO";
+
+    // Carregar logo em base64
+    const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
+
+    // ---------- Construção do docDefinition (pdfmake) ----------
+    const bodyTabela = [
+        [
+            { text: 'Descrição', style: 'tableHeader', alignment: 'left' },
+            { text: 'Qtd', style: 'tableHeader', alignment: 'center' },
+            { text: 'Unit.', style: 'tableHeader', alignment: 'right' },
+            { text: 'Total', style: 'tableHeader', alignment: 'right' }
+        ]
+    ];
+
+    itemsParaRender.forEach((i, index) => {
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        const descricao = i.metragem ? { text: [ { text: i.name + '\n' }, { text: i.metragem, fontSize: 8, color: '#64748b' } ] } : i.name;
+        bodyTabela.push([
+            { text: descricao, fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: i.qty.toString(), alignment: 'center', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(i.price), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+            { text: formatMoney(i.total), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 }
+        ]);
+    });
+
+    // Linhas de totais
+    const totalRows = [
+        [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
+    ];
+    if (valorDesconto > 0) {
+        totalRows.push([
+            { text: 'Desconto:', color: 'red', border: [false,false,false,true] },
+            { text: '- ' + formatMoney(valorDesconto), color: 'red', alignment: 'right', border: [false,false,false,true] }
+        ]);
+    }
+    totalRows.push([
+        { text: 'TOTAL A PAGAR:', bold: true, fontSize: 12, fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] },
+        { text: formatMoney(finalTotal), bold: true, fontSize: 13, alignment: 'right', fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] }
+    ]);
+
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 40],
+        defaultStyle: { font: 'Roboto' },
+        background: function () {
+            return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
+        },
+        content: [
+            {
+                table: {
+                    widths: [90, '*', 'auto'],
+                    body: [[
+                        logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
+                        {
+                            text: [
+                                { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
+                                { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
+                            ],
+                            margin: [0, 10, 0, 0]
+                        },
+                        {
+                            text: [
+                                { text: tituloDoc + '\n', fontSize: 13, bold: true },
+                                { text: `Nº: ${q.id}\n`, fontSize: 9 },
+                                { text: `Data: ${formatDate(q.date)}`, fontSize: 9 }
+                            ],
+                            alignment: 'right', margin: [0, 10, 0, 0]
+                        }
+                    ]]
+                },
+                layout: 'noBorders', margin: [0, 0, 0, 10]
+            },
+            { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }], margin: [0, 0, 0, 20] },
+            {
+                columns: [
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}\n${addressToShow}`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    },
+                    { width: '4%', text: '' },
+                    {
+                        width: '48%',
+                        table: {
+                            widths: ['*'],
+                            body: [
+                                [{ text: 'PAGAMENTO', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                [{ text: `Forma: ${q.paymentMethod || 'A Combinar'}\nVendedor: RV PORTAL`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                            ]
+                        },
+                        layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: bodyTabela },
+                layout: {
+                    hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
+                    vLineWidth: function () { return 0; },
+                    hLineColor: function () { return '#000000'; }
+                },
+                margin: [0, 0, 0, 20]
+            },
+            {
+                columns: [
+                    {
+                        width: '58%',
+                        table: {
+                            widths: ['*'],
+                            body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]
+                        },
+                        layout: {
+                            hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
+                            hLineStyle: () => ({dash: {length: 4, space: 4}}), vLineStyle: () => ({dash: {length: 4, space: 4}})
+                        }
+                    },
+                    { width: '2%', text: '' },
+                    {
+                        width: '40%',
+                        table: { widths: ['*', 'auto'], body: totalRows },
+                        layout: { hLineColor: () => '#e2e8f0', vLineWidth: () => 0 }
+                    }
+                ],
+                margin: [0, 0, 0, 10]
+            }
+        ],
+        styles: {
+            tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] }
+        }
+    };
+
+    // ---------- Gerar o PDF e compartilhar / baixar ----------
+    try {
+        const pdfBlob = await new Promise((resolve, reject) => {
+            pdfMake.createPdf(docDefinition).getBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error('Falha ao gerar o blob do PDF'));
+            });
+        });
+
+        const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+        // Tenta compartilhar via API nativa
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: `${tituloDoc} #${q.id}`,
+                    text: `Olá ${clientName}, segue o documento solicitado.`,
+                    files: [file]
+                });
+                showToast("Documento compartilhado!");
+                showLoading(false);
+                return;
+            } catch (shareErr) {
+                // Usuário cancelou ou falhou → fallback para download
+                console.warn('Compartilhamento cancelado ou falhou:', shareErr);
+                downloadPDF(pdfBlob, filename);
+                showToast("PDF baixado (compartilhamento não disponível)");
+                showLoading(false);
+                return;
+            }
+        } else {
+            // Fallback: download
+            downloadPDF(pdfBlob, filename);
+            showToast("PDF baixado!");
+            showLoading(false);
+        }
+    } catch (err) {
+        console.error('Erro na geração do PDF:', err);
+        showToast("Falha ao gerar o PDF", true);
+        showLoading(false);
+    }
+}
+
+// Função auxiliar para download (fallback)
+function downloadPDF(blob, filename) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+}
         function setDocType(type) {
             currentDocType = type;
             const btnOrc = document.getElementById('tab-orcamentos');
