@@ -8,6 +8,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="shortcut icon" type="image/png" href="logo.png">
@@ -1880,6 +1882,7 @@
           const clientName = q.clientName || 'Consumidor Final';
           const cli = STATE.clients.find(c => c.name === clientName) || { name: clientName, doc: '', phone: '', address: '' };
       
+          // Preparar itens com metragem
           let itemsParaRender = q.items.map(item => {
               let metragem = '';
               const obsItem = item.obs || '';
@@ -1901,25 +1904,13 @@
               }));
           }
       
+          // Calcular subtotal
           let subtotal = 0;
-          const itemsHtml = itemsParaRender.map((i) => {
-              const itemTotal = i.qty * i.price;
-              subtotal += itemTotal;
-              return `
-                  <tr>
-                      <td style="border-bottom: 1px solid #000; padding: 8px;">
-                          ${i.name}
-                          ${i.metragem ? `<br><span style="font-size:9px;">${i.metragem}</span>` : ''}
-                      </td>
-                      <td align="center" style="border-bottom: 1px solid #000; padding: 8px;">${i.qty}</td>
-                      <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(i.price)}</td>
-                      <td align="right" style="border-bottom: 1px solid #000; padding: 8px;">${formatMoney(itemTotal)}</td>
-                  </tr>`;
-          }).join('');
-      
+          itemsParaRender.forEach(i => subtotal += i.total);
           const finalTotal = subtotal - valorDesconto;
           const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
       
+          // Observações (sem metragem)
           const rawObs = q.observacao || '';
           let obsText = '';
           if (rawObs.includes(' | ')) {
@@ -1931,106 +1922,160 @@
       
           const tituloDoc = isVenda ? "PEDIDO DE VENDA" : "ORÇAMENTO";
       
-          const htmlString = `
-              <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
-                  
-                  <!--<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-                      <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
-                  </div>-->
+          // ====== DEFINIÇÃO DO PDF COM PDFMAKE ======
+          // Carregar logo em base64 (já existe a função getLogoBase64RV)
+          const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
       
-                  <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                      <tr>
-                          <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                              <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
-                          </td>
-                          <td valign="middle" style="padding-left: 15px;">
-                              <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                              <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
-                              <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
-                          </td>
-                          <td align="right" valign="top">
-                              <h2 style="margin: 0 0 5px 0; font-size: 16px; font-weight: 900; color: #0f172a;">${tituloDoc}</h2>
-                              <div style="font-size: 11px; margin-bottom: 2px;"><strong>Nº:</strong> ${q.id}</div>
-                              <div style="font-size: 11px;"><strong>Data:</strong> ${formatDate(q.date)}</div>
-                          </td>
-                      </tr>
-                  </table>
+          // Montar corpo da tabela de itens
+          const tableBody = [
+              [
+                  { text: 'Descrição', style: 'tableHeader', alignment: 'left' },
+                  { text: 'Qtd', style: 'tableHeader', alignment: 'center' },
+                  { text: 'Unit.', style: 'tableHeader', alignment: 'right' },
+                  { text: 'Total', style: 'tableHeader', alignment: 'right' }
+              ]
+          ];
       
-                  <table width="100%" style="margin-bottom: 20px; border-spacing: 0;">
-                      <tr>
-                          <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                              <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Dados do Cliente</div>
-                              <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                                  <strong>${cli.name}</strong><br>${cli.doc || ''}<br>${cli.phone || ''}<br>${addressToShow}
-                              </div>
-                          </td>
-                          <td width="4%"></td>
-                          <td width="48%" valign="top" style="border: 1px solid #000; border-radius: 6px; padding: 0; overflow: hidden;">
-                              <div style="background-color: #f1f5f9; padding: 5px 10px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #64748b; border-bottom: 1px solid #000;">Pagamento</div>
-                              <div style="padding: 10px; font-size: 11px; line-height: 1.5;">
-                                  <strong>Forma:</strong> ${q.paymentMethod || 'A Combinar'}<br><strong>Vendedor:</strong> RV PORTAL
-                              </div>
-                          </td>
-                      </tr>
-                  </table>
+          itemsParaRender.forEach((i, index) => {
+              const itemTotal = i.total;
+              const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+              const descricao = i.metragem ? { text: [ { text: i.name + '\n' }, { text: i.metragem, fontSize: 8, color: '#64748b' } ] } : i.name;
+              tableBody.push([
+                  { text: descricao, fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+                  { text: i.qty.toString(), alignment: 'center', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+                  { text: formatMoney(i.price), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 },
+                  { text: formatMoney(itemTotal), alignment: 'right', fillColor: bgColor, margin: [4, 6, 4, 6], fontSize: 10 }
+              ]);
+          });
       
-                  <table width="100%" style="border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
-                      <thead>
-                          <tr>
-                              <th align="left" style="background-color: #0f172a; color: #ffffff; padding: 8px;">Descrição</th>
-                              <th align="center" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 50px;">Qtd</th>
-                              <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Unit.</th>
-                              <th align="right" style="background-color: #0f172a; color: #ffffff; padding: 8px; width: 90px;">Total</th>
-                          </tr>
-                      </thead>
-                      <tbody>${itemsHtml}</tbody>
-                  </table>
+          // Totais
+          const totalRows = [
+              [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
+          ];
+          if (valorDesconto > 0) {
+              totalRows.push([
+                  { text: 'Desconto:', color: 'red', border: [false,false,false,true] },
+                  { text: '- ' + formatMoney(valorDesconto), color: 'red', alignment: 'right', border: [false,false,false,true] }
+              ]);
+          }
+          totalRows.push([
+              { text: 'TOTAL A PAGAR:', bold: true, fontSize: 12, fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] },
+              { text: formatMoney(finalTotal), bold: true, fontSize: 13, alignment: 'right', fillColor: '#f1f5f9', margin: [0,6,0,6], border: [false,true,false,false] }
+          ]);
       
-                  <table width="100%" style="margin-top: 10px;">
-                      <tr>
-                          <td valign="top" style="padding-right: 30px;">
-                              <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px;">
-                                  <div style="font-size: 10px; font-weight: bold; color: #64748b; margin-bottom: 5px;">Observações:</div>
-                                  <div style="font-size: 10px; color: #334155;">${obsText}</div>
-                              </div>
-                          </td>
-                          <td width="250" valign="top">
-                              <table width="100%" style="font-size: 11px; border-collapse: collapse;">
-                                  <tr>
-                                      <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">Subtotal:</td>
-                                      <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0;">${formatMoney(subtotal)}</td>
-                                  </tr>
-                                  ${valorDesconto > 0 ? `
-                                  <tr>
-                                      <td style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">Desconto:</td>
-                                      <td align="right" style="padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: red;">- ${formatMoney(valorDesconto)}</td>
-                                  </tr>` : ''}
-                                  <tr>
-                                      <td style="padding: 10px 10px 10px 0; font-size: 12px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">TOTAL A PAGAR:</td>
-                                      <td align="right" style="padding: 10px; font-size: 14px; font-weight: 900; border-top: 2px solid #0f172a; background-color: #f1f5f9;">${formatMoney(finalTotal)}</td>
-                                  </tr>
-                              </table>
-                          </td>
-                      </tr>
-                  </table>
-              </div>
-          `;
-      
-          const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
-          const opt = {
-              margin: 10,
-              filename: filename,
-              image: { type: 'jpeg', quality: 1 },
-              html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          const docDefinition = {
+              pageSize: 'A4',
+              pageMargins: [40, 40, 40, 40],
+              defaultStyle: { font: 'Roboto' },
+              background: function () {
+                  return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
+              },
+              content: [
+                  {
+                      table: {
+                          widths: [90, '*', 'auto'],
+                          body: [[
+                              logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
+                              {
+                                  text: [
+                                      { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
+                                      { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                      { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
+                                  ],
+                                  margin: [0, 10, 0, 0]
+                              },
+                              {
+                                  text: [
+                                      { text: tituloDoc + '\n', fontSize: 13, bold: true },
+                                      { text: `Nº: ${q.id}\n`, fontSize: 9 },
+                                      { text: `Data: ${formatDate(q.date)}`, fontSize: 9 }
+                                  ],
+                                  alignment: 'right', margin: [0, 10, 0, 0]
+                              }
+                          ]]
+                      },
+                      layout: 'noBorders', margin: [0, 0, 0, 10]
+                  },
+                  { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 2 }], margin: [0, 0, 0, 20] },
+                  {
+                      columns: [
+                          {
+                              width: '48%',
+                              table: {
+                                  widths: ['*'],
+                                  body: [
+                                      [{ text: 'DADOS DO CLIENTE', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                      [{ text: `${cli.name}\n${cli.doc || ''}\n${cli.phone || ''}\n${addressToShow}`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                                  ]
+                              },
+                              layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                          },
+                          { width: '4%', text: '' },
+                          {
+                              width: '48%',
+                              table: {
+                                  widths: ['*'],
+                                  body: [
+                                      [{ text: 'PAGAMENTO', fillColor: '#f1f5f9', bold: true, fontSize: 8, margin: [4, 4, 4, 4] }],
+                                      [{ text: `Forma: ${q.paymentMethod || 'A Combinar'}\nVendedor: RV PORTAL`, fontSize: 9, margin: [6, 8, 6, 8] }]
+                                  ]
+                              },
+                              layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#000000', vLineColor: () => '#000000' }
+                          }
+                      ],
+                      margin: [0, 0, 0, 20]
+                  },
+                  {
+                      table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: tableBody },
+                      layout: {
+                          hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
+                          vLineWidth: function () { return 0; },
+                          hLineColor: function () { return '#000000'; }
+                      },
+                      margin: [0, 0, 0, 20]
+                  },
+                  {
+                      columns: [
+                          {
+                              width: '58%',
+                              table: {
+                                  widths: ['*'],
+                                  body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]
+                              },
+                              layout: {
+                                  hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1',
+                                  hLineStyle: () => ({dash: {length: 4, space: 4}}), vLineStyle: () => ({dash: {length: 4, space: 4}})
+                              }
+                          },
+                          { width: '2%', text: '' },
+                          {
+                              width: '40%',
+                              table: { widths: ['*', 'auto'], body: totalRows },
+                              layout: { hLineColor: () => '#e2e8f0', vLineWidth: () => 0 }
+                          }
+                      ],
+                      margin: [0, 0, 0, 10]
+                  }
+              ],
+              styles: {
+                  tableHeader: { bold: true, fontSize: 10, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] }
+              }
           };
       
+          // ====== GERAR PDF E COMPARTILHAR ======
           try {
-              // Gera o PDF e obtém o Blob
-              const pdfBlob = await html2pdf().set(opt).from(htmlString).output('blob');
+              // Gerar o PDF como Blob
+              const pdfBlob = await new Promise((resolve, reject) => {
+                  pdfMake.createPdf(docDefinition).getBlob((blob) => {
+                      if (blob) resolve(blob);
+                      else reject(new Error('Falha ao gerar o blob do PDF'));
+                  });
+              });
+      
+              const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
               const file = new File([pdfBlob], filename, { type: 'application/pdf' });
       
-              // Tenta compartilhar se suportado e se houver gesto (sem setTimeout)
+              // Tentar compartilhar via API nativa (mobile)
               if (navigator.canShare && navigator.canShare({ files: [file] })) {
                   try {
                       await navigator.share({
@@ -2039,23 +2084,39 @@
                           files: [file]
                       });
                       showToast("Documento compartilhado!");
+                      showLoading(false);
+                      return;
                   } catch (shareErr) {
-                      // Se o compartilhamento falhar (ex: usuário cancelou), baixa como fallback
-                      console.warn("Falha no share, baixando PDF", shareErr);
-                      await html2pdf().set(opt).from(htmlString).save();
+                      // Se o usuário cancelar ou o compartilhamento falhar, baixamos como fallback
+                      console.warn('Compartilhamento cancelado ou falhou:', shareErr);
+                      // Fallback: download
+                      downloadPDF(pdfBlob, filename);
                       showToast("PDF baixado (compartilhamento não disponível)");
+                      showLoading(false);
+                      return;
                   }
               } else {
-                  // Fallback: download direto
-                  await html2pdf().set(opt).from(htmlString).save();
+                  // Fallback: download
+                  downloadPDF(pdfBlob, filename);
                   showToast("PDF baixado!");
+                  showLoading(false);
               }
           } catch (err) {
-              console.error("Erro na geração do PDF", err);
+              console.error('Erro na geração do PDF:', err);
               showToast("Falha ao gerar o PDF", true);
-          } finally {
               showLoading(false);
           }
+      }
+      
+      // Função auxiliar para download do PDF (fallback)
+      function downloadPDF(blob, filename) {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(link.href), 10000);
       }
 
         function setDocType(type) {
