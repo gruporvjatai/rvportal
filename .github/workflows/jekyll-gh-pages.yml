@@ -69,11 +69,10 @@ jobs:
         name: github-pages
         path: ./artifact
 
-    - name: Deploy to gh-pages branch
-      uses: peaceiris/actions-gh-pages@v4
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./artifact
-        publish_branch: gh-pages   # você pode mudar para 'main' se preferir
-        force_orphan: true         # (opcional) limpa o histórico da branch
-          NODE_OPTIONS: '--no-deprecation'
+        branch: main           # 👈 Você pode colocar 'main' ou 'deploy' ou qualquer outra
+        folder: ./artifact     # Pasta com os arquivos do build
+        token: ${{ secrets.GITHUB_TOKEN }}
+        clean: true            # Remove arquivos antigos antes de copiar os novos
