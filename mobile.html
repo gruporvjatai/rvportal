@@ -1037,6 +1037,7 @@
             
             // Recebimentos
             STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO').forEach(l => {
+                if (!l.date) return; 
                 extrato.push({ 
                     type: 'in', 
                     date: l.date, 
@@ -1051,6 +1052,7 @@
             // Despesas pagas (via logs de despesa)
             STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO').forEach(l => {
                 const exp = STATE.expenses.find(e => String(e.id) === String(l.productName));
+                if (!l.date) return;
                 extrato.push({ 
                     type: 'out', 
                     date: l.date, 
@@ -1185,7 +1187,7 @@
             document.getElementById('exp-provider').value = exp.provider || '';
             document.getElementById('exp-cost').value = exp.cost;
             try { document.getElementById('exp-date').value = exp.date.split('T')[0]; } catch(e){}
-            document.getElementById('exp-note').value = exp.note ? exp.note.replace(`Fornecedor: ${exp.provider} | `, '').trim() : '';
+            document.getElementById('exp-note').value = exp.note ? exp.note.replace(/^Fornecedor: [^|]* \| /, '').trim() : '';
             document.getElementById('modal-expense').classList.remove('hidden');
         }
 
@@ -2753,24 +2755,27 @@ function downloadPDF(blob, filename) {
 
       
       function showPartnerReportFiltered() {
-          const start = document.getElementById('rep-part-start').value;
-          const end = document.getElementById('rep-part-end').value;
-          if (!start || !end) return showToast("Selecione as datas", true);
-          
-          closePartnerModal();
-          showLoading(true);
-          
-          const vendasFiltradas = STATE.logs.filter(l => {
-              if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
-              const prod = STATE.products.find(p => p.name === l.productName);
-              return prod && prod.parceiro && l.date >= start && l.date <= end + 'T23:59:59';
-          });
-          
-          if (vendasFiltradas.length === 0) {
-              showLoading(false);
-              showToast("Nenhuma venda de parceiro neste período.", true);
-              return;
-          }
+        const start = document.getElementById('rep-part-start').value;
+        const end = document.getElementById('rep-part-end').value;
+        if (!start || !end) return showToast("Selecione as datas", true);
+        
+        closePartnerModal();
+        showLoading(true);
+        
+        const vendasFiltradas = STATE.logs.filter(l => {
+            if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
+            const prod = STATE.products.find(p => p.name === l.productName);
+            if (!prod || !prod.parceiro) return false;
+            // Comparação corrigida: usar apenas a parte da data
+            const dataLog = (l.date || '').split('T')[0];
+            return dataLog >= start && dataLog <= end;
+        });
+        
+        if (vendasFiltradas.length === 0) {
+            showLoading(false);
+            showToast("Nenhuma venda de parceiro neste período.", true);
+            return;
+        }
           
           // Agrupar por produto
           const agrupado = {};
