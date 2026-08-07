@@ -1825,107 +1825,141 @@
         }
 
         async function finalizeSale(isProntaEntrega = false) {
-            if(!CART.length) return showToast("Vazio!", true);
-            showLoading(true);
+          if(!CART.length) return showToast("Vazio!", true);
+          showLoading(true);
+      
+          const totals = calculateTotal();
+          const cliId = document.getElementById('pos-client').value;
+          const selectedClient = STATE.clients.find(c => String(c.id) === String(cliId));
+          const clientName = selectedClient ? selectedClient.name : 'Consumidor Final';
+          const payment = document.getElementById('pos-payment').value;
+          
+          const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
+          const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
+      
+          const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
+          const customObs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
+          
+          let dueDate = new Date();
+          if (payment.toLowerCase().includes("5")) dueDate.setDate(dueDate.getDate() + 5);
+          else if (payment.toLowerCase().includes("10")) dueDate.setDate(dueDate.getDate() + 10);
+          else if (payment.toLowerCase().includes("15")) dueDate.setDate(dueDate.getDate() + 15);
+          else if (payment.toLowerCase().includes("boleto") || payment.toLowerCase().includes("prazo")) dueDate.setDate(dueDate.getDate() + 30);
+          
+          const timestamp = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
+          
+          let newSaleId;
+          if (CURRENT_QUOTE_ID) {
+              newSaleId = CURRENT_QUOTE_ID;
+          } else {
+              try {
+                  newSaleId = await getNextIdFromDB();
+              } catch (err) {
+                  showLoading(false);
+                  return showToast("Erro ao obter próximo ID: " + err.message, true);
+              }
+          }
+          
+          const subtotalBruto = CART.reduce((acc, i) => acc + i.total, 0);
+          const fator = subtotalBruto > 0 ? (totals.total / subtotalBruto) : 1;
+      
+          let logsToInsert = [];
+      
+          for(let item of CART) {
+              // Lógica corrigida para encontrar o produto pelo ID ou Nome
+              const prod = STATE.products.find(p => p.id == item.prodId || String(p.name).trim() === String(item.name).trim());
+              
+              if (prod) {
+                  // Só mexe no estoque se NÃO for parceiro
+                  if (!prod.parceiro) {
+                      let physical = Number(prod.stock) || 0;
+                      let committed = Number(prod.committed) || 0;
+                      let updatePayload = {};
+              
+                      if (isProntaEntrega) {
+                          updatePayload = { estoque_fisico: Math.max(0, physical - Number(item.qty)) };
+                      } else {
+                          updatePayload = { estoque_comprometido: committed + Number(item.qty) };
+                      }
+              
+                      const { error: errProd } = await sb.from('produtos').update(updatePayload).eq('id', prod.id);
+                      if(errProd) { showLoading(false); return showToast("Erro ao atualizar o estoque do produto.", true); }
+                  }
+              }
+              const statusEntrega = isProntaEntrega ? 'ENTREGUE' : 'PENDENTE';
+              const qtdEntregue = isProntaEntrega ? item.qty : 0;
+      
+              logsToInsert.push({
+                  id: newSaleId, 
+                  tipo: 'venda', 
+                  produto_nome: item.name, 
+                  quantidade: item.qty,
+                  data: timestamp, 
+                  observacao: (() => {
+                      let metragem = '';
+                      if (item.porMetro) metragem = `${item.pecas}pçs${item.comprimento}m`;
+                      let obsCustom = customObs ? customObs.trim() : '';
+                      let partes = [metragem, obsCustom].filter(s => s);
+                      return partes.join(' | ');
+                  })(),
+                  valor_total: (item.total * fator),
+                  cliente_nome: clientName, 
+                  forma_pagamento: payment, 
+                  status: 'ATIVO',
+                  status_entrega: statusEntrega, 
+                  qtd_entregue: qtdEntregue, 
+                  desconto: totals.disc,
+                  status_financeiro: 'A RECEBER', 
+                  vencimento: dueDate.toISOString(),
+                  valor_pago: 0, 
+                  endereco_entrega: deliveryAddr
+              });
+              
+              if (isProntaEntrega) {
+                  // Gera um ID para o log de entrega (pode ser um ID sequencial, mas usamos getNextIdFromDB ou um valor temporário)
+                  let entregaId;
+                  try {
+                      entregaId = await getNextIdFromDB();
+                  } catch (err) {
+                      showLoading(false);
+                      return showToast("Erro ao obter ID para entrega: " + err.message, true);
+                  }
+                  logsToInsert.push({
+                      id: entregaId, 
+                      tipo: 'entrega', 
+                      produto_nome: item.name, 
+                      quantidade: item.qty,
+                      data: timestamp, 
+                      observacao: 'Retirado na hora. Ref Venda #' + newSaleId, 
+                      valor_total: 0, 
+                      cliente_nome: clientName, 
+                      forma_pagamento: '', 
+                      status: 'ATIVO',
+                      status_entrega: 'ENTREGUE', 
+                      qtd_entregue: item.qty, 
+                      desconto: 0,
+                      status_financeiro: '', 
+                      vencimento: timestamp, 
+                      valor_pago: 0, 
+                      endereco_entrega: ''
+                  });
+              }
+          }
+      
+          const { error: errLogsFinal } = await sb.from('logs').insert(logsToInsert);
+          if(errLogsFinal) { showLoading(false); return showToast("Erro ao registrar os logs da venda.", true); }
+      
+          if(CURRENT_QUOTE_ID) {
+              await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
+          }
+      
+          clearCart();
+          showToast(isProntaEntrega ? "Pronta Entrega Concluída!" : "Venda Registrada!");
+          await loadData(); 
+          
+          if (isProntaEntrega) { navigate('pos'); } else { navigate('expedition'); }
+      }
 
-            const totals = calculateTotal();
-            const cliId = document.getElementById('pos-client').value;
-            const selectedClient = STATE.clients.find(c => String(c.id) === String(cliId));
-            const clientName = selectedClient ? selectedClient.name : 'Consumidor Final';
-            const payment = document.getElementById('pos-payment').value;
-            
-            const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
-            const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
-
-            const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
-            const customObs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
-            
-            let dueDate = new Date();
-            if (payment.toLowerCase().includes("5")) dueDate.setDate(dueDate.getDate() + 5);
-            else if (payment.toLowerCase().includes("10")) dueDate.setDate(dueDate.getDate() + 10);
-            else if (payment.toLowerCase().includes("15")) dueDate.setDate(dueDate.getDate() + 15);
-            else if (payment.toLowerCase().includes("boleto") || payment.toLowerCase().includes("prazo")) dueDate.setDate(dueDate.getDate() + 30);
-            
-            const timestamp = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
-            const newSaleId = CURRENT_QUOTE_ID ? CURRENT_QUOTE_ID : getNextId(STATE.logs, STATE.quotes);
-            const subtotalBruto = CART.reduce((acc, i) => acc + i.total, 0);
-            const fator = subtotalBruto > 0 ? (totals.total / subtotalBruto) : 1;
-
-            let logsToInsert = [];
-
-            for(let item of CART) {
-                // Lógica corrigida para encontrar o produto pelo ID ou Nome
-                const prod = STATE.products.find(p => p.id == item.prodId || String(p.name).trim() === String(item.name).trim());
-                
-                if (prod) {
-                    // Só mexe no estoque se NÃO for parceiro
-                    if (!prod.parceiro) {
-                        let physical = Number(prod.stock) || 0;
-                        let committed = Number(prod.committed) || 0;
-                        let updatePayload = {};
-                
-                        if (isProntaEntrega) {
-                            updatePayload = { estoque_fisico: Math.max(0, physical - Number(item.qty)) };
-                        } else {
-                            updatePayload = { estoque_comprometido: committed + Number(item.qty) };
-                        }
-                
-                        const { error: errProd } = await sb.from('produtos').update(updatePayload).eq('id', prod.id);
-                        if(errProd) { showLoading(false); return showToast("Erro ao atualizar o estoque do produto.", true); }
-                    }
-                }
-                const statusEntrega = isProntaEntrega ? 'ENTREGUE' : 'PENDENTE';
-                const qtdEntregue = isProntaEntrega ? item.qty : 0;
-
-                logsToInsert.push({
-                    id: newSaleId, tipo: 'venda', produto_nome: item.name, quantidade: item.qty,
-                    data: timestamp, 
-                    /*observacao: (() => {
-                          let baseObs = '';
-                          if (item.parceiro) baseObs = `${item.pecas} pçs de ${item.comprimento}m`;
-                          if (customObs) baseObs = baseObs ? baseObs + ' | ' + customObs : customObs;
-                          if (!baseObs) baseObs = isProntaEntrega ? 'Pronta Entrega PDV' : 'Venda PDV';
-                          return baseObs;
-                      })(),*/
-                      observacao: (() => {
-                        let metragem = '';
-                        if (item.porMetro) metragem = `${item.pecas}pçs${item.comprimento}m`;
-                        let obsCustom = customObs ? customObs.trim() : '';
-                        let partes = [metragem, obsCustom].filter(s => s);
-                        return partes.join(' | ');
-                    })(),
-                    valor_total: (item.total * fator),
-                    cliente_nome: clientName, forma_pagamento: payment, status: 'ATIVO',
-                    status_entrega: statusEntrega, qtd_entregue: qtdEntregue, desconto: totals.disc, // <-- ERRO CORRIGIDO AQUI
-                    status_financeiro: 'A RECEBER', vencimento: dueDate.toISOString(),
-                    valor_pago: 0, endereco_entrega: deliveryAddr
-                });
-                
-                if (isProntaEntrega) {
-                    logsToInsert.push({
-                        id: getNextId(STATE.logs) + Math.floor(Math.random() * 1000), 
-                        tipo: 'entrega', produto_nome: item.name, quantidade: item.qty,
-                        data: timestamp, observacao: 'Retirado na hora. Ref Venda #' + newSaleId, 
-                        valor_total: 0, cliente_nome: clientName, forma_pagamento: '', status: 'ATIVO',
-                        status_entrega: 'ENTREGUE', qtd_entregue: item.qty, desconto: 0,
-                        status_financeiro: '', vencimento: timestamp, valor_pago: 0, endereco_entrega: ''
-                    });
-                }
-            }
-
-            const { error: errLogsFinal } = await sb.from('logs').insert(logsToInsert);
-            if(errLogsFinal) { showLoading(false); return showToast("Erro ao registrar os logs da venda.", true); }
-
-            if(CURRENT_QUOTE_ID) {
-                await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
-            }
-
-            clearCart();
-            showToast(isProntaEntrega ? "Pronta Entrega Concluída!" : "Venda Registrada!");
-            await loadData(); 
-            
-            if (isProntaEntrega) { navigate('pos'); } else { navigate('expedition'); }
-        }
 
   // ================== AJUSTE DE ESTOQUE ==================
 async function adjustStock(prodId, adjustment, prodName) {
@@ -2113,10 +2147,32 @@ function printStockCountSheet() {
 
   
   
+        // Função corrigida para buscar o próximo ID diretamente no banco
+        async function getNextIdFromDB() {
+            // Busca o maior ID da tabela logs
+            const { data, error } = await sb.from('logs')
+                .select('id')
+                .order('id', { ascending: false })
+                .limit(1);
+            if (error) {
+                console.error("Erro ao buscar último ID:", error);
+                throw error;
+            }
+            let maxId = 0;
+            if (data && data.length > 0) {
+                maxId = Number(data[0].id) || 0;
+            }
+            return maxId + 1;
+        }
+        
+        // Também podemos buscar o maior ID das tabelas 'logs' e 'despesas' (caso precise)
+        // Mas aqui usamos apenas logs para IDs de vendas/orçamentos.
+        
+        // Função saveQuote corrigida
         async function saveQuote() {
             if(!CART.length) return showToast("Vazio!", true);
             showLoading(true);
-
+        
             const totals = calculateTotal();
             const cliId = document.getElementById('pos-client').value;
             const clientName = STATE.clients.find(c=>c.id==cliId)?.name||"Consumidor Final";
@@ -2126,43 +2182,58 @@ function printStockCountSheet() {
             
             const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
             const obs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
-
+        
             const date = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
-            const budgetId = CURRENT_QUOTE_ID || getNextId(STATE.logs, STATE.quotes);
-
-            if(CURRENT_QUOTE_ID) await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
-
+            
+            // Obtém o próximo ID do banco (em vez de usar CURRENT_QUOTE_ID ou getNextId local)
+            let budgetId;
+            if (CURRENT_QUOTE_ID) {
+                budgetId = CURRENT_QUOTE_ID;
+            } else {
+                try {
+                    budgetId = await getNextIdFromDB();
+                } catch (err) {
+                    showLoading(false);
+                    return showToast("Erro ao obter próximo ID: " + err.message, true);
+                }
+            }
+        
+            if(CURRENT_QUOTE_ID) {
+                // Remove o orçamento antigo antes de reinserir (para substituição)
+                await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
+            }
+        
             let quotesToInsert = CART.map(item => ({
-              id: budgetId,
-              tipo: 'orcamento', 
-              produto_nome: item.name, 
-              quantidade: item.qty,
-              data: date, 
-              observacao: (() => {
+                id: budgetId,
+                tipo: 'orcamento', 
+                produto_nome: item.name, 
+                quantidade: item.qty,
+                data: date, 
+                observacao: (() => {
                     let metragem = '';
                     if (item.porMetro) metragem = `${item.pecas}pçs${item.comprimento}m`;
                     let partes = [metragem, obs].filter(s => s);
                     return partes.join(' | ');
                 })(),
-              valor_total: item.total, 
-              cliente_nome: clientName, 
-              forma_pagamento: document.getElementById('pos-payment').value,
-              status: CURRENT_QUOTE_STATUS || 'ABERTO',
-              desconto: totals.disc, 
-              status_financeiro: document.getElementById('pos-discount-type').value, 
-              endereco_entrega: deliveryAddr, 
-              status_entrega: '', 
-              qtd_entregue: 0, 
-              vencimento: date, 
-              valor_pago: 0
+                valor_total: item.total, 
+                cliente_nome: clientName, 
+                forma_pagamento: document.getElementById('pos-payment').value,
+                status: CURRENT_QUOTE_STATUS || 'ABERTO',
+                desconto: totals.disc, 
+                status_financeiro: document.getElementById('pos-discount-type').value, 
+                endereco_entrega: deliveryAddr, 
+                status_entrega: '', 
+                qtd_entregue: 0, 
+                vencimento: date, 
+                valor_pago: 0
             }));
-
+        
             const { error } = await sb.from('logs').insert(quotesToInsert);
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
-
+        
             clearCart();
             showToast("Orçamento Salvo!");
-            await loadData();
+            await loadData(); // recarrega os dados locais
             navigate('quotes');
         }
 
@@ -5176,99 +5247,114 @@ function loadQuoteToCart(id) {
 }
 
         async function duplicateQuote(id) {
-            if(!confirm("Deseja realmente duplicar este orçamento?")) return;
-            showLoading(true);
-        
-            const quoteToCopy = STATE.quotes.find(q => String(q.id) === String(id));
-            if(!quoteToCopy) {
-                showLoading(false);
-                return showToast("Orçamento não encontrado!", true);
-            }
-        
-            const newBudgetId = getNextId(STATE.logs, STATE.quotes);
-            const date = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
-        
-            let quotesToInsert = quoteToCopy.items.map(item => ({
-                id: newBudgetId,
-                tipo: 'orcamento',
-                produto_nome: item.name,
-                quantidade: item.qty,
-                data: date,
-                observacao: item.obs || '',          // <--- CORRIGIDO: copia a observação individual do item
-                valor_total: item.total,
-                cliente_nome: quoteToCopy.clientName,
-                forma_pagamento: quoteToCopy.paymentMethod || 'Dinheiro',
-                status: 'ABERTO',
-                desconto: quoteToCopy.discount || 0,
-                status_financeiro: quoteToCopy.discountType || '$',
-                endereco_entrega: quoteToCopy.deliveryAddress || '',
-                status_entrega: '',
-                qtd_entregue: 0,
-                vencimento: date,
-                valor_pago: 0
-            }));
-        
-            const { error } = await sb.from('logs').insert(quotesToInsert);
-        
-            if(error) {
-                showLoading(false);
-                return showToast("Erro ao duplicar: " + error.message, true);
-            }
-        
-            showToast("Orçamento duplicado com sucesso!");
-            await loadData(); 
-            navigate('quotes'); 
-        }
+          if(!confirm("Deseja realmente duplicar este orçamento?")) return;
+          showLoading(true);
+      
+          const quoteToCopy = STATE.quotes.find(q => String(q.id) === String(id));
+          if(!quoteToCopy) {
+              showLoading(false);
+              return showToast("Orçamento não encontrado!", true);
+          }
+      
+          // Obtém o próximo ID do banco
+          let newBudgetId;
+          try {
+              newBudgetId = await getNextIdFromDB();
+          } catch (err) {
+              showLoading(false);
+              return showToast("Erro ao obter próximo ID: " + err.message, true);
+          }
+      
+          const date = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
+      
+          let quotesToInsert = quoteToCopy.items.map(item => ({
+              id: newBudgetId,
+              tipo: 'orcamento',
+              produto_nome: item.name,
+              quantidade: item.qty,
+              data: date,
+              observacao: item.obs || '',
+              valor_total: item.total,
+              cliente_nome: quoteToCopy.clientName,
+              forma_pagamento: quoteToCopy.paymentMethod || 'Dinheiro',
+              status: 'ABERTO',
+              desconto: quoteToCopy.discount || 0,
+              status_financeiro: quoteToCopy.discountType || '$',
+              endereco_entrega: quoteToCopy.deliveryAddress || '',
+              status_entrega: '',
+              qtd_entregue: 0,
+              vencimento: date,
+              valor_pago: 0
+          }));
+      
+          const { error } = await sb.from('logs').insert(quotesToInsert);
+      
+          if(error) {
+              showLoading(false);
+              return showToast("Erro ao duplicar: " + error.message, true);
+          }
+      
+          showToast("Orçamento duplicado com sucesso!");
+          await loadData(); 
+          navigate('quotes');
+      }
 
-        async function duplicateSaleToQuote(saleId) {
-            if(!confirm("Deseja duplicar esta venda para um novo orçamento?")) return;
-            showLoading(true);
-
-            const saleItems = STATE.logs.filter(l => String(l.id) === String(saleId) && l.type === 'venda');
-            if(!saleItems.length) {
-                showLoading(false);
-                return showToast("Venda não encontrada!", true);
-            }
-
-            const newBudgetId = getNextId(STATE.logs, STATE.quotes);
-            const date = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
-
-            let quotesToInsert = saleItems.map(item => {
-                let obs = item.note || '';
-                if(obs === 'Venda PDV' || obs === 'Pronta Entrega PDV') obs = '';
-
-                return {
-                    id: newBudgetId,
-                    tipo: 'orcamento',
-                    produto_nome: item.productName,
-                    quantidade: item.quantity,
-                    data: date,
-                    observacao: obs,
-                    valor_total: item.totalValue, 
-                    cliente_nome: item.clientName,
-                    forma_pagamento: item.paymentMethod || 'Dinheiro',
-                    status: 'ABERTO', 
-                    desconto: 0, 
-                    status_financeiro: '$',
-                    endereco_entrega: item.deliveryAddress || '',
-                    status_entrega: '',
-                    qtd_entregue: 0,
-                    vencimento: date,
-                    valor_pago: 0
-                };
-            });
-
-            const { error } = await sb.from('logs').insert(quotesToInsert);
-
-            if(error) {
-                showLoading(false);
-                return showToast("Erro ao duplicar: " + error.message, true);
-            }
-
-            showToast("Venda duplicada para Orçamento!");
-            await loadData(); 
-            navigate('quotes'); 
-        }
+       async function duplicateSaleToQuote(saleId) {
+          if(!confirm("Deseja duplicar esta venda para um novo orçamento?")) return;
+          showLoading(true);
+      
+          const saleItems = STATE.logs.filter(l => String(l.id) === String(saleId) && l.type === 'venda');
+          if(!saleItems.length) {
+              showLoading(false);
+              return showToast("Venda não encontrada!", true);
+          }
+      
+          let newBudgetId;
+          try {
+              newBudgetId = await getNextIdFromDB();
+          } catch (err) {
+              showLoading(false);
+              return showToast("Erro ao obter próximo ID: " + err.message, true);
+          }
+      
+          const date = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
+      
+          let quotesToInsert = saleItems.map(item => {
+              let obs = item.note || '';
+              if(obs === 'Venda PDV' || obs === 'Pronta Entrega PDV') obs = '';
+      
+              return {
+                  id: newBudgetId,
+                  tipo: 'orcamento',
+                  produto_nome: item.productName,
+                  quantidade: item.quantity,
+                  data: date,
+                  observacao: obs,
+                  valor_total: item.totalValue, 
+                  cliente_nome: item.clientName,
+                  forma_pagamento: item.paymentMethod || 'Dinheiro',
+                  status: 'ABERTO', 
+                  desconto: 0, 
+                  status_financeiro: '$',
+                  endereco_entrega: item.deliveryAddress || '',
+                  status_entrega: '',
+                  qtd_entregue: 0,
+                  vencimento: date,
+                  valor_pago: 0
+              };
+          });
+      
+          const { error } = await sb.from('logs').insert(quotesToInsert);
+      
+          if(error) {
+              showLoading(false);
+              return showToast("Erro ao duplicar: " + error.message, true);
+          }
+      
+          showToast("Venda duplicada para Orçamento!");
+          await loadData(); 
+          navigate('quotes');
+      }
 
   // Função para limpar completamente o formulário de despesa
     function resetExpenseForm() {
