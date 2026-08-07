@@ -828,9 +828,9 @@
 
         function showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; }
 
-        function refresh () {
+        function refresh() {
         loadData ();
-        showToast ('Lista Atualizada');
+        showLoading ();
         }
         
         function showToast(msg, isError) { 
