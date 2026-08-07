@@ -486,13 +486,16 @@
         return alert('Erro: função getNextId não disponível.');
     }
 
-    const descricao = `Salário ${folha.equipe.nome} (${folha.mes_referencia})`;
+    //const descricao = `Salário ${folha.equipe.nome} (${folha.mes_referencia})`;
+    const descricao = `SALÁRIO REF. ${folha.mes_referencia}`;
+    const forn = `${folha.equipe.nome}`;
     const novoIdDespesa = getNextId(STATE.expenses); // ID único para despesas
 
     // 1. Inserir a despesa (já paga)
     const { error: errDesp } = await sb.from('despesas').insert([{
         id: novoIdDespesa,          // 🔥 ESSENCIAL: sem isso o banco reclama
         item: 'Salário',
+        fornecedor: forn,
         quantidade: 1,
         unidade: 'Un',
         custo: folha.valor_pago,
