@@ -842,12 +842,29 @@
         }
     
 
-        function getNextId(array1, array2 = []) {
+        /*function getNextId(array1, array2 = []) {
             let max = 0;
             array1.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
             array2.forEach(item => { const val = parseInt(item.id); if(!isNaN(val) && val > max) max = val; });
             return max + 1;
-        }
+        }*/
+
+      async function getNextId(tabela) {
+          // Busca o maior ID da tabela especificada
+          const { data, error } = await sb.from(tabela)
+              .select('id')
+              .order('id', { ascending: false })
+              .limit(1);
+      
+          if (error) {
+              console.error('Erro ao buscar próximo ID:', error);
+              throw error;
+          }
+      
+          const maxId = data && data.length > 0 ? Number(data[0].id) : 0;
+          return maxId + 1;
+      }
+      
 
         function gerarUid() { return Math.floor(Date.now() * 100 + Math.random() * 100).toString(); }
 
@@ -1575,7 +1592,8 @@
             const obs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
         
             const date = new Date().toISOString();
-            const budgetId = CURRENT_QUOTE_ID || getNextId(STATE.logs, STATE.quotes);
+            //const budgetId = CURRENT_QUOTE_ID || getNextId(STATE.logs, STATE.quotes);
+            const budgetId = CURRENT_QUOTE_ID || await getNextId('logs');
         
             if(CURRENT_QUOTE_ID) await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
         
@@ -2188,7 +2206,8 @@ function downloadPDF(blob, filename) {
 
             try {
                 const logsToCopy = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
-                const newId = getNextId(STATE.logs, STATE.quotes);
+                //const newId = getNextId(STATE.logs, STATE.quotes);
+                const newId = await getNextId('logs');
                 const date = new Date().toISOString();
 
                 const newLogs = logsToCopy.map(l => ({
