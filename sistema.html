@@ -6187,7 +6187,7 @@ function startInactivityMonitoring() {
   // ==========================================
 // FUNÇÃO PARA CHAMAR PROCESSAMENTO DE PIX VIA GAS
 // ==========================================
-  async function processarPix() {
+ /* async function processarPix() {
     // Substitua pela URL do seu web app
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxIRN7mUo3miLWgXxBILB8Dq4i04QL27UMSDVRhTtj8NSOIE8CKSe-OCntcswnbO6Oo/exec';
     const TOKEN = 'rvportal2026'; // deve ser o mesmo definido no GAS
@@ -6224,7 +6224,37 @@ function startInactivityMonitoring() {
     } finally {
       showLoading(false);
     }
-  }
+  }*/
+
+  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxIRN7mUo3miLWgXxBILB8Dq4i04QL27UMSDVRhTtj8NSOIE8CKSe-OCntcswnbO6Oo/exec';
+  async function executarPixGAS() {
+    showLoading(true);
+    
+    try {
+        const response = await fetch(GAS_WEB_APP_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const resultado = await response.json();
+        
+        if (resultado.success) {
+            showToast(resultado.message);
+            // Recarrega a lista de despesas para mostrar os novos lançamentos
+            renderFinance();
+        } else {
+            showToast('Erro: ' + resultado.message, true);
+        }
+    } catch (error) {
+        showToast('Erro ao conectar com o GAS: ' + error.message, true);
+        console.error(error);
+    }
+    
+    showLoading(false);
+}
 
   
     </script> 
