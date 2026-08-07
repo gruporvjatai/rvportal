@@ -2097,7 +2097,8 @@
             });
         });
 
-        const filename = `Documento_${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+        //const filename = `RV PORTAL - ${q.id}_${clientName.replace(/\s+/g, '_')}.pdf`;
+        const filename = `RV PORTAL - ${clientName} - #${q.id}.pdf`;
         const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
         // Tenta compartilhar via API nativa
