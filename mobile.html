@@ -3007,6 +3007,29 @@ function showFilteredExpenses() {
         img.src = url;
     });
 }
+
+      function setDocType(type) {
+    currentDocType = type;
+    const btnOrc = document.getElementById('tab-orcamentos');
+    const btnVen = document.getElementById('tab-vendas');
+    const statusFilter = document.getElementById('quote-status-filter');
+
+    if (!btnOrc || !btnVen || !statusFilter) {
+        console.warn("Elementos da aba não encontrados");
+        return;
+    }
+
+    if (type === 'orcamento') {
+        btnOrc.className = "flex-1 py-2 rounded-lg text-sm font-black bg-white text-indigo-600 shadow-sm transition-all";
+        btnVen.className = "flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
+        statusFilter.style.display = 'block';
+    } else {
+        btnVen.className = "flex-1 py-2 rounded-lg text-sm font-black bg-white text-emerald-600 shadow-sm transition-all";
+        btnOrc.className = "flex-1 py-2 rounded-lg text-sm font-bold text-slate-500 transition-all";
+        statusFilter.style.display = 'none';
+    }
+    renderQuotesList();
+}
       
 
         function fazerLogout() {
