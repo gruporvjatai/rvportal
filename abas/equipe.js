@@ -501,7 +501,7 @@
         custo: folha.valor_pago,
         data: new Date().toISOString(),
         observacao: descricao,
-        status: 'PAGO'
+        status: 'PENDENTE'
     }]);
 
     if (errDesp) {
@@ -543,8 +543,7 @@
 
     // Atualizar STATE global para refletir a nova despesa (opcional, mas recomendado)
     if (typeof loadData === 'function') {
-        // Se quiser recarregar todo o STATE, chame loadData() (mais pesado)
-        // Por enquanto, não faremos para manter desempenho.
+      loadData();       
     }
 };
 
@@ -565,7 +564,7 @@
 
     await sb.from('folhas').delete().eq('id', id);
     alert('Folha excluída/estornada com sucesso!');
-    carregarLancamentos();
+    loadData();
   };
 
   window.excluirVale = async function(id) {
