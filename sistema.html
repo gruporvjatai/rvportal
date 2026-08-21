@@ -6082,7 +6082,8 @@ function printReceipt() {
   closeReceiptModal();
 }
 
-  // ========== ABRIR RECIBO A PARTIR DE UMA DESPESA ==========
+
+// ========== ABRIR RECIBO A PARTIR DE UMA DESPESA ==========
 function openReceiptFromExpense(expenseId) {
     const exp = STATE.expenses.find(e => String(e.id) === String(expenseId));
     if (!exp) {
@@ -6090,18 +6091,24 @@ function openReceiptFromExpense(expenseId) {
         return;
     }
 
-    // Extrai o nome do fornecedor (se houver)
-    //let fornecedor = exp.item; // fallback: categoria
-    const client = document.getElementById('receipt-client').value.trim();
+    // 1. PRIORIDADE: usar o campo 'provider' (fornecedor salvo separadamente)
+    let fornecedor = exp.provider || '';
     let descricao = exp.note || '';
-    /*if (descricao.startsWith('Fornecedor:')) {
+
+    // 2. Se 'provider' estiver vazio, tenta extrair do 'note' (fallback para despesas antigas)
+    if (!fornecedor && descricao.startsWith('Fornecedor:')) {
         const parts = descricao.split('|');
         fornecedor = parts[0].replace('Fornecedor:', '').trim();
         descricao = parts.slice(1).join('|').trim();
-    }*/
+    }
+
+    // 3. Se ainda estiver vazio, usa a categoria como último fallback
+    if (!fornecedor) {
+        fornecedor = exp.item;
+    }
 
     // Preenche o modal
-    document.getElementById('receipt-client').value = client;
+    document.getElementById('receipt-client').value = fornecedor;
     document.getElementById('receipt-amount').value = exp.cost;
     if (exp.date) {
         document.getElementById('receipt-date').value = exp.date.split('T')[0];
