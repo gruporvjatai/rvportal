@@ -6091,13 +6091,14 @@ function openReceiptFromExpense(expenseId) {
     }
 
     // Extrai o nome do fornecedor (se houver)
-    let fornecedor = exp.item; // fallback: categoria
+    //let fornecedor = exp.item; // fallback: categoria
+    let fornecedor = exp.fornecedor;
     let descricao = exp.note || '';
-    if (descricao.startsWith('Fornecedor:')) {
+    /*if (descricao.startsWith('Fornecedor:')) {
         const parts = descricao.split('|');
         fornecedor = parts[0].replace('Fornecedor:', '').trim();
         descricao = parts.slice(1).join('|').trim();
-    }
+    }*/
 
     // Preenche o modal
     document.getElementById('receipt-client').value = fornecedor;
