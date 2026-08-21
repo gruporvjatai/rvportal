@@ -6092,7 +6092,7 @@ function openReceiptFromExpense(expenseId) {
 
     // Extrai o nome do fornecedor (se houver)
     //let fornecedor = exp.item; // fallback: categoria
-    let fornecedor = exp.fornecedor;
+    const client = document.getElementById('receipt-client').value.trim();
     let descricao = exp.note || '';
     /*if (descricao.startsWith('Fornecedor:')) {
         const parts = descricao.split('|');
@@ -6101,7 +6101,7 @@ function openReceiptFromExpense(expenseId) {
     }*/
 
     // Preenche o modal
-    document.getElementById('receipt-client').value = fornecedor;
+    document.getElementById('receipt-client').value = client;
     document.getElementById('receipt-amount').value = exp.cost;
     if (exp.date) {
         document.getElementById('receipt-date').value = exp.date.split('T')[0];
