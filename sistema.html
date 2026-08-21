@@ -3896,10 +3896,10 @@ function loadQuoteToCart(id) {
 }).join('');
       
         const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            <td class="p-3 bg-red-50"></td>
             <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
             <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
-            <td class="p-3 bg-red-50"></td>
-            <td class="p-3 bg-red-50"></td>
+            <td class="p-3 bg-red-50"></td>            
         </tr>`;
         expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
     }
