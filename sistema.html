@@ -522,6 +522,7 @@
                       <option value="ABERTO">Abertos</option>
                       <option value="EM NEGOCIAÇÃO">Em Negociação</option>
                       <option value="APROVADO">Aprovados</option>
+                      <option value="MEDIDAS">Pegar Medidas</option>
                       <option value="ENVIADO">Msg Enviada</option>
                       <option value="PERDIDO">Perdidos</option>
                   </select>
@@ -3270,6 +3271,7 @@ function printStockCountSheet() {
                             <option value="EM NEGOCIAÇÃO" ${q.status === 'EM NEGOCIAÇÃO' ? 'selected' : ''}>Em Negociação</option>
                             <option value="APROVADO" ${q.status === 'APROVADO' ? 'selected' : ''}>Aprovado</option>
                             <option value="ENVIADO" ${q.status === 'ENVIADO' ? 'selected' : ''}>Msg Enviada</option>
+                            <option value="ENVIADO" ${q.status === 'MEDIDAS' ? 'selected' : ''}>Pegar Medidas</option>
                             <option value="PERDIDO" ${q.status === 'PERDIDO' ? 'selected' : ''}>Perdido</option>
                         </select>
                     </td>
