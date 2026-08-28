@@ -3803,19 +3803,21 @@ function loadQuoteToCart(id) {
                       if (num.length >= 10) {
                           if (!num.startsWith('55')) num = '55' + num;
                           
-                          // Mensagem personalizada
                           const valorFormatado = formatMoney(rest);
                           const dataVencimento = formatDate(r.dueDate);
-                          // Versão com emojis Unicode estáveis
-                          const msg = encodeURIComponent(
-                              `Olá ${client.name}, tudo bem? \u{1F60A}\n\n` +
+                          
+                          // Monta a mensagem com emojis usando caracteres literais (copie e cole)
+                          const mensagem = 
+                              `Olá ${client.name}, tudo bem? 😊\n\n` +
                               `Estamos entrando em contato da RV Portal Madeiras para lembrar que você possui um pagamento pendente referente à ${r.desc}.\n\n` +
-                              `\u{1F4C5} Vencimento: ${dataVencimento}\n` +
-                              `\u{1F4B0} Valor: ${valorFormatado}\n\n` +
-                              `\u{1F4CC} Forma de pagamento: ${r.payment || 'a combinar'}\n\n` +
+                              `📅 Vencimento: ${dataVencimento}\n` +
+                              `💰 Valor: ${valorFormatado}\n\n` +
+                              `📌 Forma de pagamento: ${r.payment || 'a combinar'}\n\n` +
                               `Caso já tenha realizado o pagamento, desconsidere esta mensagem.\n` +
-                              `Se precisar de ajuda, estamos à disposição! \u{1F44D}`
-                          );                          
+                              `Se precisar de ajuda, estamos à disposição! 🙌`;
+                          
+                          // Codifica a mensagem corretamente
+                          const msg = encodeURIComponent(mensagem);
                           zapLink = `https://wa.me/${num}?text=${msg}`;
                           zapClass = 'text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100';
                       }
