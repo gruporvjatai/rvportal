@@ -3794,24 +3794,8 @@ function loadQuoteToCart(id) {
                   const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
                   const rest = r.val - r.paid;
 
-                     function sanitizarTextoParaWhatsApp(texto) {
-                      // Mapeamento de emojis para texto (garantido)
-                      const mapa = {
-                          '😊': ':)',
-                          '📅': '(data)',
-                          '💰': '(valor)',
-                          '📌': '(obs)',
-                          '🙌': '(ok)'
-                      };
-                      
-                      let resultado = texto;
-                      for (const [emoji, substituicao] of Object.entries(mapa)) {
-                          resultado = resultado.replace(new RegExp(emoji, 'g'), substituicao);
-                      }
-                      return resultado;
-                  }
-      
-                  // 🔹 BOTÃO DO WHATSAPP
+                          
+                 // 🔹 BOTÃO DO WHATSAPP
                   let zapLink = '#';
                   let zapClass = 'text-slate-300 cursor-not-allowed';
                   const client = STATE.clients.find(c => String(c.name).trim() === String(r.clientName).trim());
@@ -3821,22 +3805,23 @@ function loadQuoteToCart(id) {
                       if (num.length >= 10) {
                           if (!num.startsWith('55')) num = '55' + num;
                           
+                          // Mensagem personalizada SEM EMOJIS
                           const valorFormatado = formatMoney(rest);
                           const dataVencimento = formatDate(r.dueDate);
-                          
-                          // Monta a mensagem com emojis via escape unicode (não depende do charset do arquivo/servidor)
-                          const mensagem = 
-                          `Olá ${client.name}, tudo bem? 😊\n\n` +
-                          `Estamos entrando em contato da RV Portal Madeiras para lembrar que você possui um pagamento pendente referente à ${r.desc}.\n\n` +
-                          `📅 Vencimento: ${dataVencimento}\n` +
-                          `💰 Valor: ${valorFormatado}\n\n` +
-                          `📌 Forma de pagamento: ${r.payment || 'a combinar'}\n\n` +
-                          `Caso já tenha realizado o pagamento, desconsidere esta mensagem.\n` +
-                          `Se precisar de ajuda, estamos à disposição! 🙌`;
-                      
-                      const msg = encodeURIComponent(sanitizarTextoParaWhatsApp(mensagem));
+                          const msg = encodeURIComponent(
+                              `Olá ${client.name}, tudo bem?\n\n` +
+                              `Estamos entrando em contato da RV Portal Madeiras para lembrar que você possui um pagamento pendente referente à ${r.desc}.\n\n` +
+                              `Vencimento: ${dataVencimento}\n` +
+                              `Valor: ${valorFormatado}\n\n` +
+                              `Forma de pagamento: ${r.payment || 'a combinar'}\n\n` +
+                              `Caso já tenha realizado o pagamento, desconsidere esta mensagem.\n` +
+                              `Se precisar de ajuda, estamos à disposição!`
+                          );
+                          zapLink = `https://wa.me/${num}?text=${msg}`;
+                          zapClass = 'text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100';
+                      }
                   }
-                }
+                
       
                   return `<tr class="hover:bg-slate-100 ${corFundo} transition">
                       <td class="p-3 text-xs border-r border-slate-100">
