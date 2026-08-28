@@ -3793,6 +3793,22 @@ function loadQuoteToCart(id) {
                   const corFundo = isVencido ? 'bg-red-50/50' : (r.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : '');
                   const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
                   const rest = r.val - r.paid;
+
+                   // Mapeamento de emojis para texto (garantido)
+                      const mapa = {
+                          '😊': ':)',
+                          '📅': '(data)',
+                          '💰': '(valor)',
+                          '📌': '(obs)',
+                          '🙌': '(ok)'
+                      };
+                      
+                      let resultado = texto;
+                      for (const [emoji, substituicao] of Object.entries(mapa)) {
+                          resultado = resultado.replace(new RegExp(emoji, 'g'), substituicao);
+                      }
+                      return resultado;
+                  }
       
                   // 🔹 BOTÃO DO WHATSAPP
                   let zapLink = '#';
@@ -3809,20 +3825,17 @@ function loadQuoteToCart(id) {
                           
                           // Monta a mensagem com emojis via escape unicode (não depende do charset do arquivo/servidor)
                           const mensagem = 
-                              `Olá ${client.name}, tudo bem? \u{1F60A}\n\n` +
-                              `Estamos entrando em contato da RV Portal Madeiras para lembrar que você possui um pagamento pendente referente à ${r.desc}.\n\n` +
-                              `\u{1F4C5} Vencimento: ${dataVencimento}\n` +
-                              `\u{1F4B0} Valor: ${valorFormatado}\n\n` +
-                              `\u{1F4CC} Forma de pagamento: ${r.payment || 'a combinar'}\n\n` +
-                              `Caso já tenha realizado o pagamento, desconsidere esta mensagem.\n` +
-                              `Se precisar de ajuda, estamos à disposição! \u{1F64C}`;
-                          
-                          // Codifica a mensagem corretamente
-                          const msg = encodeURIComponent(mensagem);
-                          zapLink = `https://wa.me/${num}?text=${msg}`;
-                          zapClass = 'text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100';
-                      }
+                          `Olá ${client.name}, tudo bem? 😊\n\n` +
+                          `Estamos entrando em contato da RV Portal Madeiras para lembrar que você possui um pagamento pendente referente à ${r.desc}.\n\n` +
+                          `📅 Vencimento: ${dataVencimento}\n` +
+                          `💰 Valor: ${valorFormatado}\n\n` +
+                          `📌 Forma de pagamento: ${r.payment || 'a combinar'}\n\n` +
+                          `Caso já tenha realizado o pagamento, desconsidere esta mensagem.\n` +
+                          `Se precisar de ajuda, estamos à disposição! 🙌`;
+                      
+                      const msg = encodeURIComponent(sanitizarTextoParaWhatsApp(mensagem));
                   }
+                }
       
                   return `<tr class="hover:bg-slate-100 ${corFundo} transition">
                       <td class="p-3 text-xs border-r border-slate-100">
@@ -3860,6 +3873,7 @@ function loadQuoteToCart(id) {
                </tr>`;
               recBody.innerHTML = rowsHtml + totalRowHtml;
           }
+        
 
     
           // ========== CONTAS A RECEBER ==========
