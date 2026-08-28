@@ -3794,7 +3794,8 @@ function loadQuoteToCart(id) {
                   const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
                   const rest = r.val - r.paid;
 
-                   // Mapeamento de emojis para texto (garantido)
+                     function sanitizarTextoParaWhatsApp(texto) {
+                      // Mapeamento de emojis para texto (garantido)
                       const mapa = {
                           '😊': ':)',
                           '📅': '(data)',
