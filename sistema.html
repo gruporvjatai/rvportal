@@ -3812,8 +3812,8 @@ function loadQuoteToCart(id) {
                                 const valorFormatado = formatMoney(rest);
                                 const dataVencimento = formatDate(r.dueDate);
                                 const msg = encodeURIComponent(
-                                    `Olá *${client.name}*,\n\n` +
-                                    `Aqui é da RV Portal Madeiras. Temos um lembrete. Você possui um pagamento pendente referente à *${r.desc}*.\n\n` +
+                                    `Olá *${client.name}*.\n\n` +
+                                    `Aqui é da RV Portal Madeiras. Temos um lembrete.\nVocê possui um pagamento pendente referente à *${r.desc}*.\n\n` +
                                     `Vencimento: *${dataVencimento}*\n` +
                                     `Valor: *${valorFormatado}*\n\n` +                              
                                     `Caso já tenha realizado o pagamento, desconsidere esta mensagem.\n\n` +
