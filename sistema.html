@@ -3809,11 +3809,11 @@ function loadQuoteToCart(id) {
                           const msg = encodeURIComponent(
                               `Olá *${client.name}*, tudo bem? 😊\n\n` +
                               `Estamos entrando em contato da *RV Portal Madeiras* para lembrar que você possui um pagamento pendente referente à *${r.desc}*.\n\n` +
-                              `📅 *Vencimento:* ${dataVencimento}\n` +
+                              `📆 *Vencimento:* ${dataVencimento}\n` +
                               `💰 *Valor:* ${valorFormatado}\n\n` +
-                              `📌 *Forma de pagamento:* ${r.payment || 'a combinar'}\n\n` +
+                              `💳 *Forma de pagamento:* ${r.payment || 'a combinar'}\n\n` +
                               `Caso já tenha realizado o pagamento, desconsidere esta mensagem.\n` +
-                              `Se precisar de ajuda, estamos à disposição! 🙌`
+                              `Se precisar de ajuda, estamos à disposição! 🙏🏻`
                           );
                           zapLink = `https://wa.me/${num}?text=${msg}`;
                           zapClass = 'text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100';
