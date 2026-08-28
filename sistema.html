@@ -3807,15 +3807,15 @@ function loadQuoteToCart(id) {
                           const valorFormatado = formatMoney(rest);
                           const dataVencimento = formatDate(r.dueDate);
                           
-                          // Monta a mensagem com emojis usando caracteres literais (copie e cole)
+                          // Monta a mensagem com emojis via escape unicode (não depende do charset do arquivo/servidor)
                           const mensagem = 
-                              `Olá ${client.name}, tudo bem? 😊\n\n` +
+                              `Olá ${client.name}, tudo bem? \u{1F60A}\n\n` +
                               `Estamos entrando em contato da RV Portal Madeiras para lembrar que você possui um pagamento pendente referente à ${r.desc}.\n\n` +
-                              `📅 Vencimento: ${dataVencimento}\n` +
-                              `💰 Valor: ${valorFormatado}\n\n` +
-                              `📌 Forma de pagamento: ${r.payment || 'a combinar'}\n\n` +
+                              `\u{1F4C5} Vencimento: ${dataVencimento}\n` +
+                              `\u{1F4B0} Valor: ${valorFormatado}\n\n` +
+                              `\u{1F4CC} Forma de pagamento: ${r.payment || 'a combinar'}\n\n` +
                               `Caso já tenha realizado o pagamento, desconsidere esta mensagem.\n` +
-                              `Se precisar de ajuda, estamos à disposição! 🙌`;
+                              `Se precisar de ajuda, estamos à disposição! \u{1F64C}`;
                           
                           // Codifica a mensagem corretamente
                           const msg = encodeURIComponent(mensagem);
