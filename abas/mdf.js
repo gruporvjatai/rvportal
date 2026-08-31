@@ -35,7 +35,7 @@ function carregarPdfMake() {
   return _pdfMakePromise;
 }
 
-async function imagemParaBase64PDF(url) {
+/*async function imagemParaBase64PDF(url) {
   if (!url) return null;
   if (_cacheImagensPDF.has(url)) return _cacheImagensPDF.get(url);
   try {
@@ -55,7 +55,56 @@ async function imagemParaBase64PDF(url) {
     _cacheImagensPDF.set(url, null);
     return null;
   }
+}*/
+
+async function imagemParaBase64PDF(url) {
+  if (!url) return null;
+  if (_cacheImagensPDF.has(url)) return _cacheImagensPDF.get(url);
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    const dataUrl = await new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const MAX = 800;
+          let { width, height } = img;
+          if (width > MAX || height > MAX) {
+            const scale = MAX / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        } catch (err) {
+          reject(err);
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Falha ao carregar a imagem.'));
+      };
+      img.src = objectUrl;
+    });
+    _cacheImagensPDF.set(url, dataUrl);
+    return dataUrl;
+  } catch (e) {
+    console.warn('Falha ao carregar imagem para o PDF:', url, e);
+    _cacheImagensPDF.set(url, null);
+    return null;
+  }
 }
+
 
 function formatarMoedaPDF(valor) {
   return 'R$ ' + (parseFloat(valor) || 0).toFixed(2);
