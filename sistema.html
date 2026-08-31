@@ -3113,7 +3113,7 @@ function printStockCountSheet() {
 
         
 
-        /*function renderRecentHistory() { 
+        function renderRecentHistory() { 
             const salesMap = {};
             (STATE.logs||[]).filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
                 if(!salesMap[l.id]) {
@@ -3126,8 +3126,20 @@ function printStockCountSheet() {
             // ALTERAÇÃO AQUI: ordenar pela data da venda (mais recente primeiro)
             let recentSales = Object.values(salesMap).sort((a,b) => new Date(b.date) - new Date(a.date)); 
             
+            // Restante do código permanece igual...
+
+  
+        /*function renderRecentHistory() { 
+            const salesMap = {};
+            (STATE.logs||[]).filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
+                if(!salesMap[l.id]) {
+                    salesMap[l.id] = { id: l.id, date: l.date, client: l.clientName, itemsText: '', valorFinal: 0 };
+                }
+                salesMap[l.id].valorFinal += l.totalValue; 
+                salesMap[l.id].itemsText += l.productName + " ";
+            });
             
-        
+            let recentSales = Object.values(salesMap).sort((a,b) => b.id - a.id); */
             
             const term = document.getElementById('pos-hist-search')?.value.toLowerCase() || '';
             const startDate = document.getElementById('pos-hist-start')?.value;
@@ -3164,72 +3176,7 @@ function printStockCountSheet() {
                 </tr>`;
             }).join('');
             lucide.createIcons();
-        }*/
-
-
-        function renderRecentHistory() { 
-          const salesMap = {};
-          (STATE.logs || []).filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
-              if (!salesMap[l.id]) {
-                  salesMap[l.id] = { 
-                      id: l.id, 
-                      date: l.date, 
-                      client: l.clientName, 
-                      itemsText: '', 
-                      valorFinal: 0 
-                  };
-              }
-              salesMap[l.id].valorFinal += l.totalValue; 
-              salesMap[l.id].itemsText += l.productName + " ";
-          });
-          
-          // Ordena pela data mais recente (considerando data e hora)
-          let recentSales = Object.values(salesMap).sort((a, b) => new Date(b.date) - new Date(a.date));
-          
-          const term = document.getElementById('pos-hist-search')?.value.toLowerCase() || '';
-          const startDate = document.getElementById('pos-hist-start')?.value;
-          const endDate = document.getElementById('pos-hist-end')?.value;
-      
-          if (term) {
-              recentSales = recentSales.filter(r => 
-                  (r.client && r.client.toLowerCase().includes(term)) || 
-                  (r.itemsText.toLowerCase().includes(term)) || 
-                  String(r.id).includes(term)
-              );
-          }
-          if (startDate) {
-              recentSales = recentSales.filter(r => (r.date || '').split('T')[0] >= startDate);
-          }
-          if (endDate) {
-              recentSales = recentSales.filter(r => (r.date || '').split('T')[0] <= endDate);
-          }
-      
-          recentSales = recentSales.slice(0, 50); 
-          
-          const histBody = document.getElementById('pos-recent-history');
-          if (!histBody) return;
-          
-          if (recentSales.length === 0) {
-              histBody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 font-medium">Nenhuma venda encontrada.</td></tr>';
-              return;
-          }
-      
-          histBody.innerHTML = recentSales.map(r => {
-              return `
-              <tr class="border-b last:border-0 hover:bg-slate-50 transition">
-                  <td class="p-3 text-slate-500 text-xs font-bold">#${r.id} <br><span class="text-[10px] font-normal">${formatDate(r.date)}</span></td>
-                  <td class="p-3 truncate text-xs font-bold text-slate-700" style="max-width:120px">${r.client}</td>
-                  <td class="p-3 text-right text-sm text-green-700 font-bold">${formatMoney(r.valorFinal)}</td>
-                  <td class="p-3 text-center flex gap-1 justify-center">
-                      <button onclick="reprintSale('${r.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Imprimir"><i data-lucide="printer" width="14"></i></button>
-                      <button onclick="downloadSalePDF('${r.id}')" class="text-slate-600 hover:text-blue-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Baixar PDF"><i data-lucide="download" width="14"></i></button>
-                      <button onclick="duplicateSaleToQuote('${r.id}')" class="text-amber-500 hover:text-amber-700 bg-white border border-amber-200 p-2 rounded shadow-sm" title="Duplicar para Orçamento"><i data-lucide="copy" width="14"></i></button>
-                      <button onclick="cancelSaleToQuote('${r.id}')" class="text-red-500 hover:text-red-700 bg-white border border-red-200 p-2 rounded shadow-sm" title="Estornar para Orçamento"><i data-lucide="rotate-ccw" width="14"></i></button>
-                  </td>
-              </tr>`;
-          }).join('');
-          lucide.createIcons();
-      }
+        }
 
         async function updateQuoteStatus(id, newStatus) {
             showLoading(true);
