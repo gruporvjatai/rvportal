@@ -1708,7 +1708,8 @@ class OrcamentosMDF {
       const vendaId = novoId;
 
       // 5. Criar logs de venda (tipo 'venda')
-      const timestamp = new Date().toISOString();
+      //const timestamp = new Date().toISOString();
+      const timestamp = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
       const logs = itens.map(item => ({
         id: vendaId,
         tipo: 'venda',
