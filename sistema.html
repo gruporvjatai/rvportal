@@ -3411,7 +3411,8 @@ function loadQuoteToCart(id) {
                 ordersMap[l.id].deliveredQty += Number(l.deliveredQty) || 0;
             });
 
-            const pendingOrders = Object.values(ordersMap).filter(o => o.deliveredQty < o.totalQty).sort((a,b) => b.id - a.id);
+            //const pendingOrders = Object.values(ordersMap).filter(o => o.deliveredQty < o.totalQty).sort((a,b) => b.id - a.id);
+            const pendingOrders = Object.values(ordersMap).filter(o => o.deliveredQty < o.totalQty).sort((a,b) => new Date(b.date) - new Date(a.date));
 
             if (pendingOrders.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold">Nenhum pedido pendente de entrega.</td></tr>';
