@@ -3459,7 +3459,7 @@ function loadQuoteToCart(id) {
                         <td class="p-4 text-center flex gap-2 justify-center">
                             <button onclick="openOrderDeliveryModal('${o.id}')" class="bg-slate-800 text-white p-2 rounded hover:bg-slate-700 shadow-md" title="Registrar Entrega"><i data-lucide="truck" width="18"></i></button>
                             <button onclick="printFullOrder('${o.id}')" class="bg-white text-slate-600 border border-slate-200 p-2 rounded hover:text-emerald-600 shadow-sm" title="Imprimir Romaneio Completo"><i data-lucide="printer" width="18"></i></button>
-                            <button onclick="abrirModalEditarObsExpedicao('${o.id}')" class="bg-amber-50 text-amber-700 border border-amber-200 p-2 rounded hover:bg-amber-100 shadow-sm" title="Editar Observação"><i data-lucide="edit-3" width="18"></i></button>
+                            <button onclick="abrirModalEditarObsExpedicao('${o.id}')" class="bg-white text-slate-600 border border-slate-200 p-2 rounded hover:bg-slate-100 shadow-sm" title="Editar Observação"><i data-lucide="edit-3" width="18"></i></button>
                         </td>
                         <td class="p-4"><div class="font-black text-slate-700 text-sm">#${o.id}</div><div class="text-[10px] text-slate-400">${formatDate(o.date)}</div></td>
                         <td class="p-4 font-bold text-slate-700 truncate max-w-[150px]">${o.clientName}</td>
@@ -6440,29 +6440,27 @@ async function executarPixGAS() {
     }
     
     async function salvarObsExpedicao(orderId, novaObs) {
-        showLoading(true);
-        try {
-            // Atualiza todos os logs de venda do pedido (exceto cancelados)
-            const { error } = await supabaseClient
-                .from('logs')
-                .update({ observacao: novaObs })
-                .eq('id', orderId)
-                .eq('tipo', 'venda')
-                .neq('status', 'CANCELADO');
-    
-            if (error) throw error;
-    
-            showToast("Observação atualizada com sucesso!");
-            fecharModalEditarObsExpedicao();
-            // Recarrega os dados e re-renderiza a expedição
-            await loadData();
-            renderExpedition();
-        } catch (err) {
-            showToast("Erro ao salvar observação: " + err.message, true);
-        } finally {
-            showLoading(false);
-        }
+    showLoading(true);
+    try {
+        const { error } = await sb
+            .from('logs')
+            .update({ observacao: novaObs })
+            .eq('id', orderId)
+            .eq('tipo', 'venda')
+            .neq('status', 'CANCELADO');
+
+        if (error) throw error;
+
+        showToast("Observação atualizada com sucesso!");
+        fecharModalEditarObsExpedicao();
+        await loadData();
+        renderExpedition();
+    } catch (err) {
+        showToast("Erro ao salvar observação: " + err.message, true);
+    } finally {
+        showLoading(false);
     }
+}
 
   
     </script> 
