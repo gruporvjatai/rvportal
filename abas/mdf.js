@@ -1199,16 +1199,16 @@ class OrcamentosMDF {
                 <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.imprimirOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Imprimir">
                   <i data-lucide="printer" class="w-4 h-4"></i>
                 </button>
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.duplicarOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Duplicar">
+                  <i data-lucide="copy" class="w-4 h-4"></i>
+                </button>
               ` : `
                 <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.faturarOrcamento(${orc.id})" class="p-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg shadow-sm" title="Faturar">
                   <i data-lucide="credit-card" class="w-4 h-4"></i>
                 </button>
                 <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.editarOrcamento(${orc.id})" class="p-2 border border-emerald-600 bg-white text-emerald-600 hover:bg-emerald-50 rounded-lg shadow-sm" title="Editar">
                   <i data-lucide="edit-3" class="w-4 h-4"></i>
-                </button>
-                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.duplicarOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Duplicar">
-                  <i data-lucide="copy" class="w-4 h-4"></i>
-                </button>
+                </button>                
                 <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.baixarPDF(${orc.id})" class="p-2 border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm" title="Baixar PDF">
                   <i data-lucide="download" class="w-4 h-4"></i>
                 </button>
