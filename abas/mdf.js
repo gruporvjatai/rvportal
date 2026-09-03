@@ -1214,12 +1214,12 @@ class OrcamentosMDF {
                 </button>
                 <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.imprimirOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Imprimir">
                   <i data-lucide="printer" class="w-4 h-4"></i>
+                </button>                
+                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.duplicarOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Duplicar">
+                  <i data-lucide="copy" class="w-4 h-4"></i>
                 </button>
                 <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.excluirOrcamento(${orc.id})" class="p-2 border border-red-200 bg-white text-red-500 hover:bg-red-50 rounded-lg shadow-sm" title="Excluir">
                   <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
-                <button onclick="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.duplicarOrcamento(${orc.id})" class="p-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 rounded-lg shadow-sm" title="Duplicar">
-                  <i data-lucide="copy" class="w-4 h-4"></i>
                 </button>
               `}
             </div>
