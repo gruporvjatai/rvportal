@@ -1542,6 +1542,10 @@
         // ===== FIM =====
 
         // ====== 4. INICIALIZAÇÃO E HELPERS ======
+        function normalizeSearch(str) {
+            return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        }
+
         window.onload = function() { 
             if (dadosUsuario) {
                 showLoading(true); 
@@ -2864,12 +2868,12 @@ function printStockCountSheet() {
   
   
         function renderPosProductModal() {
-            const term = document.getElementById('pos-modal-search').value.toLowerCase();
+            const term = normalizeSearch(document.getElementById('pos-modal-search').value);
             const grid = document.getElementById('pos-modal-grid');
             if(!grid) return;
         
             let filtered = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
-            if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
+            if (term) filtered = filtered.filter(p => normalizeSearch(p.name).includes(term));
             const sliced = filtered.slice(0, 50);
         
             grid.innerHTML = sliced.map(p => {
@@ -3166,12 +3170,12 @@ function printStockCountSheet() {
             
             let recentSales = Object.values(salesMap).sort((a,b) => b.id - a.id); */
             
-            const term = document.getElementById('pos-hist-search')?.value.toLowerCase() || '';
+            const term = normalizeSearch(document.getElementById('pos-hist-search')?.value);
             const startDate = document.getElementById('pos-hist-start')?.value;
             const endDate = document.getElementById('pos-hist-end')?.value;
 
             if(term) {
-                recentSales = recentSales.filter(r => (r.client && r.client.toLowerCase().includes(term)) || (r.itemsText.toLowerCase().includes(term)) || String(r.id).includes(term));
+                recentSales = recentSales.filter(r => (r.client && normalizeSearch(r.client).includes(term)) || (normalizeSearch(r.itemsText).includes(term)) || String(r.id).includes(term));
             }
             if(startDate) recentSales = recentSales.filter(r => (r.date||'').split('T')[0] >= startDate);
             if(endDate) recentSales = recentSales.filter(r => (r.date||'').split('T')[0] <= endDate);
@@ -3218,7 +3222,7 @@ function printStockCountSheet() {
             const list = document.getElementById('quotes-list');
             if(!list) return;
 
-            const term = document.getElementById('quote-search')?.value.toLowerCase() || '';
+            const term = normalizeSearch(document.getElementById('quote-search')?.value);
             const statusFilter = document.getElementById('quote-status-filter')?.value || '';
 
             let filteredQuotes = STATE.quotes.slice().reverse();
@@ -3226,7 +3230,7 @@ function printStockCountSheet() {
             if (term) {
                 filteredQuotes = filteredQuotes.filter(q => {
                     // 1. Busca por nome do cliente
-                    if (q.clientName && q.clientName.toLowerCase().includes(term)) return true;
+                    if (q.clientName && normalizeSearch(q.clientName).includes(term)) return true;
             
                     // 2. Busca por ID (número do pedido)
                     if (String(q.id).includes(term)) return true;
@@ -3476,12 +3480,12 @@ function loadQuoteToCart(id) {
             const histBody = document.getElementById('expedition-history-list');
             if(histBody) {
                 let histLogs = (STATE.logs || []).filter(l => l.type === 'entrega' && l.status !== 'CANCELADO');
-                const nameFilter = document.getElementById('exp-hist-name')?.value.toLowerCase() || '';
+                const nameFilter = normalizeSearch(document.getElementById('exp-hist-name')?.value);
                 const startDate = document.getElementById('exp-hist-start')?.value;
                 const endDate = document.getElementById('exp-hist-end')?.value;
 
                 if (nameFilter) {
-                    histLogs = histLogs.filter(l => (l.clientName && l.clientName.toLowerCase().includes(nameFilter)) || (l.productName && l.productName.toLowerCase().includes(nameFilter)));
+                    histLogs = histLogs.filter(l => (l.clientName && normalizeSearch(l.clientName).includes(nameFilter)) || (l.productName && normalizeSearch(l.productName).includes(nameFilter)));
                 }
                 if (startDate) histLogs = histLogs.filter(l => (l.date||'').split('T')[0] >= startDate);
                 if (endDate) histLogs = histLogs.filter(l => (l.date||'').split('T')[0] <= endDate);
@@ -3549,7 +3553,7 @@ function loadQuoteToCart(id) {
         function closePosClientModal() { document.getElementById('pos-client-modal').classList.add('hidden'); }
 
         function renderPosClientModal() {
-            const term = document.getElementById('pos-client-modal-search').value.toLowerCase();
+            const term = normalizeSearch(document.getElementById('pos-client-modal-search').value);
             const grid = document.getElementById('pos-client-modal-grid');
             if(!grid) return;
 
@@ -3558,9 +3562,9 @@ function loadQuoteToCart(id) {
             let filtered = sortedClients;
             if (term) {
                 filtered = filtered.filter(c => 
-                    c.name.toLowerCase().includes(term) || 
-                    (c.doc && c.doc.includes(term)) || 
-                    (c.phone && c.phone.includes(term))
+                    normalizeSearch(c.name).includes(term) || 
+                    (c.doc && normalizeSearch(c.doc).includes(term)) || 
+                    (c.phone && normalizeSearch(c.phone).includes(term))
                 );
             }
 
@@ -3598,7 +3602,7 @@ function loadQuoteToCart(id) {
         const list = document.getElementById('prod-list');
         if (!list) return;
       
-        const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
+        const term = normalizeSearch(document.getElementById('prod-search')?.value);
         const catFilter = document.getElementById('prod-category')?.value || '';
       
         const catSelect = document.getElementById('prod-category');
@@ -3614,7 +3618,7 @@ function loadQuoteToCart(id) {
       
         // Primeiro filtra
         let filtered = STATE.products.slice();
-        if (term) filtered = filtered.filter(p => p.name.toLowerCase().includes(term));
+        if (term) filtered = filtered.filter(p => normalizeSearch(p.name).includes(term));
         if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
       
         // Depois ordena
@@ -3718,14 +3722,14 @@ function loadQuoteToCart(id) {
             const list = document.getElementById('clients-list');
             if(!list) return;
             
-            const term = document.getElementById('cli-search')?.value.toLowerCase() || '';
+            const term = normalizeSearch(document.getElementById('cli-search')?.value);
             let filtered = STATE.clients || [];
 
             if (term) {
                 filtered = filtered.filter(c => 
-                    c.name.toLowerCase().includes(term) || 
-                    (c.phone && c.phone.toLowerCase().includes(term)) || 
-                    (c.doc && c.doc.toLowerCase().includes(term))
+                    normalizeSearch(c.name).includes(term) || 
+                    (c.phone && normalizeSearch(c.phone).includes(term)) || 
+                    (c.doc && normalizeSearch(c.doc).includes(term))
                 );
             }
 
@@ -3790,7 +3794,7 @@ function loadQuoteToCart(id) {
             lastBalance = income - expenses;
             updateCardValues();
         
-            const termRec = document.getElementById('rec-search')?.value.toLowerCase() || '';
+            const termRec = normalizeSearch(document.getElementById('rec-search')?.value);
             const statusRec = document.getElementById('rec-status')?.value || '';
             const startRec = document.getElementById('rec-start')?.value;
             const endRec = document.getElementById('rec-end')?.value;
@@ -3798,7 +3802,7 @@ function loadQuoteToCart(id) {
             const hojeLocalStr = getHojeLocalStr();
         
             let filteredRec = salesArr;
-            if (termRec) filteredRec = filteredRec.filter(r => (r.clientName && r.clientName.toLowerCase().includes(termRec)) || (r.desc && r.desc.toLowerCase().includes(termRec)) || String(r.id).includes(termRec));
+            if (termRec) filteredRec = filteredRec.filter(r => (r.clientName && normalizeSearch(r.clientName).includes(termRec)) || (r.desc && normalizeSearch(r.desc).includes(termRec)) || String(r.id).includes(termRec));
             if (statusRec === 'PAGOS') filteredRec = filteredRec.filter(r => r.status === 'PAGO');
             if (statusRec === 'ABERTOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate || '').split('T')[0] >= hojeLocalStr);
             if (statusRec === 'VENCIDOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate || '').split('T')[0] < hojeLocalStr);
@@ -3991,7 +3995,7 @@ function loadQuoteToCart(id) {
 
         // ========== CONTAS A PAGAR (DESPESAS) - CORRIGIDO ==========
     let filteredExp = STATE.expenses.slice();
-    const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
+    const termExp = normalizeSearch(document.getElementById('exp-search')?.value);
     const statusExp = document.getElementById('exp-status')?.value || '';
     const startExp = document.getElementById('exp-start')?.value;
     const endExp = document.getElementById('exp-end')?.value;
@@ -3999,9 +4003,9 @@ function loadQuoteToCart(id) {
         
 
     if (termExp) filteredExp = filteredExp.filter(e => 
-        e.item?.toLowerCase().includes(termExp) || 
-        e.note?.toLowerCase().includes(termExp) || 
-        e.provider?.toLowerCase().includes(termExp) ||
+        normalizeSearch(e.item).includes(termExp) || 
+        normalizeSearch(e.note).includes(termExp) || 
+        normalizeSearch(e.provider).includes(termExp) ||
         String(e.id).includes(termExp)
     );
     if (statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
@@ -4342,12 +4346,12 @@ function loadQuoteToCart(id) {
         function printExpeditionHistory() {
             let histLogs = (STATE.logs || []).filter(l => l.type === 'entrega' && l.status !== 'CANCELADO');
             
-            const nameFilter = document.getElementById('exp-hist-name')?.value.toLowerCase() || '';
+            const nameFilter = normalizeSearch(document.getElementById('exp-hist-name')?.value);
             const startDate = document.getElementById('exp-hist-start')?.value;
             const endDate = document.getElementById('exp-hist-end')?.value;
 
             if (nameFilter) {
-                histLogs = histLogs.filter(l => (l.clientName && l.clientName.toLowerCase().includes(nameFilter)) || (l.productName && l.productName.toLowerCase().includes(nameFilter)));
+                histLogs = histLogs.filter(l => (l.clientName && normalizeSearch(l.clientName).includes(nameFilter)) || (l.productName && normalizeSearch(l.productName).includes(nameFilter)));
             }
             if (startDate) histLogs = histLogs.filter(l => (l.date||'').split('T')[0] >= startDate);
             if (endDate) histLogs = histLogs.filter(l => (l.date||'').split('T')[0] <= endDate);
@@ -4436,7 +4440,7 @@ function loadQuoteToCart(id) {
         }
 
         function printReceivables() {
-            const termRec = document.getElementById('rec-search')?.value.toLowerCase() || '';
+            const termRec = normalizeSearch(document.getElementById('rec-search')?.value);
             const statusRec = document.getElementById('rec-status')?.value || '';
             const startRec = document.getElementById('rec-start')?.value;
             const endRec = document.getElementById('rec-end')?.value;
@@ -4457,7 +4461,7 @@ function loadQuoteToCart(id) {
             
             let filtered = Object.values(salesMap);
 
-            if(termRec) filtered = filtered.filter(r => (r.clientName && r.clientName.toLowerCase().includes(termRec)) || (r.desc && r.desc.toLowerCase().includes(termRec)) || String(r.id).includes(termRec));
+            if(termRec) filtered = filtered.filter(r => (r.clientName && normalizeSearch(r.clientName).includes(termRec)) || (r.desc && normalizeSearch(r.desc).includes(termRec)) || String(r.id).includes(termRec));
             if(statusRec === 'PAGOS') filtered = filtered.filter(r => r.status === 'PAGO');
             if(statusRec === 'ABERTOS') filtered = filtered.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] >= hojeLocalStr);
             if(statusRec === 'VENCIDOS') filtered = filtered.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] < hojeLocalStr);
@@ -4644,7 +4648,7 @@ function loadQuoteToCart(id) {
 
           function printExpenses() {
             // Captura os filtros da interface
-            const termExp = document.getElementById('exp-search')?.value.toLowerCase() || '';
+            const termExp = normalizeSearch(document.getElementById('exp-search')?.value);
             const statusExp = document.getElementById('exp-status')?.value || '';
             const startExp = document.getElementById('exp-start')?.value;
             const endExp = document.getElementById('exp-end')?.value;
@@ -4657,9 +4661,9 @@ function loadQuoteToCart(id) {
             // Filtro de busca textual (item, nota, fornecedor)
             if (termExp) {
                 filteredExp = filteredExp.filter(e =>
-                    (e.item && e.item.toLowerCase().includes(termExp)) ||
-                    (e.note && e.note.toLowerCase().includes(termExp)) ||
-                    (e.provider && e.provider.toLowerCase().includes(termExp))
+                    (e.item && normalizeSearch(e.item).includes(termExp)) ||
+                    (e.note && normalizeSearch(e.note).includes(termExp)) ||
+                    (e.provider && normalizeSearch(e.provider).includes(termExp))
                 );
             }
         
@@ -5265,7 +5269,7 @@ function loadQuoteToCart(id) {
     const start = document.getElementById('rep-per-start').value;
     const end = document.getElementById('rep-per-end').value;
     const payment = document.getElementById('rep-per-payment').value;
-    const client = document.getElementById('rep-per-client').value.toLowerCase().trim();
+    const client = normalizeSearch(document.getElementById('rep-per-client').value.trim());
 
     const salesMap = {};
     STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
@@ -5292,7 +5296,7 @@ function loadQuoteToCart(id) {
     if (start) filteredSales = filteredSales.filter(s => (s.date||'').split('T')[0] >= start);
     if (end) filteredSales = filteredSales.filter(s => (s.date||'').split('T')[0] <= end);
     if (payment !== 'Todos') filteredSales = filteredSales.filter(s => s.paymentMethod === payment);
-    if (client) filteredSales = filteredSales.filter(s => s.clientName.toLowerCase().includes(client));
+    if (client) filteredSales = filteredSales.filter(s => normalizeSearch(s.clientName).includes(client));
 
     filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date));
 
