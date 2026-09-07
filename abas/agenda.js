@@ -1,6 +1,15 @@
 // agenda.js – Módulo de agenda de instalações MDF
 // Depende do supabaseClient (global ou importado)
 
+// Data no fuso LOCAL no formato YYYY-MM-DD (o toISOString() usaria UTC e
+// poderia deslocar os limites do mês para o dia anterior).
+function dataLocalISOAgenda(d) {
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
 class AgendaManager {
   constructor(container, supabase) {
     this.container = container;
@@ -21,8 +30,8 @@ class AgendaManager {
     const mes = this.currentDate.getMonth();
     const startDate = new Date(ano, mes, 1);
     const endDate = new Date(ano, mes + 1, 0);
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
+    const startStr = dataLocalISOAgenda(startDate);
+    const endStr = dataLocalISOAgenda(endDate);
 
     const { data, error } = await this.supabase
       .from('mdf_agenda')

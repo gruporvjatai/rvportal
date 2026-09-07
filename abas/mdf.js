@@ -35,31 +35,10 @@ function carregarPdfMake() {
   return _pdfMakePromise;
 }
 
-/*async function imagemParaBase64PDF(url) {
+async function imagemParaBase64PDF(url, opcoes = {}) {
   if (!url) return null;
-  if (_cacheImagensPDF.has(url)) return _cacheImagensPDF.get(url);
-  try {
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const blob = await resp.blob();
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('Falha ao ler a imagem.'));
-      reader.readAsDataURL(blob);
-    });
-    _cacheImagensPDF.set(url, dataUrl);
-    return dataUrl;
-  } catch (e) {
-    console.warn('Falha ao carregar imagem para o PDF:', url, e);
-    _cacheImagensPDF.set(url, null);
-    return null;
-  }
-}*/
-
-async function imagemParaBase64PDF(url) {
-  if (!url) return null;
-  if (_cacheImagensPDF.has(url)) return _cacheImagensPDF.get(url);
+  const chaveCache = url + (opcoes.quadrada ? '|quadrada' : '');
+  if (_cacheImagensPDF.has(chaveCache)) return _cacheImagensPDF.get(chaveCache);
   try {
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -69,7 +48,24 @@ async function imagemParaBase64PDF(url) {
       const img = new Image();
       img.onload = () => {
         try {
-          const MAX = 800;
+          // Fotos de itens viram um quadrado padrão (letterbox branco): todas as
+          // fotos ocupam a MESMA área no PDF, independente da proporção original.
+          if (opcoes.quadrada) {
+            const LADO = 640;
+            const canvas = document.createElement('canvas');
+            canvas.width = LADO;
+            canvas.height = LADO;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, LADO, LADO);
+            const escala = Math.min(LADO / img.width, LADO / img.height);
+            const dw = Math.round(img.width * escala);
+            const dh = Math.round(img.height * escala);
+            ctx.drawImage(img, (LADO - dw) / 2, (LADO - dh) / 2, dw, dh);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+            return;
+          }
+          const MAX = opcoes.max || 800;
           let { width, height } = img;
           if (width > MAX || height > MAX) {
             const scale = MAX / Math.max(width, height);
@@ -96,19 +92,65 @@ async function imagemParaBase64PDF(url) {
       };
       img.src = objectUrl;
     });
-    _cacheImagensPDF.set(url, dataUrl);
+    _cacheImagensPDF.set(chaveCache, dataUrl);
     return dataUrl;
   } catch (e) {
     console.warn('Falha ao carregar imagem para o PDF:', url, e);
-    _cacheImagensPDF.set(url, null);
+    _cacheImagensPDF.set(chaveCache, null);
     return null;
   }
 }
 
 
+// Formatação monetária em R$ para o PDF (milhar com ponto, centavos com vírgula).
 function formatarMoedaPDF(valor) {
-  return 'R$ ' + (parseFloat(valor) || 0).toFixed(2);
+  return (parseFloat(valor) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace(/\u00A0/g, ' ');
 }
+
+// Formatação monetária no padrão brasileiro (R$ 1.234,56) para a UI.
+function formatarMoedaBR(valor) {
+  return (parseFloat(valor) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+// Escapa HTML ao interpolar dados de usuário (evita XSS e quebra de
+// layout por aspas / < > / &).
+function escaparHTML(valor) {
+  return String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Data de HOJE no fuso local no formato YYYY-MM-DD (evita o "dia errado"
+// que o toISOString() causa por causa do UTC).
+function dataLocalISO(d = new Date()) {
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+// Upload de imagem para o imgbb (usado no resumo 3D e nos itens).
+const IMGBB_KEY = 'c201a949389ed2c50aabd3731b4d1932';
+async function enviarImagemImgBB(arquivoOuBlob) {
+  const formData = new FormData();
+  formData.append('image', arquivoOuBlob);
+  const resp = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, { method: 'POST', body: formData });
+  if (!resp.ok) throw new Error('Falha de conexão no upload da imagem.');
+  const data = await resp.json();
+  if (!data.success) throw new Error(data.error?.message || 'Falha no upload da imagem.');
+  return data.data.url;
+}
+
+// Labels amigáveis dos status de orçamento MDF.
+const STATUS_LABEL_MDF = {
+  'ABERTO': 'Aberto',
+  'EM NEGOCIAÇÃO': 'Em Negociação',
+  'APROVADO': 'Aprovado',
+  'PERDIDO': 'Perdido'
+};
 
 // ==================== CLASSE PRINCIPAL DO MÓDULO MDF (CORRIGIDA) ====================
 class MDFManager {
@@ -126,8 +168,7 @@ class MDFManager {
   init() {
     this.renderizarInterface();
     lucide.createIcons();
-    this.atualizarEstiloBotoes('projetos'); // adicionado aqui / manter ??
-    this.mostrarSubAba('projetos');  
+    this.mostrarSubAba('projetos');
   }
 
   renderizarInterface() {
@@ -152,21 +193,6 @@ class MDFManager {
         <div id="subaba-mdf-agenda" class="subaba-mdf-content flex-1 hidden"></div>
       </div>
     `;
-
-    // Aplica o estilo ativo no botão correto
-    //this.atualizarEstiloBotoes('projetos');
-
-    // Sincroniza a profundidade com o input (se existir)
-    const profundidadeInput = document.getElementById('profundidade-input-mdf');
-    if (profundidadeInput) {
-      profundidadeInput.value = this.profundidade;
-      profundidadeInput.addEventListener('change', (e) => {
-        this.profundidade = parseFloat(e.target.value) || 60;
-        if (this.projetosManager && this.projetosManager.configurador3D) {
-          this.projetosManager.configurador3D.reconstruirModelo();
-        }
-      });
-    }
 
     this.container.querySelectorAll('.subaba-mdf-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -220,6 +246,9 @@ class MDFManager {
     if (!this.agendaManager) {
       // Importa o módulo agenda.js (já carregado via script no HTML)
       this.agendaManager = new AgendaManager(area, supabaseClient);
+    } else {
+      // Recarrega para refletir agendamentos criados/alterados no orçamento
+      this.agendaManager.atualizarApPosAlteracao();
     }
   }
 }
@@ -319,11 +348,11 @@ class EditorFachada2DMDF {
   renderizar() {
     this.container.innerHTML = `
       <div class="flex flex-col gap-2 h-full">
-        <div class="flex gap-2 bg-white p-2 rounded-lg shadow-sm border items-center">
-          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-[#b8a94e] text-white" data-tool="linha">✏️ Linha</button>
-          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-slate-200 text-slate-700" data-tool="retangulo">🚪 Porta / Gaveta / Fundo</button>
-          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-red-100 text-red-700" data-tool="desfazer">↩️ Desfazer</button>
-          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-red-300 text-red-900" data-tool="limpar">🗑️ Limpar Tudo</button>
+        <div class="flex gap-2 bg-white p-2 rounded-lg shadow-sm border items-center flex-wrap">
+          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-[#b8a94e] text-white flex items-center gap-1" data-tool="linha"><i data-lucide="pen-tool" class="w-4 h-4"></i> Linha</button>
+          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-slate-200 text-slate-700 flex items-center gap-1" data-tool="retangulo"><i data-lucide="door-open" class="w-4 h-4"></i> Porta / Gaveta / Fundo</button>
+          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-red-100 text-red-700 flex items-center gap-1" data-tool="desfazer"><i data-lucide="undo-2" class="w-4 h-4"></i> Desfazer</button>
+          <button class="tool-btn-mdf px-3 py-1 rounded text-sm font-bold bg-red-300 text-red-900 flex items-center gap-1" data-tool="limpar"><i data-lucide="trash-2" class="w-4 h-4"></i> Limpar Tudo</button>
           <span class="text-xs text-slate-500 ml-2">Grade: ${this.grade}cm | Arraste para desenhar</span>
         </div>
         <div class="flex-1 bg-white rounded-xl border shadow-sm relative overflow-hidden" id="canvas-fachada-mdf" style="min-height:500px;">
@@ -345,6 +374,21 @@ class EditorFachada2DMDF {
     window.addEventListener('resize', () => this.resizeCanvas());
     this.desenhar();
     this.bindEventos();
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    // Modal de tipo de preenchimento: fecha com Esc ou clique fora
+    const modalTipo = document.getElementById('modal-tipo-preenchimento-mdf');
+    if (modalTipo) {
+      modalTipo.addEventListener('click', (e) => {
+        if (e.target === modalTipo) modalTipo.classList.add('hidden');
+      });
+      document.addEventListener('keydown', function fecharPorEsc(e) {
+        if (e.key === 'Escape' && !modalTipo.classList.contains('hidden')) {
+          modalTipo.classList.add('hidden');
+        }
+      });
+    }
   }
 
   resizeCanvas() {
@@ -411,7 +455,7 @@ class EditorFachada2DMDF {
   bindEventos() {
     this.container.querySelectorAll('.tool-btn-mdf').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const tool = e.target.dataset.tool;
+        const tool = e.currentTarget.dataset.tool;
         if (tool === 'desfazer') {
           if (this.manager.preenchimentos.length) this.manager.preenchimentos.pop();
           else if (this.manager.linhas.length) this.manager.linhas.pop();
@@ -423,7 +467,8 @@ class EditorFachada2DMDF {
         } else {
           this.modo = tool;
           this.container.querySelectorAll('.tool-btn-mdf').forEach(b => { b.classList.remove('bg-[#b8a94e]', 'text-white'); b.classList.add('bg-slate-200', 'text-slate-700'); });
-          e.target.classList.add('bg-[#b8a94e]', 'text-white');
+          e.currentTarget.classList.add('bg-[#b8a94e]', 'text-white');
+          e.currentTarget.classList.remove('bg-slate-200', 'text-slate-700');
         }
       });
     });
@@ -702,14 +747,14 @@ class ProjetosMDF {
     <div class="flex flex-col h-full">
       <div class="flex flex-wrap justify-between items-center gap-2 mb-4 bg-white p-2 rounded-xl shadow-sm border">
         <div class="flex gap-2">
-          <button data-subsubaba="fachada" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#b8a94e] text-white shadow">📐 Fachada 2D</button>
-          <button data-subsubaba="3d" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">🧊 3D</button>
-          <button data-subsubaba="detalhamento" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100">📋 Detalhamento</button>
+          <button data-subsubaba="fachada" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm bg-[#b8a94e] text-white shadow flex items-center gap-1"><i data-lucide="ruler" class="w-4 h-4"></i> Fachada 2D</button>
+          <button data-subsubaba="3d" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100 flex items-center gap-1"><i data-lucide="box" class="w-4 h-4"></i> 3D</button>
+          <button data-subsubaba="detalhamento" class="subsubaba-mdf-btn px-4 py-2 rounded-lg font-bold text-sm text-slate-600 hover:bg-slate-100 flex items-center gap-1"><i data-lucide="clipboard-list" class="w-4 h-4"></i> Detalhamento</button>
         </div>
         <div class="flex items-center gap-2">
           <label class="text-xs font-bold text-slate-600">Profundidade (cm):</label>
           <input type="number" id="profundidade-input-mdf" value="60" min="30" max="80" class="w-16 p-1 border rounded text-xs">
-          <button onclick="window.open('https://flatma.com/pt/create/designer', '_blank')" title="Abrir Flatma" class="px-3 py-1 border border-[#b8a94e] text-[#b8a94e] rounded text-xs font-bold hover:bg-amber-50 transition">📐 Flatma</button>
+          <button onclick="window.open('https://flatma.com/pt/create/designer', '_blank')" title="Abrir Flatma" class="px-3 py-1 border border-[#b8a94e] text-[#b8a94e] rounded text-xs font-bold hover:bg-amber-50 transition flex items-center gap-1"><i data-lucide="external-link" class="w-4 h-4"></i> Flatma</button>
         </div>
       </div>
       <div id="subsubaba-fachada" class="subsubaba-mdf-content flex-1"></div>
@@ -719,25 +764,26 @@ class ProjetosMDF {
   `;
 
     // Sincronizar profundidade com o manager principal
-      const profundidadeInput = document.getElementById('profundidade-input-mdf');
-      if (profundidadeInput) {
-        profundidadeInput.value = this.parentManager.profundidade;
-        profundidadeInput.addEventListener('change', (e) => {
-          const novaProfundidade = parseFloat(e.target.value) || 60;
-          this.parentManager.profundidade = novaProfundidade;
-          if (this.configurador3D) {
-            this.configurador3D.reconstruirModelo();
-          }
-          const areaDetalhamento = document.getElementById('subsubaba-detalhamento');
-          if (areaDetalhamento && !areaDetalhamento.classList.contains('hidden')) {
-            this.atualizarDetalhamento(areaDetalhamento);
-          }
-        });
-      }
+    const profundidadeInput = document.getElementById('profundidade-input-mdf');
+    if (profundidadeInput) {
+      profundidadeInput.value = this.parentManager.profundidade;
+      profundidadeInput.addEventListener('change', (e) => {
+        const novaProfundidade = parseFloat(e.target.value) || 60;
+        this.parentManager.profundidade = novaProfundidade;
+        if (this.configurador3D) {
+          this.configurador3D.reconstruirModelo();
+        }
+        const areaDetalhamento = document.getElementById('subsubaba-detalhamento');
+        if (areaDetalhamento && !areaDetalhamento.classList.contains('hidden')) {
+          this.atualizarDetalhamento(areaDetalhamento);
+        }
+      });
+    }
 
-    
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
     this.container.querySelectorAll('.subsubaba-mdf-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => this.mostrarSubSubAba(e.target.dataset.subsubaba));
+      btn.addEventListener('click', (e) => this.mostrarSubSubAba(e.currentTarget.dataset.subsubaba));
     });
   }
 
@@ -781,8 +827,8 @@ class ProjetosMDF {
           </table>
         </div>
         <div class="mt-4 flex gap-2 justify-end">
-          <button id="btn-imprimir-detalhamento-mdf" class="btn-outline px-4 py-2 rounded-lg font-bold">🖨️ Imprimir Detalhamento</button>
-          <button id="btn-enviar-resumo-mdf" class="btn-primary px-6 py-2 rounded-lg font-bold shadow">📤 Enviar para Orçamento (Resumo)</button>
+          <button id="btn-imprimir-detalhamento-mdf" class="btn-outline px-4 py-2 rounded-lg font-bold flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir Detalhamento</button>
+          <button id="btn-enviar-resumo-mdf" class="btn-primary px-6 py-2 rounded-lg font-bold shadow flex items-center gap-1"><i data-lucide="send" class="w-4 h-4"></i> Enviar para Orçamento (Resumo)</button>
         </div>
       </div>`;
 
@@ -792,6 +838,7 @@ class ProjetosMDF {
     document.getElementById('btn-enviar-resumo-mdf').addEventListener('click', () => {
       this.enviarResumoParaOrcamento();
     });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
   imprimirDetalhamento(pecas) {
@@ -827,19 +874,11 @@ class ProjetosMDF {
         const canvas = this.configurador3D.renderer.domElement;
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         if (blob) {
-          const formData = new FormData();
-          formData.append('image', blob);
-          const resp = await fetch(`https://api.imgbb.com/1/upload?key=c201a949389ed2c50aabd3731b4d1932`, { // Substitua pela sua chave real
-            method: 'POST',
-            body: formData
-          });
-          const data = await resp.json();
-          if (data.success) {
-            fotoUrl = data.data.url;
-          }
+          fotoUrl = await enviarImagemImgBB(blob);
         }
       } catch (e) {
         console.warn("Erro ao capturar imagem 3D:", e);
+        window.showToast("Não foi possível gerar a imagem 3D do projeto.", true);
       }
     }
 
@@ -877,23 +916,26 @@ class ProjetosMDF {
     });
   }
 
+  obterOrcamentosManager() {
+    if (this.parentManager.orcamentosManager) return this.parentManager.orcamentosManager;
+    const areaOrc = document.getElementById('subaba-mdf-orcamentos');
+    if (!areaOrc) return null;
+    const orcManager = new OrcamentosMDF(areaOrc, this.parentManager);
+    this.parentManager.orcamentosManager = orcManager;
+    return orcManager;
+  }
+
   criarNovoOrcamento(resumo, fotoUrl) {
-    let orcManager = this.parentManager.orcamentosManager;
+    const orcManager = this.obterOrcamentosManager();
     if (!orcManager) {
-      const areaOrc = document.getElementById('subaba-mdf-orcamentos');
-      if (areaOrc) {
-        orcManager = new OrcamentosMDF(areaOrc, this.parentManager);
-        this.parentManager.orcamentosManager = orcManager;
-      } else {
-        window.showToast("Módulo de orçamentos não disponível.", true);
-        return;
-      }
+      window.showToast("Módulo de orçamentos não disponível.", true);
+      return;
     }
     orcManager.abrirNovoOrcamento();
     setTimeout(() => {
       orcManager.adicionarItem({
         nome: resumo.descricao,
-        descricao: `Projeto gerado automaticamente.`,
+        descricao: 'Projeto gerado automaticamente.',
         preco: 0,
         desconto: 0,
         foto_url: fotoUrl
@@ -935,7 +977,7 @@ class ProjetosMDF {
           ${orcamentos.map(o => `
             <div class="orcamento-item-mdf" data-id="${o.id}" style="padding:12px; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:white; transition:background 0.2s;">
               <div>
-                <span style="font-weight:600;">#${o.id} - ${o.cliente_nome || 'Sem nome'}</span><br>
+                <span style="font-weight:600;">#${o.id} - ${escaparHTML(o.cliente_nome) || 'Sem nome'}</span><br>
                 <span style="font-size:0.8rem; color:#64748b;">${new Date(o.created_at).toLocaleDateString('pt-BR')}</span>
               </div>
               <i data-lucide="plus-circle" style="color:#b8a94e;"></i>
@@ -961,22 +1003,16 @@ class ProjetosMDF {
   }
 
   async adicionarItemAOrcamento(orcamentoId, resumo, fotoUrl) {
-    let orcManager = this.parentManager.orcamentosManager;
+    const orcManager = this.obterOrcamentosManager();
     if (!orcManager) {
-      const areaOrc = document.getElementById('subaba-mdf-orcamentos');
-      if (areaOrc) {
-        orcManager = new OrcamentosMDF(areaOrc, this.parentManager);
-        this.parentManager.orcamentosManager = orcManager;
-      } else {
-        window.showToast("Módulo de orçamentos não disponível.", true);
-        return;
-      }
+      window.showToast("Módulo de orçamentos não disponível.", true);
+      return;
     }
     await orcManager.editarOrcamento(orcamentoId);
     setTimeout(() => {
       orcManager.adicionarItem({
         nome: resumo.descricao,
-        descricao: `Projeto gerado automaticamente.`,
+        descricao: 'Projeto gerado automaticamente.',
         preco: 0,
         desconto: 0,
         foto_url: fotoUrl
@@ -1006,7 +1042,7 @@ class OrcamentosMDF {
           <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
             <div class="relative w-full md:w-64">
               <i data-lucide="search" class="absolute left-2 top-2.5 text-slate-400 w-4 h-4"></i>
-              <input type="text" id="search-quotes-mdf" placeholder="Buscar cliente..." class="w-full pl-8 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm" onkeyup="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.renderizarOrcamentos()">
+              <input type="text" id="search-quotes-mdf" placeholder="Buscar cliente..." class="w-full pl-8 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm" onkeyup="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.buscarDebounce()">
             </div>
             <select id="status-filter-mdf" class="w-full md:w-auto p-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none shadow-sm font-medium text-slate-600" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.renderizarOrcamentos()">
               <option value="">Todos os Status</option>
@@ -1122,9 +1158,13 @@ class OrcamentosMDF {
         </div>
       </div>
     `;
-    // Não usamos mais carregarClientesSelect, pois usamos modal de busca
     this.renderizarOrcamentos();
     if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  buscarDebounce() {
+    clearTimeout(this._debounceBusca);
+    this._debounceBusca = setTimeout(() => this.renderizarOrcamentos(), 350);
   }
 
   async renderizarOrcamentos() {
@@ -1140,7 +1180,7 @@ class OrcamentosMDF {
 
     const { data: orcamentos, error } = await query;
     if (error) {
-      lista.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-400">Erro ao carregar: ${error.message}</td></tr>`;
+      lista.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-400">Erro ao carregar: ${escaparHTML(error.message)}</td></tr>`;
       return;
     }
 
@@ -1162,16 +1202,31 @@ class OrcamentosMDF {
       return;
     }
 
-    const dados = await Promise.all(filtrados.map(async (orc) => {
-      const { data: itensData } = await supabaseClient.from('mdf_itens').select('preco, desconto').eq('orcamento_id', orc.id);
-      let total = itensData ? itensData.reduce((s, i) => s + parseFloat(i.preco) - parseFloat(i.desconto || 0), 0) : 0;
+    // Busca os itens de TODOS os orçamentos visíveis em uma única consulta
+    // (evita o N+1 de uma query por orçamento).
+    const ids = filtrados.map(o => o.id);
+    const { data: itensTodos, error: errItens } = ids.length
+      ? await supabaseClient.from('mdf_itens').select('orcamento_id, preco, desconto').in('orcamento_id', ids)
+      : { data: [], error: null };
+    if (errItens) {
+      lista.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-400">Erro ao carregar itens: ${escaparHTML(errItens.message)}</td></tr>`;
+      return;
+    }
+    const itensPorOrcamento = {};
+    (itensTodos || []).forEach(i => {
+      (itensPorOrcamento[i.orcamento_id] = itensPorOrcamento[i.orcamento_id] || []).push(i);
+    });
+
+    const dados = filtrados.map((orc) => {
+      const itensData = itensPorOrcamento[orc.id] || [];
+      let total = itensData.reduce((s, i) => s + parseFloat(i.preco) - parseFloat(i.desconto || 0), 0);
       // Aplica desconto geral do orçamento
       if (orc.desconto && orc.desconto > 0) {
         const descontoAplicado = orc.tipo_desconto === '%' ? total * (orc.desconto / 100) : orc.desconto;
         total = Math.max(0, total - descontoAplicado);
       }
-      return { ...orc, total, itensCount: itensData?.length || 0 };
-    }));
+      return { ...orc, total, itensCount: itensData.length };
+    });
 
     lista.innerHTML = dados.map(orc => {
       const statusClass = {
@@ -1190,11 +1245,11 @@ class OrcamentosMDF {
             <div class="text-[10px] text-slate-400">${new Date(orc.created_at).toLocaleDateString('pt-BR')}</div>
           </td>
           <td class="p-4">
-            <div class="font-bold text-slate-800">${nomeCliente(orc)}</div>
+            <div class="font-bold text-slate-800">${escaparHTML(nomeCliente(orc))}</div>
             <div class="text-xs text-slate-500">${orc.itensCount} itens</div>
           </td>
-          <td class="p-4 font-bold text-slate-800">R$ ${orc.total.toFixed(2)}</td>
-          <td class="p-4 text-center"><span class="px-2 py-1 rounded-full text-xs font-bold ${statusClass}">${orc.status}</span></td>
+          <td class="p-4 font-bold text-slate-800">${formatarMoedaBR(orc.total)}</td>
+          <td class="p-4 text-center"><span class="px-2 py-1 rounded-full text-xs font-bold ${statusClass}">${STATUS_LABEL_MDF[orc.status] || escaparHTML(orc.status)}</span></td>
           <td class="p-4">
             <div class="flex items-center justify-center gap-2 flex-wrap">
               ${isAprovado ? `
@@ -1266,7 +1321,11 @@ class OrcamentosMDF {
     this.orcamentoAtualId = id;
     document.getElementById('modal-titulo-mdf').innerText = `Editar Orçamento #${id}`;
 
-    const { data: orc } = await supabaseClient.from('mdf_orcamentos').select('*').eq('id', id).single();
+    const { data: orc, error: errOrc } = await supabaseClient.from('mdf_orcamentos').select('*').eq('id', id).single();
+    if (errOrc || !orc) {
+      window.showToast('Não foi possível carregar o orçamento.', true);
+      return;
+    }
     if (orc) {
       document.getElementById('status-mdf').value = orc.status || 'ABERTO';
       document.getElementById('observacoes-mdf').value = orc.observacoes || '';
@@ -1352,16 +1411,20 @@ class OrcamentosMDF {
     if (!container) return;
     container.innerHTML = this.itens.filter(i => !i.removido).map((item, idx) => `
       <div class="flex flex-col md:flex-row gap-3 items-start border border-slate-200 rounded-xl p-3 bg-white">
-        <div class="w-40 h-40 rounded-lg border bg-slate-100 flex items-center justify-center cursor-pointer overflow-hidden relative" onclick="this.querySelector('input[type=file]').click()">
-          ${item.foto_url 
-            ? `<img src="${item.foto_url}" class="w-full h-full object-cover" alt="Foto" style="position: absolute; inset: 0;">`
-            : `<i data-lucide="camera" class="w-12 h-12 text-slate-400"></i>`
+        <div class="relative w-40 h-40 rounded-lg border bg-slate-100 overflow-hidden">
+          ${item.foto_url
+            ? `<img src="${escaparHTML(item.foto_url)}" class="w-full h-full object-cover" alt="Foto" style="position: absolute; inset: 0;">
+               <button type="button" onclick="event.stopPropagation(); if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.removerFotoItem(${idx})" title="Excluir foto" class="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-md"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+               <button type="button" onclick="this.parentElement.querySelector('input[type=file]').click()" title="Trocar foto" class="absolute bottom-1.5 right-1.5 z-10 w-7 h-7 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"><i data-lucide="camera" class="w-4 h-4"></i></button>`
+            : `<div class="w-full h-full flex items-center justify-center cursor-pointer hover:bg-slate-200 transition" onclick="this.querySelector('input[type=file]').click()">
+                 <i data-lucide="camera" class="w-12 h-12 text-slate-400"></i>
+               </div>`
           }
           <input type="file" accept="image/*" class="hidden" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.uploadImagemItem(this, ${idx})">
         </div>
         <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 w-full">
-          <input type="text" placeholder="Nome do móvel" value="${item.nome.replace(/"/g, '&quot;')}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'nome', this.value)" class="p-2 border rounded text-sm w-full">
-          <input type="text" placeholder="Medidas / descrição" value="${item.descricao.replace(/"/g, '&quot;')}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'descricao', this.value)" class="p-2 border rounded text-sm w-full">
+          <input type="text" placeholder="Nome do móvel" value="${escaparHTML(item.nome)}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'nome', this.value)" class="p-2 border rounded text-sm w-full">
+          <input type="text" placeholder="Medidas / descrição" value="${escaparHTML(item.descricao)}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'descricao', this.value)" class="p-2 border rounded text-sm w-full">
           <input type="number" placeholder="Preço R$" value="${item.preco}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'preco', parseFloat(this.value) || 0)" class="p-2 border rounded text-sm w-full" step="0.01">
           <input type="number" placeholder="Desconto R$" value="${item.desconto}" onchange="if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.atualizarItem(${idx}, 'desconto', parseFloat(this.value) || 0)" class="p-2 border rounded text-sm w-full" step="0.01">
         </div>
@@ -1379,24 +1442,23 @@ class OrcamentosMDF {
   async uploadImagemItem(input, index) {
     const file = input.files[0];
     if (!file) return;
-    const formData = new FormData();
-    formData.append('image', file);
     try {
-      const resp = await fetch(`https://api.imgbb.com/1/upload?key=c201a949389ed2c50aabd3731b4d1932`, {
-        method: 'POST',
-        body: formData
-      });
-      const data = await resp.json();
-      if (data.success) {
-        this.itens[index].foto_url = data.data.url;
-        this.renderizarItens();
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-      } else {
-        window.showToast('Erro ao enviar imagem.', true);
-      }
+      const url = await enviarImagemImgBB(file);
+      this.itens[index].foto_url = url;
+      this.renderizarItens();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     } catch (e) {
-      window.showToast('Erro de conexão ao enviar imagem.', true);
+      console.error(e);
+      window.showToast(e.message || 'Erro ao enviar imagem.', true);
     }
+  }
+
+  removerFotoItem(index) {
+    if (!this.itens[index]) return;
+    this.itens[index].foto_url = '';
+    this.renderizarItens();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    window.showToast('Foto removida do item.');
   }
 
   atualizarTotais() {
@@ -1405,8 +1467,8 @@ class OrcamentosMDF {
     const valor = parseFloat(document.getElementById('valor-desconto-mdf').value) || 0;
     const desconto = tipo === '%' ? subtotal * (valor / 100) : valor;
     const total = Math.max(0, subtotal - desconto);
-    document.getElementById('subtotal-mdf').innerText = `R$ ${subtotal.toFixed(2)}`;
-    document.getElementById('total-geral-mdf').innerText = `R$ ${total.toFixed(2)}`;
+    document.getElementById('subtotal-mdf').innerText = formatarMoedaBR(subtotal);
+    document.getElementById('total-geral-mdf').innerText = formatarMoedaBR(total);
   }
 
   async salvarOrcamento() {
@@ -1457,7 +1519,12 @@ class OrcamentosMDF {
 
       const itensParaRemover = this.itens.filter(i => i.removido && i.id);
       for (const item of itensParaRemover) {
-        await supabaseClient.from('mdf_itens').delete().eq('id', item.id);
+        const { error: errRemover } = await supabaseClient.from('mdf_itens').delete().eq('id', item.id);
+        if (errRemover) {
+          console.error("Erro ao remover item:", errRemover);
+          window.showToast('Erro ao remover item do orçamento.', true);
+          return;
+        }
       }
 
       for (const item of itensAtivos) {
@@ -1469,10 +1536,13 @@ class OrcamentosMDF {
           desconto: item.desconto,
           foto_url: item.foto_url || ''
         };
-        if (item.id) {
-          await supabaseClient.from('mdf_itens').update(payload).eq('id', item.id);
-        } else {
-          await supabaseClient.from('mdf_itens').insert(payload);
+        const { error: errItem } = item.id
+          ? await supabaseClient.from('mdf_itens').update(payload).eq('id', item.id)
+          : await supabaseClient.from('mdf_itens').insert(payload);
+        if (errItem) {
+          console.error("Erro ao salvar item:", errItem);
+          window.showToast('Erro ao salvar item do orçamento.', true);
+          return;
         }
       }
     } else {
@@ -1503,7 +1573,11 @@ class OrcamentosMDF {
         foto_url: item.foto_url || ''
       }));
       const { error: errItens } = await supabaseClient.from('mdf_itens').insert(itensParaInserir);
-      if (errItens) console.error("Erro ao inserir itens:", errItens);
+      if (errItens) {
+        console.error("Erro ao inserir itens:", errItens);
+        window.showToast('Erro ao salvar itens do orçamento.', true);
+        return;
+      }
     }
 
     this.itens = [];
@@ -1514,17 +1588,35 @@ class OrcamentosMDF {
 
   async excluirOrcamento(id) {
     if (!confirm('Excluir este orçamento?')) return;
-    await supabaseClient.from('mdf_itens').delete().eq('orcamento_id', id);
-    await supabaseClient.from('mdf_orcamentos').delete().eq('id', id);
+    const { error: errItens } = await supabaseClient.from('mdf_itens').delete().eq('orcamento_id', id);
+    if (errItens) {
+      console.error(errItens);
+      window.showToast('Erro ao excluir os itens do orçamento.', true);
+      return;
+    }
+    const { error: errOrc } = await supabaseClient.from('mdf_orcamentos').delete().eq('id', id);
+    if (errOrc) {
+      console.error(errOrc);
+      window.showToast('Erro ao excluir o orçamento.', true);
+      return;
+    }
     this.renderizarOrcamentos();
+    window.showToast('Orçamento excluído.');
   }
 
   async duplicarOrcamento(id) {
     if (!confirm('Duplicar este orçamento?')) return;
-    const { data: orc } = await supabaseClient.from('mdf_orcamentos').select().eq('id', id).single();
-    if (!orc) return;
-    const { data: itensData } = await supabaseClient.from('mdf_itens').select().eq('orcamento_id', id);
-    const { data: novo } = await supabaseClient.from('mdf_orcamentos').insert({
+    const { data: orc, error: errOrc } = await supabaseClient.from('mdf_orcamentos').select().eq('id', id).single();
+    if (errOrc || !orc) {
+      window.showToast('Orçamento não encontrado.', true);
+      return;
+    }
+    const { data: itensData, error: errItens } = await supabaseClient.from('mdf_itens').select().eq('orcamento_id', id);
+    if (errItens) {
+      window.showToast('Erro ao carregar itens do orçamento.', true);
+      return;
+    }
+    const { data: novo, error: errNovo } = await supabaseClient.from('mdf_orcamentos').insert({
       cliente_nome: orc.cliente_nome,
       cliente_id: orc.cliente_id != null ? orc.cliente_id : null,
       status: 'ABERTO',
@@ -1532,7 +1624,11 @@ class OrcamentosMDF {
       desconto: orc.desconto,
       tipo_desconto: orc.tipo_desconto
     }).select().single();
-    if (novo && itensData) {
+    if (errNovo || !novo) {
+      window.showToast('Erro ao duplicar o orçamento.', true);
+      return;
+    }
+    if (itensData && itensData.length) {
       const novosItens = itensData.map(i => ({
         orcamento_id: novo.id,
         nome: i.nome,
@@ -1541,7 +1637,12 @@ class OrcamentosMDF {
         desconto: i.desconto,
         foto_url: i.foto_url
       }));
-      await supabaseClient.from('mdf_itens').insert(novosItens);
+      const { error: errInserir } = await supabaseClient.from('mdf_itens').insert(novosItens);
+      if (errInserir) {
+        console.error(errInserir);
+        window.showToast('Orçamento duplicado, mas itens falharam ao copiar.', true);
+        return;
+      }
     }
     this.renderizarOrcamentos();
     window.showToast('Orçamento duplicado!');
@@ -1606,8 +1707,8 @@ class OrcamentosMDF {
     const total = Math.max(0, subtotal - descontoTotal);
 
     const [logoBase64, ...fotosBase64] = await Promise.all([
-      imagemParaBase64PDF(LOGO_RV_PORTAL),
-      ...itensNormalizados.map(i => imagemParaBase64PDF(i.foto_url))
+      imagemParaBase64PDF(LOGO_RV_PORTAL, { max: 220 }),
+      ...itensNormalizados.map(i => imagemParaBase64PDF(i.foto_url, { quadrada: true }))
     ]);
 
     const imagens = {};
@@ -1615,28 +1716,42 @@ class OrcamentosMDF {
 
     const linhasTabela = itensNormalizados.map((item, idx) => {
       const fotoBase64 = fotosBase64[idx] || null;
-      let celulaItem = { text: item.nome, bold: true, fontSize: 10 };
+      let celulaItem;
       if (fotoBase64) {
         const chaveFoto = 'foto_' + idx;
         imagens[chaveFoto] = fotoBase64;
+        // Miniatura QUADRADA padrão (84x84) independente do tamanho/arquivo da foto
+        celulaItem = {
+          columns: [
+            { width: 84, image: chaveFoto, fit: [84, 84], alignment: 'left' },
+            {
+              width: '*',
+              stack: [
+                { text: item.nome, bold: true, fontSize: 11, margin: [0, 0, 0, 3] },
+                item.descricao ? { text: item.descricao, fontSize: 9, color: '#475569' } : ''
+              ]
+            }
+          ],
+          columnGap: 8
+        };
+      } else {
         celulaItem = {
           stack: [
-            { image: chaveFoto, fit: [100, 100], alignment: 'center' },
-            { text: item.nome, bold: true, fontSize: 10, alignment: 'center', margin: [0, 4, 0, 0] }
+            { text: item.nome, bold: true, fontSize: 11, margin: [0, 0, 0, 3] },
+            item.descricao ? { text: item.descricao, fontSize: 9, color: '#475569' } : ''
           ]
         };
       }
       return [
         celulaItem,
-        { text: item.descricao || '', fontSize: 9, color: '#475569' },
         { text: formatarMoedaPDF(item.preco), alignment: 'right', fontSize: 10 },
-        { text: formatarMoedaPDF(item.desconto), alignment: 'right', fontSize: 10 },
-        { text: formatarMoedaPDF(item.preco - item.desconto), alignment: 'right', fontSize: 10, bold: true }
+        { text: item.desconto ? formatarMoedaPDF(item.desconto) : '—', alignment: 'right', fontSize: 10 },
+        { text: formatarMoedaPDF(item.preco - item.desconto), alignment: 'right', fontSize: 11, bold: true }
       ];
     });
 
     const content = [];
-    if (logoBase64) content.push({ image: 'logo', width: 64, alignment: 'center', margin: [0, 0, 0, 4] });
+    if (logoBase64) content.push({ image: 'logo', width: 58, alignment: 'center', margin: [0, 0, 0, 4] });
     content.push(
       { text: 'RV PORTAL MADEIRAS', fontSize: 20, bold: true, color: '#b8a94e', alignment: 'center', margin: [0, 2, 0, 2] },
       { text: 'CNPJ: 30.942.123/0001-02 | Rua Mineiros, 532 - Jataí/GO', fontSize: 9, color: '#475569', alignment: 'center', margin: [0, 0, 0, 12] },
@@ -1649,13 +1764,12 @@ class OrcamentosMDF {
       {
         table: {
           headerRows: 1,
-          widths: [110, '*', 55, 55, 60],
+          widths: ['*', 90, 80, 100],
           body: [
             [
-              { text: 'Item', style: 'tableHeader' },
-              { text: 'Descrição', style: 'tableHeader' },
+              { text: 'Produto', style: 'tableHeader' },
               { text: 'Preço', style: 'tableHeader', alignment: 'right' },
-              { text: 'Desc.', style: 'tableHeader', alignment: 'right' },
+              { text: 'Desconto', style: 'tableHeader', alignment: 'right' },
               { text: 'Total', style: 'tableHeader', alignment: 'right' }
             ],
             ...linhasTabela
@@ -1751,6 +1865,10 @@ class OrcamentosMDF {
         .eq('id', id)
         .single();
       if (errOrc) throw errOrc;
+      if (orc.status === 'APROVADO') {
+        window.showToast(`Orçamento #${id} já está faturado.`, true);
+        return;
+      }
 
       const { data: itens, error: errItens } = await supabaseClient
         .from('mdf_itens')
@@ -1803,7 +1921,8 @@ class OrcamentosMDF {
       const vendaId = novoId;
 
       // 5. Criar logs de venda (tipo 'venda')
-      //const timestamp = new Date().toISOString();
+      // Usa o relógio LOCAL deslocado para UTC (sem toISOString direto), assim
+      // a data/hora gravada bate com o horário do estabelecimento.
       const timestamp = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
       const logs = itens.map(item => ({
         id: vendaId,
@@ -1852,25 +1971,39 @@ class OrcamentosMDF {
     if (typeof showLoading === 'function') showLoading(true);
 
     try {
-      // 1. Buscar os logs de venda associados (observação contém "MDF Orçamento #id")
+      // 1. Garantir que o orçamento está faturado antes de estornar
+      const { data: orc, error: errOrc } = await supabaseClient
+        .from('mdf_orcamentos')
+        .select('status')
+        .eq('id', id)
+        .single();
+      if (errOrc) throw errOrc;
+      if (!orc || orc.status !== 'APROVADO') {
+        window.showToast(`Orçamento #${id} não está faturado.`, true);
+        return;
+      }
+
+      // 2. Buscar os logs de venda associados (observação contém "MDF Orçamento #id")
       const { data: logs, error: errLogs } = await supabaseClient
         .from('logs')
         .select('*')
         .like('observacao', `%MDF Orçamento #${id}%`)
         .eq('tipo', 'venda');
       if (errLogs) throw errLogs;
-
-      if (logs.length) {
-        // Excluir logs (ou marcar como cancelados)
-        const idsParaExcluir = logs.map(l => l.id);
-        const { error: errDel } = await supabaseClient
-          .from('logs')
-          .delete()
-          .in('id', idsParaExcluir);
-        if (errDel) throw errDel;
+      if (!logs.length) {
+        window.showToast('Nenhuma venda MDF encontrada para estornar.', true);
+        return;
       }
 
-      // 2. Atualizar status do orçamento para ABERTO
+      // 3. Remover os lançamentos de venda criados no faturamento
+      const idsParaExcluir = logs.map(l => l.id);
+      const { error: errDel } = await supabaseClient
+        .from('logs')
+        .delete()
+        .in('id', idsParaExcluir);
+      if (errDel) throw errDel;
+
+      // 4. Devolver o orçamento para ABERTO
       const { error: errUpdate } = await supabaseClient
         .from('mdf_orcamentos')
         .update({ status: 'ABERTO' })
@@ -1891,20 +2024,28 @@ class OrcamentosMDF {
   // ========== MÉTODOS DE AGENDA ==========
   async agendarInstalacao(orcamentoId) {
     // Buscar dados do orçamento e possível agendamento existente
-    const { data: orc } = await supabaseClient
+    const { data: orc, error: errOrc } = await supabaseClient
       .from('mdf_orcamentos')
       .select('*')
       .eq('id', orcamentoId)
       .single();
+    if (errOrc || !orc) {
+      window.showToast('Orçamento não encontrado.', true);
+      return;
+    }
 
-    const { data: agendaExistente } = await supabaseClient
+    const { data: agendaExistente, error: errAgenda } = await supabaseClient
       .from('mdf_agenda')
       .select('*')
       .eq('orcamento_id', orcamentoId)
       .maybeSingle();
+    if (errAgenda) {
+      window.showToast('Erro ao carregar o agendamento.', true);
+      return;
+    }
 
     // Exibir o NOME ATUAL do cliente (renomeio reflete em cadeia)
-    if (orc && orc.cliente_id != null) {
+    if (orc.cliente_id != null) {
       const { data: clAgenda } = await supabaseClient
         .from('clientes')
         .select('nome')
@@ -1925,12 +2066,11 @@ class OrcamentosMDF {
     const modal = document.createElement('div');
     modal.id = 'modal-agenda-mdf';
     modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4';
-    //modal.style.backdropFilter = 'blur(2px)';
 
-    // Formatar datas para o input date (YYYY-MM-DD)
-    const dataHoje = new Date().toISOString().split('T')[0];
-    const dataAgendada = agenda ? agenda.data_agendada.split('T')[0] : dataHoje;
-    const horarioAgendado = agenda ? agenda.horario.slice(0,5) : '14:00';
+    // Formatar datas para o input date (YYYY-MM-DD) — sempre no fuso local
+    const dataHoje = dataLocalISO();
+    const dataAgendada = agenda && agenda.data_agendada ? agenda.data_agendada.split('T')[0] : dataHoje;
+    const horarioAgendado = agenda && agenda.horario ? agenda.horario.slice(0, 5) : '14:00';
     const statusAtual = agenda ? agenda.status : 'AGENDADO';
 
     modal.innerHTML = `
@@ -1948,7 +2088,7 @@ class OrcamentosMDF {
         <div class="p-6 space-y-5">
           <div class="bg-slate-50 p-3 rounded-lg">
             <p class="text-xs text-slate-500 uppercase font-bold">Orçamento / Cliente</p>
-            <p class="font-bold text-slate-800">#${orcamentoId} - ${orc.cliente_nome}</p>
+            <p class="font-bold text-slate-800">#${orcamentoId} - ${escaparHTML(orc.cliente_nome)}</p>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
@@ -1973,28 +2113,22 @@ class OrcamentosMDF {
           </div>
 
           <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-bold text-slate-700 mb-1">Instalador (nome)</label>
-              <input type="text" id="agenda-instalador-nome" value="${agenda?.instalador_nome || ''}" placeholder="Ex: João Silva" class="w-full p-2 border rounded-lg">
-            </div>
-            <div>
-              <label class="block text-sm font-bold text-slate-700 mb-1">Telefone do Instalador</label>
-              <input type="tel" id="agenda-instalador-tel" value="${agenda?.instalador_telefone || ''}" placeholder="(64) 99999-9999" class="w-full p-2 border rounded-lg">
-            </div>
-          </div>
-
           <div>
-            <label class="block text-sm font-bold text-slate-700 mb-1">Observações</label>
-            <textarea id="agenda-obs" rows="3" placeholder="Detalhes da instalação, endereço, etc." class="w-full p-2 border rounded-lg">${agenda?.observacoes || ''}</textarea>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Instalador (nome)</label>
+            <input type="text" id="agenda-instalador-nome" value="${escaparHTML(agenda?.instalador_nome || '')}" placeholder="Ex: João Silva" class="w-full p-2 border rounded-lg">
           </div>
-
-          <!-- Campo reservado para foto (futuro) -->
-          <div class="border-t pt-3">
-            <p class="text-xs text-slate-400 flex items-center gap-1"><i data-lucide="image" class="w-3 h-3"></i> Reservado para foto do produto instalado (em breve)</p>
-            <div id="foto-preview-area" class="hidden mt-2"></div>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-1">Telefone do Instalador</label>
+            <input type="tel" id="agenda-instalador-tel" value="${escaparHTML(agenda?.instalador_telefone || '')}" placeholder="(64) 99999-9999" class="w-full p-2 border rounded-lg">
           </div>
+        </div>
 
-          <div class="flex gap-3 pt-4">
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">Observações</label>
+          <textarea id="agenda-obs" rows="3" placeholder="Detalhes da instalação, endereço, etc." class="w-full p-2 border rounded-lg">${escaparHTML(agenda?.observacoes || '')}</textarea>
+        </div>
+
+        <div class="flex gap-3 pt-4">
             ${agenda && agenda.status !== 'CANCELADO' ? `
               <button id="btn-cancelar-agenda" class="flex-1 bg-red-100 text-red-700 hover:bg-red-200 font-bold py-2 rounded-lg transition flex items-center justify-center gap-2">
                 <i data-lucide="ban" class="w-4 h-4"></i> Cancelar Instalação
@@ -2013,6 +2147,21 @@ class OrcamentosMDF {
 
     document.body.appendChild(modal);
     if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    // Fecha ao clicar fora ou com Esc (evita acumular listeners entre aberturas)
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+    if (this._fecharModalAgendaEsc) {
+      document.removeEventListener('keydown', this._fecharModalAgendaEsc);
+    }
+    this._fecharModalAgendaEsc = (e) => {
+      if (e.key === 'Escape') {
+        const aberto = document.getElementById('modal-agenda-mdf');
+        if (aberto) aberto.remove();
+      }
+    };
+    document.addEventListener('keydown', this._fecharModalAgendaEsc);
 
     // Eventos
     document.getElementById('btn-salvar-agenda').addEventListener('click', () => this.salvarAgenda(orcamentoId, modal));
@@ -2125,7 +2274,6 @@ class OrcamentosMDF {
     const modal = document.createElement('div');
     modal.id = 'modal-busca-clientes-mdf';
     modal.className = 'fixed inset-0 bg-black/50 flex items-start justify-center z-[80] p-4';
-    //modal.style.backdropFilter = 'blur(2px)';
 
     modal.innerHTML = `
       <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
@@ -2200,9 +2348,9 @@ class OrcamentosMDF {
 
       lista.innerHTML = clientes.map(cliente => `
         <div class="cliente-item-modal p-3 border-b hover:bg-emerald-50 cursor-pointer transition flex items-center gap-3"
-             data-id="${cliente.id}" data-nome="${cliente.nome}">
+             data-id="${cliente.id}" data-nome="${escaparHTML(cliente.nome)}">
           <i data-lucide="user" class="w-4 h-4 text-slate-400"></i>
-          <span class="font-medium text-slate-700">${cliente.nome}</span>
+          <span class="font-medium text-slate-700">${escaparHTML(cliente.nome)}</span>
         </div>
       `).join('');
 
@@ -2227,9 +2375,8 @@ class OrcamentosMDF {
   selecionarCliente(id, nome) {
     document.getElementById('cliente-id-mdf').value = id;
     document.getElementById('cliente-nome-mdf').value = nome;
-    // Se quiser, pode também disparar atualização de totais ou outra ação
   }
-  
+
 } // FIM DA CLASSE ORCAMENTOSMDF
 
 // ==================== INICIALIZAÇÃO GLOBAL ====================
