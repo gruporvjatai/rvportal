@@ -1010,8 +1010,29 @@
             <div class="space-y-3">
                 <input type="text" id="cli-name" required placeholder="Nome do Cliente" class="w-full p-2 border rounded">
                 <input type="text" id="cli-phone" placeholder="Telefone" class="w-full p-2 border rounded">
-                <input type="text" id="cli-doc" placeholder="CPF/CNPJ" class="w-full p-2 border rounded">
-                <input type="text" id="cli-addr" placeholder="Endereço" class="w-full p-2 border rounded">
+                <div>
+                    <input type="text" id="cli-doc" placeholder="CPF ou CNPJ" inputmode="numeric" oninput="mascaraDocInput(this)" class="w-full p-2 border rounded">
+                    <p class="text-[11px] text-slate-400 mt-0.5">Formato aplicado automaticamente (CPF ou CNPJ).</p>
+                </div>
+
+                <div class="pt-2 border-t border-slate-200"></div>
+                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Endereço (opcional)</p>
+
+                <div class="flex gap-2">
+                    <input type="text" id="cli-cep" placeholder="CEP" inputmode="numeric" maxlength="9" oninput="mascaraCepInput(this)" onchange="autoBuscaCep()" class="w-32 p-2 border rounded">
+                    <button type="button" onclick="buscarCepCliente()" class="px-3 bg-slate-200 hover:bg-slate-300 rounded text-xs font-bold">Buscar CEP</button>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="cli-logradouro" placeholder="Rua / Avenida" class="flex-1 p-2 border rounded">
+                    <input type="text" id="cli-numero" placeholder="Nº" class="w-20 p-2 border rounded">
+                </div>
+                <input type="text" id="cli-complemento" placeholder="Complemento (opcional)" class="w-full p-2 border rounded">
+                <input type="text" id="cli-bairro" placeholder="Bairro" class="w-full p-2 border rounded">
+                <div class="flex gap-2">
+                    <input type="text" id="cli-cidade" placeholder="Cidade" class="flex-1 p-2 border rounded">
+                    <input type="text" id="cli-uf" placeholder="UF" maxlength="2" class="w-16 p-2 border rounded uppercase">
+                </div>
+                <p id="cli-legado-nota" class="hidden text-[11px] text-slate-400 italic"></p>
             </div>
             <div class="flex gap-2 mt-6">
                 <button type="button" onclick="document.getElementById('client-form-container').classList.add('hidden')" class="flex-1 p-2 bg-slate-200 rounded font-bold">Cancelar</button>
@@ -1497,6 +1518,31 @@
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
         let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [] /*custoMaterialB10: 0 */};
+        // Resolve o produto de uma log sempre por ID (produto_id) quando houver,
+        // com fallback por nome para registros antigos sem vínculo.
+        function produtoDeLog(l) {
+            if (!l) return null;
+            if (l.productId != null) {
+                const pr = STATE.products.find(p => String(p.id) === String(l.productId));
+                if (pr) return pr;
+            }
+            if (l.productName) {
+                return STATE.products.find(p => String(p.name).trim() === String(l.productName).trim()) || null;
+            }
+            return null;
+        }
+        // Resolve o cliente de uma log/venda por ID (cliente_id) com fallback por nome.
+        function clienteDeLog(l) {
+            if (!l) return null;
+            if (l.clientId != null) {
+                const cl = STATE.clients.find(c => String(c.id) === String(l.clientId));
+                if (cl) return cl;
+            }
+            if (l.clientName) {
+                return STATE.clients.find(c => String(c.name).trim() === String(l.clientName).trim()) || null;
+            }
+            return null;
+        }
         let sortColumn = 'id';       // coluna padrão: id (ou pode ser 'name')
         let sortDirection = 'asc';   // 'asc' ou 'desc'
         let CART = [];
@@ -1663,11 +1709,12 @@
 
         async function loadData() {
     try {
-        const [resProd, resCli, resLog, resDesp, /*resConf*/] = await Promise.all([
+        const [resProd, resCli, resLog, resDesp, resEquipe, /*resConf*/] = await Promise.all([
             fetchAllRecords('produtos'),
             fetchAllRecords('clientes'),
             fetchAllRecords('logs'),
-            fetchAllRecords('despesas')
+            fetchAllRecords('despesas'),
+            fetchAllRecords('equipe')
            //sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
         ]);
 
@@ -1683,8 +1730,37 @@
         }));
 
         STATE.clients = (resCli.data || []).map(c => ({
-            id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco
+            id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
+            logradouro: c.logradouro || '', numero: c.numero || '', complemento: c.complemento || '',
+            bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || ''
         }));
+
+        // Mapa id -> produto: usado para resolver o NOME ATUAL do produto
+        // sempre que a log tem produto_id (renomeio reflete em cadeia).
+        const produtoPorId = {};
+        STATE.products.forEach(pr => { produtoPorId[pr.id] = pr; });
+        const resolverNomeProduto = (produtoId, nomeGravado) => {
+            if (produtoId != null && produtoPorId[produtoId]) return produtoPorId[produtoId].name;
+            return nomeGravado;
+        };
+
+        // Mapa id -> cliente: resolve o NOME ATUAL do cliente pelo cliente_id
+        // (renomear cliente reflete em cadeia no histórico/relatórios).
+        const clientePorId = {};
+        STATE.clients.forEach(cl => { clientePorId[cl.id] = cl; });
+        const resolverNomeCliente = (clienteId, nomeGravado) => {
+            if (clienteId != null && clientePorId[clienteId]) return clientePorId[clienteId].name;
+            return nomeGravado;
+        };
+
+        // Mapa id -> funcionário: resolve o NOME ATUAL nas despesas de
+        // salário (pagamento de folha) pelo equipe_id.
+        const equipePorId = {};
+        (resEquipe.data || []).forEach(m => { equipePorId[m.id] = m.nome; });
+        const resolverNomeEquipe = (equipeId, nomeGravado) => {
+            if (equipeId != null && equipePorId[equipeId]) return equipePorId[equipeId];
+            return nomeGravado;
+        };
 
         STATE.logs = [];
         const quotesMap = {};
@@ -1694,14 +1770,18 @@
                 const qId = String(l.id);
                 if(!quotesMap[qId]) {
                     quotesMap[qId] = { 
-                        id: qId, date: l.data, clientName: l.cliente_nome, items: [], total: 0, 
+                        id: qId, date: l.data,
+                        clientName: resolverNomeCliente(l.cliente_id, l.cliente_nome),
+                        clientId: l.cliente_id != null ? l.cliente_id : null,
+                        items: [], total: 0, 
                         status: l.status || 'ABERTO', discount: Number(l.desconto), discountType: l.status_financeiro || '$', 
                         paymentMethod: l.forma_pagamento, deliveryAddress: l.endereco_entrega, observacao: l.observacao
                     };
                 }
                 const unitPrice = Number(l.quantidade) > 0 ? Number(l.valor_total) / Number(l.quantidade) : 0;
                 quotesMap[qId].items.push({ 
-                    name: l.produto_nome, 
+                    name: resolverNomeProduto(l.produto_id, l.produto_nome),
+                    productId: l.produto_id != null ? l.produto_id : null,
                     qty: Number(l.quantidade), 
                     price: unitPrice, 
                     total: Number(l.valor_total), 
@@ -1712,9 +1792,12 @@
                 quotesMap[qId].total += Number(l.valor_total);
             } else {
                 STATE.logs.push({
-                    uid: l.uid, id: l.id, type: l.tipo, productName: l.produto_nome, quantity: Number(l.quantidade),
+                    uid: l.uid, id: l.id, type: l.tipo,
+                    productId: l.produto_id != null ? l.produto_id : null,
+                    productName: resolverNomeProduto(l.produto_id, l.produto_nome), quantity: Number(l.quantidade),
                     date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
-                    clientName: l.cliente_nome, paymentMethod: l.forma_pagamento, status: l.status,
+                    clientId: l.cliente_id != null ? l.cliente_id : null,
+                    clientName: resolverNomeCliente(l.cliente_id, l.cliente_nome), paymentMethod: l.forma_pagamento, status: l.status,
                     deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
                     discount: Number(l.desconto), finStatus: l.status_financeiro, dueDate: l.vencimento,
                     paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
@@ -1730,7 +1813,9 @@
         STATE.expenses = (resDesp.data || []).map(e => ({
             id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
             cost: Number(e.custo), date: e.data, note: e.observacao,
-            provider: e.fornecedor || '',
+            // Despesa de salário: nome ATUAL do funcionário pelo equipe_id;
+            // demais despesas (compras/fornecedores) usam o texto salvo.
+            provider: resolverNomeEquipe(e.equipe_id, e.fornecedor || ''),
             status: e.status || 'PENDENTE'
         }));
 
@@ -1781,9 +1866,26 @@
             const isNew = !document.getElementById('cli-id').value;
             const newId = isNew ? getNextId(STATE.clients) : document.getElementById('cli-id').value;
 
+            const docDigitado = (document.getElementById('cli-doc').value || '').trim();
+            const docLimpo = docDigitado.replace(/\D/g, '');
+            const doc = docLimpo ? formatarDocDigitos(docLimpo) : '';
+            if (docDigitado && !doc) {
+                showLoading(false);
+                return showToast('CPF/CNPJ inválido — use 11 (CPF) ou 14 (CNPJ) dígitos.', true);
+            }
+
+            // Endereço estruturado (opcional). Se nada for preenchido,
+            // preserva o endereço texto que o cliente já tinha.
+            const endInfo = lerEnderecoCliente();
+            const endereco = endInfo.preenchido ? montarEnderecoCompleto(endInfo) :
+                             (isNew ? '' : (STATE.clients.find(x => String(x.id) === String(newId))?.address || ''));
+
             const payload = {
-                id: newId, nome: document.getElementById('cli-name').value, telefone: document.getElementById('cli-phone').value,
-                documento: document.getElementById('cli-doc').value, endereco: document.getElementById('cli-addr').value
+                id: newId, nome: document.getElementById('cli-name').value.trim(), telefone: document.getElementById('cli-phone').value.trim(),
+                documento: doc, endereco: endereco,
+                logradouro: endInfo.logradouro, numero: endInfo.numero, complemento: endInfo.complemento,
+                bairro: endInfo.bairro, cidade: endInfo.cidade, uf: endInfo.uf,
+                cep: endInfo.cep || null
             };
 
             const { error } = await sb.from('clientes').upsert(payload);
@@ -1792,6 +1894,87 @@
             document.getElementById('client-form-container').classList.add('hidden');
             showToast("Cliente Salvo!");
             loadData();
+        }
+
+        // ---- Padronização CPF/CNPJ e endereço estruturado ----
+
+        function formatarDocDigitos(d) {
+            if (d.length === 11) {
+                return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+            }
+            if (d.length === 14) {
+                return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+            }
+            return '';
+        }
+
+        function mascaraDocInput(el) {
+            let d = el.value.replace(/\D/g, '').slice(0, 14);
+            if (d.length <= 11) {
+                d = d.replace(/^(\d{3})(\d)/, '$1.$2')
+                     .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+                     .replace(/\.(\d{3})(\d)/, '.$1-$2');
+            } else {
+                d = d.replace(/^(\d{2})(\d)/, '$1.$2')
+                     .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+                     .replace(/\.(\d{3})(\d)/, '.$1/$2')
+                     .replace(/(\d{4})(\d)/, '$1-$2');
+            }
+            el.value = d;
+        }
+
+        function mascaraCepInput(el) {
+            let d = el.value.replace(/\D/g, '').slice(0, 8);
+            el.value = d.length > 5 ? d.replace(/^(\d{5})(\d)/, '$1-$2') : d;
+        }
+
+        function lerEnderecoCliente() {
+            const v = id => (document.getElementById(id)?.value || '').trim();
+            const log = v('cli-logradouro'), num = v('cli-numero'), comp = v('cli-complemento'),
+                  bai = v('cli-bairro'), cid = v('cli-cidade'), uf = v('cli-uf').toUpperCase(),
+                  cep = v('cli-cep').replace(/\D/g, '');
+            return {
+                logradouro: log, numero: num, complemento: comp,
+                bairro: bai, cidade: cid, uf: uf, cep: cep,
+                preenchido: !!(log || num || comp || bai || cid || uf || cep)
+            };
+        }
+
+        function montarEnderecoCompleto(e) {
+            e.preenchido = true;
+            const linha1 = [e.logradouro, e.numero].filter(Boolean).join(', ');
+            const linha2 = [e.bairro, [e.cidade, e.uf].filter(Boolean).join('/')].filter(Boolean).join(' - ');
+            const parts = [linha1, e.complemento, linha2].filter(Boolean);
+            let end = parts.join(' - ');
+            if (e.cep) end = end ? `${end} - CEP ${e.cep}` : `CEP ${e.cep}`;
+            return end;
+        }
+
+        async function buscarCepCliente() {
+            const cep = (document.getElementById('cli-cep')?.value || '').replace(/\D/g, '');
+            if (cep.length !== 8) return showToast('Informe o CEP completo (8 dígitos).', true);
+            showLoading(true);
+            try {
+                const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const j = await resp.json();
+                if (j.erro) return showToast('CEP não encontrado.', true);
+                document.getElementById('cli-logradouro').value = j.logradouro || '';
+                document.getElementById('cli-bairro').value = j.bairro || '';
+                document.getElementById('cli-cidade').value = j.localidade || '';
+                document.getElementById('cli-uf').value = j.uf || '';
+                document.getElementById('cli-cep').value = cep.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+                document.getElementById('cli-numero').focus();
+                showToast('Endereço preenchido pelo CEP!');
+            } catch (err) {
+                showToast('Falha ao buscar CEP.', true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function autoBuscaCep() {
+            const cep = (document.getElementById('cli-cep')?.value || '').replace(/\D/g, '');
+            if (cep.length === 8) buscarCepCliente();
         }
 
         async function deleteClient(id) {
@@ -1933,7 +2116,8 @@
               logsToInsert.push({
                   id: newSaleId, 
                   tipo: 'venda', 
-                  produto_nome: item.name, 
+                  produto_nome: item.name,
+                  produto_id: (item.prodId != null && STATE.products.some(p => p.id == item.prodId)) ? item.prodId : null,
                   quantidade: item.qty,
                   data: timestamp, 
                   observacao: (() => {
@@ -1944,7 +2128,8 @@
                       return partes.join(' | ');
                   })(),
                   valor_total: (item.total * fator),
-                  cliente_nome: clientName, 
+                  cliente_nome: clientName,
+                  cliente_id: selectedClient ? cliId : null,
                   forma_pagamento: payment, 
                   status: 'ATIVO',
                   status_entrega: statusEntrega, 
@@ -1968,12 +2153,14 @@
                   logsToInsert.push({
                       id: entregaId, 
                       tipo: 'entrega', 
-                      produto_nome: item.name, 
+                      produto_nome: item.name,
+                      produto_id: (item.prodId != null && STATE.products.some(p => p.id == item.prodId)) ? item.prodId : null,
                       quantidade: item.qty,
                       data: timestamp, 
                       observacao: 'Retirado na hora. Ref Venda #' + newSaleId, 
                       valor_total: 0, 
-                      cliente_nome: clientName, 
+                      cliente_nome: clientName,
+                      cliente_id: selectedClient ? cliId : null,
                       forma_pagamento: '', 
                       status: 'ATIVO',
                       status_entrega: 'ENTREGUE', 
@@ -2034,6 +2221,7 @@ async function adjustStock(prodId, adjustment, prodName) {
       id: getNextId(STATE.logs),
       tipo: 'ajuste_estoque',
       produto_nome: prodName,
+      produto_id: prodId,
       quantidade: adjustment,
       data: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString(),
       observacao: `Ajuste manual via contagem de estoque`,
@@ -2216,7 +2404,8 @@ function printStockCountSheet() {
         
             const totals = calculateTotal();
             const cliId = document.getElementById('pos-client').value;
-            const clientName = STATE.clients.find(c=>c.id==cliId)?.name||"Consumidor Final";
+            const clientSel = STATE.clients.find(c=>c.id==cliId);
+            const clientName = clientSel?.name||"Consumidor Final";
             
             const customAddrCheck = document.getElementById('pos-custom-address-check').checked;
             const deliveryAddr = customAddrCheck ? document.getElementById('pos-custom-address').value : '';
@@ -2247,7 +2436,8 @@ function printStockCountSheet() {
             let quotesToInsert = CART.map(item => ({
                 id: budgetId,
                 tipo: 'orcamento', 
-                produto_nome: item.name, 
+                produto_nome: item.name,
+                produto_id: (item.prodId != null && STATE.products.some(p => p.id == item.prodId)) ? item.prodId : null,
                 quantidade: item.qty,
                 data: date, 
                 observacao: (() => {
@@ -2257,7 +2447,8 @@ function printStockCountSheet() {
                     return partes.join(' | ');
                 })(),
                 valor_total: item.total, 
-                cliente_nome: clientName, 
+                cliente_nome: clientName,
+                cliente_id: clientSel ? cliId : null,
                 forma_pagamento: document.getElementById('pos-payment').value,
                 status: CURRENT_QUOTE_STATUS || 'ABERTO',
                 desconto: totals.disc, 
@@ -2296,7 +2487,9 @@ function printStockCountSheet() {
 
             try {
                 for(let item of saleItems) {
-                    const prod = STATE.products.find(p => p.name === item.productName);
+                    const prod = item.productId != null
+                        ? STATE.products.find(p => String(p.id) === String(item.productId))
+                        : STATE.products.find(p => p.name === item.productName);
                     if(prod) {
                         let physical = Number(prod.stock) || 0;
                         let committed = Number(prod.committed) || 0;
@@ -2416,7 +2609,8 @@ function printStockCountSheet() {
                 if(!orderIdMatch) throw new Error("ID do pedido não identificado na observação");
                 let orderId = orderIdMatch[1];
 
-                const vendaItem = STATE.logs.find(l => String(l.id) === String(orderId) && l.type === 'venda' && l.productName === entregaLog.productName);
+                const vendaItem = STATE.logs.find(l => String(l.id) === String(orderId) && l.type === 'venda' &&
+                    ((entregaLog.productId != null && l.productId != null && String(l.productId) === String(entregaLog.productId)) || l.productName === entregaLog.productName));
 
                 if(vendaItem) {
                     let currentDelivered = Number(vendaItem.deliveredQty) || 0;
@@ -2429,7 +2623,9 @@ function printStockCountSheet() {
                         status_entrega: newStatus
                     }).eq('uid', vendaItem.uid);
 
-                    const prod = STATE.products.find(p => p.name === entregaLog.productName);
+                    const prod = entregaLog.productId != null
+                        ? STATE.products.find(p => String(p.id) === String(entregaLog.productId))
+                        : STATE.products.find(p => p.name === entregaLog.productName);
                     if(prod) {
                         let physical = Number(prod.stock) || 0;
                         let committed = Number(prod.committed) || 0;
@@ -2479,13 +2675,19 @@ function printStockCountSheet() {
 
                     updates.push({ uid: uid, qtd_entregue: newDelivered, status_entrega: newStatus });
 
-                    const prodFound = STATE.products.find(p => String(p.name).trim() === String(prodName).trim());
+                    const prodFound = origLog.productId != null
+                        ? STATE.products.find(p => String(p.id) === String(origLog.productId))
+                        : STATE.products.find(p => String(p.name).trim() === String(prodName).trim());
                     if(prodFound) stockUpdates.push({ id: prodFound.id, qty: qty });
 
                     newLogs.push({
-                        id: maxId.toString(), tipo: 'entrega', produto_nome: prodName, quantidade: qty,
+                        id: maxId.toString(), tipo: 'entrega', produto_nome: prodName,
+                        produto_id: (origLog.productId != null && STATE.products.some(p => String(p.id) === String(origLog.productId))) ? origLog.productId : null,
+                        quantidade: qty,
                         data: timestamp, observacao: 'Ref Venda #' + orderId, valor_total: 0,
-                        cliente_nome: origLog.clientName, forma_pagamento: '', status: 'ATIVO',
+                        cliente_nome: origLog.clientName,
+                        cliente_id: (origLog.clientId != null && STATE.clients.some(c => String(c.id) === String(origLog.clientId))) ? origLog.clientId : null,
+                        forma_pagamento: '', status: 'ATIVO',
                         status_entrega: 'ENTREGUE', qtd_entregue: qty, desconto: 0, status_financeiro: '',
                         vencimento: timestamp, valor_pago: 0, endereco_entrega: ''
                     });
@@ -2562,7 +2764,9 @@ function printStockCountSheet() {
                 await sb.from('logs').insert([{
                     id: getNextId(STATE.logs), tipo: 'recebimento', produto_nome: 'Baixa de Conta', quantidade: 0,
                     data: getHojeLocalStr(), observacao: 'Ref Lanc #' + id, valor_total: payVal,
-                    cliente_nome: rowsToUpdate[0].clientName, forma_pagamento: method || rowsToUpdate[0].paymentMethod,
+                    cliente_nome: rowsToUpdate[0].clientName,
+                    cliente_id: (rowsToUpdate[0].clientId != null && STATE.clients.some(c => String(c.id) === String(rowsToUpdate[0].clientId))) ? rowsToUpdate[0].clientId : null,
+                    forma_pagamento: method || rowsToUpdate[0].paymentMethod,
                     status: 'ATIVO', status_financeiro: 'PAGO', valor_pago: payVal
                 }]);
             }
@@ -3341,7 +3545,9 @@ function loadQuoteToCart(id) {
 
     let customObsRestored = false;
     CART = q.items.map(item => {
-        const prod = STATE.products.find(p => p.name === item.name);
+        const prod = (item.productId != null)
+            ? STATE.products.find(p => String(p.id) === String(item.productId))
+            : STATE.products.find(p => p.name === item.name);
         const isPartner = prod ? prod.parceiro : false;
         const isMetro = prod ? (prod.parceiro && prod.porMetro) : false;
         let comprimento = 0, pecas = 0, qty = item.qty;
@@ -3390,7 +3596,9 @@ function loadQuoteToCart(id) {
     
     // Cliente e configurações padrão do orçamento
     const clientSelectBtn = document.getElementById('pos-client-btn').querySelector('span');
-    const clientObj = STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
+    const clientObj = (q.clientId != null)
+        ? STATE.clients.find(c => String(c.id) === String(q.clientId))
+        : STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
     if(clientObj) {
         document.getElementById('pos-client').value = clientObj.id;
         clientSelectBtn.innerText = clientObj.name;
@@ -3746,6 +3954,7 @@ function loadQuoteToCart(id) {
 
         function openClientForm(id) { 
             document.getElementById('client-form-container').classList.remove('hidden'); 
+            const nota = document.getElementById('cli-legado-nota');
             if(id) {
                 const c = STATE.clients.find(x => String(x.id) === String(id));
                 if(c) {
@@ -3753,14 +3962,34 @@ function loadQuoteToCart(id) {
                     document.getElementById('cli-name').value = c.name;
                     document.getElementById('cli-phone').value = c.phone;
                     document.getElementById('cli-doc').value = c.doc;
-                    document.getElementById('cli-addr').value = c.address;
+                    document.getElementById('cli-cep').value = c.cep ? String(c.cep) : '';
+                    document.getElementById('cli-logradouro').value = c.logradouro || '';
+                    document.getElementById('cli-numero').value = c.numero || '';
+                    document.getElementById('cli-complemento').value = c.complemento || '';
+                    document.getElementById('cli-bairro').value = c.bairro || '';
+                    document.getElementById('cli-cidade').value = c.cidade || '';
+                    document.getElementById('cli-uf').value = c.uf || '';
+                    const temEstrutura = c.logradouro || c.numero || c.bairro || c.cidade || c.uf || c.cep;
+                    if (!temEstrutura && c.address) {
+                        nota.textContent = 'Endereço atual registrado: ' + c.address + '. Preencha os campos acima para padronizar.';
+                        nota.classList.remove('hidden');
+                    } else {
+                        nota.classList.add('hidden');
+                    }
                 }
             } else {
                 document.getElementById('cli-id').value = '';
                 document.getElementById('cli-name').value = '';
                 document.getElementById('cli-phone').value = '';
                 document.getElementById('cli-doc').value = '';
-                document.getElementById('cli-addr').value = '';
+                document.getElementById('cli-cep').value = '';
+                document.getElementById('cli-logradouro').value = '';
+                document.getElementById('cli-numero').value = '';
+                document.getElementById('cli-complemento').value = '';
+                document.getElementById('cli-bairro').value = '';
+                document.getElementById('cli-cidade').value = '';
+                document.getElementById('cli-uf').value = '';
+                nota.classList.add('hidden');
             }
         }
 
@@ -5451,11 +5680,13 @@ function loadQuoteToCart(id) {
               id: newBudgetId,
               tipo: 'orcamento',
               produto_nome: item.name,
+              produto_id: (item.productId != null && STATE.products.some(p => String(p.id) === String(item.productId))) ? item.productId : null,
               quantidade: item.qty,
               data: date,
               observacao: item.obs || '',
               valor_total: item.total,
               cliente_nome: quoteToCopy.clientName,
+              cliente_id: (quoteToCopy.clientId != null && STATE.clients.some(c => String(c.id) === String(quoteToCopy.clientId))) ? quoteToCopy.clientId : null,
               forma_pagamento: quoteToCopy.paymentMethod || 'Dinheiro',
               status: 'ABERTO',
               desconto: quoteToCopy.discount || 0,
@@ -5507,11 +5738,13 @@ function loadQuoteToCart(id) {
                   id: newBudgetId,
                   tipo: 'orcamento',
                   produto_nome: item.productName,
+                  produto_id: (item.productId != null && STATE.products.some(p => String(p.id) === String(item.productId))) ? item.productId : null,
                   quantidade: item.quantity,
                   data: date,
                   observacao: obs,
                   valor_total: item.totalValue, 
                   cliente_nome: item.clientName,
+                  cliente_id: (item.clientId != null && STATE.clients.some(c => String(c.id) === String(item.clientId))) ? item.clientId : null,
                   forma_pagamento: item.paymentMethod || 'Dinheiro',
                   status: 'ABERTO', 
                   desconto: 0, 
@@ -5816,7 +6049,7 @@ function printPartnerReport() {
 
     const vendasFiltradas = STATE.logs.filter(l => {
         if (l.type !== 'venda' || l.status === 'CANCELADO') return false;
-        const prod = STATE.products.find(p => p.name === l.productName);
+        const prod = produtoDeLog(l);
         return prod && prod.parceiro && l.date.split('T')[0] >= start && l.date.split('T')[0] <= end;
     });
 
@@ -5831,7 +6064,7 @@ function printPartnerReport() {
             }
             agrupado[l.productName].metros += Number(l.quantity) || 0;
             agrupado[l.productName].valorVenda += Number(l.totalValue) || 0;
-            const prod = STATE.products.find(p => p.name === l.productName);
+            const prod = produtoDeLog(l);
             agrupado[l.productName].custo += prod ? (prod.cost || 0) * (Number(l.quantity) || 0) : 0;
         });
         const rows = Object.values(agrupado).map(i => `
@@ -5883,7 +6116,7 @@ function printPartnerReport() {
                 };
             }
             agrupado[chave].qtd += Number(l.quantity) || 0;
-            const prod = STATE.products.find(p => p.name === l.productName);
+            const prod = produtoDeLog(l);
             const custoUnitario = prod ? (prod.cost || 0) : 0;
             agrupado[chave].custo += custoUnitario * (Number(l.quantity) || 0);
         });

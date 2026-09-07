@@ -1044,7 +1044,18 @@ class OrcamentosMDF {
       return;
     }
 
-    const filtrados = orcamentos.filter(o => !search || (o.cliente_nome && o.cliente_nome.toLowerCase().includes(search)));
+    // Mapa de clientes para exibir o NOME ATUAL (renomeio reflete em cadeia)
+    const { data: clientesLista } = await supabaseClient.from('clientes').select('id, nome');
+    const mapClientes = {};
+    (clientesLista || []).forEach(c => { mapClientes[c.id] = c.nome; });
+    const nomeCliente = (o) =>
+      o.cliente_id != null && mapClientes[o.cliente_id] ? mapClientes[o.cliente_id] : (o.cliente_nome || 'Consumidor Final');
+
+    const filtrados = orcamentos.filter(o => {
+      if (!search) return true;
+      const alvo = (nomeCliente(o) || o.cliente_nome || '').toLowerCase();
+      return alvo.includes(search);
+    });
 
     if (!filtrados.length) {
       lista.innerHTML = '<td><td colspan="5" class="p-8 text-center text-slate-400">Nenhum orçamento encontrado.</td></tr>';
@@ -1079,7 +1090,7 @@ class OrcamentosMDF {
             <div class="text-[10px] text-slate-400">${new Date(orc.created_at).toLocaleDateString('pt-BR')}</div>
           </td>
           <td class="p-4">
-            <div class="font-bold text-slate-800">${orc.cliente_nome || 'Consumidor Final'}</div>
+            <div class="font-bold text-slate-800">${nomeCliente(orc)}</div>
             <div class="text-xs text-slate-500">${orc.itensCount} itens</div>
           </td>
           <td class="p-4 font-bold text-slate-800">R$ ${orc.total.toFixed(2)}</td>
@@ -1159,16 +1170,32 @@ class OrcamentosMDF {
       document.getElementById('tipo-desconto-mdf').value = orc.tipo_desconto || '$';
       document.getElementById('valor-desconto-mdf').value = orc.desconto || 0;
       
-      // Preencher cliente
+      // Preencher cliente (resolve por cliente_id; fallback por nome p/ registros antigos)
       if (orc.cliente_nome) {
         document.getElementById('cliente-nome-mdf').value = orc.cliente_nome;
-        // Buscar ID do cliente para guardar no hidden
-        const { data: cliente } = await supabaseClient
-          .from('clientes')
-          .select('id')
-          .eq('nome', orc.cliente_nome)
-          .maybeSingle();
-        document.getElementById('cliente-id-mdf').value = cliente?.id || '';
+        let clienteId = orc.cliente_id != null ? orc.cliente_id : null;
+        if (clienteId != null) {
+          // Nome atual do cliente (renomeio reflete em cadeia)
+          const { data: cliente } = await supabaseClient
+            .from('clientes')
+            .select('id, nome')
+            .eq('id', clienteId)
+            .maybeSingle();
+          if (cliente) {
+            clienteId = cliente.id;
+            document.getElementById('cliente-nome-mdf').value = cliente.nome;
+          } else {
+            clienteId = null;
+          }
+        } else {
+          const { data: cliente } = await supabaseClient
+            .from('clientes')
+            .select('id')
+            .eq('nome', orc.cliente_nome)
+            .maybeSingle();
+          clienteId = cliente?.id || null;
+        }
+        document.getElementById('cliente-id-mdf').value = clienteId != null ? clienteId : '';
       } else {
         document.getElementById('cliente-nome-mdf').value = '';
         document.getElementById('cliente-id-mdf').value = '';
@@ -1313,6 +1340,7 @@ class OrcamentosMDF {
         .from('mdf_orcamentos')
         .update({
           cliente_nome: clienteNome,
+          cliente_id: clienteId ? Number(clienteId) : null,
           status,
           observacoes: obs,
           desconto: descontoValor,
@@ -1350,6 +1378,7 @@ class OrcamentosMDF {
         .from('mdf_orcamentos')
         .insert({
           cliente_nome: clienteNome,
+          cliente_id: clienteId ? Number(clienteId) : null,
           status,
           observacoes: obs,
           desconto: descontoValor,
@@ -1394,6 +1423,7 @@ class OrcamentosMDF {
     const { data: itensData } = await supabaseClient.from('mdf_itens').select().eq('orcamento_id', id);
     const { data: novo } = await supabaseClient.from('mdf_orcamentos').insert({
       cliente_nome: orc.cliente_nome,
+      cliente_id: orc.cliente_id != null ? orc.cliente_id : null,
       status: 'ABERTO',
       observacoes: orc.observacoes,
       desconto: orc.desconto,
@@ -1577,13 +1607,26 @@ class OrcamentosMDF {
       const totalLiquido = Math.max(0, subtotal - descontoTotal);
       const fator = subtotal > 0 ? totalLiquido / subtotal : 0;
 
-      // 3. Buscar cliente (para log)
-      const { data: cliente } = await supabaseClient
-        .from('clientes')
-        .select('nome')
-        .eq('nome', orc.cliente_nome)
-        .maybeSingle();
+      // 3. Buscar cliente (para log) - resolve por cliente_id quando existir
+      let cliente = null;
+      if (orc.cliente_id != null) {
+        const { data: cl } = await supabaseClient
+          .from('clientes')
+          .select('id, nome')
+          .eq('id', orc.cliente_id)
+          .maybeSingle();
+        cliente = cl;
+      }
+      if (!cliente && orc.cliente_nome) {
+        const { data: cl } = await supabaseClient
+          .from('clientes')
+          .select('id, nome')
+          .eq('nome', orc.cliente_nome)
+          .maybeSingle();
+        cliente = cl;
+      }
       const nomeCliente = cliente?.nome || orc.cliente_nome || 'Consumidor Final';
+      const clienteIdLog = cliente?.id != null ? cliente.id : (orc.cliente_id != null ? orc.cliente_id : null);
 
       // 4. Buscar o próximo ID disponível na tabela logs
       const { data: maxIdData, error: maxIdError } = await supabaseClient
@@ -1609,6 +1652,7 @@ class OrcamentosMDF {
         observacao: `MDF Orçamento #${id} - ${item.descricao || ''}`,
         valor_total: parseFloat(item.preco) * fator,
         cliente_nome: nomeCliente,
+        cliente_id: clienteIdLog,
         forma_pagamento: 'A Faturar',
         status: 'ATIVO',
         status_entrega: '',
@@ -1696,7 +1740,17 @@ class OrcamentosMDF {
       .select('*')
       .eq('orcamento_id', orcamentoId)
       .maybeSingle();
-   
+
+    // Exibir o NOME ATUAL do cliente (renomeio reflete em cadeia)
+    if (orc && orc.cliente_id != null) {
+      const { data: clAgenda } = await supabaseClient
+        .from('clientes')
+        .select('nome')
+        .eq('id', orc.cliente_id)
+        .maybeSingle();
+      if (clAgenda) orc.cliente_nome = clAgenda.nome;
+    }
+
     this.abrirModalAgenda(orcamentoId, orc, agendaExistente);
   }
 

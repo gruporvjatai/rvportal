@@ -306,9 +306,13 @@
         const nome = v.productName;
         const qtd = Number(v.quantity) || 0;   // garante número
         const receita = Number(v.totalValue) || 0;
-        if (!mapa[nome]) {
-            const prod = STATE.products.find(p => p.name === nome);
-            mapa[nome] = {
+        // Agrupa por produto_id quando existir (produtos com MESMO nome não se misturam)
+        const chave = v.productId != null ? `id:${v.productId}` : `nome:${nome}`;
+        if (!mapa[chave]) {
+            const prod = v.productId != null
+                ? STATE.products.find(p => String(p.id) === String(v.productId))
+                : STATE.products.find(p => p.name === nome);
+            mapa[chave] = {
                 nome,
                 qtd: 0,
                 receita: 0,
@@ -316,8 +320,8 @@
                 parceiro: prod ? Boolean(prod.parceiro) : false
             };
         }
-        mapa[nome].qtd += qtd;
-        mapa[nome].receita += receita;
+        mapa[chave].qtd += qtd;
+        mapa[chave].receita += receita;
     });
 
     let produtos = Object.values(mapa).map(p => ({

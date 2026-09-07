@@ -487,14 +487,18 @@
     }
 
     //const descricao = `Salário ${folha.equipe.nome} (${folha.mes_referencia})`;
-    const descricao = `SALÁRIO REF. ${folha.mes_referencia}`;
+    // Padrão atual: categoria/observação em CAIXA ALTA e mês entre
+    // parênteses — igual às despesas de salário históricas e parseável
+    // pelo backfill (que lê "AAAA-MM" na observação).
+    const descricao = `SALÁRIO REF. (${folha.mes_referencia})`;
     const forn = `${folha.equipe.nome}`;
     const novoIdDespesa = getNextId(STATE.expenses); // ID único para despesas
 
     // 1. Inserir a despesa (já paga)
     const { error: errDesp } = await sb.from('despesas').insert([{
         id: novoIdDespesa,          // 🔥 ESSENCIAL: sem isso o banco reclama
-        item: 'Salário',
+        item: 'SALÁRIO',
+        equipe_id: folha.equipe_id != null ? folha.equipe_id : null,
         fornecedor: forn,
         quantidade: 1,
         unidade: 'Un',
@@ -516,14 +520,16 @@
     }).eq('id', id);
 
     // 3. Inserir log financeiro (para aparecer no caixa)
+    // Observacao segue o padrao do app 'Ref Despesa #id' para o
+    // estorno ser preciso (por id, sem depender do nome digitado).
     const novoIdLog = getNextId(STATE.logs);
     const { error: errLog } = await sb.from('logs').insert([{
         id: novoIdLog,
         tipo: 'despesa',
-        produto_nome: 'Salário',
+        produto_nome: 'SALÁRIO',
         quantidade: 1,
         data: new Date().toISOString(),
-        observacao: descricao,
+        observacao: descricao + ' | Ref Despesa #' + novoIdDespesa,
         valor_total: folha.valor_pago,
         status: 'ATIVO',
         status_financeiro: 'PAGO',
@@ -553,9 +559,10 @@
 
     if (folha.status === 'PAGO' && folha.despesa_id) {
       if (!confirm('Esta folha já foi paga. Deseja estorná-la? A despesa será removida.')) return;
-      // Remover despesa e log vinculados
+      // Remover despesa e log vinculados (log achado pelo 'Ref Despesa #id',
+      // sem depender do nome do funcionário digitado na época)
       await sb.from('despesas').delete().eq('id', folha.despesa_id);
-      await sb.from('logs').delete().like('observacao', `Salário ${folha.equipe?.nome || ''}%`).eq('valor_total', folha.valor_pago);
+      await sb.from('logs').delete().like('observacao', '%Ref Despesa #' + folha.despesa_id + '%').eq('tipo', 'despesa');
     } else if (folha.status === 'PAGO') {
       if (!confirm('Esta folha está marcada como PAGA, mas não possui vínculo de despesa. Deseja excluí-la mesmo assim?')) return;
     } else {
