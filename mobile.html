@@ -209,6 +209,11 @@
           </div>
 
           <div id="clients-list" class="flex flex-col gap-2"></div>
+
+          <div id="cli-more-wrap" class="hidden flex flex-col items-center gap-1 mt-3">
+              <span id="cli-count-info" class="text-xs text-slate-400 font-bold"></span>
+              <button onclick="cliCarregarMais()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform">Ver mais (50)</button>
+          </div>
       </div>
 
       <!-- ==================== NOVA ABA CAIXA (FINANCEIRO) ==================== -->
@@ -810,6 +815,8 @@
         }
         
         let CART = [];
+        let CLI_VISIVEIS = 50;       // aba Clientes: quantos por "pagina" (Ver mais +50)
+        let CLI_TERMO = '';          // ultimo termo de busca aplicado na aba Clientes
         let CURRENT_QUOTE_ID = null;
         let currentDocType = 'orcamento';
 
@@ -957,7 +964,8 @@
                     STATE.clients = (resCli.data || []).map(c => ({
                         id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
                         logradouro: c.logradouro || '', numero: c.numero || '', complemento: c.complemento || '',
-                        bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || ''
+                        bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || '',
+                        tipo: c.tipo || 'cliente'
                     }));
             
                     STATE.logs = [];
@@ -2791,52 +2799,77 @@ function downloadPDF(blob, filename) {
         function renderClients() {
             const list = document.getElementById('clients-list');
             if(!list) return;
-            
-            const term = document.getElementById('cli-search')?.value.toLowerCase() || '';
-            let filtered = STATE.clients || [];
 
-            if (term) {
-                filtered = filtered.filter(c => 
-                    c.name.toLowerCase().includes(term) || 
-                    (c.phone && c.phone.toLowerCase().includes(term)) || 
-                    (c.doc && c.doc.toLowerCase().includes(term))
-                );
-            }
+            const rawTerm = (document.getElementById('cli-search')?.value || '').trim();
+            const term = rawTerm.toLowerCase();
+            if (term !== CLI_TERMO) { CLI_TERMO = term; CLI_VISIVEIS = 50; }
 
-            const sliced = filtered.slice(0, 150);
+            const ordenados = (STATE.clients || []).slice().sort((a, b) => {
+                const n = String(a.name).localeCompare(String(b.name), 'pt-BR');
+                if (n !== 0) return n;
+                return Number(a.id) - Number(b.id);
+            });
+
+            const filtrados = term ? ordenados.filter(c => cliFiltraCliente(c, term, rawTerm)) : ordenados;
+
+            const total = filtrados.length;
+            const visiveis = Math.min(CLI_VISIVEIS, total);
+            const sliced = filtrados.slice(0, visiveis);
 
             if (sliced.length === 0) {
                 list.innerHTML = '<div class="p-10 text-center text-slate-400 font-bold">Nenhum cliente encontrado.</div>';
-                return;
-            }
-
-            list.innerHTML = sliced.map(c => {
-                let num = c.phone ? c.phone.replace(/\D/g, '') : '';
-                if (num.length >= 10 && !num.startsWith('55')) num = '55' + num;
-                const zapLink = num ? `https://wa.me/${num}` : '#';
-                const hasZap = num.length >= 10;
-                
-                const zapClass = hasZap ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-slate-50 text-slate-300 pointer-events-none';
-
-                return `
-                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-1">
-                    <div class="flex flex-col flex-1 truncate mr-3">
-                        <span class="font-bold text-sm text-slate-800 truncate">${c.name}</span>
-                        <span class="text-[11px] text-slate-500 font-medium mt-0.5">${c.phone || 'Sem telefone'}</span>
-                    </div>
+            } else {
+                list.innerHTML = sliced.map(c => {
+                    let num = c.phone ? c.phone.replace(/\D/g, '') : '';
+                    if (num.length >= 10 && !num.startsWith('55')) num = '55' + num;
+                    const zapLink = num ? `https://wa.me/${num}` : '#';
+                    const hasZap = num.length >= 10;
                     
-                    <div class="flex items-center gap-2">
-                        <a href="${zapLink}" ${hasZap ? 'target="_blank"' : ''} class="w-10 h-10 flex items-center justify-center rounded-full transition-colors active:scale-95 ${zapClass}" title="WhatsApp">
-                            <i data-lucide="message-circle" class="w-5 h-5"></i>
-                        </a>
-                        <button onclick="openClientForm('${c.id}')" class="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full transition-colors active:scale-95" title="Editar">
-                            <i data-lucide="edit-3" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                </div>`;
-            }).join('');
+                    const zapClass = hasZap ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-slate-50 text-slate-300 pointer-events-none';
+
+                    return `
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center mb-1">
+                        <div class="flex flex-col flex-1 truncate mr-3">
+                            <span class="font-bold text-sm text-slate-800 truncate">${c.name}</span>
+                            <span class="text-[11px] text-slate-500 font-medium mt-0.5">${c.phone || 'Sem telefone'}</span>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <a href="${zapLink}" ${hasZap ? 'target="_blank"' : ''} class="w-10 h-10 flex items-center justify-center rounded-full transition-colors active:scale-95 ${zapClass}" title="WhatsApp">
+                                <i data-lucide="message-circle" class="w-5 h-5"></i>
+                            </a>
+                            <button onclick="openClientForm('${c.id}')" class="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full transition-colors active:scale-95" title="Editar">
+                                <i data-lucide="edit-3" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
             lucide.createIcons();
+
+            const wrap = document.getElementById('cli-more-wrap');
+            if (wrap) {
+                const info = document.getElementById('cli-count-info');
+                if (info) info.textContent = total + (total === 1 ? ' cliente' : ' clientes') + (visiveis < total ? ' — exibindo ' + visiveis : '');
+                wrap.classList.toggle('hidden', visiveis >= total);
+            }
         }
+
+        // Busca por nome, telefone ou documento. CPF/CNPJ tambem aceita digitos
+        // sem mascara (ex.: "12345678901" acha "123.456.789-01").
+        function cliFiltraCliente(c, term, rawTerm) {
+            const nm = (c.name || '').toLowerCase();
+            if (nm.includes(term)) return true;
+            const fone = String(c.phone || '').toLowerCase();
+            if (fone.includes(term)) return true;
+            const doc = String(c.doc || '').toLowerCase();
+            if (doc.includes(term)) return true;
+            const dig = String(rawTerm || '').replace(/\D/g, '');
+            if (dig.length >= 3 && (doc.replace(/\D/g, '').includes(dig) || fone.replace(/\D/g, '').includes(dig))) return true;
+            return false;
+        }
+
+        function cliCarregarMais() { CLI_VISIVEIS += 50; renderClients(); }
 
         function openClientForm(id) { 
             document.getElementById('client-form-container').classList.remove('hidden'); 

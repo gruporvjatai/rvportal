@@ -717,6 +717,10 @@
                   <thead class="bg-slate-50 text-slate-700"><tr><th class="p-4">Nome</th><th class="p-4">Telefone</th><th class="p-4">Documento</th><th class="p-4 text-center">Ações</th></tr></thead>
                   <tbody id="clients-list" class="divide-y"></tbody>
               </table>
+              <div id="cli-more-wrap" class="hidden p-3 border-t border-slate-100 flex flex-col items-center gap-1">
+                  <span id="cli-count-info" class="text-xs text-slate-400 font-medium"></span>
+                  <button onclick="cliCarregarMais()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg font-bold shadow-sm">Ver mais (50)</button>
+              </div>
           </div>
       </div>
 
@@ -1545,6 +1549,8 @@
         }
         let sortColumn = 'id';       // coluna padrão: id (ou pode ser 'name')
         let sortDirection = 'asc';   // 'asc' ou 'desc'
+        let CLI_VISIVEIS = 50;       // aba Clientes: quantos por "pagina" (Ver mais +50)
+        let CLI_TERMO = '';          // ultimo termo de busca aplicado na aba Clientes
         let CART = [];
         let CURRENT_QUOTE_ID = null;
         let CURRENT_QUOTE_STATUS = null;
@@ -1732,7 +1738,8 @@
         STATE.clients = (resCli.data || []).map(c => ({
             id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
             logradouro: c.logradouro || '', numero: c.numero || '', complemento: c.complemento || '',
-            bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || ''
+            bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || '',
+            tipo: c.tipo || 'cliente'
         }));
 
         // Mapa id -> produto: usado para resolver o NOME ATUAL do produto
@@ -3929,28 +3936,52 @@ function loadQuoteToCart(id) {
         function renderClients() {
             const list = document.getElementById('clients-list');
             if(!list) return;
-            
-            const term = normalizeSearch(document.getElementById('cli-search')?.value);
-            let filtered = STATE.clients || [];
 
-            if (term) {
-                filtered = filtered.filter(c => 
-                    normalizeSearch(c.name).includes(term) || 
-                    (c.phone && normalizeSearch(c.phone).includes(term)) || 
-                    (c.doc && normalizeSearch(c.doc).includes(term))
-                );
-            }
+            const rawTerm = (document.getElementById('cli-search')?.value || '').trim();
+            const term = normalizeSearch(rawTerm);
+            if (term !== CLI_TERMO) { CLI_TERMO = term; CLI_VISIVEIS = 50; }
 
-            const sliced = filtered.slice(0, 150);
+            const ordenados = (STATE.clients || []).slice().sort((a, b) => {
+                const n = String(a.name).localeCompare(String(b.name), 'pt-BR');
+                if (n !== 0) return n;
+                return Number(a.id) - Number(b.id);
+            });
 
-            if (sliced.length === 0) {
+            const filtrados = term ? ordenados.filter(c => cliFiltraCliente(c, term, rawTerm)) : ordenados;
+
+            const total = filtrados.length;
+            const visiveis = Math.min(CLI_VISIVEIS, total);
+            const pagina = filtrados.slice(0, visiveis);
+
+            if (pagina.length === 0) {
                 list.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Nenhum cliente encontrado.</td></tr>';
-                return;
+            } else {
+                list.innerHTML = pagina.map(c=>`<tr class="hover:bg-slate-50"><td class="p-4 font-medium">${c.name}</td><td class="p-4">${c.phone}</td><td class="p-4">${c.doc}</td><td class="p-4 text-center flex justify-center gap-3"><button onclick="openClientForm('${c.id}')" class="text-indigo-700 hover:text-indigo-800"><i data-lucide="edit-3" width="16"></i></button><button onclick="deleteClient('${c.id}')" class="text-red-600 hover:text-red-800"><i data-lucide="trash-2" width="16"></i></button></td></tr>`).join('');
             }
-
-            list.innerHTML = sliced.map(c=>`<tr class="hover:bg-slate-50"><td class="p-4 font-medium">${c.name}</td><td class="p-4">${c.phone}</td><td class="p-4">${c.doc}</td><td class="p-4 text-center flex justify-center gap-3"><button onclick="openClientForm('${c.id}')" class="text-indigo-700 hover:text-indigo-800"><i data-lucide="edit-3" width="16"></i></button><button onclick="deleteClient('${c.id}')" class="text-red-600 hover:text-red-800"><i data-lucide="trash-2" width="16"></i></button></td></tr>`).join('');
             lucide.createIcons();
+
+            const wrap = document.getElementById('cli-more-wrap');
+            if (wrap) {
+                const info = document.getElementById('cli-count-info');
+                if (info) info.textContent = total + (total === 1 ? ' cliente' : ' clientes') + (visiveis < total ? ' — exibindo ' + visiveis : '');
+                wrap.classList.toggle('hidden', visiveis >= total);
+            }
         }
+
+        // Busca por nome, telefone ou documento. CPF/CNPJ tambem aceita digitos
+        // sem mascara (ex.: "12345678901" acha "123.456.789-01").
+        function cliFiltraCliente(c, term, rawTerm) {
+            if (normalizeSearch(c.name).includes(term)) return true;
+            const fone = String(c.phone || '');
+            if (normalizeSearch(fone).includes(term)) return true;
+            const doc = String(c.doc || '');
+            if (normalizeSearch(doc).includes(term)) return true;
+            const dig = String(rawTerm || '').replace(/\D/g, '');
+            if (dig.length >= 3 && (doc.replace(/\D/g, '').includes(dig) || fone.replace(/\D/g, '').includes(dig))) return true;
+            return false;
+        }
+
+        function cliCarregarMais() { CLI_VISIVEIS += 50; renderClients(); }
 
         function openClientForm(id) { 
             document.getElementById('client-form-container').classList.remove('hidden'); 
