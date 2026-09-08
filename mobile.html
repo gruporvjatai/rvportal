@@ -1069,7 +1069,14 @@
       }
       
 
-        function gerarUid() { return Math.floor(Date.now() * 100 + Math.random() * 100).toString(); }
+        function gerarUid() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = (Math.random() * 16) | 0;
+                const v = c === 'x' ? r : (r & 0x3) | 0x8;
+                return v.toString(16);
+            });
+        }
 
         async function fetchAllRecords(table) {
             let allRecords = [];
@@ -1458,7 +1465,10 @@
             if (rowsEl) rowsEl.innerHTML = '';
 
             const st = calcTituloFinanceiro(id);
-            const saldoBase = st.saldo != null ? st.saldo : (total - (paid || 0));
+            // Pago efetivo = maior entre logs 'recebimento' e o valor_pago gravado no título
+            // (cobre títulos antigos cuja baixa não chegou a gravar o log).
+            const pagoEfetivo = Math.max(st.money, ...st.rows.map(r => Number(r.paidValue) || 0), Number(paid) || 0);
+            const saldoBase = (st.total || total) + st.jur - st.disc - pagoEfetivo;
             window._recCtx = { id, saldoBase };
             if (st.total) document.getElementById('rec-total-lbl').innerText = formatMoney(st.total);
             document.getElementById('rec-pending-lbl').innerText = formatMoney(Math.max(0, saldoBase));
@@ -1607,6 +1617,27 @@
             }
         }
 
+        // Insere um log de baixa/pagamento conferindo o erro do Supabase.
+        // Em schema antigo (sem migração 11), 'acrescimo'/'pgto_anotacao' não existem:
+        // tenta de novo sem essas colunas. Qualquer outro erro é propagado para a tela.
+        async function inserirLogBaixa(obj) {
+            const tenta = async (p) => {
+                const { error } = await sb.from('logs').insert([p]);
+                return error || null;
+            };
+            let err = await tenta(obj);
+            if (!err) return;
+            const msg = String(err.message || '');
+            if (/column .*acrescimo.* does not exist|column .*pgto_anotacao.* does not exist/i.test(msg)) {
+                const min = Object.assign({}, obj);
+                delete min.acrescimo;
+                delete min.pgto_anotacao;
+                err = await tenta(min);
+                if (!err) return;
+            }
+            throw err;
+        }
+
         async function saveReceivableEdit() {
             const id = document.getElementById('rec-id').value;
             const due = document.getElementById('rec-due').value;
@@ -1632,25 +1663,23 @@
 
             showLoading(true);
             try {
-                const newMoney = st.money + moneyTotal;
+                // Pago acumulado = maior entre logs e o valor_pago já gravado no título
+                const pagoBase = Math.max(st.money, ...st.rows.map(r => Number(r.paidValue) || 0));
+                const newMoney = pagoBase + moneyTotal;
                 const newDisc = st.disc + desconto;
                 const newJur = st.jur + juros;
                 const newSaldo = st.total + newJur - newDisc - newMoney;
                 const finStatus = newSaldo <= 0.005 ? 'PAGO' : (newMoney > 0 ? 'PARCIAL' : 'PENDENTE');
                 const metodoPrincipal = formas.length ? formas[0].metodo : (st.rows[0].paymentMethod || 'Dinheiro');
 
-                for (let row of st.rows) {
-                    const upd = { valor_pago: newMoney, status_financeiro: finStatus };
-                    if (formas.length) upd.forma_pagamento = metodoPrincipal;
-                    if (due) upd.vencimento = due;
-                    await sb.from('logs').update(upd).eq('uid', row.uid);
-                }
-
+                // Um log 'recebimento' por forma; desconto/juros acompanham a 1a forma (rastreio).
+                // Insere ANTES de atualizar o título: se falhar, o título permanece consistente.
+                // ID vindo do banco (máx logs + 1) para nunca colidir com orçamentos/outros logs.
                 const uidBatch = gerarUid();
                 for (let f of formas) {
                     const isPrimeira = f === formas[0];
-                    await sb.from('logs').insert([{
-                        id: nextLocalId(),
+                    await inserirLogBaixa({
+                        id: await getNextId('logs'),
                         uid: uidBatch,
                         tipo: 'recebimento',
                         produto_nome: 'Baixa de Conta',
@@ -1665,7 +1694,14 @@
                         status: 'ATIVO',
                         status_financeiro: 'PAGO',
                         valor_pago: f.valor
-                    }]);
+                    });
+                }
+
+                for (let row of st.rows) {
+                    const upd = { valor_pago: newMoney, status_financeiro: finStatus };
+                    if (formas.length) upd.forma_pagamento = metodoPrincipal;
+                    if (due) upd.vencimento = due;
+                    await sb.from('logs').update(upd).eq('uid', row.uid);
                 }
 
                 document.getElementById('modal-receivable-edit').classList.add('hidden');
@@ -1679,7 +1715,6 @@
         }
 
         async function estornarRecebimento(ref) {
-            if(!confirm("Estornar a última baixa deste recebimento? O valor voltará para 'A Receber'.")) return;
             showLoading(true);
 
             try {
@@ -1694,6 +1729,20 @@
                 } else {
                     const refs = baixasDoTitulo.filter(b => String((b.note.match(/#(\d+)/) || [])[1]) === String(ref));
                     if (!refs.length) {
+                        // Sem log de baixa (dados antigos ou baixa que não gravou o log): oferece reabrir o título.
+                        const titulo = STATE.logs.filter(l => String(l.id) === String(ref) && (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO');
+                        const marcadoPago = titulo.some(t => (Number(t.paidValue) || 0) > 0 || t.finStatus === 'PAGO' || t.finStatus === 'PARCIAL');
+                        if (titulo.length && marcadoPago) {
+                            showLoading(false);
+                            if (!confirm("Não há um registro de baixa (log) para estornar. Deseja apenas reabrir este título, voltando-o para PENDENTE?")) return;
+                            showLoading(true);
+                            for (let row of titulo) {
+                                await sb.from('logs').update({ valor_pago: 0, status_financeiro: 'PENDENTE' }).eq('uid', row.uid);
+                            }
+                            showToast("Título reaberto!");
+                            await loadData();
+                            return;
+                        }
                         showLoading(false);
                         return showToast("Nenhuma baixa para estornar", true);
                     }
@@ -1701,6 +1750,11 @@
                     const datas = refs.map(b => b.date || '').sort();
                     const ultima = datas[datas.length - 1];
                     alvo.push(...refs.filter(b => String(b.date || '') === String(ultima)));
+                }
+
+                if (!confirm("Estornar a última baixa deste recebimento? O valor voltará para 'A Receber'.")) {
+                    showLoading(false);
+                    return;
                 }
 
                 for (let b of alvo) {
@@ -1871,6 +1925,23 @@
                 const saldo = exp.cost + newJur - newDisc - newMoney;
                 const novoStatus = saldo <= 0.005 ? 'PAGO' : 'PARCIAL';
 
+                // Grava os logs de pagamento PRIMEIRO: se falhar, a despesa continua consistente (PENDENTE/PARCIAL).
+                const uidBatch = gerarUid();
+                for (let f of formas) {
+                    const isPrimeira = f === formas[0];
+                    await inserirLogBaixa({
+                        id: await getNextId('logs'),
+                        uid: uidBatch,
+                        tipo: 'despesa', produto_nome: String(id), quantidade: exp.quantity || 1,
+                        data: dataPgto,
+                        observacao: 'Ref Despesa #' + exp.id,
+                        valor_total: f.valor, desconto: isPrimeira ? desconto : 0,
+                        acrescimo: isPrimeira ? juros : 0,
+                        forma_pagamento: f.metodo,
+                        status: 'ATIVO', status_financeiro: 'PAGO', valor_pago: f.valor
+                    });
+                }
+
                 const { error: err1 } = await sb.from('despesas').update({
                     valor_pago: newMoney,
                     desconto_total: newDisc,
@@ -1878,22 +1949,6 @@
                     status: novoStatus
                 }).eq('id', id);
                 if(err1) throw err1;
-
-                const uidBatch = gerarUid();
-                for (let f of formas) {
-                    const isPrimeira = f === formas[0];
-                    const newLogId = await getNextId('logs');
-                    await sb.from('logs').insert([{
-                        id: newLogId, tipo: 'despesa', produto_nome: String(id), quantidade: exp.quantity || 1,
-                        data: dataPgto,
-                        observacao: 'Ref Despesa #' + exp.id,
-                        valor_total: f.valor, desconto: isPrimeira ? desconto : 0,
-                        acrescimo: isPrimeira ? juros : 0,
-                        forma_pagamento: f.metodo,
-                        status: 'ATIVO', status_financeiro: 'PAGO', valor_pago: f.valor,
-                        uid: uidBatch
-                    }]);
-                }
 
                 document.getElementById('modal-payexpense').classList.add('hidden');
                 showToast(novoStatus === 'PAGO' ? "Despesa baixada com sucesso!" : "Pagamento parcial registrado!");
@@ -1933,14 +1988,9 @@
         }
 
         async function estornarDespesaLog(id) {
-            if(!confirm("Estornar o último pagamento desta despesa? Ela voltará a ficar pendente.")) return;
             showLoading(true);
             try {
                 const baixas = STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === String(id));
-                if (!baixas.length) {
-                    showLoading(false);
-                    return showToast("Nenhum pagamento para estornar", true);
-                }
                 const porUid = STATE.logs.find(l => l.type === 'despesa' && String(l.uid) === String(id));
                 let alvo;
                 if (porUid) {
@@ -1950,6 +2000,28 @@
                     const ultima = datas[datas.length - 1];
                     alvo = baixas.filter(b => String(b.date || '') === String(ultima));
                 }
+
+                if (!alvo.length) {
+                    // Sem log de pagamento (dados antigos ou pagamento que não gravou o log): oferece reabrir a despesa.
+                    const exp = STATE.expenses.find(e => String(e.id) === String(id));
+                    if (exp && (Number(exp.valorPago) || 0) > 0) {
+                        showLoading(false);
+                        if (!confirm("Não há um registro de pagamento (log) para estornar. Deseja apenas reabrir esta despesa, voltando-a para PENDENTE?")) return;
+                        showLoading(true);
+                        await sb.from('despesas').update({ valor_pago: 0, desconto_total: 0, acrescimo_total: 0, status: 'PENDENTE' }).eq('id', id);
+                        showToast("Despesa reaberta!");
+                        await loadData();
+                        return;
+                    }
+                    showLoading(false);
+                    return showToast("Nenhum pagamento para estornar", true);
+                }
+
+                if (!confirm("Estornar o último pagamento desta despesa? Ela voltará a ficar pendente.")) {
+                    showLoading(false);
+                    return;
+                }
+
                 for (let l of alvo) {
                     await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', l.uid);
                 }
