@@ -1,23 +1,37 @@
 -- ============================================================
--- MIGRACAO 8: Preparar coluna "tipo" em clientes
+-- MIGRACAO 8: Preparar coluna "tipo" em clientes (v2 - idempotente)
 --
--- Prepara o banco para a futura aba "Pessoas" (clientes + 
--- fornecedores) sem quebrar nenhuma tela atual:
---   * Adiciona a coluna 'tipo' com default 'cliente'
---   * Toda linha existente vira 'cliente' (retrocompativel)
---   * CHECK limita os valores a 'cliente' e 'fornecedor'
---   * Indice para filtro futuro por tipo
---   * View 'v_contagem_clientes_tipo' para acompanhar a divisao
+-- A coluna 'tipo' JÁ EXISTE na tabela com valores em caixa alta
+-- ('CLIENTE'/'FORNECEDOR'). Esta versao:
+--   * garante DEFAULT 'cliente' e NOT NULL
+--   * normaliza valores para minusculas ('cliente'/'fornecedor'),
+--     convertendo qualquer valor fora do padrao para 'cliente'
+--   * cria CHECK limitando a ('cliente', 'fornecedor')
+--   * indice para filtro futuro por tipo
+--   * view 'v_contagem_clientes_tipo' para acompanhar a divisao
 --
 -- O SISTEMA JA ESTA PREPARADO: sistema.html e mobile.html mapeiam
 -- c.tipo (fallback 'cliente') e o formulario atual cria/edita sem
 -- enviar 'tipo' (banco assume 'cliente'), entao nada quebra.
 --
--- COMO USAR: rode no Supabase SQL Editor (preferencialmente 1x).
+-- PODE SER RODADO QUANTAS VEZES QUISER (idempotente).
+-- COMO USAR: rode no Supabase SQL Editor.
 -- ============================================================
 
 ALTER TABLE public.clientes
-    ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'cliente';
+    ADD COLUMN IF NOT EXISTS tipo text;
+
+UPDATE public.clientes
+SET tipo = CASE
+    WHEN upper(trim(tipo)) IN ('CLIENTE', 'FORNECEDOR') THEN lower(trim(tipo))
+    ELSE 'cliente'
+END;
+
+ALTER TABLE public.clientes
+    ALTER COLUMN tipo SET DEFAULT 'cliente';
+
+ALTER TABLE public.clientes
+    ALTER COLUMN tipo SET NOT NULL;
 
 DO $$
 BEGIN

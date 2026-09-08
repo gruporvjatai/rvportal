@@ -3297,7 +3297,8 @@ function showFilteredExpenses() {
 }   
       
 
-        function fazerLogout() {
+        async function fazerLogout() {
+            try { await sb.auth.signOut(); } catch(e) {}
             localStorage.removeItem('rv_user');
             window.location.replace('index.html');
         }

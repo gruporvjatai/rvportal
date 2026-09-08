@@ -851,13 +851,15 @@
 
       <div id="user-form-container" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <form onsubmit="saveUser(event)" class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2"><i data-lucide="user-plus" class="text-emerald-600"></i> Dados do Usuário</h3>
+            <h3 id="user-form-title" class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2"><i data-lucide="user-plus" class="text-emerald-600"></i> Dados do Usuário</h3>
             <input type="hidden" id="usr-id">
             <div class="space-y-4">
                 <div><label class="block text-xs font-bold text-slate-500 uppercase">Nome Completo</label><input type="text" id="usr-name" required class="w-full p-2 border rounded outline-none focus:border-emerald-600"></div>
                 <div><label class="block text-xs font-bold text-slate-500 uppercase">Login (Curto)</label><input type="text" id="usr-login" required class="w-full p-2 border rounded outline-none focus:border-emerald-600"></div>
-                <div><label class="block text-xs font-bold text-slate-500 uppercase">Senha (Numérica)</label><!--<input type="number" id="usr-pass" required class="w-full p-2 border rounded outline-none focus:border-emerald-600">-->
-                <input type="password" id="usr-pass" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="Deixe em branco para não alterar" class="w-full p-2 border rounded outline-none focus:border-blue-600"></div>
+                <div><label class="block text-xs font-bold text-slate-500 uppercase">E-mail</label><input type="email" id="usr-email" required class="w-full p-2 border rounded outline-none focus:border-emerald-600"></div>
+                <div id="usr-pass-row"><label class="block text-xs font-bold text-slate-500 uppercase">Senha</label>
+                <input type="password" id="usr-pass" autocomplete="new-password" placeholder="Crie uma senha para o usuário" class="w-full p-2 border rounded outline-none focus:border-blue-600"></div>
+                <div class="text-xs text-slate-400 bg-slate-50 border border-slate-200 rounded p-2 hidden" id="usr-edit-hint">Para alterar a senha deste usuário, use o botão <strong>envelope</strong> (enviar e-mail de redefinição) na lista.</div>
                 <div><label class="block text-xs font-bold text-slate-500 uppercase">Nível de Acesso</label>
                     <select id="usr-role" class="w-full p-2 border rounded outline-none focus:border-emerald-600">
                         <option value="vendedor">Vendedor (PDV e Entregas)</option>
@@ -867,7 +869,7 @@
             </div>
             <div class="flex gap-2 mt-6">
                 <button type="button" onclick="document.getElementById('user-form-container').classList.add('hidden')" class="flex-1 p-3 bg-slate-200 text-slate-700 rounded-lg font-bold hover:bg-slate-300">Cancelar</button>
-                <button type="submit" class="flex-1 p-3 bg-indigo-700 text-white rounded-lg font-bold hover:bg-indigo-800 shadow-md">Salvar</button>
+                <button type="submit" id="usr-submit" class="flex-1 p-3 bg-indigo-700 text-white rounded-lg font-bold hover:bg-indigo-800 shadow-md">Salvar</button>
             </div>
         </form>
     </div>
@@ -5093,7 +5095,8 @@ function loadQuoteToCart(id) {
             if (typeof closePosHistoryModal === 'function') closePosHistoryModal();
             setTimeout(() => window.print(), 500);
         }
-        function fazerLogout() {
+        async function fazerLogout() {
+            try { await sb.auth.signOut(); } catch(e) {}
             localStorage.removeItem('rv_user');
             window.location.href = "index.html?t=" + Date.now();
         }
@@ -5104,11 +5107,15 @@ function loadQuoteToCart(id) {
             list.innerHTML = (STATE.users||[]).map(u => `
                 <tr class="hover:bg-slate-50 ${!u.ativo ? 'opacity-50' : ''}">
                     <td class="p-4 font-bold text-slate-700">${u.nome}</td>
-                    <td class="p-4 text-emerald-600 font-bold">${u.login}</td>
+                    <td class="p-4">
+                        <div class="text-emerald-600 font-bold">${u.login}</div>
+                        ${u.email ? `<div class="text-xs text-slate-400">${u.email}</div>` : `<div class="text-xs text-red-400 font-medium">sem e-mail</div>`}
+                    </td>
                     <td class="p-4"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${u.nivel_acesso === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}">${u.nivel_acesso}</span></td>
                     <td class="p-4 text-center"><span class="text-xs font-bold ${u.ativo ? 'text-green-600' : 'text-red-500'}">${u.ativo ? 'Ativo' : 'Bloqueado'}</span></td>
                     <td class="p-4 text-center flex justify-center gap-3">
-                        <button onclick="openUserForm('${u.id}')" class="text-indigo-700 hover:text-indigo-900"><i data-lucide="edit-3" width="16"></i></button>
+                        <button onclick="openUserForm('${u.id}')" class="text-indigo-700 hover:text-indigo-900" title="Editar"><i data-lucide="edit-3" width="16"></i></button>
+                        ${u.email ? `<button onclick="resetarSenhaUsuario('${u.id}')" class="text-blue-700 hover:text-blue-900" title="Enviar e-mail de redefinição de senha"><i data-lucide="mail" width="16"></i></button>` : ''}
                         <button onclick="toggleUserStatus('${u.id}', ${u.ativo})" class="${u.ativo ? 'text-orange-500' : 'text-green-600'}" title="Bloquear/Desbloquear"><i data-lucide="${u.ativo ? 'ban' : 'check-circle'}" width="16"></i></button>
                     </td>
                 </tr>`).join('');
@@ -5117,20 +5124,31 @@ function loadQuoteToCart(id) {
 
         function openUserForm(id) { 
             document.getElementById('user-form-container').classList.remove('hidden'); 
+            const isNew = !id;
+            document.getElementById('user-form-title').innerHTML = `<i data-lucide="${isNew ? 'user-plus' : 'user-cog'}" class="text-emerald-600"></i> ${isNew ? 'Novo Usuário' : 'Editar Usuário'}`;
+            document.getElementById('usr-pass-row').classList.toggle('hidden', !isNew);
+            document.getElementById('usr-edit-hint').classList.toggle('hidden', isNew);
+            document.getElementById('usr-email').required = isNew;
+            document.getElementById('usr-email').readOnly = !isNew;
+            document.getElementById('usr-submit').innerText = isNew ? 'Criar Usuário' : 'Salvar Alterações';
+
             if(id) { 
                 const u = STATE.users.find(x => String(x.id) === String(id)); 
                 document.getElementById('usr-id').value = u.id; 
                 document.getElementById('usr-name').value = u.nome; 
                 document.getElementById('usr-login').value = u.login; 
-                document.getElementById('usr-pass').value = u.senha; 
+                document.getElementById('usr-email').value = u.email || ''; 
+                document.getElementById('usr-pass').value = ''; 
                 document.getElementById('usr-role').value = u.nivel_acesso; 
             } else { 
                 document.getElementById('usr-id').value = ''; 
                 document.getElementById('usr-name').value = ''; 
                 document.getElementById('usr-login').value = ''; 
+                document.getElementById('usr-email').value = ''; 
                 document.getElementById('usr-pass').value = ''; 
                 document.getElementById('usr-role').value = 'vendedor'; 
             } 
+            lucide.createIcons();
         }
 
         async function saveUser(e) {
@@ -5139,20 +5157,78 @@ function loadQuoteToCart(id) {
             showLoading(true);
             
             const isNew = !document.getElementById('usr-id').value;
-            const payload = {
-                nome: document.getElementById('usr-name').value,
-                login: document.getElementById('usr-login').value.toLowerCase().trim(),
-                senha: document.getElementById('usr-pass').value,
-                nivel_acesso: document.getElementById('usr-role').value
-            };
-            if(!isNew) payload.id = document.getElementById('usr-id').value;
+            const nome = document.getElementById('usr-name').value.trim();
+            const login = document.getElementById('usr-login').value.toLowerCase().trim();
+            const email = (document.getElementById('usr-email').value || '').trim().toLowerCase();
+            const senha = document.getElementById('usr-pass').value;
+            const nivel = document.getElementById('usr-role').value;
 
-            const { error } = await sb.from('usuarios').upsert(payload);
-            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
-            
-            document.getElementById('user-form-container').classList.add('hidden');
-            showToast("Usuário salvo com sucesso!");
-            loadData();
+            try {
+                if (isNew) {
+                    if (!email || !senha) {
+                        showLoading(false);
+                        return showToast("Preencha e-mail e senha!", true);
+                    }
+                    // 1) Cria a conta no Supabase Auth (cliente descartável p/ não trocar a sessão do admin)
+                    const authTemp = window.supabase.createClient(supabaseUrl, supabaseKey, {
+                        auth: { persistSession: false, autoRefreshToken: false }
+                    });
+                    const { error: authError } = await authTemp.auth.signUp({ email, password: senha });
+                    if (authError) {
+                        showLoading(false);
+                        return showToast("Falha ao criar login: " + authError.message, true);
+                    }
+
+                    // 2) Cria o perfil vinculado (senha não é mais gravada)
+                    const { error } = await sb.from('usuarios').insert({
+                        nome: nome,
+                        login: login,
+                        email: email,
+                        nivel_acesso: nivel,
+                        ativo: true
+                    });
+                    if (error) {
+                        showLoading(false);
+                        return showToast("Perfil não salvo: " + error.message, true);
+                    }
+                } else {
+                    const id = document.getElementById('usr-id').value;
+                    const { error } = await sb.from('usuarios').update({
+                        nome: nome,
+                        login: login,
+                        nivel_acesso: nivel
+                    }).eq('id', id);
+                    if (error) {
+                        showLoading(false);
+                        return showToast("Erro ao salvar: " + error.message, true);
+                    }
+                }
+
+                document.getElementById('user-form-container').classList.add('hidden');
+                showToast(isNew ? "Usuário criado com sucesso!" : "Usuário atualizado com sucesso!");
+                loadData();
+            } catch(err) {
+                showLoading(false);
+                showToast("Erro: " + err.message, true);
+            }
+        }
+
+        async function resetarSenhaUsuario(id) {
+            if(dadosUsuario.nivel !== 'admin') return;
+            const u = STATE.users.find(x => String(x.id) === String(id));
+            if (!u || !u.email) return showToast("Usuário sem e-mail cadastrado.", true);
+            if (!confirm(`Enviar e-mail de redefinição de senha para ${u.email}?`)) return;
+            showLoading(true);
+            try {
+                const redirectTo = new URL('nova-senha.html', window.location.href).href;
+                const { error } = await sb.auth.resetPasswordForEmail(u.email, { redirectTo });
+                if (error) throw error;
+                showToast("E-mail de redefinição enviado para " + u.email);
+            } catch(e) {
+                showToast("Erro ao enviar: " + e.message, true);
+            } finally {
+                showLoading(false);
+            }
         }
 
         async function toggleUserStatus(id, currentStatus) {
