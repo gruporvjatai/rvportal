@@ -16,6 +16,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     outputs:
       upload_path: ${{ steps.set-path.outputs.upload_path }}
     steps:
@@ -37,6 +40,47 @@ jobs:
         run: |
           if [ -f package.json ] && grep -q '"build"' package.json; then
             npm run build
+          fi
+
+      # Injeta as chaves do Supabase no config.js usando os secrets do repositorio
+      - name: Inject Supabase keys (build-time)
+        run: |
+          set -e
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::Secret nao configurado. Crie em Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          if [ ! -f config.js ]; then
+            echo "::error::config.js nao encontrado na raiz do projeto"
+            exit 1
+          fi
+          node -e '
+            const fs = require("fs");
+            const p = "config.js";
+            let s = fs.readFileSync(p, "utf8");
+            function setVar(name, raw) {
+              let val = String(raw || "").trim();
+              val = val.replace(/^["\u0027]/, "").replace(/["\u0027];?\s*$/, "");
+              if (!val) {
+                console.error("Secret vazio para window." + name);
+                process.exit(1);
+              }
+              const re = new RegExp("window\\." + name + "\\s*=\\s*.*?;");
+              if (!re.test(s)) {
+                console.error("Linha window." + name + " nao encontrada no config.js");
+                process.exit(1);
+              }
+              s = s.replace(re, "window." + name + " = " + JSON.stringify(val) + ";");
+            }
+            setVar("SUPABASE_URL", process.env.SUPABASE_URL);
+            setVar("SUPABASE_ANON_KEY", process.env.SUPABASE_ANON_KEY);
+            fs.writeFileSync(p, s);
+            console.log("config.js atualizado.");
+          '
+          node -e 'new Function(require("fs").readFileSync("config.js","utf8")); console.log("Sintaxe do config.js OK.");'
+          if grep -q "__SUPABASE" config.js; then
+            echo "::error::Sobrou placeholder no config.js"
+            exit 1
           fi
 
       - name: Determine upload path
