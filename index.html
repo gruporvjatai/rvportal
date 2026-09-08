@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
 
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
@@ -89,9 +90,23 @@
     <script>
         lucide.createIcons();
 
-        const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co'; 
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5aWVpcWhrc3Bib3dzcmxuZ3ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTgwNzMsImV4cCI6MjA4ODk3NDA3M30.prokThYfCngZ5onUmYTlH0cB0Xa7hNFYm3SJk8bBjd4';
+        // Valores vindos de config.js (injetados no deploy via GitHub Actions)
+        const supabaseUrl = window.SUPABASE_URL;
+        const supabaseKey = window.SUPABASE_ANON_KEY;
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // Se chegou aqui por sessao expirada/sem login valido, limpa e avisa.
+        (function motivoSessao() {
+            const motivo = new URLSearchParams(window.location.search).get('motivo');
+            if (motivo === 'sessao') {
+                localStorage.removeItem('rv_user');
+                const msg = document.getElementById('msg-erro');
+                if (msg) {
+                    msg.textContent = "Sessão expirada. Faça login novamente.";
+                    msg.classList.remove('hidden');
+                }
+            }
+        })();
 
         async function fazerLogin(e) {
             e.preventDefault();

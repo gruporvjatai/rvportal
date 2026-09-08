@@ -6,6 +6,7 @@
     <title>Redefinir Senha • RV Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
 
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
@@ -56,8 +57,9 @@
     </div>
 
     <script>
-        const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co';
-        const supabaseKey = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
+        // Valores vindos de config.js (injetados no deploy via GitHub Actions)
+        const supabaseUrl = window.SUPABASE_URL;
+        const supabaseKey = window.SUPABASE_ANON_KEY;
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey, {
             auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
         });

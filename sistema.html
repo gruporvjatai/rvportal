@@ -14,6 +14,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -1123,32 +1124,92 @@
                     <span class="text-sm font-bold text-slate-600">Restante: <span id="rec-pending-lbl" class="text-red-600"></span></span>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">Forma de Pagto</label>
-                    <select id="rec-method" class="w-full p-3 border rounded-xl">
-                              <option>Dinheiro</option>
-                              <option>PIX</option>
-                              <option>Carteira</option>
-                              <option>Cartão Débito</option>
-                              <option>Cartão Crédito</option>
-                              <option>Boleto 21 dias</option>
-                              <option>Boleto 30 dias</option>
-                              <option>Boleto Programado</option>
-                              <option>Cheque</option>
-                            </select>
-                </div>
-                <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Data Vencimento</label>
                     <input type="date" id="rec-due" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600">
                 </div>
                 <div class="pt-3 border-t mt-2">
-                    <label class="block text-sm font-bold text-green-700 mb-1">Dar Baixa (Receber Valor Agora)</label>
-                    <input type="number" id="rec-pay-val" placeholder="0.00" class="w-full p-3 border rounded-xl font-bold focus:ring-2 focus:ring-green-500 outline-none text-green-700">
-                    <p class="text-[11px] text-slate-400 mt-1">*Para editar apenas a Data/Tipo, deixe o valor em branco.</p>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-bold text-green-700">Receber (formas de pagamento)</label>
+                        <button type="button" onclick="addRecPgtoRow()" class="text-xs font-bold text-green-700 bg-green-100 hover:bg-green-200 px-2.5 py-1.5 rounded-lg shadow-sm">+ Adicionar forma</button>
+                    </div>
+                    <div id="rec-pgto-rows" class="space-y-2"></div>
+                    <p class="text-[11px] text-slate-400 mt-1">*Para editar apenas data/vencimento, deixe sem formas de pagamento.</p>
                 </div>
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Desconto (R$)</label>
+                        <input type="number" id="rec-disc" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none" oninput="atualizarResumoBaixa()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Juros/Multa (R$)</label>
+                        <input type="number" id="rec-jur" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-400 outline-none" oninput="atualizarResumoBaixa()">
+                    </div>
+                </div>
+                <div id="rec-summary" class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs font-bold text-slate-600 space-y-0.5"></div>
             </div>
             <div class="p-5 border-t bg-slate-50 flex gap-3">
                 <button onclick="document.getElementById('modal-receivable-edit').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button onclick="saveReceivableEdit()" class="flex-1 py-3 bg-indigo-700 rounded-xl font-bold text-white hover:bg-indigo-800 shadow-lg">Salvar / Baixar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-parcel-rec" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="px-5 py-4 border-b flex justify-between items-center bg-gradient-to-r from-amber-50 to-orange-50">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="copy" class="text-amber-600"></i> Parcelar Conta</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Divida o saldo restante em N títulos de receita.</p>
+                </div>
+                <button onclick="closeParcelarModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto">
+                <input type="hidden" id="parcel-id">
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <div class="text-sm font-black text-slate-700">Venda <span id="parcel-venda" class="text-amber-700">#</span></div>
+                            <div class="text-xs text-slate-500 mt-0.5 truncate max-w-[160px]" id="parcel-client">-</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] font-bold text-slate-400 uppercase">Saldo a parcelar</div>
+                            <div class="font-black text-2xl text-amber-700" id="parcel-total">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Nº de parcelas</label>
+                        <select id="parcel-n" onchange="updateParcelarPreview()" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none bg-white font-bold text-slate-700"></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Intervalo (dias)</label>
+                        <select id="parcel-interval" onchange="updateParcelarPreview()" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-amber-500 outline-none bg-white">
+                            <option value="15">15 dias</option>
+                            <option value="30" selected>30 dias</option>
+                            <option value="45">45 dias</option>
+                            <option value="60">60 dias</option>
+                            <option value="90">90 dias</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-2"><i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-600"></i> Simulação das parcelas</div>
+                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                        <div id="parcel-preview-rows" class="max-h-44 overflow-y-auto divide-y divide-slate-100"></div>
+                        <div class="flex justify-between items-center bg-slate-100 px-3 py-2">
+                            <span class="text-xs font-bold text-slate-500 uppercase">Total</span>
+                            <span class="text-sm font-black text-slate-700" id="parcel-total-check"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="rounded-lg bg-indigo-50 border border-indigo-100 p-3 text-[11px] leading-relaxed text-slate-500">
+                    <i data-lucide="info" class="w-3.5 h-3.5 inline text-indigo-500"></i> A venda original sai da lista <b>"A RECEBER"</b> e vira parcelada. Cada parcela pode ser baixada individualmente aqui no Financeiro.
+                </div>
+            </div>
+            <div class="p-5 border-t bg-slate-50 flex gap-3">
+                <button onclick="closeParcelarModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="saveParcelar()" class="flex-1 py-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl font-bold text-white hover:from-amber-600 hover:to-orange-600 shadow-lg">Confirmar Parcelamento</button>
             </div>
         </div>
     </div>
@@ -1251,9 +1312,19 @@
                     <label class="block text-sm font-bold text-slate-700 mb-1">Custo Total (R$)</label>
                     <input type="number" id="exp-cost" placeholder="0.00" class="w-full p-3 border rounded-xl font-bold text-red-600 focus:ring-2 focus:ring-emerald-600 outline-none">
                 </div>
-                <div>
+                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Data de Vencimento</label>
                     <input type="date" id="exp-date" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none">
+                </div>
+                <div class="flex gap-3">
+                    <div class="flex-1">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Parcelas</label>
+                        <input type="number" id="exp-parcelas" value="1" min="1" max="48" class="w-full p-3 border rounded-xl text-sm outline-none font-medium">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Intervalo (dias)</label>
+                        <input type="number" id="exp-parcel-int" value="30" min="1" class="w-full p-3 border rounded-xl text-sm outline-none font-medium">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Observação</label>
@@ -1391,6 +1462,50 @@
         </div>
     </div>
 
+    <!-- ========== MODAL BAIXAR / PAGAR DESPESA (parcial + multiplas formas) ========== -->
+    <div id="modal-payexpense" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-red-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="check-circle" class="text-red-600"></i> Baixar / Pagar Despesa</h3>
+                <button onclick="document.getElementById('modal-payexpense').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto">
+                <input type="hidden" id="dexp-id">
+                <div class="flex justify-between items-center bg-red-50 p-3 rounded">
+                    <span class="text-sm font-bold text-slate-600">Total: <span id="dexp-total-lbl" class="text-red-700"></span></span>
+                    <span class="text-sm font-bold text-slate-600">Restante: <span id="dexp-rest-lbl" class="text-red-600"></span></span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Desconto (R$)</label>
+                        <input type="number" id="dexp-disc" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none" oninput="atualizarResumoDespesa()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Juros/Multa (R$)</label>
+                        <input type="number" id="dexp-jur" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-400 outline-none" oninput="atualizarResumoDespesa()">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Data do Pagamento</label>
+                    <input type="date" id="dexp-date" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-400 outline-none">
+                </div>
+                <div class="pt-3 border-t mt-1">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-bold text-red-700">Pagar com (formas de pagamento)</label>
+                        <button type="button" onclick="addDespPgtoRow()" class="text-xs font-bold text-red-700 bg-red-100 hover:bg-red-200 px-2.5 py-1.5 rounded-lg shadow-sm">+ Adicionar forma</button>
+                    </div>
+                    <div id="dexp-pgto-rows" class="space-y-2"></div>
+                    <p class="text-[11px] text-slate-400 mt-1">*Pagamento parcial deixa o restante pendente (PARCIAL).</p>
+                </div>
+                <div id="dexp-summary" class="bg-red-50 border border-red-100 rounded-lg p-3 text-xs font-bold text-slate-600 space-y-0.5"></div>
+            </div>
+            <div class="p-5 border-t bg-red-50 flex gap-3">
+                <button onclick="document.getElementById('modal-payexpense').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="savePayExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Confirmar Pagamento</button>
+            </div>
+        </div>
+    </div>
+
     
     <!-- ========== MODAL RELATÓRIO DE DESPESAS ========== -->
     <div id="modal-expense-report" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
@@ -1516,8 +1631,9 @@
         }
 
         // ====== 2. CONEXÃO COM O SUPABASE ======
-        const supabaseUrl = 'https://lyieiqhkspbowsrlngvn.supabase.co'; 
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5aWVpcWhrc3Bib3dzcmxuZ3ZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzOTgwNzMsImV4cCI6MjA4ODk3NDA3M30.prokThYfCngZ5onUmYTlH0cB0Xa7hNFYm3SJk8bBjd4';
+        // Valores vindos de config.js (injetados no deploy via GitHub Actions)
+        const supabaseUrl = window.SUPABASE_URL;
+        const supabaseKey = window.SUPABASE_ANON_KEY;
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
@@ -1598,13 +1714,36 @@
             return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         }
 
-        window.onload = function() { 
+        window.onload = async function() { 
             if (dadosUsuario) {
+                const ok = await verificarSessaoAuth();
+                if (!ok) return;
                 showLoading(true); 
                 loadData(); 
                 startInactivityMonitoring();
             }
         };
+
+        // Exige sessao real do Supabase Auth (nao basta o rv_user antigo).
+        // Depois da migracao de RLS, sem sessao o app nao le nada do banco,
+        // entao forca o usuario a refazer o login.
+        async function verificarSessaoAuth() {
+            try {
+                const { data } = await sb.auth.getSession();
+                if (data.session) return true;
+            } catch(e) {}
+            localStorage.removeItem('rv_user');
+            window.location.replace('index.html?motivo=sessao');
+            return false;
+        }
+
+        // Se o token expirar/refresh falhar no meio do uso, desloga na hora.
+        sb.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_OUT') {
+                localStorage.removeItem('rv_user');
+                window.location.replace('index.html?motivo=sessao');
+            }
+        });
 
     
   function navigate(viewId) {
@@ -1806,7 +1945,9 @@
                     clientId: l.cliente_id != null ? l.cliente_id : null,
                     clientName: resolverNomeCliente(l.cliente_id, l.cliente_nome), paymentMethod: l.forma_pagamento, status: l.status,
                     deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
-                    discount: Number(l.desconto), finStatus: l.status_financeiro, dueDate: l.vencimento,
+                    discount: Number(l.desconto), acrescimo: Number(l.acrescimo || 0),
+                    pgtoAnotacao: l.pgto_anotacao || '',
+                    finStatus: l.status_financeiro, dueDate: l.vencimento,
                     paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
                 });
             }
@@ -1823,7 +1964,10 @@
             // Despesa de salário: nome ATUAL do funcionário pelo equipe_id;
             // demais despesas (compras/fornecedores) usam o texto salvo.
             provider: resolverNomeEquipe(e.equipe_id, e.fornecedor || ''),
-            status: e.status || 'PENDENTE'
+            status: e.status || 'PENDENTE',
+            valorPago: Number(e.valor_pago || 0),
+            descontoTotal: Number(e.desconto_total || 0),
+            acrescimoTotal: Number(e.acrescimo_total || 0)
         }));
 
         /*STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;*/
@@ -2187,7 +2331,7 @@
           if(CURRENT_QUOTE_ID) {
               await sb.from('logs').delete().eq('id', CURRENT_QUOTE_ID).eq('tipo', 'orcamento');
           }
-      
+          
           clearCart();
           showToast(isProntaEntrega ? "Pronta Entrega Concluída!" : "Venda Registrada!");
           await loadData(); 
@@ -2513,17 +2657,62 @@ function printStockCountSheet() {
 
                 await sb.from('logs').delete().like('observacao', `%Ref Venda #${saleId}%`).eq('tipo', 'entrega');
                 await sb.from('logs').delete().like('observacao', `%Ref Lanc #${saleId}%`).eq('tipo', 'recebimento');
+                // Parcelas de venda (títulos receita gerados no parcelamento): remove baixas de cada parcela
+                const { data: parcs, error: errParcs } = await sb.from('logs')
+                    .select('id').like('observacao', `%Parcela%Ref Venda #${saleId}%`).eq('tipo', 'receita');
+                if (errParcs) throw errParcs;
+                for (const p of (parcs || [])) {
+                    await sb.from('logs').delete().like('observacao', `%Ref Lanc #${p.id}%`).eq('tipo', 'recebimento');
+                }
+                await sb.from('logs').delete().like('observacao', `%Parcela%Ref Venda #${saleId}%`).eq('tipo', 'receita');
+
+                // Venda guarda item com valor LIQUIDO (ja descontado) + desconto separado.
+                // Orcamento guarda item com valor BRUTO e desconto no rodapé.
+                // Ao estornar, recompoe o BRUTO de cada item para o desconto não ser aplicado 2x na impressão.
+                const netTotal = saleItems.reduce((acc, i) => acc + Number(i.totalValue || 0), 0);
+                const discountTotal = Number(saleItems[0]?.discount) || 0;
+                const grossTotal = netTotal + discountTotal;
+                const grossByUid = {};
+                if (netTotal > 0) {
+                    const fator = grossTotal / netTotal;
+                    const cents = saleItems.map(i => ({ uid: i.uid, raw: Number(i.totalValue || 0) * fator }));
+                    const rounded = cents.map(c => Math.round(c.raw * 100));
+                    const grossCents = Math.round(grossTotal * 100);
+                    let diff = grossCents - rounded.reduce((a, b) => a + b, 0);
+                    const idxSorted = cents
+                        .map((c, idx) => ({ idx, frac: c.raw * 100 - Math.floor(c.raw * 100) }))
+                        .sort((a, b) => b.frac - a.frac);
+                    let p = 0;
+                    while (diff !== 0) {
+                        rounded[idxSorted[p % idxSorted.length].idx] += diff > 0 ? 1 : -1;
+                        diff += diff > 0 ? -1 : 1;
+                        p++;
+                    }
+                    cents.forEach((c, idx) => { grossByUid[c.uid] = rounded[idx] / 100; });
+                }
 
                 for(let item of saleItems) {
-                    const {error} = await sb.from('logs').update({
+                    const payload = {
                         tipo: 'orcamento',
                         status: 'ABERTO',
                         status_entrega: '',
                         qtd_entregue: 0,
                         valor_pago: 0,
                         status_financeiro: '$'
-                    }).eq('uid', item.uid);
-                    if(error) throw error;
+                    };
+                    if (item.uid) {
+                        if (grossByUid[item.uid] != null) payload.valor_total = grossByUid[item.uid];
+                        const {error} = await sb.from('logs').update(payload).eq('uid', item.uid);
+                        if(error) throw error;
+                    }
+                }
+                // Vendas antigas sem uid: aplica a conversão em bloco (mantém valores como estão)
+                const semUid = saleItems.filter(i => !i.uid);
+                if (semUid.length) {
+                    const { error: errSem } = await sb.from('logs')
+                        .update({ tipo: 'orcamento', status: 'ABERTO', status_entrega: '', qtd_entregue: 0, valor_pago: 0, status_financeiro: '$' })
+                        .eq('id', saleId).eq('tipo', 'venda').is('uid', null);
+                    if (errSem) throw errSem;
                 }
 
                 showToast("Venda estornada para Orçamento!");
@@ -2534,20 +2723,190 @@ function printStockCountSheet() {
             }
         }
 
-        async function estornarRecebimento(id) {
-            if(!confirm("Deseja estornar a baixa desta conta? Ela voltará a ficar PENDENTE no financeiro.")) return;
+        // ===== Parcelamento RECEBER (somente na tela Financeiro / Contas a Receber) =====
+        // Divide uma venda A RECEBER em N títulos receita e marca a venda original como PARCELADO.
+        function openParcelarReceber(id) {
+            const master = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda' && l.status !== 'CANCELADO');
+            if (!master.length) return showToast("Venda não encontrada para parcelar", true);
+
+            const st = calcTituloFinanceiro(id);
+            const saldo = st.saldo != null ? st.saldo : (st.total - st.paid);
+            if (saldo <= 0) return showToast("Esta conta já está quitada.", true);
+
+            const client = master[0];
+            document.getElementById('parcel-id').value = id;
+            document.getElementById('parcel-venda').textContent = '#' + id;
+            document.getElementById('parcel-client').textContent = client.clientName || client.cliente_nome || 'Consumidor Final';
+            document.getElementById('parcel-total').textContent = formatMoney(saldo);
+
+            const selN = document.getElementById('parcel-n');
+            selN.innerHTML = '';
+            for (let i = 2; i <= 12; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = i + ' parcelas';
+                if (i === 3) opt.selected = true;
+                selN.appendChild(opt);
+            }
+            const selI = document.getElementById('parcel-interval');
+            selI.value = '30';
+
+            updateParcelarPreview();
+            document.getElementById('modal-parcel-rec').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function updateParcelarPreview() {
+            const id = document.getElementById('parcel-id').value;
+            if (!id) return;
+            const N = parseInt(document.getElementById('parcel-n').value, 10) || 3;
+            const intervalo = parseInt(document.getElementById('parcel-interval').value, 10) || 30;
+            const master = STATE.logs.find(l => String(l.id) === String(id) && l.type === 'venda' && l.status !== 'CANCELADO');
+            if (!master) return;
+
+            const st = calcTituloFinanceiro(id);
+            const saldo = st.saldo != null ? st.saldo : (st.total - st.paid);
+            if (saldo <= 0) return;
+
+            const baseDue = master.dueDate ? new Date(String(master.dueDate).split('T')[0] + 'T12:00:00') : new Date();
+            const centsTotal = Math.round(saldo * 100);
+            const baseCents = Math.floor(centsTotal / N);
+            const restCents = centsTotal - baseCents * N;
+
+            let rows = '';
+            let soma = 0;
+            for (let i = 1; i <= N; i++) {
+                const venc = new Date(baseDue);
+                venc.setDate(venc.getDate() + (i - 1) * intervalo);
+                const valor = (i <= restCents ? (baseCents + 1) : baseCents) / 100;
+                soma += valor;
+                rows += `<div class="flex items-center justify-between px-3 py-2">
+                    <div class="flex items-center gap-3">
+                        <span class="w-7 h-7 rounded-full bg-amber-100 text-amber-700 font-black text-xs flex items-center justify-center shrink-0">${i}</span>
+                        <div>
+                            <div class="text-xs font-bold text-slate-700">Parcela ${i}/${N}</div>
+                            <div class="text-[11px] text-slate-400">Vence em ${formatDate(venc.toISOString())}</div>
+                        </div>
+                    </div>
+                    <span class="text-sm font-bold text-slate-700">${formatMoney(valor)}</span>
+                </div>`;
+            }
+            document.getElementById('parcel-preview-rows').innerHTML = rows;
+            document.getElementById('parcel-total-check').textContent = formatMoney(soma);
+        }
+
+        function closeParcelarModal() {
+            document.getElementById('modal-parcel-rec').classList.add('hidden');
+        }
+
+        async function saveParcelar() {
+            const id = document.getElementById('parcel-id').value;
+            if (!id) return;
+            const N = parseInt(document.getElementById('parcel-n').value, 10) || 3;
+            const intervalo = parseInt(document.getElementById('parcel-interval').value, 10) || 30;
+
+            const master = STATE.logs.find(l => String(l.id) === String(id) && l.type === 'venda' && l.status !== 'CANCELADO');
+            if (!master) return showToast("Venda não encontrada para parcelar", true);
+
+            const st = calcTituloFinanceiro(id);
+            const saldo = st.saldo != null ? st.saldo : (st.total - st.paid);
+            if (saldo <= 0) return showToast("Esta conta já está quitada.", true);
+
             showLoading(true);
             try {
-                const items = STATE.logs.filter(l => String(l.id) === String(id) && (l.type === 'venda' || l.type === 'receita'));
-                for(let item of items) {
-                    await sb.from('logs').update({
-                        valor_pago: 0,
-                        status_financeiro: 'PENDENTE'
-                    }).eq('uid', item.uid);
-                }
-                await sb.from('logs').delete().like('observacao', `%Ref Lanc #${id}%`).eq('tipo', 'recebimento');
+                const baseDue = master.dueDate ? new Date(String(master.dueDate).split('T')[0] + 'T12:00:00') : new Date();
+                const todayISO = new Date().toISOString();
+                const client = master;
+                const totalParc = saldo;
+                const centsTotal = Math.round(totalParc * 100);
+                const baseCents = Math.floor(centsTotal / N);
+                const restCents = centsTotal - baseCents * N;
 
-                showToast("Recebimento estornado!");
+                for (let i = 1; i <= N; i++) {
+                    const parcId = await getNextIdFromDB();
+                    const venc = new Date(baseDue);
+                    venc.setDate(venc.getDate() + (i - 1) * intervalo);
+                    const parcValor = (i <= restCents ? (baseCents + 1) : baseCents) / 100;
+                    const { error } = await sb.from('logs').insert([{
+                        id: parcId,
+                        tipo: 'receita',
+                        produto_nome: `Parcela ${i}/${N} — Venda #${id}`,
+                        produto_id: null,
+                        quantidade: 1,
+                        data: todayISO,
+                        observacao: `Parcela ${i}/${N} Ref Venda #${id}`,
+                        valor_total: parcValor,
+                        cliente_nome: client.clientName,
+                        cliente_id: client.clientId != null ? client.clientId : null,
+                        forma_pagamento: client.paymentMethod || 'Dinheiro',
+                        status: 'ATIVO',
+                        status_entrega: 'ENTREGUE',
+                        qtd_entregue: 1,
+                        desconto: 0,
+                        status_financeiro: 'PENDENTE',
+                        vencimento: venc.toISOString(),
+                        valor_pago: 0,
+                        endereco_entrega: client.deliveryAddress || ''
+                    }]);
+                    if (error) throw error;
+                }
+
+                const { error: errUpd } = await sb.from('logs')
+                    .update({ status_financeiro: 'PARCELADO' })
+                    .eq('id', id).eq('tipo', 'venda');
+                if (errUpd) throw errUpd;
+
+                closeParcelarModal();
+                showToast(`Venda #${id} parcelada em ${N}x!`);
+                await loadData();
+            } catch (err) {
+                showLoading(false);
+                showToast("Erro ao parcelar: " + err.message, true);
+            }
+        }
+        // ===== /Parcelamento RECEBER =====
+
+        async function estornarRecebimento(id) {
+            if(!confirm("Deseja estornar a última baixa desta conta? Ela voltará a ficar pendente no financeiro.")) return;
+            showLoading(true);
+            try {
+                // Pode ser chamado com o id do título ou com o uid de um log 'recebimento'
+                const baixasDoTitulo = STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === String(id));
+                if (!baixasDoTitulo.length) {
+                    showLoading(false);
+                    return showToast("Nenhuma baixa encontrada para estornar", true);
+                }
+
+                // Se passou um uid de log, estorna só aquele log; senão, a última baixa do título
+                const porUid = STATE.logs.find(l => l.type === 'recebimento' && String(l.uid) === String(id));
+                let alvo;
+                if (porUid) {
+                    alvo = [porUid];
+                } else {
+                    const datas = baixasDoTitulo.map(b => b.date || '').sort();
+                    const ultimaData = datas[datas.length - 1];
+                    alvo = baixasDoTitulo.filter(b => String(b.date || '') === String(ultimaData));
+                }
+                if (!alvo.length) {
+                    showLoading(false);
+                    return showToast("Baixa não encontrada", true);
+                }
+
+                const parentId = String((alvo[0].note.match(/#(\d+)/) || [])[1]);
+                for (let b of alvo) {
+                    await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', b.uid);
+                }
+
+                // Recalcula o título a partir das baixas restantes
+                const st = calcTituloFinanceiro(parentId);
+                for (let row of st.rows) {
+                    await sb.from('logs').update({
+                        valor_pago: st.money,
+                        status_financeiro: st.status
+                    }).eq('uid', row.uid);
+                }
+
+                showToast("Baixa estornada!");
                 await loadData();
             } catch(e) {
                 showLoading(false);
@@ -2576,15 +2935,45 @@ function printStockCountSheet() {
         }
 
         async function estornarDespesaLog(id) {
-            if (!confirm("Estornar o pagamento desta despesa? Ela voltará a ficar pendente.")) return;
+            if (!confirm("Estornar o último pagamento desta despesa? Ela voltará a ficar pendente.")) return;
             showLoading(true);
             try {
-                const { error: err1 } = await sb.from('despesas').update({ status: 'PENDENTE' }).eq('id', id);
+                const baixas = STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === String(id));
+                if (!baixas.length) {
+                    showLoading(false);
+                    return showToast("Nenhum pagamento para estornar", true);
+                }
+
+                // Reverte a última baixa (lote por data); aceita uid de um log específico
+                let alvo;
+                const porUid = STATE.logs.find(l => l.type === 'despesa' && String(l.uid) === String(id));
+                if (porUid) {
+                    alvo = [porUid];
+                } else {
+                    const datas = baixas.map(b => b.date || '').sort();
+                    const ultimaData = datas[datas.length - 1];
+                    alvo = baixas.filter(b => String(b.date || '') === String(ultimaData));
+                }
+                if (!alvo.length) {
+                    showLoading(false);
+                    return showToast("Pagamento não encontrado", true);
+                }
+
+                for (let l of alvo) {
+                    await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', l.uid);
+                }
+
+                const restantes = baixas.filter(l => !alvo.some(a => String(a.uid) === String(l.uid)));
+                const exp = STATE.expenses.find(e => String(e.id) === String(id));
+                const money = restantes.reduce((a, l) => a + Number(l.totalValue || 0), 0);
+                const disc = restantes.reduce((a, l) => a + Number(l.discount || 0), 0);
+                const jur = restantes.reduce((a, l) => a + Number(l.acrescimo || 0), 0);
+                const saldo = (Number(exp?.cost) || 0) + jur - disc - money;
+                const novoStatus = restantes.length ? (saldo <= 0.005 ? 'PAGO' : 'PARCIAL') : 'PENDENTE';
+                const upd = { valor_pago: money, desconto_total: disc, acrescimo_total: jur, status: novoStatus };
+                const { error: err1 } = await sb.from('despesas').update(upd).eq('id', id);
                 if (err1) throw err1;
-                
-                const { error: err2 } = await sb.from('logs').delete().like('observacao', `%Ref Despesa #${id}%`).eq('tipo', 'despesa');
-                if (err2) throw err2;
-                
+
                 showToast("Pagamento estornado!");
                 await loadData();
             } catch (e) {
@@ -2744,43 +3133,139 @@ function printStockCountSheet() {
             await loadData();
         }
 
+        // ===== Formas multiplas + desconto/juros na baixa (financeiro) =====
+        const METODOS_PGTO = ['Dinheiro','PIX','Carteira','Cartão Débito','Cartão Crédito','Boleto 21 dias','Boleto 30 dias','Boleto Programado','Cheque'];
+
+        function gerarUidLocal() { return Date.now() + '_' + Math.random().toString(36).substr(2, 6); }
+
+        function optionsPgto(sel) {
+            return METODOS_PGTO.map(m => `<option ${m === (sel || '') ? 'selected' : ''}>${m}</option>`).join('');
+        }
+
+        function addRecPgtoRow(metodo, valor) {
+            const wrap = document.getElementById('rec-pgto-rows');
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 items-center pgto-row';
+            div.innerHTML = `
+                <select class="pgto-metodo flex-1 p-2 border rounded-lg text-sm bg-slate-50 outline-none">${optionsPgto(metodo || METODOS_PGTO[0])}</select>
+                <input type="number" min="0" step="0.01" class="pgto-valor w-32 p-2 border rounded-lg text-sm font-bold outline-none" placeholder="0.00" value="${valor || ''}" oninput="atualizarResumoBaixa()">
+                <button type="button" onclick="removerRecPgtoRow(this)" class="text-slate-400 hover:text-red-500 px-1.5 text-sm font-black" title="Remover forma">x</button>`;
+            wrap.appendChild(div);
+            atualizarResumoBaixa();
+        }
+
+        function removerRecPgtoRow(btn) { if (btn) btn.closest('.pgto-row')?.remove(); atualizarResumoBaixa(); }
+
+        function coletarRecPgtoRows() {
+            return Array.from(document.querySelectorAll('#rec-pgto-rows .pgto-row')).map(r => ({
+                metodo: r.querySelector('.pgto-metodo').value,
+                valor: Number(r.querySelector('.pgto-valor').value) || 0
+            })).filter(f => f.valor > 0);
+        }
+
+        function numId(id) { return Number(document.getElementById(id)?.value) || 0; }
+
+        // Calcula a situação financeira de um título (venda/receita) a partir das baixas (logs 'recebimento')
+        function calcTituloFinanceiro(parentId) {
+            const rows = STATE.logs.filter(l => String(l.id) === String(parentId) && (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO');
+            const baixas = STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === String(parentId));
+            const total = rows.reduce((a, r) => a + Number(r.totalValue || 0), 0);
+            const money = baixas.reduce((a, l) => a + Number(l.totalValue || 0), 0);
+            const disc = baixas.reduce((a, l) => a + Number(l.discount || 0), 0);
+            const jur  = baixas.reduce((a, l) => a + Number(l.acrescimo || 0), 0);
+            const saldo = total + jur - disc - money;
+            const status = saldo <= 0.005 ? 'PAGO' : (money > 0 ? 'PARCIAL' : 'PENDENTE');
+            return { rows, baixas, total, money, disc, jur, saldo, status };
+        }
+
+        function atualizarResumoBaixa() {
+            const ctx = window._recCtx;
+            const el = document.getElementById('rec-summary');
+            if (!ctx || !el) return;
+            const money = coletarRecPgtoRows().reduce((a, f) => a + f.valor, 0);
+            const disc = numId('rec-disc');
+            const jur = numId('rec-jur');
+            const saldo = ctx.saldoBase + jur - disc - money;
+            const statusTxt = saldo <= 0.005 ? 'Fica QUITADO' : `Fica devendo ${formatMoney(saldo)}`;
+            el.innerHTML = `
+                <div>Receber agora: <span class="text-indigo-700">${formatMoney(money)}</span>${money > 0 ? ' <span class="text-slate-400 font-semibold">(' + coletarRecPgtoRows().length + ' forma(s))</span>' : ''}</div>
+                ${jur > 0 ? `<div>+ Juros/Multa: <span class="text-red-600">${formatMoney(jur)}</span></div>` : ''}
+                ${disc > 0 ? `<div>- Desconto: <span class="text-green-600">${formatMoney(disc)}</span></div>` : ''}
+                <div class="pt-1 text-sm font-black ${saldo <= 0.005 ? 'text-green-700' : 'text-orange-600'}">${statusTxt}</div>`;
+        }
+
         async function saveReceivableEdit() {
             const id = document.getElementById('rec-id').value;
-            const method = document.getElementById('rec-method').value;
             const due = document.getElementById('rec-due').value;
-            const payVal = Number(document.getElementById('rec-pay-val').value) || 0;
-            
+            const st = calcTituloFinanceiro(id);
+            if (!st.rows.length) return showToast("Registro não encontrado", true);
+
+            const formas = coletarRecPgtoRows();
+            const moneyTotal = formas.reduce((a, f) => a + f.valor, 0);
+            const desconto = numId('rec-disc');
+            const juros = numId('rec-jur');
+
+            // Apenas edição de vencimento/formas (sem receber nada agora)
+            if (moneyTotal <= 0 && desconto <= 0 && juros <= 0) {
+                for (let row of st.rows) {
+                    const upd = {};
+                    if (due) upd.vencimento = due;
+                    await sb.from('logs').update(upd).eq('uid', row.uid);
+                }
+                document.getElementById('modal-receivable-edit').classList.add('hidden');
+                showToast("Conta atualizada!");
+                loadData();
+                return;
+            }
+
             showLoading(true);
+            try {
+                const newMoney = st.money + moneyTotal;
+                const newDisc = st.disc + desconto;
+                const newJur = st.jur + juros;
+                const newSaldo = st.total + newJur - newDisc - newMoney;
+                const finStatus = newSaldo <= 0.005 ? 'PAGO' : (newMoney > 0 ? 'PARCIAL' : 'PENDENTE');
+                const metodoPrincipal = formas.length ? formas[0].metodo : (st.rows[0].paymentMethod || 'Dinheiro');
 
-            let rowsToUpdate = STATE.logs.filter(l => String(l.id) === String(id) && (l.type === 'venda' || l.type === 'receita'));
-            if(!rowsToUpdate.length) { showLoading(false); return showToast("Registro não encontrado", true); }
+                for (let row of st.rows) {
+                    const upd = { valor_pago: newMoney, status_financeiro: finStatus };
+                    if (formas.length) upd.forma_pagamento = metodoPrincipal;
+                    if (due) upd.vencimento = due;
+                    await sb.from('logs').update(upd).eq('uid', row.uid);
+                }
 
-            let orderTotal = rowsToUpdate.reduce((acc, r) => acc + r.totalValue, 0);
-            let orderPaid = rowsToUpdate.reduce((acc, r) => Math.max(acc, r.paidValue), 0);
-            let newOrderPaid = orderPaid + payVal;
-            let finStatus = newOrderPaid >= orderTotal ? 'PAGO' : (newOrderPaid > 0 ? 'PARCIAL' : 'PENDENTE');
+                // Um log 'recebimento' por forma; desconto/juros acompanham a 1a forma (rastreio)
+                const uidBatch = gerarUidLocal();
+                for (let f of formas) {
+                    const isPrimeira = f === formas[0];
+                    await sb.from('logs').insert([{
+                        id: getNextId(STATE.logs),
+                        uid: uidBatch,
+                        tipo: 'recebimento',
+                        produto_nome: 'Baixa de Conta',
+                        quantidade: 0,
+                        data: getHojeLocalStr(),
+                        observacao: 'Ref Lanc #' + id,
+                        valor_total: f.valor,
+                        desconto: isPrimeira ? desconto : 0,
+                        acrescimo: isPrimeira ? juros : 0,
+                        cliente_nome: st.rows[0].clientName,
+                        cliente_id: (st.rows[0].clientId != null && STATE.clients.some(c => String(c.id) === String(st.rows[0].clientId))) ? st.rows[0].clientId : null,
+                        forma_pagamento: f.metodo,
+                        status: 'ATIVO',
+                        status_financeiro: 'PAGO',
+                        valor_pago: f.valor
+                    }]);
+                }
 
-            for(let row of rowsToUpdate) {
-                let updateData = { valor_pago: newOrderPaid, status_financeiro: finStatus };
-                if (method) updateData.forma_pagamento = method;
-                if (due) updateData.vencimento = due;
-                await sb.from('logs').update(updateData).eq('uid', row.uid);
+                document.getElementById('modal-receivable-edit').classList.add('hidden');
+                showToast(moneyTotal > 0 ? "Baixa registrada!" : "Ajuste registrado!");
+                loadData();
+            } catch (err) {
+                showLoading(false);
+                showToast("Erro: " + err.message, true);
+                console.error(err);
             }
-
-            if (payVal > 0) {
-                await sb.from('logs').insert([{
-                    id: getNextId(STATE.logs), tipo: 'recebimento', produto_nome: 'Baixa de Conta', quantidade: 0,
-                    data: getHojeLocalStr(), observacao: 'Ref Lanc #' + id, valor_total: payVal,
-                    cliente_nome: rowsToUpdate[0].clientName,
-                    cliente_id: (rowsToUpdate[0].clientId != null && STATE.clients.some(c => String(c.id) === String(rowsToUpdate[0].clientId))) ? rowsToUpdate[0].clientId : null,
-                    forma_pagamento: method || rowsToUpdate[0].paymentMethod,
-                    status: 'ATIVO', status_financeiro: 'PAGO', valor_pago: payVal
-                }]);
-            }
-
-            document.getElementById('modal-receivable-edit').classList.add('hidden');
-            showToast("Conta atualizada!");
-            loadData();
         }
 
         async function saveRevenue() {
@@ -2815,6 +3300,7 @@ function printStockCountSheet() {
         }
 
         function openRevenueModal() { document.getElementById('modal-revenue').classList.remove('hidden'); }
+
 
         /*async function saveExpense() {
             const idVal = document.getElementById('exp-id').value;
@@ -2890,20 +3376,39 @@ function printStockCountSheet() {
           }
       
           showLoading(true);
-      
-          const payload = {
+
+          const parcelas = isNew ? Math.max(1, parseInt(document.getElementById('exp-parcelas')?.value) || 1) : 1;
+          const intervalo = isNew ? Math.max(1, parseInt(document.getElementById('exp-parcel-int')?.value) || 30) : 30;
+
+          const makePayload = (custo, data, obs) => ({
               item: item,
               quantidade: 1,
               unidade: 'Un',
-              custo: cost,
-              data: date,
+              custo: custo,
+              data: data,
               fornecedor: provider,   // agora vai para sua própria coluna
-              observacao: note,       // observação fica só com o que o usuário digitou nela
+              observacao: obs,        // observação fica só com o que o usuário digitou nela
               status: 'PENDENTE'
-          };
-      
+          });
+
           let error;
-          if (isNew) {
+          if (isNew && parcelas > 1) {
+              const centsTotal = Math.round(cost * 100);
+              const baseCents = Math.floor(centsTotal / parcelas);
+              const restCents = centsTotal - baseCents * parcelas;
+              const rows = [];
+              const idBase = getNextId(STATE.expenses);
+              for (let k = 1; k <= parcelas; k++) {
+                  const vCents = k <= restCents ? baseCents + 1 : baseCents;
+                  const dt = new Date(date + 'T12:00:00');
+                  dt.setDate(dt.getDate() + (k - 1) * intervalo);
+                  const dataParc = dt.toISOString().split('T')[0];
+                  const obsParc = [note, `Parcela ${k}/${parcelas}`].filter(s => s).join(' — ');
+                  rows.push({ ...makePayload(vCents / 100, dataParc, obsParc), id: idBase + (k - 1) });
+              }
+              const { error: err } = await sb.from('despesas').insert(rows);
+              error = err;
+          } else if (isNew) {
               payload.id = getNextId(STATE.expenses);
               const { error: err } = await sb.from('despesas').insert([payload]);
               error = err;
@@ -2921,55 +3426,162 @@ function printStockCountSheet() {
           document.getElementById('exp-provider').value = '';
           document.getElementById('exp-cost').value = '';
           document.getElementById('exp-note').value = '';
+          document.getElementById('exp-parcelas').value = '1';
+          document.getElementById('exp-parcel-int').value = '30';
           document.getElementById('modal-expense').classList.add('hidden');
       
-          showToast(isNew ? "Despesa lançada com sucesso!" : "Despesa atualizada!");
+          showToast(isNew ? (parcelas > 1 ? `Despesa parcelada em ${parcelas}x!` : "Despesa lançada com sucesso!") : "Despesa atualizada!");
           await loadData();
           closeExpenseModal();
       }
 
-       async function payExpense(id) {
-          if (!confirm("Confirmar o pagamento desta despesa? O valor será lançado no caixa como saída.")) return;
-          showLoading(true);
-          
-          const exp = STATE.expenses.find(e => String(e.id) === String(id));
-          if (!exp) {
-              showLoading(false);
-              return showToast("Despesa não encontrada", true);
-          }
-          if (exp.status === 'PAGO') {
-              showLoading(false);
-              return showToast("Esta despesa já foi paga!", true);
-          }
-          
-          const { error: err1 } = await sb.from('despesas').update({ status: 'PAGO' }).eq('id', id);
-          if (err1) {
-              showLoading(false);
-              return showToast("Erro ao baixar despesa: " + err1.message, true);
-          }
-          
-          const newLogId = getNextId(STATE.logs);
-          const { error: err2 } = await sb.from('logs').insert([{
-              id: newLogId,
-              tipo: 'despesa',
-              produto_nome: exp.item,
-              quantidade: exp.quantidade || 1,
-              data: getHojeLocalStr(),
-              observacao: (exp.note ? exp.note + ' | ' : '') + 'Ref Despesa #' + exp.id,
-              valor_total: exp.custo,
-              status: 'ATIVO',
-              status_financeiro: 'PAGO',
-              valor_pago: exp.custo
-          }]);
-          
-          if (err2) {
-              showLoading(false);
-              return showToast("Erro ao registrar pagamento: " + err2.message, true);
-          }
-          
-          showToast("Despesa baixada com sucesso!");
-          await loadData();
-      }
+        // ===== Baixa de despesa (parcial + multiplas formas + desconto/juros) =====
+        function addDespPgtoRow(metodo, valor) {
+            const wrap = document.getElementById('dexp-pgto-rows');
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 items-center pgto-row';
+            div.innerHTML = `
+                <select class="pgto-metodo flex-1 p-2 border rounded-lg text-sm bg-slate-50 outline-none">${optionsPgto(metodo || METODOS_PGTO[0])}</select>
+                <input type="number" min="0" step="0.01" class="pgto-valor w-32 p-2 border rounded-lg text-sm font-bold outline-none" placeholder="0.00" value="${valor || ''}" oninput="atualizarResumoDespesa()">
+                <button type="button" onclick="removerRecPgtoRow(this)" class="text-slate-400 hover:text-red-500 px-1.5 text-sm font-black" title="Remover forma">x</button>`;
+            wrap.appendChild(div);
+            atualizarResumoDespesa();
+        }
+
+        function coletarDespPgtoRows() {
+            return Array.from(document.querySelectorAll('#dexp-pgto-rows .pgto-row')).map(r => ({
+                metodo: r.querySelector('.pgto-metodo').value,
+                valor: Number(r.querySelector('.pgto-valor').value) || 0
+            })).filter(f => f.valor > 0);
+        }
+
+        function atualizarResumoDespesa() {
+            const ctx = window._dexpCtx;
+            const el = document.getElementById('dexp-summary');
+            if (!ctx || !el) return;
+            const money = coletarDespPgtoRows().reduce((a, f) => a + f.valor, 0);
+            const disc = numId('dexp-disc');
+            const jur = numId('dexp-jur');
+            const saldo = ctx.saldoBase + jur - disc - money;
+            const statusTxt = saldo <= 0.005 ? 'Fica QUITADO' : `Fica devendo ${formatMoney(saldo)}`;
+            el.innerHTML = `
+                <div>Pagar agora: <span class="text-red-700">${formatMoney(money)}</span>${money > 0 ? ' <span class="text-slate-400 font-semibold">(' + coletarDespPgtoRows().length + ' forma(s))</span>' : ''}</div>
+                ${jur > 0 ? `<div>+ Juros/Multa: <span class="text-red-600">${formatMoney(jur)}</span></div>` : ''}
+                ${disc > 0 ? `<div>- Desconto: <span class="text-green-600">${formatMoney(disc)}</span></div>` : ''}
+                <div class="pt-1 text-sm font-black ${saldo <= 0.005 ? 'text-green-700' : 'text-orange-600'}">${statusTxt}</div>`;
+        }
+
+        function payExpense(id) {
+            const exp = STATE.expenses.find(e => String(e.id) === String(id));
+            if (!exp) return showToast("Despesa não encontrada", true);
+            if (exp.status === 'PAGO') return showToast("Esta despesa já foi paga!", true);
+
+            const saldo = exp.cost + (exp.acrescimoTotal || 0) - (exp.descontoTotal || 0) - (exp.valorPago || 0);
+            document.getElementById('dexp-id').value = exp.id;
+            document.getElementById('dexp-total-lbl').innerText = formatMoney(exp.cost);
+            document.getElementById('dexp-rest-lbl').innerText = formatMoney(Math.max(0, saldo));
+            document.getElementById('dexp-disc').value = '';
+            document.getElementById('dexp-jur').value = '';
+            document.getElementById('dexp-date').value = getHojeLocalStr();
+            const rowsEl = document.getElementById('dexp-pgto-rows');
+            if (rowsEl) rowsEl.innerHTML = '';
+            window._dexpCtx = { id: exp.id, saldoBase: saldo };
+            addDespPgtoRow(METODOS_PGTO[0], saldo > 0 ? saldo : '');
+            document.getElementById('modal-payexpense').classList.remove('hidden');
+        }
+
+        async function savePayExpense() {
+            const id = document.getElementById('dexp-id').value;
+            const exp = STATE.expenses.find(e => String(e.id) === String(id));
+            if (!exp) return showToast("Despesa não encontrada", true);
+
+            const formas = coletarDespPgtoRows();
+            const money = formas.reduce((a, f) => a + f.valor, 0);
+            const desconto = numId('dexp-disc');
+            const juros = numId('dexp-jur');
+            const dataPgto = document.getElementById('dexp-date').value || getHojeLocalStr();
+
+            if (money <= 0) return showToast("Informe o valor pago (pelo menos uma forma)", true);
+
+            showLoading(true);
+            try {
+                const newMoney = (exp.valorPago || 0) + money;
+                const newDisc = (exp.descontoTotal || 0) + desconto;
+                const newJur = (exp.acrescimoTotal || 0) + juros;
+                const saldo = exp.cost + newJur - newDisc - newMoney;
+                const novoStatus = saldo <= 0.005 ? 'PAGO' : 'PARCIAL';
+
+                const { error: err1 } = await sb.from('despesas').update({
+                    valor_pago: newMoney,
+                    desconto_total: newDisc,
+                    acrescimo_total: newJur,
+                    status: novoStatus
+                }).eq('id', id);
+                if (err1) throw err1;
+
+                const uidBatch = gerarUidLocal();
+                for (let f of formas) {
+                    const isPrimeira = f === formas[0];
+                    await sb.from('logs').insert([{
+                        id: getNextId(STATE.logs),
+                        uid: uidBatch,
+                        tipo: 'despesa',
+                        produto_nome: exp.item,
+                        quantidade: exp.quantity || 1,
+                        data: dataPgto,
+                        observacao: 'Ref Despesa #' + exp.id,
+                        valor_total: f.valor,
+                        desconto: isPrimeira ? desconto : 0,
+                        acrescimo: isPrimeira ? juros : 0,
+                        forma_pagamento: f.metodo,
+                        status: 'ATIVO',
+                        status_financeiro: 'PAGO',
+                        valor_pago: f.valor
+                    }]);
+                }
+
+                document.getElementById('modal-payexpense').classList.add('hidden');
+                showToast(novoStatus === 'PAGO' ? "Despesa baixada com sucesso!" : "Pagamento parcial registrado!");
+                await loadData();
+            } catch (err) {
+                showLoading(false);
+                showToast("Erro ao baixar despesa: " + err.message, true);
+                console.error(err);
+            }
+        }
+
+        async function duplicarDespesa(id) {
+            const exp = STATE.expenses.find(e => String(e.id) === String(id));
+            if (!exp) return showToast("Despesa não encontrada", true);
+            if (!confirm(`Duplicar esta despesa (vencimento +30 dias)?`)) return;
+            showLoading(true);
+
+            const novaData = new Date();
+            novaData.setDate(novaData.getDate() + 30);
+            const novaDataStr = novaData.toISOString().split('T')[0];
+
+            const payload = {
+                id: getNextId(STATE.expenses),
+                item: exp.item,
+                quantidade: exp.quantity || 1,
+                unidade: exp.unit || 'Un',
+                custo: exp.cost,
+                data: novaDataStr,
+                fornecedor: exp.provider || '',
+                observacao: exp.note || '',
+                status: 'PENDENTE',
+                valor_pago: 0,
+                desconto_total: 0,
+                acrescimo_total: 0
+            };
+            const { error } = await sb.from('despesas').insert([payload]);
+            if (error) {
+                showLoading(false);
+                return showToast("Erro ao duplicar: " + error.message, true);
+            }
+            showToast("Despesa duplicada (venc. +30 dias)!");
+            await loadData();
+        }
 
        /*function openEditExpense(id) {
           const expenseId = String(id);
@@ -4031,7 +4643,7 @@ function loadQuoteToCart(id) {
         function renderFinance() {                    
             // ========== CONTAS A RECEBER ==========
             const salesMap = {};
-            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO' && l.finStatus !== 'PARCELADO').forEach(l => {
                 if (!salesMap[l.id]) {
                     salesMap[l.id] = {
                         id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date,
@@ -4047,7 +4659,12 @@ function loadQuoteToCart(id) {
             const income = salesArr.filter(s => s.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
                            salesArr.filter(s => s.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
             
-            const expenses = STATE.expenses.filter(e => e.status === 'PAGO').reduce((a, b) => a + Number(b.cost), 0);
+            // Despesas consideradas no caixa: PAGO (valor efetivo) + PARCIAL (o que já saiu)
+            const despesaEfetiva = e => {
+                if (e.status === 'PAGO') return (Number(e.valorPago) || 0) > 0 ? Number(e.valorPago) : Number(e.cost || 0);
+                return Number(e.valorPago || 0);
+            };
+            const expenses = STATE.expenses.reduce((a, e) => a + (e.status === 'PAGO' || e.status === 'PARCIAL' ? despesaEfetiva(e) : 0), 0);
             
             lastIncome = income;
             lastExpenses = expenses;
@@ -4137,12 +4754,16 @@ function loadQuoteToCart(id) {
                             ${r.status !== 'PAGO' && r.paid > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoney(rest)}</div>` : ''}
                          </td>
                         <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                            <!-- 🔹 BOTÃO WHATSAPP - SÓ APARECE SE NÃO ESTIVER PAGO -->
+                            <!-- BOTÃO PARCELAR (ícone) - SÓ EM A RECEBER, ANTES DO WHATSAPP -->
+                            ${(r.status !== 'PAGO' && String(r.desc).indexOf('Venda #') === 0 && !(r.paid || 0) && r.status === 'A RECEBER') ?
+                                `<button onclick="openParcelarReceber('${r.id}')" class="bg-white border border-amber-300 text-amber-600 hover:bg-amber-50 p-1.5 rounded shadow" title="Parcelar em N títulos"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>` : ''}
+                            <!-- BOTÃO WHATSAPP - SÓ APARECE SE NÃO ESTIVER PAGO -->
                             ${zapButtonHtml}
                             
                             ${r.status !== 'PAGO' ? 
                                 `<button onclick="openEditReceivable('${r.id}', ${r.val}, ${r.paid}, '${r.dueDate}', '${r.payment}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-3 rounded shadow flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> BAIXAR</button>
-                                 <button onclick="excluirReceitaPendente('${r.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3 h-3"></i></button>` 
+                                 <button onclick="excluirReceitaPendente('${r.id}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                                 ${r.paid > 0 ? `<button onclick="estornarRecebimento('${r.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Estornar última baixa"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>` : ''}` 
                             : 
                                 `<span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> PAGO</span>
                                  <button onclick="estornarRecebimento('${r.id}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>`
@@ -4163,7 +4784,7 @@ function loadQuoteToCart(id) {
     
           // ========== CONTAS A RECEBER ==========
           /*const salesMap = {};
-          STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+          STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO' && l.finStatus !== 'PARCELADO').forEach(l => {
               if (!salesMap[l.id]) {
                   salesMap[l.id] = {
                       id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date,
@@ -4296,9 +4917,13 @@ function loadQuoteToCart(id) {
     const corFundo = isVencido ? 'bg-red-50/50' : (e.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : 'bg-orange-50/30');
     const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
 
-    const expenseId = e.id;
+        const saldoExp = e.status === 'PAGO'
+            ? 0
+            : (e.cost + (e.acrescimoTotal || 0) - (e.descontoTotal || 0) - (e.valorPago || 0));
 
-    return `<tr class="hover:bg-slate-100 ${corFundo} transition">
+        const expenseId = e.id;
+
+        return `<tr class="hover:bg-slate-100 ${corFundo} transition">
         <td class="p-3 text-xs border-r border-slate-100">
             <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)} ${avisoVenc}</div>
         </td>
@@ -4308,17 +4933,22 @@ function loadQuoteToCart(id) {
             ${subLine ? `<div class="text-[10px] text-slate-500" title="${subLine}">${subLine}</div>` : ''}           
         </td>
         <td class="p-3 border-r border-slate-100">
-            <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>           
+            <div class="font-bold text-slate-800 text-sm">${formatMoney(e.cost)}</div>
+            ${e.status === 'PARCIAL' && (e.valorPago || 0) > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Pago ${formatMoney(e.valorPago || 0)} | Resta ${formatMoney(Math.max(0, saldoExp))}</div>` : ''}
+            ${(e.acrescimoTotal || 0) > 0 ? `<div class="text-[10px] text-red-500 font-bold">+ Juros ${formatMoney(e.acrescimoTotal || 0)}</div>` : ''}
+            ${(e.descontoTotal || 0) > 0 ? `<div class="text-[10px] text-green-600 font-bold">- Desc. ${formatMoney(e.descontoTotal || 0)}</div>` : ''}
         </td>
                 <td class="p-3 text-right flex items-center justify-end gap-1 h-full">                
                 ${e.status !== 'PAGO' ? `
                 <button onclick="openEditExpense('${expenseId}')" class="bg-slate-200 text-slate-700 hover:bg-slate-300 p-1.5 rounded shadow" title="Editar"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
                 <button onclick="payExpense('${expenseId}')" class="bg-red-500 text-white hover:bg-red-600 p-1.5 rounded shadow flex items-center gap-1 text-[10px] font-bold" title="Baixar / Pagar"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> BAIXAR</button>
                 <button onclick="excluirDespesa('${expenseId}')" class="bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded shadow" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                ${(e.valorPago || 0) > 0 ? `<button onclick="estornarDespesaLog('${expenseId}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar última baixa"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i></button>` : ''}
             ` : `
                 <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-1.5 rounded flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 inline"></i> PAGO</span>
                 <button onclick="estornarDespesaLog('${expenseId}')" class="bg-white border border-slate-200 text-slate-500 hover:text-red-500 p-1.5 rounded shadow" title="Estornar"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5 inline"></i></button>                
             `}
+                <button onclick="duplicarDespesa('${expenseId}')" class="bg-white border border-slate-200 text-slate-500 hover:text-indigo-500 p-1.5 rounded shadow" title="Duplicar (venc. +30 dias)"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
                 <button onclick="openReceiptFromExpense('${expenseId}')" class="bg-amber-500 hover:bg-amber-600 text-white p-1.5 rounded shadow" title="Gerar Recibo"><i data-lucide="file-text" class="w-3.5 h-3.5"></i></button>  
         </td>
     </tr>`;
@@ -4341,11 +4971,24 @@ function loadQuoteToCart(id) {
             document.getElementById('rec-id').value = id;
             document.getElementById('rec-total-lbl').innerText = formatMoney(total);
             document.getElementById('rec-pending-lbl').innerText = formatMoney(total - paid);
-            
+
             try { document.getElementById('rec-due').value = (due||'').split('T')[0]; } catch(e){}
-            document.getElementById('rec-method').value = method;
-            document.getElementById('rec-pay-val').value = '';
-            
+            document.getElementById('rec-disc').value = '';
+            document.getElementById('rec-jur').value = '';
+            const rowsEl = document.getElementById('rec-pgto-rows');
+            if (rowsEl) rowsEl.innerHTML = '';
+
+            const st = calcTituloFinanceiro(id);
+            const totalEfetivo = st.total || total;
+            const saldoBase = st.saldo != null ? st.saldo : (total - (paid || 0));
+            window._recCtx = { id, saldoBase };
+            document.getElementById('rec-total-lbl').innerText = formatMoney(totalEfetivo);
+            document.getElementById('rec-pending-lbl').innerText = formatMoney(Math.max(0, saldoBase));
+
+            const baseMethod = method || st.rows[0]?.paymentMethod || METODOS_PGTO[0];
+            const sugerido = Math.max(0, saldoBase);
+            addRecPgtoRow(baseMethod, sugerido);
+
             document.getElementById('modal-receivable-edit').classList.remove('hidden');
         }
 
@@ -4707,7 +5350,7 @@ function loadQuoteToCart(id) {
             const hojeLocalStr = getHojeLocalStr();
 
             const salesMap = {};
-            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO').forEach(l => {
+            STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO' && l.finStatus !== 'PARCELADO').forEach(l => {
                 if(!salesMap[l.id]) {
                     salesMap[l.id] = { 
                         id: l.id, val: 0, paid: 0, status: l.finStatus, date: l.date, 
@@ -5834,7 +6477,32 @@ function loadQuoteToCart(id) {
           }
       
           const date = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
-      
+
+          // Venda guarda item LIQUIDO + desconto; orcamento guarda BRUTO + desconto no rodapé.
+          // Recompõe o bruto de cada item para não perder/perder o desconto na duplicação.
+          const hasAllUid = saleItems.every(i => i.uid);
+          const netTotal = saleItems.reduce((a, i) => a + Number(i.totalValue || 0), 0);
+          const discountTotal = hasAllUid ? (Number(saleItems[0]?.discount) || 0) : 0;
+          const grossTotal = netTotal + discountTotal;
+          const grossByUid = {};
+          if (hasAllUid && netTotal > 0) {
+              const fator = grossTotal / netTotal;
+              const cents = saleItems.map(i => ({ uid: i.uid, raw: Number(i.totalValue || 0) * fator }));
+              const rounded = cents.map(c => Math.round(c.raw * 100));
+              const grossCents = Math.round(grossTotal * 100);
+              let diff = grossCents - rounded.reduce((a, b) => a + b, 0);
+              const idxSorted = cents
+                  .map((c, idx) => ({ idx, frac: c.raw * 100 - Math.floor(c.raw * 100) }))
+                  .sort((a, b) => b.frac - a.frac);
+              let p = 0;
+              while (diff !== 0) {
+                  rounded[idxSorted[p % idxSorted.length].idx] += diff > 0 ? 1 : -1;
+                  diff += diff > 0 ? -1 : 1;
+                  p++;
+              }
+              cents.forEach((c, idx) => { grossByUid[c.uid] = rounded[idx] / 100; });
+          }
+
           let quotesToInsert = saleItems.map(item => {
               let obs = item.note || '';
               if(obs === 'Venda PDV' || obs === 'Pronta Entrega PDV') obs = '';
@@ -5847,12 +6515,12 @@ function loadQuoteToCart(id) {
                   quantidade: item.quantity,
                   data: date,
                   observacao: obs,
-                  valor_total: item.totalValue, 
+                  valor_total: grossByUid[item.uid] != null ? grossByUid[item.uid] : item.totalValue,
                   cliente_nome: item.clientName,
                   cliente_id: (item.clientId != null && STATE.clients.some(c => String(c.id) === String(item.clientId))) ? item.clientId : null,
                   forma_pagamento: item.paymentMethod || 'Dinheiro',
                   status: 'ABERTO', 
-                  desconto: 0, 
+                  desconto: (hasAllUid && netTotal > 0) ? discountTotal : 0, 
                   status_financeiro: '$',
                   endereco_entrega: item.deliveryAddress || '',
                   status_entrega: '',
@@ -5882,6 +6550,10 @@ function loadQuoteToCart(id) {
         document.getElementById('exp-cost').value = '';
         document.getElementById('exp-date').value = '';
         document.getElementById('exp-note').value = '';
+        const elP = document.getElementById('exp-parcelas');
+        const elI = document.getElementById('exp-parcel-int');
+        if (elP) elP.value = '1';
+        if (elI) elI.value = '30';
     }
     
     // Função para abrir nova despesa (limpa o formulário e exibe o modal)
