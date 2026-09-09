@@ -1416,7 +1416,7 @@ class OrcamentosMDF {
             ? `<img src="${escaparHTML(item.foto_url)}" class="w-full h-full object-cover" alt="Foto" style="position: absolute; inset: 0;">
                <button type="button" onclick="event.stopPropagation(); if(window.mdfOrcamentosManager) window.mdfOrcamentosManager.removerFotoItem(${idx})" title="Excluir foto" class="absolute top-1.5 right-1.5 z-10 w-7 h-7 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-md"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                <button type="button" onclick="this.parentElement.querySelector('input[type=file]').click()" title="Trocar foto" class="absolute bottom-1.5 right-1.5 z-10 w-7 h-7 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"><i data-lucide="camera" class="w-4 h-4"></i></button>`
-            : `<div class="w-full h-full flex items-center justify-center cursor-pointer hover:bg-slate-200 transition" onclick="this.querySelector('input[type=file]').click()">
+            : `<div class="w-full h-full flex items-center justify-center cursor-pointer hover:bg-slate-200 transition" onclick="this.parentElement.querySelector('input[type=file]').click()">
                  <i data-lucide="camera" class="w-12 h-12 text-slate-400"></i>
                </div>`
           }
