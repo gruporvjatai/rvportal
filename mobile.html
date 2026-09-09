@@ -504,11 +504,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Desconto (R$)</label>
-                        <input type="number" id="rec-disc" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl outline-none bg-slate-50" oninput="atualizarResumoBaixa()">
+                        <input type="number" id="rec-disc" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl outline-none bg-slate-50" oninput="atualizarResumoBaixa(true)">
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Juros/Multa (R$)</label>
-                        <input type="number" id="rec-jur" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl outline-none bg-slate-50" oninput="atualizarResumoBaixa()">
+                        <input type="number" id="rec-jur" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl outline-none bg-slate-50" oninput="atualizarResumoBaixa(true)">
                     </div>
                 </div>
                 <div id="rec-summary" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-xs font-bold text-slate-600 space-y-0.5"></div>
@@ -803,11 +803,11 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Desconto (R$)</label>
-                        <input type="number" id="dexp-disc" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl outline-none bg-slate-50" oninput="atualizarResumoDespesa()">
+                        <input type="number" id="dexp-disc" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl outline-none bg-slate-50" oninput="atualizarResumoDespesa(true)">
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Juros/Multa (R$)</label>
-                        <input type="number" id="dexp-jur" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl outline-none bg-slate-50" oninput="atualizarResumoDespesa()">
+                        <input type="number" id="dexp-jur" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl outline-none bg-slate-50" oninput="atualizarResumoDespesa(true)">
                     </div>
                 </div>
                 <div id="dexp-summary" class="bg-red-50 border border-red-100 rounded-xl p-3 text-xs font-bold text-slate-600 space-y-0.5"></div>
@@ -1261,10 +1261,19 @@
             });
             
             let receivablesArr = Object.values(receivablesMap);
+            receivablesArr.forEach(r => {
+                const st = calcTituloFinanceiro(r.id);
+                r.jur = st.jur;
+                r.disc = st.disc;
+                r.paid = Math.max(r.paid, st.money);
+                r.valLista = st.total + st.jur - st.disc;
+                r.saldo = st.saldo;
+            });
             
-            // Calcular totais para os cards
-            const totalRecebido = receivablesArr.filter(r => r.status === 'PAGO').reduce((a, b) => a + b.val, 0) +
-                                 receivablesArr.filter(r => r.status !== 'PAGO').reduce((a, b) => a + b.paid, 0);
+            const totalRecebido = receivablesArr.reduce((a, r) => {
+                if (r.status === 'PAGO') return a + (r.paid > 0 ? r.paid : r.val);
+                return a + r.paid;
+            }, 0);
             
             const despesaEfetiva = e => {
                 if (e.status === 'PAGO') return (Number(e.valorPago) || 0) > 0 ? Number(e.valorPago) : Number(e.cost || 0);
@@ -1280,8 +1289,8 @@
             const recBody = document.getElementById('fin-receivables-list');
             let recHtml = '';
             
-            receivablesArr.filter(r => r.status !== 'PAGO' && (r.val - r.paid) > 0).forEach(r => {
-                const falta = r.val - r.paid;
+            receivablesArr.filter(r => r.status !== 'PAGO' && (r.saldo != null ? r.saldo : (r.val - r.paid)) > 0.005).forEach(r => {
+                const falta = r.saldo != null ? r.saldo : (r.val - r.paid);
                 const dataVencStr = (r.dueDate||'').split('T')[0];
                 const isVencido = dataVencStr < hojeLocalStr;
                 
@@ -1292,6 +1301,8 @@
                         <h4 class="font-bold text-slate-700 text-sm leading-tight">${r.clientName}</h4>
                         <p class="text-[10px] text-slate-500 mt-1">Venc: ${formatDate(r.dueDate)} | ${r.payment || '-'}</p>
                         <p class="text-[10px] text-red-600 font-bold mt-1">Falta: ${formatMoney(falta)}</p>
+                        ${(r.jur || 0) > 0 ? `<p class="text-[10px] text-red-500 font-bold">+ Juros ${formatMoney(r.jur)}</p>` : ''}
+                        ${(r.disc || 0) > 0 ? `<p class="text-[10px] text-green-600 font-bold">- Desc. ${formatMoney(r.disc)}</p>` : ''}
                     </div>
                     <div class="flex gap-1.5 items-center">
                         ${(r.paid || 0) > 0 ? `<button onclick="estornarRecebimento('${r.id}')" class="p-2 bg-slate-100 text-slate-600 rounded-lg active:bg-slate-200" title="Estornar última baixa"><i data-lucide="rotate-ccw" class="w-3 h-3"></i></button>` : ''}
@@ -1319,6 +1330,8 @@
                         <h4 class="font-bold text-slate-700 text-sm leading-tight">${e.item}</h4>
                         <p class="text-[10px] text-slate-500 truncate">${e.provider || e.note || '-'}</p>
                         ${(e.valorPago || 0) > 0 ? `<p class="text-[10px] text-orange-500 font-bold mt-1">Pago ${formatMoney(e.valorPago)} | Resta ${formatMoney(Math.max(0, saldoExp))}</p>` : `<p class="text-[10px] text-red-600 font-bold mt-1">Pagar: ${formatMoney(Math.max(0, saldoExp))}</p>`}
+                        ${(e.acrescimoTotal || 0) > 0 ? `<p class="text-[10px] text-red-500 font-bold">+ Juros ${formatMoney(e.acrescimoTotal)}</p>` : ''}
+                        ${(e.descontoTotal || 0) > 0 ? `<p class="text-[10px] text-green-600 font-bold">- Desc. ${formatMoney(e.descontoTotal)}</p>` : ''}
                     </div>
                     <div class="flex gap-1.5 items-center">
                         <button onclick="duplicarDespesa('${e.id}')" class="p-2 bg-slate-100 text-slate-600 rounded-lg active:bg-slate-200" title="Duplicar (venc. +30 dias)"><i data-lucide="copy" class="w-3 h-3"></i></button>
@@ -1438,13 +1451,20 @@
             return max + 1;
         }
 
-        function atualizarResumoBaixa() {
+        function atualizarResumoBaixa(ajustarPgto) {
             const ctx = window._recCtx;
             const el = document.getElementById('rec-summary');
             if (!ctx || !el) return;
-            const money = coletarRecPgtoRows().reduce((a, f) => a + f.valor, 0);
             const disc = numId('rec-disc');
             const jur = numId('rec-jur');
+            const devido = Math.max(0, ctx.saldoBase + jur - disc);
+            if (ajustarPgto) {
+                const inputs = document.querySelectorAll('#rec-pgto-rows .pgto-row .pgto-valor');
+                if (inputs.length === 1) inputs[0].value = devido > 0 ? devido.toFixed(2) : '';
+                const pendingEl = document.getElementById('rec-pending-lbl');
+                if (pendingEl) pendingEl.innerText = formatMoney(devido);
+            }
+            const money = coletarRecPgtoRows().reduce((a, f) => a + f.valor, 0);
             const saldo = ctx.saldoBase + jur - disc - money;
             const statusTxt = saldo <= 0.005 ? 'Fica QUITADO' : `Fica devendo ${formatMoney(saldo)}`;
             el.innerHTML = `
@@ -1870,13 +1890,20 @@
             })).filter(f => f.valor > 0);
         }
 
-        function atualizarResumoDespesa() {
+        function atualizarResumoDespesa(ajustarPgto) {
             const ctx = window._dexpCtx;
             const el = document.getElementById('dexp-summary');
             if (!ctx || !el) return;
-            const money = coletarDespPgtoRows().reduce((a, f) => a + f.valor, 0);
             const disc = numId('dexp-disc');
             const jur = numId('dexp-jur');
+            const devido = Math.max(0, ctx.saldoBase + jur - disc);
+            if (ajustarPgto) {
+                const inputs = document.querySelectorAll('#dexp-pgto-rows .pgto-row .pgto-valor');
+                if (inputs.length === 1) inputs[0].value = devido > 0 ? devido.toFixed(2) : '';
+                const restEl = document.getElementById('dexp-rest-lbl');
+                if (restEl) restEl.innerText = formatMoney(devido);
+            }
+            const money = coletarDespPgtoRows().reduce((a, f) => a + f.valor, 0);
             const saldo = ctx.saldoBase + jur - disc - money;
             const statusTxt = saldo <= 0.005 ? 'Fica QUITADO' : `Fica devendo ${formatMoney(saldo)}`;
             el.innerHTML = `
