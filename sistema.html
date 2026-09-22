@@ -7442,26 +7442,56 @@ function updateCardValues() {
 }  
 
   // ===== DESLOGAR APÓS INATIVIDADE =====
-let inactivityTimer;
+const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
+let inactivityTimer = null;
+let lastActivityAt = Date.now();
+let inactivityMonitorStarted = false;
+let inactivityResetQueued = false;
 
 function resetInactivityTimer() {
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
-        // Verifica se o usuário está logado (pode checar se existe a sessão)
-        if (localStorage.getItem('rv_user')) {
-            showToast("Sessão expirada por inatividade. Deslogando...", true);
-            fazerLogout();
-        }
-    }, 30 * 60 * 1000); // 30 minutos
+    lastActivityAt = Date.now();
+    if (inactivityResetQueued) return;
+    inactivityResetQueued = true;
+    setTimeout(() => {
+        inactivityResetQueued = false;
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(logoutIfIdle, INACTIVITY_LIMIT_MS);
+    }, 1000);
 }
 
-// Adiciona listeners para reiniciar o timer
+function logoutIfIdle() {
+    const idleFor = Date.now() - lastActivityAt;
+    if (idleFor < INACTIVITY_LIMIT_MS) {
+        inactivityTimer = setTimeout(logoutIfIdle, INACTIVITY_LIMIT_MS - idleFor);
+        return;
+    }
+    if (localStorage.getItem('rv_user')) {
+        showToast("Sessão expirada por inatividade. Deslogando...", true);
+        fazerLogout();
+    }
+}
+
 function startInactivityMonitoring() {
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    if (inactivityMonitorStarted) return;
+    inactivityMonitorStarted = true;
+
+    const events = [
+        'mousedown', 'mousemove', 'mouseup',
+        'keydown', 'keyup',
+        'touchstart', 'touchmove', 'touchend',
+        'pointerdown', 'pointermove',
+        'click', 'scroll', 'wheel',
+        'input', 'change'
+    ];
+    const opts = { capture: true, passive: true };
     events.forEach(event => {
-        document.addEventListener(event, resetInactivityTimer);
+        window.addEventListener(event, resetInactivityTimer, opts);
+        document.addEventListener(event, resetInactivityTimer, opts);
     });
-    resetInactivityTimer(); // inicia o timer imediatamente
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') resetInactivityTimer();
+    });
+    resetInactivityTimer();
 }
 
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxIRN7mUo3miLWgXxBILB8Dq4i04QL27UMSDVRhTtj8NSOIE8CKSe-OCntcswnbO6Oo/exec';
