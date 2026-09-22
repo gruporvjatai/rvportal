@@ -1270,7 +1270,7 @@
                             class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow transition" title="Anexar comprovantes para leitura">
                         <i data-lucide="upload"></i> Ler Documento
                     </button>
-                    <button onclick="executarPixGAS()" 
+                    <button id="btn-gerar-pix" onclick="executarPixGAS()" 
                             class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow transition" title="Buscar comprovantes no e-mail">
                         <i data-lucide="refresh-cw"></i> Gerar Automático
                     </button>
@@ -7495,14 +7495,24 @@ function startInactivityMonitoring() {
 }
 
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxIRN7mUo3miLWgXxBILB8Dq4i04QL27UMSDVRhTtj8NSOIE8CKSe-OCntcswnbO6Oo/exec';
+let pixGasEmAndamento = false;
 
 async function executarPixGAS() {
+    if (pixGasEmAndamento) {
+        showToast('Processamento já em andamento. Aguarde.', true);
+        return;
+    }
+    pixGasEmAndamento = true;
+    const btn = document.getElementById('btn-gerar-pix');
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'pointer-events-none');
+    }
     showLoading(true);
     showToast('Processando Pix... Aguarde.', false);
 
     try {
-        // Usa 'no-cors' para evitar bloqueio CORS
-        const response = await fetch(GAS_WEB_APP_URL, {
+        await fetch(GAS_WEB_APP_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
@@ -7511,24 +7521,25 @@ async function executarPixGAS() {
             body: JSON.stringify({})
         });
 
-        // Com 'no-cors', a resposta é opaca, mas a requisição foi enviada.
-        // Damos um tempo para o processamento e atualizamos a lista.
         showToast('Processamento iniciado. Atualizando lista...', false);
 
-        // Aguarda 3 segundos e recarrega os dados
-        setTimeout(async () => {
-            await loadData();
-            if (document.getElementById('view-fin').classList.contains('active-section')) {
-                renderFinance();
-            }
-            showLoading(false);
-            showToast('Lista atualizada!', false);
-        }, 3000);
-
+        await new Promise(resolve => setTimeout(resolve, 8000));
+        await loadData();
+        if (document.getElementById('view-fin')?.classList.contains('active-section')) {
+            renderFinance();
+        }
+        showLoading(false);
+        showToast('Lista atualizada!', false);
     } catch (error) {
         showToast('Erro ao conectar com o GAS: ' + error.message, true);
         console.error(error);
         showLoading(false);
+    } finally {
+        pixGasEmAndamento = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'pointer-events-none');
+        }
     }
 }
 
