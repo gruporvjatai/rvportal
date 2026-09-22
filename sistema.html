@@ -95,7 +95,7 @@
             transform: translate(-50%, -50%);
             width: 450px; 
             height: 450px;
-            background-image: url('https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png');
+            background-image: url('logo.png');
             background-size: contain;
             background-position: center;
             background-repeat: no-repeat;
@@ -303,7 +303,7 @@
             <i data-lucide="refresh-cw" class="w-4 h-4"></i>           
         </button>
         <div class="w-20 h-20 rounded-full border-4 border-emerald-600 mb-3 shadow-lg bg-white overflow-hidden p-1 bg-white">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" class="w-full h-full object-contain" />
+            <img src="logo.png" class="w-full h-full object-contain" />
         </div>
         <h1 class="text-lg font-bold tracking-wider text-emerald-500">RV PORTAL</h1>
       </div>
@@ -1635,6 +1635,7 @@
         const supabaseUrl = window.SUPABASE_URL;
         const supabaseKey = window.SUPABASE_ANON_KEY;
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const LOGO_URL = new URL('logo.png', window.location.href).href;
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
         let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [] /*custoMaterialB10: 0 */};
@@ -2449,7 +2450,7 @@ function printStockCountSheet() {
   const company = {
     name: "RV PORTAL MADEIRAS",
     cnpj: "30.942.123/0001-02",
-    logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+    logoUrl: LOGO_URL
   };
 
   const now = new Date().toLocaleString('pt-BR');
@@ -5146,7 +5147,7 @@ function loadQuoteToCart(id) {
             el.innerHTML = `
             <div class="invoice-full">
                 <div class="header-section">
-                    <div class="logo-area"><img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 80px;" /></div>
+                    <div class="logo-area"><img src="${LOGO_URL}" style="max-height: 80px;" /></div>
                     <div class="company-details">
                         <h2 class="company-title">RV PORTAL MADEIRAS</h2>
                         <div class="company-info">CNPJ: 30.942.123/0001-02 </div>
@@ -5194,7 +5195,7 @@ function loadQuoteToCart(id) {
         cnpj: "30.942.123/0001-02",
         phone: "(64) 3636-4861",
         address: "Jataí - GO",
-        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
+        logoUrl: LOGO_URL 
     };
     
     const addressToShow = items[0].deliveryAddress 
@@ -5358,7 +5359,7 @@ function loadQuoteToCart(id) {
                 cnpj: "30.942.123/0001-02",
                 phone: "(64) 3636-4861",
                 address: "Jataí - GO",
-                logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
+                logoUrl: LOGO_URL 
             };
 
             let totalItems = 0;
@@ -5496,7 +5497,7 @@ function loadQuoteToCart(id) {
             const company = {
                 name: "RV PORTAL MADEIRAS",
                 cnpj: "30.942.123/0001-02",
-                logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
+                logoUrl: LOGO_URL 
             };
 
             const el = document.getElementById('print-area');
@@ -5591,7 +5592,7 @@ function loadQuoteToCart(id) {
             const company = {
                 name: "RV PORTAL MADEIRAS",
                 cnpj: "30.942.123/0001-02",
-                logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" 
+                logoUrl: LOGO_URL 
             };
 
             const el = document.getElementById('print-area');
@@ -5730,7 +5731,7 @@ function loadQuoteToCart(id) {
             const company = {
                 name: "RV PORTAL MADEIRAS",
                 cnpj: "30.942.123/0001-02",
-                logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+                logoUrl: LOGO_URL
             };
         
             // Insere o HTML no elemento de impressão
@@ -6030,7 +6031,7 @@ function loadQuoteToCart(id) {
         obsText = fullObs || 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
     }
 
-    const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
+    const logoBase64 = await getLogoBase64RV(LOGO_URL);
 
     const totalRows = [
         [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
@@ -6225,7 +6226,7 @@ function loadQuoteToCart(id) {
     const company = {
         name: "RV PORTAL MADEIRAS",
         cnpj: "30.942.123/0001-02",
-        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+        logoUrl: LOGO_URL
     };
 
     const filtroTexto = `Período: Vendas de Hoje (${formatDate(hojeLocalStr)})`;
@@ -6411,7 +6412,7 @@ function loadQuoteToCart(id) {
     const company = {
         name: "RV PORTAL MADEIRAS",
         cnpj: "30.942.123/0001-02",
-        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+        logoUrl: LOGO_URL
     };
 
     const filtroTexto = `Período: ${start ? formatDate(start) : 'Início'} até ${end ? formatDate(end) : 'Hoje'} | Pgto: ${payment} ${client ? ' | Cliente: ' + client : ''}`;
@@ -6775,7 +6776,7 @@ async function downloadSalePDF(id) {
     }
 
     const paymentMethod = items[0].paymentMethod || 'Não informado';
-    const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
+    const logoBase64 = await getLogoBase64RV(LOGO_URL);
 
     const totalRows = [
         [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
@@ -6949,7 +6950,7 @@ function printPartnerReport() {
         var html = `
         <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
             <div style="text-align:center; margin-bottom:20px;">
-                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
+                 <img src="${LOGO_URL}" style="height:60px; display:block; margin:0 auto;">
                 <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
                 <p style="font-size:14px;">Relatório de Vendas de Parceiro (Metros)</p>
                 <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
@@ -7007,7 +7008,7 @@ function printPartnerReport() {
         var html = `
         <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
             <div style="text-align:center; margin-bottom:20px;">
-                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="height:60px; display:block; margin:0 auto;">
+                 <img src="${LOGO_URL}" style="height:60px; display:block; margin:0 auto;">
                 <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
                 <p style="font-size:14px;">Relatório de Acerto – Parceiro</p>
                 <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
@@ -7269,7 +7270,7 @@ function printReceipt() {
     cnpj: "30.942.123/0001-02",
     phone: "(64) 3636-4861",
     address: "Rua Mineiros, 532 - Jataí - GO",
-    logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+    logoUrl: LOGO_URL
   };
 
   const receiptHTML = `
@@ -7425,20 +7426,19 @@ function updateCardValues() {
 }
 
   async function getLogoBase64RV(url) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL('image/png'));
-        };
-        img.onerror = () => resolve(null);
-        img.src = url;
-    });
+    try {
+        const resp = await fetch(url || LOGO_URL);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const blob = await resp.blob();
+        return await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        return null;
+    }
 }  
 
   // ===== DESLOGAR APÓS INATIVIDADE =====
