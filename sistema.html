@@ -421,6 +421,7 @@
                             <option>Cartão Débito</option>
                             <option>Cartão Crédito</option>
                             <option>Boleto 21 dias</option>
+                            <option>Boleto 28 dias</option>
                             <option>Boleto 30 dias</option>
                             <option>Boleto Programado</option>
                             <option>Cheque</option>
@@ -902,6 +903,7 @@
                               <option>Cartão Débito</option>
                               <option>Cartão Crédito</option>
                               <option>Boleto 21 dias</option>
+                              <option>Boleto 28 dias</option>
                               <option>Boleto 30 dias</option>
                               <option>Boleto Programado</option>
                               <option>Cheque</option>
@@ -1246,6 +1248,7 @@
                               <option>Cartão Débito</option>
                               <option>Cartão Crédito</option>
                               <option>Boleto 21 dias</option>
+                              <option>Boleto 28 dias</option>
                               <option>Boleto 30 dias</option>
                               <option>Boleto Programado</option>
                               <option>Cheque</option>
@@ -2216,11 +2219,11 @@
           const customObsCheck = document.getElementById('pos-custom-obs-check').checked;
           const customObs = customObsCheck ? document.getElementById('pos-custom-obs').value : '';
           
-          let dueDate = new Date();
-          if (payment.toLowerCase().includes("5")) dueDate.setDate(dueDate.getDate() + 5);
-          else if (payment.toLowerCase().includes("10")) dueDate.setDate(dueDate.getDate() + 10);
-          else if (payment.toLowerCase().includes("15")) dueDate.setDate(dueDate.getDate() + 15);
-          else if (payment.toLowerCase().includes("boleto") || payment.toLowerCase().includes("prazo")) dueDate.setDate(dueDate.getDate() + 30);
+          let dueDate = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000));
+          const paymentLower = payment.toLowerCase();
+          const diasMatch = paymentLower.match(/(\d+)\s*dias?/);
+          if (diasMatch) dueDate.setUTCDate(dueDate.getUTCDate() + parseInt(diasMatch[1], 10));
+          else if (paymentLower.includes("boleto") || paymentLower.includes("prazo")) dueDate.setUTCDate(dueDate.getUTCDate() + 30);
           
           const timestamp = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
           
@@ -3162,7 +3165,7 @@ function printStockCountSheet() {
         }
 
         // ===== Formas multiplas + desconto/juros na baixa (financeiro) =====
-        const METODOS_PGTO = ['Dinheiro','PIX','Carteira','Cartão Débito','Cartão Crédito','Boleto 21 dias','Boleto 30 dias','Boleto Programado','Cheque'];
+        const METODOS_PGTO = ['Dinheiro','PIX','Carteira','Cartão Débito','Cartão Crédito','Boleto 21 dias','Boleto 28 dias','Boleto 30 dias','Boleto Programado','Cheque'];
 
         function gerarUidLocal() {
             if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
