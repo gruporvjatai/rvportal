@@ -43,7 +43,7 @@
 
       /* Estilos para o PDF oculto na tela */
       .invoice-full { border: 1px solid #000; min-height: 27.5cm; background-color: transparent !important; position: relative; z-index: 1; font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background: white;}
-      .invoice-full::before { content: ""; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; background-image: url('https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png'); background-size: contain; background-position: center; background-repeat: no-repeat; opacity: 0.1; z-index: -1; }
+      .invoice-full::before { content: ""; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; background-image: url('logorvnegocios.png'); background-size: contain; background-position: center; background-repeat: no-repeat; opacity: 0.1; z-index: -1; }
       .header-section { display: flex; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
       .logo-area { width: 120px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #e2e8f0; padding-right: 15px; margin-right: 15px; }
       .company-details { flex: 1; }
@@ -73,7 +73,7 @@
     <header class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md sticky top-0 z-40">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full border-2 border-emerald-500 bg-white overflow-hidden p-0.5 flex items-center justify-center">
-                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" class="w-full h-full object-contain" />
+                <img src="logo.png" class="w-full h-full object-contain" />
             </div>
             <h1 class="text-lg font-black tracking-wider text-emerald-400">RV PORTAL</h1>
         </div>
@@ -2558,17 +2558,17 @@
         <div style="font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background-color: #ffffff; width: 100%; box-sizing: border-box; border: 1px solid #000; min-height: 27.5cm; position: relative; z-index: 1;">
             
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; opacity: 0.1; z-index: -1;">
-                <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
+                <img src="logorvnegocios.png" crossorigin="anonymous" style="width: 100%; height: 100%; object-fit: contain;" />
             </div>
 
             <table width="100%" style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
                 <tr>
                     <td width="130" valign="middle" style="border-right: 1px solid #e2e8f0; padding-right: 15px;">
-                        <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
+                        <img src="logorvnegocios.png" crossorigin="anonymous" style="max-height: 80px; max-width: 120px; display: block; margin: 0 auto;" />
                     </td>
                     <td valign="middle" style="padding-left: 15px;">
-                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV PORTAL MADEIRAS</h2>
-                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 30.942.123/0001-02</div>
+                        <h2 style="margin: 0; color: #059669; font-size: 20px; font-weight: 800;">RV NEGOCIOS E COMPANHIA LTDA</h2>
+                        <div style="font-size: 11px; color: #475569; margin-top: 5px; line-height: 1.4;">CNPJ: 61.893.912/0001-24 | IE: 20.298.776-0</div>
                         <div style="font-size: 11px; color: #475569; line-height: 1.4;">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
                     </td>
                     <td align="right" valign="top">
@@ -2733,7 +2733,7 @@
     const tituloDoc = isVenda ? "PEDIDO DE VENDA" : "ORÇAMENTO";
 
     // Carregar logo em base64
-    const logoBase64 = await getLogoBase64RV("https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png");
+    const logoBase64 = await getLogoBase64RV(new URL('logorvnegocios.png', window.location.href).href);
 
     // ---------- Construção do docDefinition (pdfmake) ----------
     const bodyTabela = [
@@ -2786,8 +2786,8 @@
                         logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
                         {
                             text: [
-                                { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
-                                { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                { text: 'RV NEGOCIOS E COMPANHIA LTDA\n', fontSize: 16, bold: true, color: '#059669' },
+                                { text: 'CNPJ: 61.893.912/0001-24 | IE: 20.298.776-0\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
                                 { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
                             ],
                             margin: [0, 10, 0, 0]

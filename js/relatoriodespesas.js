@@ -171,7 +171,7 @@ function printExpenseReport() {
     const company = {
         name: "RV PORTAL MADEIRAS",
         cnpj: "30.942.123/0001-02",
-        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+        logoUrl: "logo.png"
     };
 
     const start = document.getElementById('exp-report-start').value;
@@ -297,7 +297,7 @@ function printFilteredExpenses() {
     const company = {
         name: "RV PORTAL MADEIRAS",
         cnpj: "30.942.123/0001-02",
-        logoUrl: "https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png"
+        logoUrl: "logo.png"
     };
 
     let totalGeral = 0;

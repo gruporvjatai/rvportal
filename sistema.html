@@ -1639,6 +1639,7 @@
         const supabaseKey = window.SUPABASE_ANON_KEY;
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
         const LOGO_URL = new URL('logo.png', window.location.href).href;
+        const LOGO_NEGOCIOS_URL = new URL('logorvnegocios.png', window.location.href).href;
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
         let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [] /*custoMaterialB10: 0 */};
@@ -5150,10 +5151,10 @@ function loadQuoteToCart(id) {
             el.innerHTML = `
             <div class="invoice-full">
                 <div class="header-section">
-                    <div class="logo-area"><img src="${LOGO_URL}" style="max-height: 80px;" /></div>
+                    <div class="logo-area"><img src="${LOGO_NEGOCIOS_URL}" style="max-height: 80px;" /></div>
                     <div class="company-details">
-                        <h2 class="company-title">RV PORTAL MADEIRAS</h2>
-                        <div class="company-info">CNPJ: 30.942.123/0001-02 </div>
+                        <h2 class="company-title">RV NEGOCIOS E COMPANHIA LTDA</h2>
+                        <div class="company-info">CNPJ: 61.893.912/0001-24 | IE: 20.298.776-0</div>
                         <div class="company-info">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861 </div>
                     </div>
                     <div class="doc-meta">
@@ -5194,11 +5195,12 @@ function loadQuoteToCart(id) {
     const cli = STATE.clients.find(c => c.name === items[0].clientName) || { name: items[0].clientName, doc: '-', phone: '-', address: '-' };
 
     const company = {
-        name: "RV PORTAL MADEIRAS",
-        cnpj: "30.942.123/0001-02",
+        name: "RV NEGOCIOS E COMPANHIA LTDA",
+        cnpj: "61.893.912/0001-24",
+        ie: "20.298.776-0",
         phone: "(64) 3636-4861",
         address: "Jataí - GO",
-        logoUrl: LOGO_URL 
+        logoUrl: LOGO_NEGOCIOS_URL 
     };
     
     const addressToShow = items[0].deliveryAddress 
@@ -5246,7 +5248,7 @@ function loadQuoteToCart(id) {
             </div>
             <div class="company-box-orig" style="flex: 1; padding: 10px; border-right: 1px solid #000;">
                 <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
-                <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj}</p>
+                <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj} | IE: 20.298.776-0</p>
                 <p style="margin: 2px 0; font-size: 12px;">Endereço: ${company.address}</p>
                 <p style="margin: 2px 0; font-size: 12px;">Telefone: ${company.phone}</p>
             </div>
@@ -5358,11 +5360,11 @@ function loadQuoteToCart(id) {
             if (histLogs.length === 0) return showToast("Nenhum dado para imprimir", true);
 
             const company = {
-                name: "RV PORTAL MADEIRAS",
-                cnpj: "30.942.123/0001-02",
+                name: "RV NEGOCIOS E COMPANHIA LTDA",
+                cnpj: "61.893.912/0001-24",
                 phone: "(64) 3636-4861",
                 address: "Jataí - GO",
-                logoUrl: LOGO_URL 
+                logoUrl: LOGO_NEGOCIOS_URL 
             };
 
             let totalItems = 0;
@@ -5395,7 +5397,7 @@ function loadQuoteToCart(id) {
                         </div>
                         <div class="company-box-orig" style="flex: 1; padding: 10px; border-right: 1px solid #000;">
                             <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
-                            <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj}</p>
+                            <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj} | IE: 20.298.776-0</p>
                             <p style="margin: 2px 0; font-size: 12px;">Endereço: ${company.address}</p>
                             <p style="margin: 2px 0; font-size: 12px;">Telefone: ${company.phone}</p>
                         </div>
@@ -6034,7 +6036,7 @@ function loadQuoteToCart(id) {
         obsText = fullObs || 'Válido por 7 dias. Verifique os produtos no ato da entrega.';
     }
 
-    const logoBase64 = await getLogoBase64RV(LOGO_URL);
+    const logoBase64 = await getLogoBase64RV(LOGO_NEGOCIOS_URL);
 
     const totalRows = [
         [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
@@ -6067,8 +6069,8 @@ function loadQuoteToCart(id) {
                         logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
                         {
                             text: [
-                                { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
-                                { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                { text: 'RV NEGOCIOS E COMPANHIA LTDA\n', fontSize: 16, bold: true, color: '#059669' },
+                                { text: 'CNPJ: 61.893.912/0001-24 | IE: 20.298.776-0\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
                                 { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
                             ],
                             margin: [0, 10, 0, 0]
@@ -6779,7 +6781,7 @@ async function downloadSalePDF(id) {
     }
 
     const paymentMethod = items[0].paymentMethod || 'Não informado';
-    const logoBase64 = await getLogoBase64RV(LOGO_URL);
+    const logoBase64 = await getLogoBase64RV(LOGO_NEGOCIOS_URL);
 
     const totalRows = [
         [ { text: 'Subtotal:', border: [false,false,false,true] }, { text: formatMoney(subtotal), alignment: 'right', border: [false,false,false,true] } ]
@@ -6812,8 +6814,8 @@ async function downloadSalePDF(id) {
                         logoBase64 ? { image: logoBase64, width: 80, alignment: 'center', margin: [0, 0, 10, 0] } : '',
                         {
                             text: [
-                                { text: 'RV PORTAL MADEIRAS\n', fontSize: 16, bold: true, color: '#059669' },
-                                { text: 'CNPJ: 30.942.123/0001-02\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
+                                { text: 'RV NEGOCIOS E COMPANHIA LTDA\n', fontSize: 16, bold: true, color: '#059669' },
+                                { text: 'CNPJ: 61.893.912/0001-24 | IE: 20.298.776-0\n', fontSize: 9, color: '#475569', lineHeight: 1.3 },
                                 { text: 'Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861', fontSize: 9, color: '#475569', lineHeight: 1.3 }
                             ],
                             margin: [0, 10, 0, 0]
@@ -6953,8 +6955,9 @@ function printPartnerReport() {
         var html = `
         <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
             <div style="text-align:center; margin-bottom:20px;">
-                 <img src="${LOGO_URL}" style="height:60px; display:block; margin:0 auto;">
+                  <img src="${LOGO_URL}" style="height:60px; display:block; margin:0 auto;">
                 <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
+                <p style="font-size:11px; color:#555; margin:2px 0 0 0;">CNPJ: 30.942.123/0001-02</p>
                 <p style="font-size:14px;">Relatório de Vendas de Parceiro (Metros)</p>
                 <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
             </div>
@@ -7011,8 +7014,9 @@ function printPartnerReport() {
         var html = `
         <div style="font-family:Helvetica; padding:20px; max-width:900px; margin:auto;">
             <div style="text-align:center; margin-bottom:20px;">
-                 <img src="${LOGO_URL}" style="height:60px; display:block; margin:0 auto;">
+                  <img src="${LOGO_URL}" style="height:60px; display:block; margin:0 auto;">
                 <h2 style="color:#059669; margin:5px 0 0 0;">RV PORTAL MADEIRAS</h2>
+                <p style="font-size:11px; color:#555; margin:2px 0 0 0;">CNPJ: 30.942.123/0001-02</p>
                 <p style="font-size:14px;">Relatório de Acerto – Parceiro</p>
                 <p style="font-size:12px; color:#555;">${formatDate(start)} a ${formatDate(end)}</p>
             </div>

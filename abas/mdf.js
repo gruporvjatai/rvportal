@@ -11,7 +11,7 @@ const SUPABASE_KEY = 'sb_publishable_B2a4vA22qf4XGcrxPDRAaw_13rW51uI';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==================== GERAÇÃO DE PDF COM PDFMAKE ====================
-const LOGO_RV_PORTAL = 'https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png';
+const LOGO_RV_PORTAL = new URL('logorvnegocios.png', window.location.href).href;
 const _cacheImagensPDF = new Map();
 let _pdfMakePromise = null;
 
@@ -845,7 +845,9 @@ class ProjetosMDF {
     const html = `
       <div style="font-family: Helvetica; padding: 20px; max-width: 800px; margin: auto; background: white;">
         <div style="text-align: center; margin-bottom: 20px;">
-          <h2>RV PORTAL MADEIRAS</h2>
+          <img src="${LOGO_RV_PORTAL}" style="max-height: 70px; margin: 0 auto 8px auto; display: block;" alt="Logo">
+          <h2>RV NEGOCIOS E COMPANHIA LTDA</h2>
+          <p style="font-size:11px; color:#555; margin:4px 0 0 0;">CNPJ: 61.893.912/0001-24 | IE: 20.298.776-0</p>
           <h3>Detalhamento do Projeto</h3>
         </div>
         <table style="width:100%; border-collapse: collapse; font-size: 12px;">
@@ -1753,8 +1755,8 @@ class OrcamentosMDF {
     const content = [];
     if (logoBase64) content.push({ image: 'logo', width: 58, alignment: 'center', margin: [0, 0, 0, 4] });
     content.push(
-      { text: 'RV PORTAL MADEIRAS', fontSize: 20, bold: true, color: '#b8a94e', alignment: 'center', margin: [0, 2, 0, 2] },
-      { text: 'CNPJ: 30.942.123/0001-02 | Rua Mineiros, 532 - Jataí/GO', fontSize: 9, color: '#475569', alignment: 'center', margin: [0, 0, 0, 12] },
+      { text: 'RV NEGOCIOS E COMPANHIA LTDA', fontSize: 20, bold: true, color: '#b8a94e', alignment: 'center', margin: [0, 2, 0, 2] },
+      { text: 'CNPJ: 61.893.912/0001-24 | IE: 20.298.776-0 | Rua Mineiros, 532 - Jataí/GO', fontSize: 9, color: '#475569', alignment: 'center', margin: [0, 0, 0, 12] },
       { text: orcId ? `ORÇAMENTO #${orcId}` : 'ORÇAMENTO', fontSize: 14, bold: true, alignment: 'center', margin: [0, 0, 0, 14] },
       { text: [{ text: 'Cliente: ', bold: true }, clienteNome], fontSize: 10, margin: [0, 0, 0, 3] },
       { text: [{ text: 'Data: ', bold: true }, data], fontSize: 10, margin: [0, 0, 0, 3] }

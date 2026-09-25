@@ -596,7 +596,7 @@
       <div style="font-family: 'Helvetica', sans-serif; padding: 30px; max-width: 700px; margin: auto; border: 1px solid #ccc; background: #fff;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 15px; margin-bottom: 25px;">
           <div style="display: flex; align-items: center; gap: 15px;">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 70px;" alt="Logo">
+            <img src="logo.png" style="max-height: 70px;" alt="Logo">
             <div>
               <h2 style="margin:0; color: #059669; font-size: 20px;">RV PORTAL MADEIRAS</h2>
               <p style="margin:2px 0; font-size: 11px; color: #475569;">CNPJ: 30.942.123/0001-02</p>
@@ -682,10 +682,10 @@
       <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 800px; margin: auto; background: white;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-bottom: 20px;">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 50px;" alt="Logo">
+            <img src="logo.png" style="max-height: 50px;" alt="Logo">
             <div>
               <h2 style="margin:0; color: #059669; font-size: 18px;">RV PORTAL MADEIRAS</h2>
-              <p style="margin:2px 0; font-size: 10px; color: #475569;">CNPJ: 30.942.123/0001-02</p>
+                <p style="margin:2px 0; font-size: 10px; color: #475569;">CNPJ: 30.942.123/0001-02</p>
             </div>
           </div>
           <div style="text-align: right;">
@@ -760,10 +760,10 @@
         <div style="font-family: 'Helvetica', sans-serif; padding: 20px; max-width: 700px; margin: auto; background: white;">
           <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 10px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 50px;" alt="Logo">
+              <img src="logo.png" style="max-height: 50px;" alt="Logo">
               <div>
                 <h2 style="margin:0; color: #059669; font-size: 18px;">RV PORTAL MADEIRAS</h2>
-                <p style="margin:2px 0; font-size: 10px; color: #475569;">CNPJ: 30.942.123/0001-02</p>
+              <p style="margin:2px 0; font-size: 10px; color: #475569;">CNPJ: 30.942.123/0001-02</p>
               </div>
             </div>
             <div style="text-align: right;">
@@ -812,7 +812,7 @@
         <div style="font-family: 'Helvetica', sans-serif; padding: 30px; max-width: 700px; margin: auto; border: 1px solid #ccc; background: #fff;">
           <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 15px; margin-bottom: 25px;">
             <div style="display: flex; align-items: center; gap: 15px;">
-              <img src="https://i.postimg.cc/52cvrkkP/LOGRVPORTAL.png" style="max-height: 70px;" alt="Logo">
+              <img src="logo.png" style="max-height: 70px;" alt="Logo">
               <div>
                 <h2 style="margin:0; color: #059669; font-size: 20px;">RV PORTAL MADEIRAS</h2>
                 <p style="margin:2px 0; font-size: 11px; color: #475569;">CNPJ: 30.942.123/0001-02</p>
