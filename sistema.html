@@ -1040,6 +1040,11 @@
                     <input type="text" id="cli-uf" placeholder="UF" maxlength="2" class="w-16 p-2 border rounded uppercase">
                 </div>
                 <p id="cli-legado-nota" class="hidden text-[11px] text-slate-400 italic"></p>
+
+                <div class="pt-2 border-t border-slate-200"></div>
+                <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wide">Credito em Haver (R$)</label>
+                <input type="number" id="cli-credit" min="0" step="0.01" placeholder="0.00" class="w-full p-2 border rounded font-bold text-emerald-700">
+                <p class="text-[11px] text-slate-400">Saldo de credito a favor do cliente. O abatimento e feito no Financeiro &gt; Contas a Receber.</p>
             </div>
             <div class="flex gap-2 mt-6">
                 <button type="button" onclick="document.getElementById('client-form-container').classList.add('hidden')" class="flex-1 p-2 bg-slate-200 rounded font-bold">Cancelar</button>
@@ -1136,6 +1141,17 @@
                     </div>
                     <div id="rec-pgto-rows" class="space-y-2"></div>
                     <p class="text-[11px] text-slate-400 mt-1">*Para editar apenas data/vencimento, deixe sem formas de pagamento.</p>
+                </div>
+                <div id="rec-credit-wrap" class="hidden pt-3 border-t mt-2">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-sm font-bold text-emerald-700 flex items-center gap-1"><i data-lucide="wallet" class="w-4 h-4"></i> Usar credito em haver</label>
+                        <span class="text-[11px] font-bold text-slate-500">Disponivel: <span id="rec-credit-avail" class="text-emerald-700">R$ 0,00</span></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="number" id="rec-credit" value="" min="0" step="0.01" placeholder="0.00" class="flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-emerald-700" oninput="atualizarResumoBaixa(true)">
+                        <button type="button" onclick="usarCreditoMax()" class="px-3 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-xl text-xs font-bold" title="Usar todo o credito disponivel no titulo">Usar maximo</button>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">O credito abate o saldo do titulo mas nao entra no caixa.</p>
                 </div>
                 <div class="grid grid-cols-2 gap-3 pt-2">
                     <div>
@@ -1262,7 +1278,31 @@
         </div>
     </div>
 
-       <div id="modal-expense" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
+    <div id="modal-credit-notice" class="hidden fixed inset-0 bg-black/50 z-[60] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+            <div class="p-5 bg-gradient-to-r from-emerald-50 to-teal-50 border-b flex items-center gap-3">
+                <div class="bg-emerald-600 text-white rounded-full p-2"><i data-lucide="wallet"></i></div>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg leading-tight">Cliente com Credito em Haver</h3>
+                    <p class="text-xs text-slate-500">Aviso informativo</p>
+                </div>
+            </div>
+            <div class="p-6 text-center space-y-2">
+                <p class="text-sm text-slate-500 font-bold uppercase tracking-wide" id="credit-notice-name">-</p>
+                <p class="font-black text-3xl text-emerald-700" id="credit-notice-value">R$ 0,00</p>
+                <p class="text-[11px] text-slate-400 leading-relaxed pt-2">
+                    Este cliente possui saldo de credito em haver.<br>
+                    O abatimento (&ldquo;baixar&rdquo;) e feito somente no<br>
+                    <b>Financeiro &gt; Contas a Receber</b>, nao no PDV.
+                </p>
+            </div>
+            <div class="p-4 border-t bg-slate-50">
+                <button onclick="closeCreditNotice()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold text-white shadow-lg">Entendi</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-expense" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-slate-50">
                 <div class="flex items-center gap-3">
@@ -1686,6 +1726,7 @@
             'prod-form-container': () => document.getElementById('prod-form-container').classList.add('hidden'),
             'user-form-container': () => document.getElementById('user-form-container').classList.add('hidden'),
             'modal-receivable-edit': () => document.getElementById('modal-receivable-edit').classList.add('hidden'),
+            'modal-credit-notice': closeCreditNotice,
             'modal-revenue': () => document.getElementById('modal-revenue').classList.add('hidden'),
             'modal-expense': closeExpenseModal,
             'pos-history-modal': closePosHistoryModal,
@@ -1883,7 +1924,8 @@
             id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
             logradouro: c.logradouro || '', numero: c.numero || '', complemento: c.complemento || '',
             bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || '',
-            tipo: c.tipo || 'cliente'
+            tipo: c.tipo || 'cliente',
+            creditoHaver: Number(c.credito_haver) || 0
         }));
 
         // Mapa id -> produto: usado para resolver o NOME ATUAL do produto
@@ -2041,10 +2083,23 @@
                 documento: doc, endereco: endereco,
                 logradouro: endInfo.logradouro, numero: endInfo.numero, complemento: endInfo.complemento,
                 bairro: endInfo.bairro, cidade: endInfo.cidade, uf: endInfo.uf,
-                cep: endInfo.cep || null
+                cep: endInfo.cep || null,
+                credito_haver: Math.max(0, Number(document.getElementById('cli-credit').value) || 0)
             };
 
-            const { error } = await sb.from('clientes').upsert(payload);
+            let { error } = await sb.from('clientes').upsert(payload);
+            // Schema antigo (sem a migracao 12): salva o cliente sem a coluna de credito.
+            if (error && /column .*credito_haver.* does not exist/i.test(String(error.message || ''))) {
+                const min = Object.assign({}, payload);
+                delete min.credito_haver;
+                ({ error } = await sb.from('clientes').upsert(min));
+                if (!error) {
+                    document.getElementById('client-form-container').classList.add('hidden');
+                    showLoading(false);
+                    showToast("Cliente salvo. Rode a migracao 12 para habilitar o credito em haver.", true);
+                    return loadData();
+                }
+            }
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
             
             document.getElementById('client-form-container').classList.add('hidden');
@@ -2916,6 +2971,26 @@ function printStockCountSheet() {
                 for (let b of alvo) {
                     await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', b.uid);
                 }
+                // Espelha o cancelamento na memoria (varios logs podem compartilhar o mesmo uid).
+                const uidsCancelados = new Set(alvo.map(b => b.uid));
+                STATE.logs.forEach(l => { if (uidsCancelados.has(l.uid)) l.status = 'CANCELADO'; });
+
+                // Devolve ao cliente o credito em haver usado nesta baixa.
+                const creditoEstornado = alvo
+                    .filter(b => ehFormaCreditoHaver(b.paymentMethod))
+                    .reduce((a, b) => a + Number(b.totalValue || 0), 0);
+                if (creditoEstornado > 0) {
+                    const parentRows = STATE.logs.filter(l => String(l.id) === String(parentId) && (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO');
+                    const cliId = parentRows[0]?.clientId;
+                    const cli = cliId != null
+                        ? STATE.clients.find(c => String(c.id) === String(cliId))
+                        : STATE.clients.find(c => String(c.name).trim() === String(parentRows[0]?.clientName || '').trim());
+                    if (cli) {
+                        const saldoNovo = Math.max(0, (Number(cli.creditoHaver) || 0) + creditoEstornado);
+                        const { error: errCli } = await sb.from('clientes').update({ credito_haver: saldoNovo }).eq('id', cli.id);
+                        if (errCli) throw errCli;
+                    }
+                }
 
                 // Recalcula o título a partir das baixas restantes
                 const st = calcTituloFinanceiro(parentId);
@@ -3167,6 +3242,12 @@ function printStockCountSheet() {
 
         // ===== Formas multiplas + desconto/juros na baixa (financeiro) =====
         const METODOS_PGTO = ['Dinheiro','PIX','Carteira','Cartão Débito','Cartão Crédito','Boleto 21 dias','Boleto 28 dias','Boleto 30 dias','Boleto Programado','Cheque'];
+        // Forma especial: abate o titulo com o saldo de credito do cliente.
+        // NAO entra no caixa/receita; so reduz o saldo e debita clientes.credito_haver.
+        const FORMA_CREDITO_HAVER = 'Crédito em Haver';
+        function ehFormaCreditoHaver(forma) {
+            return normalizeSearch(forma) === normalizeSearch(FORMA_CREDITO_HAVER);
+        }
 
         function gerarUidLocal() {
             if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -3208,13 +3289,17 @@ function printStockCountSheet() {
         function calcTituloFinanceiro(parentId) {
             const rows = STATE.logs.filter(l => String(l.id) === String(parentId) && (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO');
             const baixas = STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === String(parentId));
+            // Separa o que e caixa de verdade do que foi abatido com credito em haver.
+            const baixasCredito = baixas.filter(l => ehFormaCreditoHaver(l.paymentMethod));
+            const baixasDinheiro = baixas.filter(l => !ehFormaCreditoHaver(l.paymentMethod));
             const total = rows.reduce((a, r) => a + Number(r.totalValue || 0), 0);
-            const money = baixas.reduce((a, l) => a + Number(l.totalValue || 0), 0);
+            const money = baixasDinheiro.reduce((a, l) => a + Number(l.totalValue || 0), 0);
+            const credito = baixasCredito.reduce((a, l) => a + Number(l.totalValue || 0), 0);
             const disc = baixas.reduce((a, l) => a + Number(l.discount || 0), 0);
             const jur  = baixas.reduce((a, l) => a + Number(l.acrescimo || 0), 0);
-            const saldo = total + jur - disc - money;
-            const status = saldo <= 0.005 ? 'PAGO' : (money > 0 ? 'PARCIAL' : 'PENDENTE');
-            return { rows, baixas, total, money, disc, jur, saldo, status };
+            const saldo = total + jur - disc - money - credito;
+            const status = saldo <= 0.005 ? 'PAGO' : ((money + credito) > 0 ? 'PARCIAL' : 'PENDENTE');
+            return { rows, baixas, baixasDinheiro, baixasCredito, total, money, credito, disc, jur, saldo, status };
         }
 
         function atualizarResumoBaixa(ajustarPgto) {
@@ -3224,20 +3309,42 @@ function printStockCountSheet() {
             const disc = numId('rec-disc');
             const jur = numId('rec-jur');
             const devido = Math.max(0, ctx.saldoBase + jur - disc);
+            // Credito aplicavel: limitado ao saldo do cliente e ao que se deve no titulo.
+            let credito = numId('rec-credit');
+            const creditoMax = Math.max(0, Math.min(Number(ctx.creditAvail) || 0, devido));
+            if (credito > creditoMax + 0.005) {
+                credito = creditoMax;
+                const ci = document.getElementById('rec-credit');
+                if (ci) ci.value = credito > 0 ? credito.toFixed(2) : '';
+            }
             if (ajustarPgto) {
+                const restantePgto = Math.max(0, devido - credito);
                 const inputs = document.querySelectorAll('#rec-pgto-rows .pgto-row .pgto-valor');
-                if (inputs.length === 1) inputs[0].value = devido > 0 ? devido.toFixed(2) : '';
+                if (inputs.length === 1) inputs[0].value = restantePgto > 0 ? restantePgto.toFixed(2) : '';
                 const pendingEl = document.getElementById('rec-pending-lbl');
                 if (pendingEl) pendingEl.innerText = formatMoney(devido);
             }
             const money = coletarRecPgtoRows().reduce((a, f) => a + f.valor, 0);
-            const saldo = ctx.saldoBase + jur - disc - money;
+            const saldo = ctx.saldoBase + jur - disc - money - credito;
             const statusTxt = saldo <= 0.005 ? 'Fica QUITADO' : `Fica devendo ${formatMoney(saldo)}`;
             el.innerHTML = `
-                <div>Receber agora: <span class="text-indigo-700">${formatMoney(money)}</span>${money > 0 ? ' <span class="text-slate-400 font-semibold">(' + coletarRecPgtoRows().length + ' forma(s))</span>' : ''}</div>
+                <div>Receber agora (dinheiro): <span class="text-indigo-700">${formatMoney(money)}</span>${money > 0 ? ' <span class="text-slate-400 font-semibold">(' + coletarRecPgtoRows().length + ' forma(s))</span>' : ''}</div>
+                ${credito > 0 ? `<div>- Credito em haver: <span class="text-emerald-600">${formatMoney(credito)}</span></div>` : ''}
                 ${jur > 0 ? `<div>+ Juros/Multa: <span class="text-red-600">${formatMoney(jur)}</span></div>` : ''}
                 ${disc > 0 ? `<div>- Desconto: <span class="text-green-600">${formatMoney(disc)}</span></div>` : ''}
                 <div class="pt-1 text-sm font-black ${saldo <= 0.005 ? 'text-green-700' : 'text-orange-600'}">${statusTxt}</div>`;
+        }
+
+        function usarCreditoMax() {
+            const ctx = window._recCtx;
+            if (!ctx) return;
+            const disc = numId('rec-disc');
+            const jur = numId('rec-jur');
+            const devido = Math.max(0, ctx.saldoBase + jur - disc);
+            const max = Math.max(0, Math.min(Number(ctx.creditAvail) || 0, devido));
+            const ci = document.getElementById('rec-credit');
+            if (ci) ci.value = max > 0 ? max.toFixed(2) : '';
+            atualizarResumoBaixa(true);
         }
 
         // Insere um log de baixa/pagamento conferindo o erro do Supabase.
@@ -3271,9 +3378,11 @@ function printStockCountSheet() {
             const moneyTotal = formas.reduce((a, f) => a + f.valor, 0);
             const desconto = numId('rec-disc');
             const juros = numId('rec-jur');
+            const ctx = window._recCtx || {};
+            const credito = Math.max(0, numId('rec-credit'));
 
             // Apenas edição de vencimento/formas (sem receber nada agora)
-            if (moneyTotal <= 0 && desconto <= 0 && juros <= 0) {
+            if (moneyTotal <= 0 && desconto <= 0 && juros <= 0 && credito <= 0) {
                 for (let row of st.rows) {
                     const upd = {};
                     if (due) upd.vencimento = due;
@@ -3285,18 +3394,33 @@ function printStockCountSheet() {
                 return;
             }
 
+            // Pago em caixa acumulado = maior entre logs (sem credito) e o valor_pago gravado no titulo.
+            const pagoBase = Math.max(st.money, ...st.rows.map(r => Number(r.paidValue) || 0));
+            const devidoAtual = Math.max(0, (st.total + st.jur - st.disc) - pagoBase - (st.credito || 0));
+            const creditAvail = Math.max(0, Number(ctx.creditAvail) || 0);
+            if (credito > creditAvail + 0.005) {
+                return showToast("Credito em haver insuficiente para este cliente.", true);
+            }
+            if (credito > devidoAtual + 0.005) {
+                return showToast("O credito informado e maior que o saldo do titulo.", true);
+            }
+
             showLoading(true);
             try {
-                // Pago acumulado = maior entre logs e o valor_pago já gravado no título
-                const pagoBase = Math.max(st.money, ...st.rows.map(r => Number(r.paidValue) || 0));
-                const newMoney = pagoBase + moneyTotal;
+                const newMoney = pagoBase + moneyTotal;         // caixa real (sem credito)
+                const newCredito = (st.credito || 0) + credito; // credito acumulado no titulo
                 const newDisc = st.disc + desconto;
                 const newJur = st.jur + juros;
-                const newSaldo = st.total + newJur - newDisc - newMoney;
-                const finStatus = newSaldo <= 0.005 ? 'PAGO' : (newMoney > 0 ? 'PARCIAL' : 'PENDENTE');
+                const newSaldo = st.total + newJur - newDisc - newMoney - newCredito;
+                const finStatus = newSaldo <= 0.005 ? 'PAGO' : ((newMoney + newCredito) > 0 ? 'PARCIAL' : 'PENDENTE');
                 const metodoPrincipal = formas.length ? formas[0].metodo : (st.rows[0].paymentMethod || 'Dinheiro');
+                const clienteNome = st.rows[0].clientName;
+                const clienteId = (ctx.clientId != null) ? ctx.clientId
+                    : ((st.rows[0].clientId != null && STATE.clients.some(c => String(c.id) === String(st.rows[0].clientId))) ? st.rows[0].clientId : null);
+                // Quando so ha credito (sem forma em dinheiro), desconto/juros acompanham o log do credito.
+                const creditoCarregaAjustes = formas.length === 0 && credito > 0;
 
-                // Um log 'recebimento' por forma; desconto/juros acompanham a 1a forma (rastreio).
+                // Um log 'recebimento' por forma; desconto/juros acompanham a 1a baixa (rastreio).
                 // Insere ANTES de atualizar o título: se falhar, o título permanece consistente.
                 // ID vindo do banco (máx logs + 1) para nunca colidir com orçamentos/outros logs.
                 const uidBatch = gerarUidLocal();
@@ -3313,13 +3437,42 @@ function printStockCountSheet() {
                         valor_total: f.valor,
                         desconto: isPrimeira ? desconto : 0,
                         acrescimo: isPrimeira ? juros : 0,
-                        cliente_nome: st.rows[0].clientName,
-                        cliente_id: (st.rows[0].clientId != null && STATE.clients.some(c => String(c.id) === String(st.rows[0].clientId))) ? st.rows[0].clientId : null,
+                        cliente_nome: clienteNome,
+                        cliente_id: clienteId,
                         forma_pagamento: f.metodo,
                         status: 'ATIVO',
                         status_financeiro: 'PAGO',
                         valor_pago: f.valor
                     });
+                }
+
+                // Credito em haver: log marcado com a forma especial. NAO entra no caixa.
+                if (credito > 0) {
+                    await inserirLogBaixa({
+                        id: await getNextIdFromDB(),
+                        uid: uidBatch,
+                        tipo: 'recebimento',
+                        produto_nome: 'Baixa de Conta (Credito em Haver)',
+                        quantidade: 0,
+                        data: getHojeLocalStr(),
+                        observacao: 'Ref Lanc #' + id,
+                        valor_total: credito,
+                        desconto: creditoCarregaAjustes ? desconto : 0,
+                        acrescimo: creditoCarregaAjustes ? juros : 0,
+                        cliente_nome: clienteNome,
+                        cliente_id: clienteId,
+                        forma_pagamento: FORMA_CREDITO_HAVER,
+                        status: 'ATIVO',
+                        status_financeiro: 'PAGO',
+                        valor_pago: credito
+                    });
+
+                    // Debita o saldo de credito do cliente.
+                    if (ctx.clientId != null) {
+                        const saldoNovo = Math.max(0, creditAvail - credito);
+                        const { error: errCli } = await sb.from('clientes').update({ credito_haver: saldoNovo }).eq('id', ctx.clientId);
+                        if (errCli) throw errCli;
+                    }
                 }
 
                 for (let row of st.rows) {
@@ -3330,7 +3483,7 @@ function printStockCountSheet() {
                 }
 
                 document.getElementById('modal-receivable-edit').classList.add('hidden');
-                showToast(moneyTotal > 0 ? "Baixa registrada!" : "Ajuste registrado!");
+                showToast((moneyTotal > 0 || credito > 0) ? "Baixa registrada!" : "Ajuste registrado!");
                 loadData();
             } catch (err) {
                 showLoading(false);
@@ -4503,7 +4656,20 @@ function loadQuoteToCart(id) {
             } else {
                 showToast("Alterado para Consumidor Final");
             }
+            const cli = STATE.clients.find(c => String(c.id) === String(id));
+            if (cli && Number(cli.creditoHaver) > 0.005) {
+                openCreditNotice(cli.name, Number(cli.creditoHaver));
+            }
         }
+
+        function openCreditNotice(name, value) {
+            document.getElementById('credit-notice-name').innerText = name || '-';
+            document.getElementById('credit-notice-value').innerText = formatMoney(value);
+            document.getElementById('modal-credit-notice').classList.remove('hidden');
+            if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+        }
+
+        function closeCreditNotice() { document.getElementById('modal-credit-notice').classList.add('hidden'); }
 
       function renderProducts() {
         const list = document.getElementById('prod-list');
@@ -4692,6 +4858,7 @@ function loadQuoteToCart(id) {
                     document.getElementById('cli-bairro').value = c.bairro || '';
                     document.getElementById('cli-cidade').value = c.cidade || '';
                     document.getElementById('cli-uf').value = c.uf || '';
+                    document.getElementById('cli-credit').value = Number(c.creditoHaver) > 0 ? Number(c.creditoHaver).toFixed(2) : '';
                     const temEstrutura = c.logradouro || c.numero || c.bairro || c.cidade || c.uf || c.cep;
                     if (!temEstrutura && c.address) {
                         nota.textContent = 'Endereço atual registrado: ' + c.address + '. Preencha os campos acima para padronizar.';
@@ -4712,6 +4879,7 @@ function loadQuoteToCart(id) {
                 document.getElementById('cli-bairro').value = '';
                 document.getElementById('cli-cidade').value = '';
                 document.getElementById('cli-uf').value = '';
+                document.getElementById('cli-credit').value = '';
                 nota.classList.add('hidden');
             }
         }
@@ -4740,13 +4908,21 @@ function loadQuoteToCart(id) {
                 s.jur = st.jur;
                 s.disc = st.disc;
                 s.paid = Math.max(s.paid, st.money);
+                s.credito = st.credito;
                 s.valLista = st.total + st.jur - st.disc;
                 s.saldo = st.saldo;
             });
         
             const income = salesArr.reduce((a, s) => {
-                if (s.status === 'PAGO') return a + (s.paid > 0 ? s.paid : s.val);
-                return a + s.paid;
+                const cashPaid = Number(s.paid) || 0;
+                if (s.status === 'PAGO') {
+                    if (cashPaid > 0) return a + cashPaid;
+                    // Quitado somente com credito em haver: nao e receita/caixa.
+                    if ((Number(s.credito) || 0) > 0) return a;
+                    // Legado: PAGO sem baixa registrada (assume valor cheio em caixa).
+                    return a + s.val;
+                }
+                return a + cashPaid;
             }, 0);
             
             // Despesas consideradas no caixa: PAGO (valor efetivo) + PARCIAL (o que já saiu)
@@ -4841,9 +5017,10 @@ function loadQuoteToCart(id) {
                          </td>
                         <td class="p-3 border-r border-slate-100">
                             <div class="font-bold text-slate-800 text-sm">${formatMoney(r.valLista != null ? r.valLista : r.val)}</div>
-                            ${r.status !== 'PAGO' && rest > 0.005 && r.paid > 0 ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoney(rest)}</div>` : ''}
+                            ${r.status !== 'PAGO' && rest > 0.005 && (r.paid > 0 || r.credito > 0) ? `<div class="text-[10px] text-orange-500 font-bold">Resta: ${formatMoney(rest)}</div>` : ''}
                             ${(r.jur || 0) > 0 ? `<div class="text-[10px] text-red-500 font-bold">+ Juros ${formatMoney(r.jur)}</div>` : ''}
                             ${(r.disc || 0) > 0 ? `<div class="text-[10px] text-green-600 font-bold">- Desc. ${formatMoney(r.disc)}</div>` : ''}
+                            ${(r.credito || 0) > 0 ? `<div class="text-[10px] text-emerald-600 font-bold">- Crédito ${formatMoney(r.credito)}</div>` : ''}
                          </td>
                         <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
                             <!-- BOTÃO PARCELAR (ícone) - SÓ EM A RECEBER, ANTES DO WHATSAPP -->
@@ -5075,10 +5252,31 @@ function loadQuoteToCart(id) {
             // Pago efetivo = maior entre logs 'recebimento' e o valor_pago gravado no título
             // (cobre títulos antigos cuja baixa não chegou a gravar o log).
             const pagoEfetivo = Math.max(st.money, ...st.rows.map(r => Number(r.paidValue) || 0), Number(paid) || 0);
-            const saldoBase = totalEfetivo + st.jur - st.disc - pagoEfetivo;
-            window._recCtx = { id, saldoBase };
+            // Desconta tambem o credito em haver ja aplicado antes neste titulo.
+            const saldoBase = totalEfetivo + st.jur - st.disc - pagoEfetivo - (st.credito || 0);
+
+            // Cliente do titulo (para consultar o saldo de credito em haver).
+            const cliLog = st.rows[0] || {};
+            let cli = cliLog.clientId != null ? STATE.clients.find(c => String(c.id) === String(cliLog.clientId)) : null;
+            if (!cli && cliLog.clientName) cli = STATE.clients.find(c => String(c.name).trim() === String(cliLog.clientName).trim());
+            const creditAvail = cli ? Math.max(0, Number(cli.creditoHaver) || 0) : 0;
+
+            window._recCtx = { id, saldoBase, creditAvail, clientId: cli ? cli.id : null };
             document.getElementById('rec-total-lbl').innerText = formatMoney(totalEfetivo);
             document.getElementById('rec-pending-lbl').innerText = formatMoney(Math.max(0, saldoBase));
+
+            // Secao de credito em haver: so aparece se o cliente tiver saldo.
+            const creditWrap = document.getElementById('rec-credit-wrap');
+            const creditInput = document.getElementById('rec-credit');
+            if (creditInput) creditInput.value = '';
+            if (creditWrap) {
+                if (creditAvail > 0.005) {
+                    creditWrap.classList.remove('hidden');
+                    document.getElementById('rec-credit-avail').innerText = formatMoney(creditAvail);
+                } else {
+                    creditWrap.classList.add('hidden');
+                }
+            }
 
             const baseMethod = method || st.rows[0]?.paymentMethod || METODOS_PGTO[0];
             const sugerido = Math.max(0, saldoBase);
