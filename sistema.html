@@ -1042,15 +1042,47 @@
                 <p id="cli-legado-nota" class="hidden text-[11px] text-slate-400 italic"></p>
 
                 <div class="pt-2 border-t border-slate-200"></div>
-                <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wide">Credito em Haver (R$)</label>
-                <input type="number" id="cli-credit" min="0" step="0.01" placeholder="0.00" class="w-full p-2 border rounded font-bold text-emerald-700">
-                <p class="text-[11px] text-slate-400">Saldo de credito a favor do cliente. O abatimento e feito no Financeiro &gt; Contas a Receber.</p>
+                <div class="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                    <div class="min-w-0">
+                        <div class="text-[10px] font-bold text-emerald-700 uppercase tracking-wide">Credito em Haver</div>
+                        <div id="cli-credit-info" class="font-black text-emerald-800 text-lg leading-tight">R$ 0,00</div>
+                        <div id="cli-credit-info-obs" class="text-[11px] text-slate-500 truncate hidden"></div>
+                    </div>
+                    <button type="button" onclick="openCreditForm()" class="shrink-0 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow">Gerenciar credito</button>
+                </div>
             </div>
             <div class="flex gap-2 mt-6">
                 <button type="button" onclick="document.getElementById('client-form-container').classList.add('hidden')" class="flex-1 p-2 bg-slate-200 rounded font-bold">Cancelar</button>
                 <button type="submit" class="flex-1 p-2 bg-indigo-700 text-white rounded font-bold">Salvar</button>
             </div>
         </form>
+    </div>
+
+    <div id="client-credit-modal" class="hidden fixed inset-0 bg-black/60 z-[70] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-gradient-to-r from-emerald-50 to-teal-50">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="wallet" class="text-emerald-600"></i> Credito em Haver</h3>
+                    <p class="text-xs text-slate-500 truncate max-w-[240px]" id="cc-client-name">-</p>
+                </div>
+                <button onclick="closeCreditForm()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Valor do credito (R$)</label>
+                    <input type="number" id="cc-value" min="0" step="0.01" placeholder="0.00" class="w-full p-3 border rounded-xl font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <p class="text-[11px] text-slate-400 mt-1">Informe o saldo total de credito do cliente. Lancamento manual.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Referencia / Observacao</label>
+                    <textarea id="cc-obs" rows="3" placeholder="Ex: Devolucao da venda #123, pagamento a maior no PIX em 12/09..." class="w-full p-3 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"></textarea>
+                </div>
+            </div>
+            <div class="p-5 border-t bg-slate-50 flex gap-3">
+                <button type="button" onclick="closeCreditForm()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button type="button" onclick="saveCreditForm()" class="flex-1 py-3 bg-emerald-600 rounded-xl font-bold text-white hover:bg-emerald-700 shadow-lg">Salvar credito</button>
+            </div>
+        </div>
     </div>
 
     <div id="prod-form-container" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -1723,6 +1755,7 @@
             'pos-client-modal': closePosClientModal,
             'modal-delivery': closeDeliveryModal,
             'client-form-container': () => document.getElementById('client-form-container').classList.add('hidden'),
+            'client-credit-modal': closeCreditForm,
             'prod-form-container': () => document.getElementById('prod-form-container').classList.add('hidden'),
             'user-form-container': () => document.getElementById('user-form-container').classList.add('hidden'),
             'modal-receivable-edit': () => document.getElementById('modal-receivable-edit').classList.add('hidden'),
@@ -1925,7 +1958,8 @@
             logradouro: c.logradouro || '', numero: c.numero || '', complemento: c.complemento || '',
             bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || '',
             tipo: c.tipo || 'cliente',
-            creditoHaver: Number(c.credito_haver) || 0
+            creditoHaver: Number(c.credito_haver) || 0,
+            creditoHaverObs: c.credito_haver_obs || ''
         }));
 
         // Mapa id -> produto: usado para resolver o NOME ATUAL do produto
@@ -2083,23 +2117,10 @@
                 documento: doc, endereco: endereco,
                 logradouro: endInfo.logradouro, numero: endInfo.numero, complemento: endInfo.complemento,
                 bairro: endInfo.bairro, cidade: endInfo.cidade, uf: endInfo.uf,
-                cep: endInfo.cep || null,
-                credito_haver: Math.max(0, Number(document.getElementById('cli-credit').value) || 0)
+                cep: endInfo.cep || null
             };
 
-            let { error } = await sb.from('clientes').upsert(payload);
-            // Schema antigo (sem a migracao 12): salva o cliente sem a coluna de credito.
-            if (error && /column .*credito_haver.* does not exist/i.test(String(error.message || ''))) {
-                const min = Object.assign({}, payload);
-                delete min.credito_haver;
-                ({ error } = await sb.from('clientes').upsert(min));
-                if (!error) {
-                    document.getElementById('client-form-container').classList.add('hidden');
-                    showLoading(false);
-                    showToast("Cliente salvo. Rode a migracao 12 para habilitar o credito em haver.", true);
-                    return loadData();
-                }
-            }
+            const { error } = await sb.from('clientes').upsert(payload);
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
             
             document.getElementById('client-form-container').classList.add('hidden');
@@ -4858,7 +4879,7 @@ function loadQuoteToCart(id) {
                     document.getElementById('cli-bairro').value = c.bairro || '';
                     document.getElementById('cli-cidade').value = c.cidade || '';
                     document.getElementById('cli-uf').value = c.uf || '';
-                    document.getElementById('cli-credit').value = Number(c.creditoHaver) > 0 ? Number(c.creditoHaver).toFixed(2) : '';
+                    renderClientCreditInfo(c);
                     const temEstrutura = c.logradouro || c.numero || c.bairro || c.cidade || c.uf || c.cep;
                     if (!temEstrutura && c.address) {
                         nota.textContent = 'Endereço atual registrado: ' + c.address + '. Preencha os campos acima para padronizar.';
@@ -4879,8 +4900,65 @@ function loadQuoteToCart(id) {
                 document.getElementById('cli-bairro').value = '';
                 document.getElementById('cli-cidade').value = '';
                 document.getElementById('cli-uf').value = '';
-                document.getElementById('cli-credit').value = '';
+                renderClientCreditInfo(null);
                 nota.classList.add('hidden');
+            }
+        }
+
+        // Mostra o credito em haver no formulario do cliente (informativo).
+        function renderClientCreditInfo(cli) {
+            const valEl = document.getElementById('cli-credit-info');
+            const obsEl = document.getElementById('cli-credit-info-obs');
+            const val = cli ? Math.max(0, Number(cli.creditoHaver) || 0) : 0;
+            if (valEl) valEl.innerText = formatMoney(val);
+            if (obsEl) {
+                const obs = cli ? String(cli.creditoHaverObs || '').trim() : '';
+                if (obs) {
+                    obsEl.innerText = 'Ref: ' + obs;
+                    obsEl.classList.remove('hidden');
+                } else {
+                    obsEl.classList.add('hidden');
+                }
+            }
+        }
+
+        // Modal para lancar/editar o credito em haver (valor + referencia).
+        function openCreditForm() {
+            const id = document.getElementById('cli-id').value;
+            if (!id) return showToast("Salve o cliente primeiro para lancar o credito.", true);
+            const c = STATE.clients.find(x => String(x.id) === String(id));
+            document.getElementById('cc-client-name').innerText = c ? c.name : '-';
+            document.getElementById('cc-value').value = c && Number(c.creditoHaver) > 0 ? Number(c.creditoHaver).toFixed(2) : '';
+            document.getElementById('cc-obs').value = c ? (c.creditoHaverObs || '') : '';
+            document.getElementById('client-credit-modal').classList.remove('hidden');
+            if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+        }
+
+        function closeCreditForm() { document.getElementById('client-credit-modal').classList.add('hidden'); }
+
+        async function saveCreditForm() {
+            const id = document.getElementById('cli-id').value;
+            if (!id) return showToast("Cliente invalido.", true);
+            const valor = Math.max(0, Number(document.getElementById('cc-value').value) || 0);
+            const obs = (document.getElementById('cc-obs').value || '').trim();
+            showLoading(true);
+            try {
+                let { error } = await sb.from('clientes').update({ credito_haver: valor, credito_haver_obs: obs }).eq('id', id);
+                if (error) throw error;
+                // Atualiza a copia em memoria para o formulario refletir na hora.
+                const c = STATE.clients.find(x => String(x.id) === String(id));
+                if (c) { c.creditoHaver = valor; c.creditoHaverObs = obs; }
+                renderClientCreditInfo(c || { creditoHaver: valor, creditoHaverObs: obs });
+                closeCreditForm();
+                showToast("Credito em haver atualizado!");
+                loadData();
+            } catch (err) {
+                showLoading(false);
+                const msg = String(err.message || '');
+                if (/column .*credito_haver/.test(msg)) {
+                    return showToast("Rode as migracoes 12 e 13 no banco para habilitar o credito.", true);
+                }
+                showToast("Erro: " + msg, true);
             }
         }
 
