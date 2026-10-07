@@ -328,9 +328,11 @@
        
         <div class="border-t border-slate-700 my-2 pt-2"></div>
         <button onclick="navigate('users')" id="nav-users" class="nav-btn w-full hidden flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="shield"></i> <span class="font-medium text-sm">Usuários (Admin)</span></button>
-        <button onclick="openPushSettings()" id="nav-notify" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="settings"></i> <span class="font-medium text-sm">Notificações</span></button>
        </nav>
-      <div class="p-3 border-t border-slate-800"> <button onclick="fazerLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-900/30 transition-all"><i data-lucide="log-out"></i> <span class="font-medium text-sm">Sair</span></button> </div>
+      <div class="p-3 border-t border-slate-800 flex gap-2">
+        <button onclick="openPushSettings()" class="flex-1 flex items-center justify-center space-x-2 px-3 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all" title="Configurações"><i data-lucide="settings"></i> <span class="font-medium text-sm">Config</span></button>
+        <button onclick="fazerLogout()" class="flex-1 flex items-center justify-center space-x-2 px-3 py-3 rounded-lg text-red-400 hover:bg-red-900/30 transition-all"><i data-lucide="log-out"></i> <span class="font-medium text-sm">Sair</span></button>
+      </div>
     </div>
 
     <main class="flex-1 md:ml-64 p-4 md:p-6 overflow-y-auto h-screen no-print bg-slate-100">
