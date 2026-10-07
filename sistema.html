@@ -15,6 +15,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
+    <script src="push.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -327,6 +328,7 @@
        
         <div class="border-t border-slate-700 my-2 pt-2"></div>
         <button onclick="navigate('users')" id="nav-users" class="nav-btn w-full hidden flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="shield"></i> <span class="font-medium text-sm">Usuários (Admin)</span></button>
+        <button onclick="openPushSettings()" id="nav-notify" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="settings"></i> <span class="font-medium text-sm">Notificações</span></button>
        </nav>
       <div class="p-3 border-t border-slate-800"> <button onclick="fazerLogout()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-900/30 transition-all"><i data-lucide="log-out"></i> <span class="font-medium text-sm">Sair</span></button> </div>
     </div>

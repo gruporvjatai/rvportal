@@ -11,3 +11,4 @@
 // ============================================================================
 window.SUPABASE_URL = "__SUPABASE_URL__";
 window.SUPABASE_ANON_KEY = "__SUPABASE_ANON_KEY__";
+window.VAPID_PUBLIC_KEY = "__VAPID_PUBLIC_KEY__";

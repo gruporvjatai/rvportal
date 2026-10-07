@@ -1,0 +1,9 @@
+# Configuracao do projeto Supabase (RV PORTAL).
+# Usado pela Supabase CLI (functions deploy). Nao contem segredos.
+
+project_id = "lyieiqhkspbowsrlngvn"
+
+[functions.notify]
+# A Edge Function "notify" e chamada pelo banco (pg_net) sem JWT.
+# A autenticacao e feita pelo header "x-webhook-secret".
+verify_jwt = false

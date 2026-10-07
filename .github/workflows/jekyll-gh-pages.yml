@@ -19,6 +19,7 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
     outputs:
       upload_path: ${{ steps.set-path.outputs.upload_path }}
     steps:
@@ -72,8 +73,23 @@ jobs:
               }
               s = s.replace(re, "window." + name + " = " + JSON.stringify(val) + ";");
             }
+            function setVarOptional(name, raw) {
+              let val = String(raw || "").trim();
+              val = val.replace(/^["\u0027]/, "").replace(/["\u0027];?\s*$/, "");
+              if (!val) {
+                console.warn("Secret opcional ausente: window." + name + " (notificacoes push ficarao desativadas)");
+                return;
+              }
+              const re = new RegExp("window\\." + name + "\\s*=\\s*.*?;");
+              if (!re.test(s)) {
+                console.warn("Linha window." + name + " nao encontrada no config.js");
+                return;
+              }
+              s = s.replace(re, "window." + name + " = " + JSON.stringify(val) + ";");
+            }
             setVar("SUPABASE_URL", process.env.SUPABASE_URL);
             setVar("SUPABASE_ANON_KEY", process.env.SUPABASE_ANON_KEY);
+            setVarOptional("VAPID_PUBLIC_KEY", process.env.VAPID_PUBLIC_KEY);
             fs.writeFileSync(p, s);
             console.log("config.js atualizado.");
           '
