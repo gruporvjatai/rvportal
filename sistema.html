@@ -395,7 +395,7 @@
                         </button>
                         <!--<button onclick="navigate('clients')" class="p-3 bg-slate-200 rounded-lg hover:bg-slate-300 shadow-sm" title="Cadastrar Novo Cliente"><i data-lucide="user-plus"></i></button>-->
                         <button onclick="openClientForm(null, { fromPos: true })" class="p-3 bg-slate-200 rounded-lg hover:bg-slate-300 shadow-sm" title="Cadastrar Novo Cliente"><i data-lucide="user-plus"></i></button>
-                        <button onclick="openProductForm()" class="p-3 bg-slate-200 rounded-lg hover:bg-slate-300 shadow-sm" title="Cadastrar Novo Produto"><i data-lucide="package-plus"></i></button>
+                        <button onclick="openProductForm(null, { fromPos: true })" class="p-3 bg-slate-200 rounded-lg hover:bg-slate-300 shadow-sm" title="Cadastrar Novo Produto"><i data-lucide="package-plus"></i></button>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1760,6 +1760,8 @@
         // Nesse caso, apos salvar um novo cliente, perguntamos se ele deve
         // ser adicionado automaticamente ao carrinho.
         let CLIENT_FORM_FROM_POS = false;
+        // Mesma ideia para o cadastro de produto aberto dentro do PDV.
+        let PRODUCT_FORM_FROM_POS = false;
 
       // ===== FECHAR MODAIS COM TECLA ESC =====
         const modalCloseMap = {
@@ -2303,8 +2305,61 @@
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
         
             document.getElementById('prod-form-container').classList.add('hidden');
+
+            // Cadastro feito dentro do PDV: pergunta se o produto recem-criado
+            // deve ser adicionado automaticamente ao carrinho (qtd 1).
+            const adicionarNoPos = isNew && PRODUCT_FORM_FROM_POS;
+            PRODUCT_FORM_FROM_POS = false;
+
+            const novoProduto = {
+                id: newId, name: payload.nome, category: payload.categoria,
+                price: payload.preco, cost: payload.custo,
+                stock: payload.estoque_fisico, committed: payload.estoque_comprometido,
+                available: payload.estoque_fisico - payload.estoque_comprometido,
+                parceiro: payload.produto_parceiro, porMetro: payload.venda_por_metro,
+                fornecedor: payload.fornecedor_parceiro, unidade: payload.unidade_medida
+            };
+
             showToast("Produto Salvo!");
             loadData();
+
+            if (adicionarNoPos) {
+                showToastQuestion("Adicionar Produto Cadastrado?", () => {
+                    addProductToCartDirect(novoProduto, 1);
+                });
+            }
+        }
+
+        // Adiciona um produto ja conhecido (sem depender do modal de busca) ao
+        // carrinho do PDV. Usado apos cadastrar um produto dentro do PDV.
+        function addProductToCartDirect(prod, qty) {
+            if (!prod) return;
+            const q = parseFloat(qty) > 0 ? parseFloat(qty) : 1;
+
+            if (prod.parceiro && prod.porMetro) {
+                const comprimento = 1;
+                const pecas = q;
+                CART.push({
+                    prodId: prod.id, name: prod.name, price: prod.price, fixedPrice: prod.price,
+                    qty: comprimento * pecas, comprimento, pecas,
+                    total: comprimento * pecas * prod.price,
+                    parceiro: true, porMetro: true,
+                    uid: Date.now() + '_' + Math.random().toString(36).substr(2, 6)
+                });
+            } else {
+                const existing = CART.find(x => x.prodId == prod.id && !x.porMetro);
+                if (existing) {
+                    existing.qty += q;
+                    existing.total = existing.qty * existing.price;
+                } else {
+                    CART.push({
+                        prodId: prod.id, name: prod.name, price: prod.price, fixedPrice: prod.price,
+                        qty: q, total: prod.price * q,
+                        parceiro: prod.parceiro, porMetro: false
+                    });
+                }
+            }
+            renderCart();
         }
 
       function toggleProdutoParceiro() {
@@ -4825,7 +4880,10 @@ function loadQuoteToCart(id) {
         lucide.createIcons();
       }
 
-       function openProductForm(id) { 
+       function openProductForm(id, opts) { 
+          // Define a origem: a pergunta "Adicionar Produto Cadastrado?" so
+          // aparece quando o cadastro e feito dentro do PDV (e nao na edicao).
+          PRODUCT_FORM_FROM_POS = !!(opts && opts.fromPos) && !id;
           document.getElementById('prod-form-container').classList.remove('hidden'); 
           if(id) { 
               const p = STATE.products.find(x => x.id == id); 
