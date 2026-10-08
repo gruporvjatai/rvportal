@@ -208,7 +208,8 @@
           <!-- Sub-abas -->
           <div class="flex gap-2 mb-4 bg-slate-100 p-1 rounded-xl">
               <button id="prodtab-catalogo" onclick="switchProdTab('catalogo')" class="flex-1 py-2 rounded-lg text-sm font-bold">Catálogo</button>
-              <button id="prodtab-ajuste" onclick="switchProdTab('ajuste')" class="hidden flex-1 py-2 rounded-lg text-sm font-bold">Ajuste de Estoque</button>
+              <button id="prodtab-ajuste" onclick="switchProdTab('ajuste')" class="hidden flex-1 py-2 rounded-lg text-sm font-bold">Ajuste</button>
+              <button id="prodtab-categorias" onclick="switchProdTab('categorias')" class="hidden flex-1 py-2 rounded-lg text-sm font-bold">Categorias</button>
           </div>
 
           <!-- Painel catalogo -->
@@ -274,6 +275,19 @@
               </div>
 
               <div id="adj-list" class="flex flex-col gap-3"></div>
+          </div>
+
+          <!-- Painel categorias (admin) -->
+          <div id="prod-panel-categorias" class="hidden">
+              <div class="bg-white rounded-2xl border p-3 mb-3 flex flex-col gap-2">
+                  <label class="text-xs font-black uppercase text-slate-500">Nova categoria</label>
+                  <div class="flex gap-2">
+                      <input id="cat-new-name" type="text" placeholder="Ex: MADEIRA" class="flex-1 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-medium uppercase">
+                      <button onclick="addCategory()" class="px-4 bg-indigo-600 text-white rounded-xl font-bold active:scale-95 transition-transform flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Add</button>
+                  </div>
+              </div>
+              <div id="cat-list" class="flex flex-col gap-2"></div>
+              <p class="text-[11px] text-slate-400 mt-3 px-1">Renomear atualiza os produtos que usam a categoria. Serviços não controlam estoque.</p>
           </div>
       </div>
 
@@ -820,8 +834,17 @@
                     <input type="text" id="prd-name" required class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-medium">
                 </div>
                 <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
+                    <select id="prd-tipo" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-700" onchange="toggleProdutoTipo()">
+                        <option value="produto">Produto (controla estoque)</option>
+                        <option value="servico">Serviço (não controla estoque)</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
-                    <input type="text" id="prd-cat" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-medium">
+                    <select id="prd-cat" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-700">
+                        <option value="">Sem categoria</option>
+                    </select>
                 </div>
                 
                 <!-- Checkbox de parceiro -->
@@ -865,11 +888,12 @@
                 </div>
                 <div id="prd-stock-readonly" class="hidden bg-slate-50 border rounded-xl p-3">
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Estoque (somente leitura)</label>
-                    <div class="grid grid-cols-3 gap-2 text-center">
+                    <div id="prd-ro-stock-grid" class="grid grid-cols-3 gap-2 text-center">
                         <div><span class="block text-[10px] uppercase text-slate-400 font-bold">Físico</span><span id="prd-ro-fisico" class="font-black text-slate-700">0</span></div>
                         <div><span class="block text-[10px] uppercase text-slate-400 font-bold">Comprometido</span><span id="prd-ro-comprometido" class="font-black text-slate-700">0</span></div>
                         <div><span class="block text-[10px] uppercase text-slate-400 font-bold">Disponível</span><span id="prd-ro-disponivel" class="font-black text-emerald-600">0</span></div>
                     </div>
+                    <p id="prd-ro-servico-note" class="hidden text-xs font-bold text-slate-500 text-center py-2">Serviço não controla estoque.</p>
                     <button type="button" id="prd-ro-link" onclick="irParaAjusteProduto(document.getElementById('prd-id').value)" class="mt-3 w-full py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl font-bold text-sm">Ajustar estoque →</button>
                 </div>
             </div>
@@ -1024,7 +1048,7 @@
         const supabaseKey = window.SUPABASE_ANON_KEY;
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], sales: [] };
+        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], sales: [], categories: [] };
 
         // Resolve o produto de uma log sempre por ID (produto_id) quando houver,
         // com fallback por nome para registros antigos sem vínculo.
@@ -1259,9 +1283,10 @@
 
        async function loadData() {
                 try {
-                    const [resProd, resCli, resLog, resDesp] = await Promise.all([
+                    const [resProd, resCli, resLog, resDesp, resCat] = await Promise.all([
                         fetchAllRecords('produtos'), fetchAllRecords('clientes'),
-                        fetchAllRecords('logs'), fetchAllRecords('despesas')
+                        fetchAllRecords('logs'), fetchAllRecords('despesas'),
+                        fetchAllRecords('categorias')
                     ]);
             
                     STATE.products = (resProd.data || []).map(p => ({
@@ -1269,10 +1294,16 @@
                         cost: Number(p.custo) || 0, stock: Number(p.estoque_fisico), 
                         committed: Number(p.estoque_comprometido),
                         available: Number(p.estoque_fisico) - Number(p.estoque_comprometido),
+                        tipo: p.tipo || 'produto',
+                        servico: (p.tipo || 'produto') === 'servico',
                         parceiro: Boolean(p.produto_parceiro),
                         fornecedor: p.fornecedor_parceiro || '',
                         unidade: p.unidade_medida || 'un'
                     }));
+
+                    STATE.categories = (resCat.data || [])
+                        .map(c => ({ id: c.id, nome: c.nome }))
+                        .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
             
                     STATE.clients = (resCli.data || []).map(c => ({
                         id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
@@ -2368,12 +2399,14 @@
 
     grid.innerHTML = sortedProducts.filter(p => p.name.toLowerCase().includes(term)).map(p => {
         const isPartner = p.parceiro;
+        const badgeCls = p.servico ? 'bg-indigo-100 text-indigo-700' : (isPartner ? 'bg-amber-100 text-amber-700' : (p.available<=0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'));
+        const badgeTxt = p.servico ? 'Serviço' : (isPartner ? 'Parceiro' : 'Disp: ' + p.available);
         return `
         <div class="p-3 border rounded-xl bg-white flex flex-col gap-2">
             <div class="flex justify-between">
                 <h4 class="font-bold text-sm text-slate-800 leading-tight">${p.name}</h4>
-                <span class="text-[10px] px-2 py-0.5 rounded h-max ${isPartner ? 'bg-amber-100 text-amber-700' : (p.available<=0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700')} font-bold">
-                    ${isPartner ? 'Parceiro' : 'Disp: ' + p.available}
+                <span class="text-[10px] px-2 py-0.5 rounded h-max ${badgeCls} font-bold">
+                    ${badgeTxt}
                 </span>
             </div>
             <div class="flex items-center justify-between mt-1">
@@ -3097,7 +3130,7 @@ function downloadPDF(blob, filename) {
                     const prod = (item.productId != null)
                         ? STATE.products.find(p => String(p.id) === String(item.productId))
                         : STATE.products.find(p => p.name === item.name);
-                    if(prod) {
+                    if(prod && !prod.servico) {
                         const novoEstoque = Number(prod.stock) + Number(item.qty);
                         await sb.from('produtos').update({ estoque_fisico: novoEstoque }).eq('id', prod.id);
                     }
@@ -3587,17 +3620,21 @@ function downloadPDF(blob, filename) {
             const isAdmin = !!(dadosUsuario && dadosUsuario.nivel === 'admin');
             const btn = document.getElementById('prodtab-ajuste');
             if (btn) btn.classList.toggle('hidden', !isAdmin);
-            if (!isAdmin) PROD_TAB = 'catalogo';
+            const btnCat = document.getElementById('prodtab-categorias');
+            if (btnCat) btnCat.classList.toggle('hidden', !isAdmin);
+            if (!isAdmin && PROD_TAB !== 'catalogo') PROD_TAB = 'catalogo';
         }
 
         function switchProdTab(tab) {
-            if (tab === 'ajuste' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
+            if (tab !== 'catalogo' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
             PROD_TAB = tab;
 
             const panelCat = document.getElementById('prod-panel-catalogo');
             const panelAdj = document.getElementById('prod-panel-ajuste');
+            const panelCategorias = document.getElementById('prod-panel-categorias');
             const btnCat = document.getElementById('prodtab-catalogo');
             const btnAdj = document.getElementById('prodtab-ajuste');
+            const btnCategorias = document.getElementById('prodtab-categorias');
 
             const activeCls = ['bg-white', 'shadow', 'text-orange-600'];
             const idleCls = ['text-slate-500'];
@@ -3608,14 +3645,17 @@ function downloadPDF(blob, filename) {
             };
             setBtn(btnCat, tab === 'catalogo');
             setBtn(btnAdj, tab === 'ajuste');
+            setBtn(btnCategorias, tab === 'categorias');
+
+            panelCat?.classList.toggle('hidden', tab !== 'catalogo');
+            panelAdj?.classList.toggle('hidden', tab !== 'ajuste');
+            panelCategorias?.classList.toggle('hidden', tab !== 'categorias');
 
             if (tab === 'ajuste') {
-                panelCat?.classList.add('hidden');
-                panelAdj?.classList.remove('hidden');
                 renderStockAdjust();
+            } else if (tab === 'categorias') {
+                renderCategoriesPanel();
             } else {
-                panelAdj?.classList.add('hidden');
-                panelCat?.classList.remove('hidden');
                 renderProductCatalog();
             }
             if (window.lucide) lucide.createIcons();
@@ -3651,7 +3691,9 @@ function downloadPDF(blob, filename) {
             if (catSelect) {
                 const currentVal = catSelect.value;
                 catSelect.innerHTML = '<option value="">Todas as Categorias</option>';
-                const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
+                const categoriasUnicas = (STATE.categories && STATE.categories.length)
+                    ? STATE.categories.map(c => c.nome)
+                    : [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '').sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
                 categoriasUnicas.forEach(cat => {
                     const option = document.createElement('option');
                     option.value = cat;
@@ -3672,13 +3714,15 @@ function downloadPDF(blob, filename) {
 
             list.innerHTML = filtered.map(p => {
                 const isP = p.parceiro;
-                const estoqueBloco = isP
-                    ? '<span class="text-[10px] font-bold text-amber-600 uppercase">Parceiro</span>'
-                    : `<div class="flex gap-4 text-center">
-                          <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Físico</span><span class="font-black text-slate-700">${p.stock}</span></div>
-                          <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Comprom.</span><span class="font-black text-amber-600">${p.committed}</span></div>
-                          <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Disp.</span><span class="font-black ${Number(p.available) <= 0 ? 'text-red-500' : 'text-emerald-600'}">${p.available}</span></div>
-                       </div>`;
+                const estoqueBloco = p.servico
+                    ? '<span class="text-[10px] font-bold text-indigo-600 uppercase bg-indigo-50 px-2 py-1 rounded">Serviço</span>'
+                    : (isP
+                        ? '<span class="text-[10px] font-bold text-amber-600 uppercase">Parceiro</span>'
+                        : `<div class="flex gap-4 text-center">
+                              <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Físico</span><span class="font-black text-slate-700">${p.stock}</span></div>
+                              <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Comprom.</span><span class="font-black text-amber-600">${p.committed}</span></div>
+                              <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Disp.</span><span class="font-black ${Number(p.available) <= 0 ? 'text-red-500' : 'text-emerald-600'}">${p.available}</span></div>
+                           </div>`);
                 return `
                 <div class="bg-white p-4 rounded-2xl border shadow-sm">
                     <div class="flex items-start justify-between">
@@ -3799,7 +3843,7 @@ function downloadPDF(blob, filename) {
             if (!el) return;
             let n = 0, abaixo = 0;
             (STATE.products || []).forEach(p => {
-                if (p.parceiro) return;
+                if (p.parceiro || p.servico) return;
                 const novo = valorAjustadoLinha(p);
                 if (novo === null || novo === Number(p.stock)) return;
                 n++;
@@ -3821,7 +3865,7 @@ function downloadPDF(blob, filename) {
             const validas = [];
             const invalidas = [];
             STATE.products.forEach(p => {
-                if (p.parceiro) return;
+                if (p.parceiro || p.servico) return;
                 const input = document.getElementById('adjin-' + p.id);
                 if (!input) return;
                 const raw = String(input.value).trim();
@@ -3922,7 +3966,9 @@ function downloadPDF(blob, filename) {
             if (catSelect) {
                 const cur = catSelect.value;
                 catSelect.innerHTML = '<option value="">Todas</option>';
-                const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
+                const categoriasUnicas = (STATE.categories && STATE.categories.length)
+                    ? STATE.categories.map(c => c.nome)
+                    : [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '').sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
                 categoriasUnicas.forEach(cat => {
                     const option = document.createElement('option');
                     option.value = cat;
@@ -3933,6 +3979,7 @@ function downloadPDF(blob, filename) {
             }
 
             let filtered = STATE.products.slice();
+            filtered = filtered.filter(p => !p.servico); // servico nao controla estoque
             if (term) filtered = filtered.filter(p => String(p.name).toLowerCase().includes(term));
             if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
             if (typeFilter === 'proprio') filtered = filtered.filter(p => !p.parceiro);
@@ -3983,7 +4030,8 @@ function downloadPDF(blob, filename) {
                 const p = STATE.products.find(x => x.id == id); 
                 document.getElementById('prd-id').value = p.id; 
                 document.getElementById('prd-name').value = p.name; 
-                document.getElementById('prd-cat').value = p.category || ''; 
+                document.getElementById('prd-tipo').value = p.tipo || 'produto';
+                preencherCategoriasSelect(p.category || '');
                 document.getElementById('prd-price').value = p.price; 
                 document.getElementById('prd-cost').value = p.cost || ''; 
                 document.getElementById('prd-parceiro').checked = p.parceiro;
@@ -4002,7 +4050,8 @@ function downloadPDF(blob, filename) {
             } else { 
                 document.getElementById('prd-id').value = ''; 
                 document.getElementById('prd-name').value = ''; 
-                document.getElementById('prd-cat').value = ''; 
+                document.getElementById('prd-tipo').value = 'produto';
+                preencherCategoriasSelect('');
                 document.getElementById('prd-price').value = ''; 
                 document.getElementById('prd-cost').value = ''; 
                 document.getElementById('prd-stock').value = '';
@@ -4014,6 +4063,7 @@ function downloadPDF(blob, filename) {
                 stockRO.classList.add('hidden');
                 stockNew.classList.remove('hidden');
             } 
+            toggleProdutoTipo();
         }
 
         async function saveProduct(e) {
@@ -4025,6 +4075,7 @@ function downloadPDF(blob, filename) {
             const payload = {
                 id: newId,
                 nome: document.getElementById('prd-name').value,
+                tipo: document.getElementById('prd-tipo')?.value || 'produto',
                 categoria: document.getElementById('prd-cat').value,
                 preco: parseFloat(document.getElementById('prd-price').value), 
                 custo: parseFloat(document.getElementById('prd-cost').value) || 0,
@@ -4033,9 +4084,15 @@ function downloadPDF(blob, filename) {
                 unidade_medida: document.getElementById('prd-unidade').value
             };
 
+            const isServico = payload.tipo === 'servico';
+
             // Estoque so na criacao; na edicao muda apenas pela sub-aba Ajuste.
             let estoqueInicial = 0;
-            if (isNew) {
+            if (isServico) {
+                // Servico nao controla estoque.
+                payload.estoque_fisico = 0;
+                payload.estoque_comprometido = 0;
+            } else if (isNew) {
                 estoqueInicial = parseFloat(document.getElementById('prd-stock').value);
                 if (isNaN(estoqueInicial) || estoqueInicial < 0) {
                     showLoading(false);
@@ -4043,13 +4100,21 @@ function downloadPDF(blob, filename) {
                 }
                 payload.estoque_fisico = estoqueInicial;
                 payload.estoque_comprometido = 0;
+            } else {
+                // Produto em edicao: se estava como servico e voltou a ser produto,
+                // garante que o estoque comece zerado.
+                const atual = STATE.products.find(p => String(p.id) === String(newId));
+                if (atual && atual.servico) {
+                    payload.estoque_fisico = 0;
+                    payload.estoque_comprometido = 0;
+                }
             }
 
             const { error } = await sb.from('produtos').upsert(payload);
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
 
             // Estoque inicial entra no historico como ajuste de abertura.
-            if (isNew && !payload.produto_parceiro && estoqueInicial > 0) {
+            if (isNew && !isServico && !payload.produto_parceiro && estoqueInicial > 0) {
                 try {
                     const logId = await getNextId('logs');
                     await sb.from('logs').insert([buildAjusteLogPayload({
@@ -4069,6 +4134,7 @@ function downloadPDF(blob, filename) {
             const novoProduto = {
                 id: newId, name: payload.nome, category: payload.categoria,
                 price: payload.preco, cost: payload.custo,
+                tipo: payload.tipo, servico: isServico,
                 stock: Number(payload.estoque_fisico) || 0,
                 committed: Number(payload.estoque_comprometido) || 0,
                 available: (Number(payload.estoque_fisico) || 0) - (Number(payload.estoque_comprometido) || 0),
@@ -4126,6 +4192,145 @@ function downloadPDF(blob, filename) {
               container.classList.add('hidden');
               document.getElementById('prd-fornecedor').value = '';
           }
+      }
+
+      // Servico nao controla estoque: esconde os campos de estoque no formulario.
+      function toggleProdutoTipo() {
+          const tipo = document.getElementById('prd-tipo')?.value || 'produto';
+          const stockNew = document.getElementById('prd-stock-new');
+          const stockRO = document.getElementById('prd-stock-readonly');
+          const roLink = document.getElementById('prd-ro-link');
+          const isServico = tipo === 'servico';
+          if (isServico) {
+              if (stockNew) stockNew.classList.add('hidden');
+              const inp = document.getElementById('prd-stock');
+              if (inp) inp.value = '';
+              if (stockRO) stockRO.classList.remove('hidden');
+              if (roLink) roLink.classList.add('hidden');
+              const roWrap = document.getElementById('prd-ro-stock-grid');
+              if (roWrap) roWrap.classList.add('hidden');
+              const roNote = document.getElementById('prd-ro-servico-note');
+              if (roNote) roNote.classList.remove('hidden');
+          } else {
+              const roNote = document.getElementById('prd-ro-servico-note');
+              if (roNote) roNote.classList.add('hidden');
+              const roWrap = document.getElementById('prd-ro-stock-grid');
+              if (roWrap) roWrap.classList.remove('hidden');
+              const isEdit = !!document.getElementById('prd-id').value;
+              if (isEdit) {
+                  if (stockNew) stockNew.classList.add('hidden');
+                  if (stockRO) stockRO.classList.remove('hidden');
+                  if (roLink) roLink.classList.toggle('hidden', !(dadosUsuario && dadosUsuario.nivel === 'admin'));
+              } else {
+                  if (stockRO) stockRO.classList.add('hidden');
+                  if (stockNew) stockNew.classList.remove('hidden');
+              }
+          }
+      }
+
+      function preencherCategoriasSelect(selected) {
+          const sel = document.getElementById('prd-cat');
+          if (!sel) return;
+          const cats = (STATE.categories || []).map(c => c.nome).filter(Boolean);
+          const existentes = new Set(cats.map(c => c.toUpperCase()));
+          sel.innerHTML = '<option value="">Sem categoria</option>';
+          cats.forEach(nome => {
+              const o = document.createElement('option');
+              o.value = nome; o.textContent = nome;
+              sel.appendChild(o);
+          });
+          if (selected && !existentes.has(String(selected).toUpperCase())) {
+              const o = document.createElement('option');
+              o.value = selected; o.textContent = selected;
+              sel.appendChild(o);
+          }
+          sel.value = selected || '';
+      }
+
+      function renderCategoriesPanel() {
+          const list = document.getElementById('cat-list');
+          if (!list) return;
+          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
+          const cats = STATE.categories || [];
+          if (!cats.length) {
+              list.innerHTML = '<p class="p-6 text-center text-slate-400 text-sm">Nenhuma categoria cadastrada.</p>';
+              return;
+          }
+          list.innerHTML = cats.map(c => {
+              const emUso = (STATE.products || []).filter(p => (p.category || '') === c.nome).length;
+              const nomeEsc = String(c.nome || '').replace(/"/g, '&quot;');
+              return `
+                <div class="bg-white rounded-xl border p-3 flex flex-col gap-2">
+                  <input id="cat-in-${c.id}" type="text" value="${nomeEsc}" class="w-full p-2 border rounded-lg text-sm font-bold uppercase outline-none focus:border-orange-500" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCategory('${c.id}');}">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] text-slate-400 font-bold">${emUso} produto(s)</span>
+                    <div class="flex gap-2">
+                      <button onclick="saveCategory('${c.id}')" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold active:scale-95 transition-transform">Salvar</button>
+                      <button onclick="deleteCategory('${c.id}')" class="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold active:scale-95 transition-transform">Excluir</button>
+                    </div>
+                  </div>
+                </div>`;
+          }).join('');
+          if (window.lucide) lucide.createIcons();
+      }
+
+      async function addCategory() {
+          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          const input = document.getElementById('cat-new-name');
+          const nome = (input?.value || '').trim().toUpperCase();
+          if (!nome) return showToast("Informe o nome da categoria.", true);
+          if ((STATE.categories || []).some(c => (c.nome || '').toUpperCase() === nome)) return showToast("Categoria já existe.", true);
+          showLoading(true);
+          const { error } = await sb.from('categorias').insert([{ nome }]);
+          if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+          if (input) input.value = '';
+          showToast("Categoria criada!");
+          await loadData();
+          renderCategoriesPanel();
+      }
+
+      async function saveCategory(id) {
+          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
+          if (!cat) return;
+          const input = document.getElementById('cat-in-' + id);
+          const novo = (input?.value || '').trim().toUpperCase();
+          const antigo = cat.nome || '';
+          if (!novo) return showToast("Informe o nome da categoria.", true);
+          if (novo === antigo) return showToast("Nada para alterar.");
+          if ((STATE.categories || []).some(c => String(c.id) !== String(id) && (c.nome || '').toUpperCase() === novo)) return showToast("Já existe uma categoria com esse nome.", true);
+          showLoading(true);
+          try {
+              const { error } = await sb.from('categorias').update({ nome: novo }).eq('id', id);
+              if (error) throw error;
+              // Propaga o nome novo para os produtos que usavam o nome antigo.
+              const { error: errProd } = await sb.from('produtos').update({ categoria: novo }).eq('categoria', antigo);
+              if (errProd) throw errProd;
+              showToast("Categoria atualizada!");
+              await loadData();
+              renderCategoriesPanel();
+          } catch (err) {
+              console.error(err);
+              showLoading(false);
+              showToast("Erro: " + err.message, true);
+          }
+      }
+
+      async function deleteCategory(id) {
+          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
+          if (!cat) return;
+          const emUso = (STATE.products || []).filter(p => (p.category || '') === cat.nome).length;
+          const msg = emUso > 0
+              ? `Excluir a categoria "${cat.nome}"? ${emUso} produto(s) continuarão com esse nome de categoria.`
+              : `Excluir a categoria "${cat.nome}"?`;
+          if (!(await showConfirmToast(msg))) return;
+          showLoading(true);
+          const { error } = await sb.from('categorias').delete().eq('id', id);
+          if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+          showToast("Categoria excluída!");
+          await loadData();
+          renderCategoriesPanel();
       }
 
         function renderClients() {

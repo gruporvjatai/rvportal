@@ -761,6 +761,7 @@
   <div class="flex gap-2 mb-4 border-b border-slate-200">
     <button id="prodtab-catalogo" onclick="switchProdTab('catalogo')" class="px-4 py-2 -mb-px border-b-2 border-transparent text-sm font-bold text-slate-500 hover:text-slate-800">Catálogo</button>
     <button id="prodtab-ajuste" onclick="switchProdTab('ajuste')" class="hidden px-4 py-2 -mb-px border-b-2 border-transparent text-sm font-bold text-slate-500 hover:text-slate-800">Ajuste de Estoque</button>
+    <button id="prodtab-categorias" onclick="switchProdTab('categorias')" class="hidden px-4 py-2 -mb-px border-b-2 border-transparent text-sm font-bold text-slate-500 hover:text-slate-800">Categorias</button>
   </div>
 
   <!-- ===================== PAINEL CATALOGO ===================== -->
@@ -883,6 +884,32 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- ===================== PAINEL CATEGORIAS (ADMIN) ===================== -->
+  <div id="prod-panel-categorias" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm border p-4 mb-4 flex flex-wrap gap-2 items-end">
+      <div class="flex-1 min-w-[220px]">
+        <label class="block text-xs font-bold text-slate-500 mb-1">Nova categoria</label>
+        <input id="cat-new-name" type="text" placeholder="Ex: MADEIRA" class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategory();}">
+      </div>
+      <button onclick="addCategory()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
+        <i data-lucide="plus"></i> Adicionar
+      </button>
+    </div>
+    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <table class="w-full text-sm text-left">
+        <thead class="bg-slate-50 text-slate-700">
+          <tr>
+            <th class="p-3">Categoria</th>
+            <th class="p-3 text-center">Produtos</th>
+            <th class="p-3 text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="cat-list" class="divide-y"></tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-400 mt-3">Renomear uma categoria atualiza também os produtos que a usam. Serviços não controlam estoque.</p>
   </div>
 </div>
 
@@ -1237,7 +1264,19 @@
               <input type="hidden" id="prd-id">
               <div class="space-y-3">
                   <input type="text" id="prd-name" required placeholder="Nome do Produto" class="w-full p-2 border rounded">
-                  <input type="text" id="prd-cat" placeholder="Categoria" class="w-full p-2 border rounded">
+                  <div>
+                      <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo</label>
+                      <select id="prd-tipo" class="w-full p-2 border rounded" onchange="toggleProdutoTipo()">
+                          <option value="produto">Produto (controla estoque)</option>
+                          <option value="servico">Serviço (não controla estoque)</option>
+                      </select>
+                  </div>
+                  <div>
+                      <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                      <select id="prd-cat" class="w-full p-2 border rounded bg-white">
+                          <option value="">Sem categoria</option>
+                      </select>
+                  </div>
                   
                   <!-- Checkbox de parceiro -->
                   <div class="flex items-center gap-2">
@@ -1292,7 +1331,7 @@
                   <!-- Edicao: estoque somente leitura (ajuste so na sub-aba Ajuste de Estoque) -->
                   <div id="prd-stock-readonly" class="hidden bg-slate-50 border rounded p-3">
                       <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">Estoque (somente leitura)</label>
-                      <div class="grid grid-cols-3 gap-2 text-center">
+                      <div id="prd-ro-stock-grid" class="grid grid-cols-3 gap-2 text-center">
                           <div>
                               <span class="block text-[10px] uppercase text-slate-400 font-bold">Físico</span>
                               <span id="prd-ro-fisico" class="font-bold text-slate-700">0</span>
@@ -1306,6 +1345,7 @@
                               <span id="prd-ro-disponivel" class="font-bold text-emerald-600">0</span>
                           </div>
                       </div>
+                      <p id="prd-ro-servico-note" class="hidden text-xs font-bold text-slate-500 text-center py-2">Serviço não controla estoque.</p>
                       <button type="button" id="prd-ro-link" onclick="irParaAjusteProduto(document.getElementById('prd-id').value)" class="mt-3 w-full py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded font-bold text-sm hover:bg-amber-100">Ajustar estoque →</button>
                   </div>
               </div>
@@ -1880,7 +1920,7 @@
         const LOGO_NEGOCIOS_URL = new URL('logorvnegocios.png', window.location.href).href;
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
-        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [] /*custoMaterialB10: 0 */};
+        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], categories: [] /*custoMaterialB10: 0 */};
         // Resolve o produto de uma log sempre por ID (produto_id) quando houver,
         // com fallback por nome para registros antigos sem vínculo.
         function produtoDeLog(l) {
@@ -2151,12 +2191,13 @@
 
         async function loadData() {
     try {
-        const [resProd, resCli, resLog, resDesp, resEquipe, /*resConf*/] = await Promise.all([
+        const [resProd, resCli, resLog, resDesp, resEquipe, resCat, /*resConf*/] = await Promise.all([
             fetchAllRecords('produtos'),
             fetchAllRecords('clientes'),
             fetchAllRecords('logs'),
             fetchAllRecords('despesas'),
-            fetchAllRecords('equipe')
+            fetchAllRecords('equipe'),
+            fetchAllRecords('categorias')
            //sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
         ]);
 
@@ -2165,11 +2206,17 @@
             cost: Number(p.custo) || 0,
             stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
             available: Number(p.estoque_fisico) - Number(p.estoque_comprometido),
+            tipo: p.tipo || 'produto',
+            servico: (p.tipo || 'produto') === 'servico',
             parceiro: Boolean(p.produto_parceiro),
             porMetro: Boolean(p.venda_por_metro),
             fornecedor: p.fornecedor_parceiro || '',
             unidade: p.unidade_medida || 'un'
         }));
+
+        STATE.categories = (resCat.data || [])
+            .map(c => ({ id: c.id, nome: c.nome }))
+            .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
 
         STATE.clients = (resCli.data || []).map(c => ({
             id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
@@ -2469,6 +2516,7 @@
             const payload = {
                 id: newId,
                 nome: document.getElementById('prd-name').value,
+                tipo: document.getElementById('prd-tipo')?.value || 'produto',
                 categoria: document.getElementById('prd-cat').value,
                 preco: parseFloat(document.getElementById('prd-price').value),
                 custo: parseFloat(document.getElementById('prd-cost').value) || 0,
@@ -2482,10 +2530,16 @@
                     : false
             };
 
+            const isServico = payload.tipo === 'servico';
+
             // Estoque so e definido na criacao. Na edicao, o estoque e somente
             // leitura e so muda pela sub-aba "Ajuste de Estoque".
             let estoqueInicial = 0;
-            if (isNew) {
+            if (isServico) {
+                // Servico nao controla estoque.
+                payload.estoque_fisico = 0;
+                payload.estoque_comprometido = 0;
+            } else if (isNew) {
                 estoqueInicial = parseFloat(document.getElementById('prd-stock').value);
                 if (isNaN(estoqueInicial) || estoqueInicial < 0) {
                     showLoading(false);
@@ -2493,13 +2547,21 @@
                 }
                 payload.estoque_fisico = estoqueInicial;
                 payload.estoque_comprometido = 0;
+            } else if (!isNew) {
+                // Produto em edicao: se estava como servico e voltou a ser produto,
+                // garante que o estoque comece zerado (nao herda lixo anterior).
+                const atual = STATE.products.find(p => String(p.id) === String(newId));
+                if (atual && atual.servico) {
+                    payload.estoque_fisico = 0;
+                    payload.estoque_comprometido = 0;
+                }
             }
 
             const { error } = await sb.from('produtos').upsert(payload);
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
 
             // Estoque inicial entra no historico como ajuste de abertura.
-            if (isNew && !payload.produto_parceiro && estoqueInicial > 0) {
+            if (isNew && !isServico && !payload.produto_parceiro && estoqueInicial > 0) {
                 try {
                     await sb.from('logs').insert([buildAjusteLogPayload({
                         id: getNextId(STATE.logs, STATE.quotes), prodId: newId, prodName: payload.nome,
@@ -2518,6 +2580,7 @@
             const novoProduto = {
                 id: newId, name: payload.nome, category: payload.categoria,
                 price: payload.preco, cost: payload.custo,
+                tipo: payload.tipo, servico: isServico,
                 stock: Number(payload.estoque_fisico) || 0,
                 committed: Number(payload.estoque_comprometido) || 0,
                 available: (Number(payload.estoque_fisico) || 0) - (Number(payload.estoque_comprometido) || 0),
@@ -2586,6 +2649,40 @@
             }
         }
 
+        // Servico nao controla estoque: esconde os campos de estoque no formulario.
+        function toggleProdutoTipo() {
+            const tipo = document.getElementById('prd-tipo')?.value || 'produto';
+            const stockNew = document.getElementById('prd-stock-new');
+            const stockRO = document.getElementById('prd-stock-readonly');
+            const roLink = document.getElementById('prd-ro-link');
+            const isServico = tipo === 'servico';
+            if (isServico) {
+                if (stockNew) stockNew.classList.add('hidden');
+                const inp = document.getElementById('prd-stock');
+                if (inp) inp.value = '';
+                if (stockRO) stockRO.classList.remove('hidden');
+                if (roLink) roLink.classList.add('hidden');
+                const roWrap = document.getElementById('prd-ro-stock-grid');
+                if (roWrap) roWrap.classList.add('hidden');
+                const roNote = document.getElementById('prd-ro-servico-note');
+                if (roNote) roNote.classList.remove('hidden');
+            } else {
+                const roNote = document.getElementById('prd-ro-servico-note');
+                if (roNote) roNote.classList.add('hidden');
+                const roWrap = document.getElementById('prd-ro-stock-grid');
+                if (roWrap) roWrap.classList.remove('hidden');
+                const isEdit = !!document.getElementById('prd-id').value;
+                if (isEdit) {
+                    if (stockNew) stockNew.classList.add('hidden');
+                    if (stockRO) stockRO.classList.remove('hidden');
+                    if (roLink) roLink.classList.toggle('hidden', !(dadosUsuario && dadosUsuario.nivel === 'admin'));
+                } else {
+                    if (stockRO) stockRO.classList.add('hidden');
+                    if (stockNew) stockNew.classList.remove('hidden');
+                }
+            }
+        }
+
         async function finalizeSale(isProntaEntrega = false) {
           if(!CART.length) return showToast("Vazio!", true);
           showLoading(true);
@@ -2632,8 +2729,8 @@
               const prod = STATE.products.find(p => p.id == item.prodId || String(p.name).trim() === String(item.name).trim());
               
               if (prod) {
-                  // Só mexe no estoque se NÃO for parceiro
-                  if (!prod.parceiro) {
+                  // Só mexe no estoque se NÃO for parceiro nem serviço
+                  if (!prod.parceiro && !prod.servico) {
                       let physical = Number(prod.stock) || 0;
                       let committed = Number(prod.committed) || 0;
                       let updatePayload = {};
@@ -2773,6 +2870,7 @@ function parseAjusteObs(note) {
 
 // Situacao do produto para o catalogo.
 function produtoStatus(p) {
+  if (p.servico) return { label: 'Serviço', cls: 'bg-indigo-100 text-indigo-700' };
   if (p.parceiro) return { label: 'Parceiro', cls: 'bg-amber-100 text-amber-700' };
   if (Number(p.available) <= 0) return { label: 'Esgotado', cls: 'bg-red-100 text-red-600' };
   if (Number(p.available) <= 10) return { label: 'Baixo', cls: 'bg-orange-100 text-orange-700' };
@@ -2845,7 +2943,7 @@ function atualizarResumoAjuste() {
   if (!el) return;
   let n = 0, abaixo = 0;
   (STATE.products || []).forEach(p => {
-    if (p.parceiro) return;
+    if (p.parceiro || p.servico) return;
     const novo = valorAjustadoLinha(p);
     if (novo === null || novo === Number(p.stock)) return;
     n++;
@@ -2868,7 +2966,7 @@ async function submeterAjusteEstoque() {
   const validas = [];
   const invalidas = [];
   STATE.products.forEach(p => {
-    if (p.parceiro) return;
+    if (p.parceiro || p.servico) return;
     const input = document.getElementById('adjin-' + p.id);
     if (!input) return;
     const raw = String(input.value).trim();
@@ -2960,7 +3058,9 @@ function openStockCountFilters() {
   // Preencher dinamicamente as categorias no select
   const catSelect = document.getElementById('stock-cat-filter');
   if (catSelect) {
-    const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
+    const categoriasUnicas = (STATE.categories && STATE.categories.length)
+      ? STATE.categories.map(c => c.nome)
+      : [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '');
     catSelect.innerHTML = '<option value="">Todas</option>';
     categoriasUnicas.forEach(cat => {
       const option = document.createElement('option');
@@ -2981,7 +3081,7 @@ function printStockCountSheet() {
   const categoria = document.getElementById('stock-cat-filter').value;
   const tipo = document.getElementById('stock-type-filter').value;
 
-  let produtosFiltrados = [...STATE.products];
+  let produtosFiltrados = [...STATE.products].filter(p => !p.servico);
 
   if (categoria) {
     produtosFiltrados = produtosFiltrados.filter(p => p.category === categoria);
@@ -3193,7 +3293,7 @@ function printStockCountSheet() {
                     const prod = item.productId != null
                         ? STATE.products.find(p => String(p.id) === String(item.productId))
                         : STATE.products.find(p => p.name === item.productName);
-                    if(prod) {
+                    if(prod && !prod.servico) {
                         let physical = Number(prod.stock) || 0;
                         let committed = Number(prod.committed) || 0;
                         let delivered = Number(item.deliveredQty) || 0;
@@ -3621,7 +3721,7 @@ function printStockCountSheet() {
                     const prod = entregaLog.productId != null
                         ? STATE.products.find(p => String(p.id) === String(entregaLog.productId))
                         : STATE.products.find(p => p.name === entregaLog.productName);
-                    if(prod) {
+                    if(prod && !prod.servico) {
                         let physical = Number(prod.stock) || 0;
                         let committed = Number(prod.committed) || 0;
                         await sb.from('produtos').update({
@@ -3673,7 +3773,7 @@ function printStockCountSheet() {
                     const prodFound = origLog.productId != null
                         ? STATE.products.find(p => String(p.id) === String(origLog.productId))
                         : STATE.products.find(p => String(p.name).trim() === String(prodName).trim());
-                    if(prodFound) stockUpdates.push({ id: prodFound.id, qty: qty });
+                    if(prodFound && !prodFound.servico) stockUpdates.push({ id: prodFound.id, qty: qty });
 
                     newLogs.push({
                         id: maxId.toString(), tipo: 'entrega', produto_nome: prodName,
@@ -3707,7 +3807,7 @@ function printStockCountSheet() {
 
                 for (let prodId of Object.keys(aggStock)) {
                     const prod = STATE.products.find(p => String(p.id) === String(prodId));
-                    if(prod) {
+                    if(prod && !prod.servico) {
                         let physical = Number(prod.stock) || 0;
                         let committed = Number(prod.committed) || 0;
                         const qtyToDeduct = aggStock[prodId];
@@ -4427,12 +4527,14 @@ function printStockCountSheet() {
             grid.innerHTML = sliced.map(p => {
                 const isPartner = p.parceiro;
                 const isMetro = p.parceiro && p.porMetro;
+                const badgeCls = p.servico ? 'bg-indigo-100 text-indigo-700' : (isPartner ? 'bg-amber-100 text-amber-700' : (p.available<=0?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700'));
+                const badgeTxt = p.servico ? 'Serviço' : (isPartner ? 'Parceiro' : 'Disp: '+p.available);
                 return `
                 <div class="p-4 border border-slate-200 rounded-xl hover:shadow-md bg-white flex items-center justify-between group transition">
                     <div class="flex flex-col w-1/2">
                         <h4 class="font-black text-sm text-slate-800 truncate" title="${p.name}">${p.name}</h4>
-                        <span class="text-[10px] px-2 py-0.5 rounded mt-1 w-max ${isPartner ? 'bg-amber-100 text-amber-700' : (p.available<=0?'bg-red-100 text-red-600':'bg-emerald-100 text-emerald-700')} font-bold">
-                            ${isPartner ? 'Parceiro' : 'Disp: '+p.available}
+                        <span class="text-[10px] px-2 py-0.5 rounded mt-1 w-max ${badgeCls} font-bold">
+                            ${badgeTxt}
                         </span>
                     </div>
                     <div class="flex items-center gap-3 w-1/2 justify-end">
@@ -5175,17 +5277,21 @@ function loadQuoteToCart(id) {
         const isAdmin = !!(dadosUsuario && dadosUsuario.nivel === 'admin');
         const btn = document.getElementById('prodtab-ajuste');
         if (btn) btn.classList.toggle('hidden', !isAdmin);
-        if (!isAdmin) PROD_TAB = 'catalogo';
+        const btnCat = document.getElementById('prodtab-categorias');
+        if (btnCat) btnCat.classList.toggle('hidden', !isAdmin);
+        if (!isAdmin && PROD_TAB !== 'catalogo') PROD_TAB = 'catalogo';
       }
 
       function switchProdTab(tab) {
-        if (tab === 'ajuste' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
+        if (tab !== 'catalogo' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
         PROD_TAB = tab;
 
         const panelCat = document.getElementById('prod-panel-catalogo');
         const panelAdj = document.getElementById('prod-panel-ajuste');
+        const panelCategorias = document.getElementById('prod-panel-categorias');
         const btnCat = document.getElementById('prodtab-catalogo');
         const btnAdj = document.getElementById('prodtab-ajuste');
+        const btnCategorias = document.getElementById('prodtab-categorias');
 
         const activeCls = ['border-indigo-600', 'text-indigo-700'];
         const idleCls = ['border-transparent', 'text-slate-500'];
@@ -5196,17 +5302,128 @@ function loadQuoteToCart(id) {
         };
         setBtn(btnCat, tab === 'catalogo');
         setBtn(btnAdj, tab === 'ajuste');
+        setBtn(btnCategorias, tab === 'categorias');
+
+        panelCat?.classList.toggle('hidden', tab !== 'catalogo');
+        panelAdj?.classList.toggle('hidden', tab !== 'ajuste');
+        panelCategorias?.classList.toggle('hidden', tab !== 'categorias');
 
         if (tab === 'ajuste') {
-          panelCat?.classList.add('hidden');
-          panelAdj?.classList.remove('hidden');
           renderStockAdjust();
+        } else if (tab === 'categorias') {
+          renderCategoriesPanel();
         } else {
-          panelAdj?.classList.add('hidden');
-          panelCat?.classList.remove('hidden');
           renderProductCatalog();
         }
         if (window.lucide) lucide.createIcons();
+      }
+
+      // ================== CATEGORIAS (ADMIN) ==================
+      function preencherCategoriasSelect(selected) {
+        const sel = document.getElementById('prd-cat');
+        if (!sel) return;
+        const cats = (STATE.categories || []).map(c => c.nome).filter(Boolean);
+        const existentes = new Set(cats.map(c => c.toUpperCase()));
+        sel.innerHTML = '<option value="">Sem categoria</option>';
+        cats.forEach(nome => {
+          const o = document.createElement('option');
+          o.value = nome; o.textContent = nome;
+          sel.appendChild(o);
+        });
+        if (selected && !existentes.has(String(selected).toUpperCase())) {
+          const o = document.createElement('option');
+          o.value = selected; o.textContent = selected;
+          sel.appendChild(o);
+        }
+        sel.value = selected || '';
+      }
+
+      function renderCategoriesPanel() {
+        const list = document.getElementById('cat-list');
+        if (!list) return;
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
+        const cats = STATE.categories || [];
+        if (!cats.length) {
+          list.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-slate-400">Nenhuma categoria cadastrada.</td></tr>';
+          return;
+        }
+        list.innerHTML = cats.map(c => {
+          const emUso = (STATE.products || []).filter(p => (p.category || '') === c.nome).length;
+          const nomeEsc = String(c.nome || '').replace(/"/g, '&quot;');
+          return `
+            <tr class="hover:bg-slate-50">
+              <td class="p-3">
+                <input id="cat-in-${c.id}" type="text" value="${nomeEsc}" class="w-full max-w-xs p-2 border rounded font-medium" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCategory('${c.id}');}">
+              </td>
+              <td class="p-3 text-center font-bold text-slate-600">${emUso}</td>
+              <td class="p-3 text-center">
+                <div class="flex gap-2 justify-center">
+                  <button onclick="saveCategory('${c.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold">Salvar</button>
+                  <button onclick="deleteCategory('${c.id}')" class="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded text-xs font-bold">Excluir</button>
+                </div>
+              </td>
+            </tr>`;
+        }).join('');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      async function addCategory() {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        const input = document.getElementById('cat-new-name');
+        const nome = (input?.value || '').trim().toUpperCase();
+        if (!nome) return showToast("Informe o nome da categoria.", true);
+        if ((STATE.categories || []).some(c => (c.nome || '').toUpperCase() === nome)) return showToast("Categoria já existe.", true);
+        showLoading(true);
+        const { error } = await sb.from('categorias').insert([{ nome }]);
+        if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+        if (input) input.value = '';
+        showToast("Categoria criada!");
+        await loadData();
+        renderCategoriesPanel();
+      }
+
+      async function saveCategory(id) {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
+        if (!cat) return;
+        const input = document.getElementById('cat-in-' + id);
+        const novo = (input?.value || '').trim().toUpperCase();
+        const antigo = cat.nome || '';
+        if (!novo) return showToast("Informe o nome da categoria.", true);
+        if (novo === antigo) return showToast("Nada para alterar.");
+        if ((STATE.categories || []).some(c => String(c.id) !== String(id) && (c.nome || '').toUpperCase() === novo)) return showToast("Já existe uma categoria com esse nome.", true);
+        showLoading(true);
+        try {
+          const { error } = await sb.from('categorias').update({ nome: novo }).eq('id', id);
+          if (error) throw error;
+          // Propaga o nome novo para os produtos que usavam o nome antigo.
+          const { error: errProd } = await sb.from('produtos').update({ categoria: novo }).eq('categoria', antigo);
+          if (errProd) throw errProd;
+          showToast("Categoria atualizada!");
+          await loadData();
+          renderCategoriesPanel();
+        } catch (err) {
+          console.error(err);
+          showLoading(false);
+          showToast("Erro: " + err.message, true);
+        }
+      }
+
+      async function deleteCategory(id) {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
+        if (!cat) return;
+        const emUso = (STATE.products || []).filter(p => (p.category || '') === cat.nome).length;
+        const msg = emUso > 0
+          ? `Excluir a categoria "${cat.nome}"? ${emUso} produto(s) continuarão com esse nome de categoria.`
+          : `Excluir a categoria "${cat.nome}"?`;
+        if (!(await showConfirmToast(msg))) return;
+        showLoading(true);
+        const { error } = await sb.from('categorias').delete().eq('id', id);
+        if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+        showToast("Categoria excluída!");
+        await loadData();
+        renderCategoriesPanel();
       }
 
       // Leva o admin da edicao do produto direto para o ajuste daquele item.
@@ -5240,9 +5457,9 @@ function loadQuoteToCart(id) {
         if (catSelect) {
           const currentVal = catSelect.value;
           catSelect.innerHTML = '<option value="">Todas as Categorias</option>';
-          const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))]
-            .filter(c => c && c.trim() !== '')
-            .sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
+          const categoriasUnicas = (STATE.categories && STATE.categories.length)
+            ? STATE.categories.map(c => c.nome)
+            : [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '').sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
           categoriasUnicas.forEach(cat => {
             const option = document.createElement('option');
             option.value = cat;
@@ -5287,18 +5504,20 @@ function loadQuoteToCart(id) {
         list.innerHTML = filtered.map(p => {
           const status = produtoStatus(p);
           const isP = p.parceiro;
-          const dispCls = (!isP && Number(p.available) <= 0) ? 'text-red-600' : 'text-emerald-600';
+          const noStock = isP || p.servico;
+          const dispCls = (!noStock && Number(p.available) <= 0) ? 'text-red-600' : 'text-emerald-600';
+          const tagTipo = p.servico ? '<span class="text-[10px] text-indigo-600 uppercase font-bold bg-indigo-50 px-1 py-0.5 rounded ml-1">Serviço</span>' : '';
           return `
             <tr class="hover:bg-slate-50">
               <td class="p-4 font-bold text-slate-700">
                 ${p.name}<br>
-                <span class="text-[10px] text-slate-400 uppercase font-bold bg-slate-100 px-1 py-0.5 rounded">${p.category || 'Geral'}</span>
+                <span class="text-[10px] text-slate-400 uppercase font-bold bg-slate-100 px-1 py-0.5 rounded">${p.category || 'Geral'}</span>${tagTipo}
               </td>
               <td class="p-4 font-medium">${formatMoney(p.price)}</td>
               <td class="p-4 font-medium text-slate-500">${formatMoney(p.cost || 0)}</td>
-              <td class="p-4 font-bold text-center">${isP ? '—' : p.stock}</td>
-              <td class="p-4 font-bold text-center text-amber-600">${isP ? '—' : p.committed}</td>
-              <td class="p-4 font-bold text-center ${dispCls}">${isP ? '—' : p.available}</td>
+              <td class="p-4 font-bold text-center">${noStock ? '—' : p.stock}</td>
+              <td class="p-4 font-bold text-center text-amber-600">${noStock ? '—' : p.committed}</td>
+              <td class="p-4 font-bold text-center ${dispCls}">${noStock ? '—' : p.available}</td>
               <td class="p-4 text-center"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${status.cls}">${status.label}</span></td>
               <td class="p-4 text-center">
                 <button onclick="openProductForm('${p.id}')" class="text-indigo-600 hover:text-indigo-800">
@@ -5327,9 +5546,9 @@ function loadQuoteToCart(id) {
         if (catSelect) {
           const cur = catSelect.value;
           catSelect.innerHTML = '<option value="">Todas</option>';
-          const categoriasUnicas = [...new Set(STATE.products.map(p => p.category))]
-            .filter(c => c && c.trim() !== '')
-            .sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
+          const categoriasUnicas = (STATE.categories && STATE.categories.length)
+            ? STATE.categories.map(c => c.nome)
+            : [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '').sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
           categoriasUnicas.forEach(cat => {
             const option = document.createElement('option');
             option.value = cat;
@@ -5343,6 +5562,7 @@ function loadQuoteToCart(id) {
         if (label) label.innerText = mode === 'contagem' ? 'Contado' : 'Movimento';
 
         let filtered = STATE.products.slice();
+        filtered = filtered.filter(p => !p.servico); // servico nao controla estoque
         if (term) filtered = filtered.filter(p => normalizeSearch(p.name).includes(term));
         if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
         if (typeFilter === 'proprio') filtered = filtered.filter(p => !p.parceiro);
@@ -5395,7 +5615,8 @@ function loadQuoteToCart(id) {
               const p = STATE.products.find(x => x.id == id); 
               document.getElementById('prd-id').value = p.id; 
               document.getElementById('prd-name').value = p.name; 
-              document.getElementById('prd-cat').value = p.category || ''; 
+              document.getElementById('prd-tipo').value = p.tipo || 'produto';
+              preencherCategoriasSelect(p.category || '');
               document.getElementById('prd-price').value = p.price; 
               document.getElementById('prd-cost').value = p.cost || ''; 
       
@@ -5414,10 +5635,12 @@ function loadQuoteToCart(id) {
               document.getElementById('prd-ro-disponivel').innerText = p.available;
               const roLink = document.getElementById('prd-ro-link');
               if (roLink) roLink.classList.toggle('hidden', !(dadosUsuario && dadosUsuario.nivel === 'admin'));
+              toggleProdutoTipo();
           } else { 
               document.getElementById('prd-id').value = ''; 
               document.getElementById('prd-name').value = ''; 
-              document.getElementById('prd-cat').value = ''; 
+              document.getElementById('prd-tipo').value = 'produto';
+              preencherCategoriasSelect('');
               document.getElementById('prd-price').value = ''; 
               document.getElementById('prd-cost').value = ''; 
               document.getElementById('prd-stock').value = ''; 
@@ -5430,6 +5653,7 @@ function loadQuoteToCart(id) {
 
               stockRO.classList.add('hidden');
               stockNew.classList.remove('hidden');
+              toggleProdutoTipo();
           } 
       }
 
@@ -5991,7 +6215,7 @@ function loadQuoteToCart(id) {
             const grid = document.getElementById('dash-grid');
             if(!grid) return;
             
-            const sortedProducts = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
+            const sortedProducts = (STATE.products||[]).filter(p => !p.servico).slice().sort((a, b) => Number(a.id) - Number(b.id));
 
             grid.innerHTML = sortedProducts.map(p => { 
                 const percent = Math.min(100, (p.stock / 2000) * 100); 
