@@ -494,10 +494,19 @@
     const forn = `${folha.equipe.nome}`;
     const novoIdDespesa = getNextId(STATE.expenses); // ID único para despesas
 
+    // Categoria da despesa: resolve o id de SALÁRIO em categorias_despesas para
+    // manter o vínculo por categoria_id (o `item` textual é mantido por compat.).
+    const categoriasDespesa = (STATE && STATE.categoriesDespesas) || [];
+    const categoriaSalario = categoriasDespesa.find(
+        c => String(c.nome || '').trim().toUpperCase() === 'SALÁRIO'
+    );
+    const categoriaSalarioId = categoriaSalario ? categoriaSalario.id : null;
+
     // 1. Inserir a despesa (já paga)
     const { error: errDesp } = await sb.from('despesas').insert([{
         id: novoIdDespesa,          // 🔥 ESSENCIAL: sem isso o banco reclama
         item: 'SALÁRIO',
+        categoria_id: categoriaSalarioId,
         equipe_id: folha.equipe_id != null ? folha.equipe_id : null,
         fornecedor: forn,
         quantidade: 1,

@@ -9319,20 +9319,22 @@ function extractDataFromText(text) {
     }
 
     // ===== 4. CATEGORIA =====
-    let categoria = 'Outros';
+    let categoria = 'OUTROS';
     const lower = clean.toLowerCase();
+    // Valores alinhados aos nomes canônicos de public.categorias_despesas
+    // para que resolverCategoriaDespesaPorTexto faça a correspondência exata.
     const catMap = {
-        'Energia': ['equatorial','energia','luz','eletricidade','concessionária'],
-        'Água': ['saneago','brk','água','saneamento','abastecimento'],
-        'Internet': ['internet','vivo','fibra','banda larga','telecom'],
-        'Combustível': ['combustível','etanol','gasolina','diesel','posto'],
-        'Salário': ['salário','diaria','folha','pagamento de funcionário'],
-        'Fornecedor': ['fornecedor','madeira','pinus','tauari','parafuso','arame','prego','porta','portal','matéria-prima','insumo','material','madeiras','máquinas','maquinas'],
-        'Man. Maquinas': ['manutenção','máquina','equipamento','reparo'],
-        'Imposto': ['imposto','taxa','fgts','inss','iss','icms'],
-        'Veículos': ['veículo','carro','manutenção veicular'],
-        'Marcenaria': ['marcenaria','cola','selador','seladora','estopa','madeira','carpintaria'],
-        'Instalação': ['instalação','montagem','serviço de instalação']
+        'ENERGIA': ['equatorial','energia','luz','eletricidade','concessionária'],
+        'ÁGUA': ['saneago','brk','água','saneamento','abastecimento'],
+        'INTERNET/TELEFONE': ['internet','vivo','fibra','banda larga','telecom'],
+        'COMBUSTÍVEL': ['combustível','etanol','gasolina','diesel','posto'],
+        'SALÁRIO': ['salário','diaria','folha','pagamento de funcionário'],
+        'FORNECEDOR': ['fornecedor','madeira','pinus','tauari','parafuso','arame','prego','porta','portal','matéria-prima','insumo','material','madeiras','máquinas','maquinas'],
+        'MANUTENÇÃO DE MÁQUINAS': ['manutenção','máquina','equipamento','reparo'],
+        'IMPOSTOS/TAXAS': ['imposto','taxa','fgts','inss','iss','icms'],
+        'VEÍCULOS/PEÇAS': ['veículo','carro','manutenção veicular'],
+        'MARCENARIA/PRODUÇÃO': ['marcenaria','cola','selador','seladora','estopa','madeira','carpintaria'],
+        'INSTALAÇÃO': ['instalação','montagem','serviço de instalação']
     };
     for (const [cat, keywords] of Object.entries(catMap)) {
         if (keywords.some(kw => lower.includes(kw))) {
