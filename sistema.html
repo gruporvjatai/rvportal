@@ -633,7 +633,7 @@
       <div class="flex gap-2">
         <div class="relative flex-1">
           <i data-lucide="search" class="absolute left-2 top-2 text-slate-400 w-4 h-4"></i>
-          <input type="text" id="rec-search" placeholder="Buscar cliente..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-indigo-600 outline-none" onkeyup="renderFinance()">
+          <input type="text" id="rec-search" placeholder="Buscar cliente..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-indigo-600 outline-none" onkeyup="renderFinanceDebounced()">
         </div>
         <select id="rec-status" class="w-32 p-1.5 border rounded text-xs focus:ring-1 focus:ring-indigo-600 outline-none" onchange="renderFinance()">
           <option value="">Todos</option>
@@ -682,7 +682,7 @@
       <div class="flex gap-2">
         <div class="relative flex-1">
           <i data-lucide="search" class="absolute left-2 top-2 text-slate-400 w-4 h-4"></i>
-          <input type="text" id="exp-search" placeholder="Buscar fornecedor/item..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" onkeyup="renderFinance()">
+          <input type="text" id="exp-search" placeholder="Buscar fornecedor/item..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" onkeyup="renderFinanceDebounced()">
         </div>
         <select id="exp-status" class="w-32 p-1.5 border rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
           <option value="">Todos</option>
@@ -761,7 +761,7 @@
   <!-- ===================== PAINEL CATALOGO ===================== -->
   <div id="prod-panel-catalogo">
     <div class="flex gap-2 mb-4 bg-white p-4 rounded-xl shadow-sm border">
-      <input type="text" id="prod-search" placeholder="Buscar produto por nome..." class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderProducts()">
+      <input type="text" id="prod-search" placeholder="Buscar produto por nome..." class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderProductsDebounced()">
       <select id="prod-category" class="w-1/3 p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
         <option value="">Todas as Categorias</option>
       </select>
@@ -2027,6 +2027,8 @@
           <button onclick="confirmarSalvarObsExpedicao()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold shadow-lg shadow-emerald-200 transition">Salvar Observação</button>
         </div>
       </div>
+    </div>
+
     <!-- Modal Relatório de Itens em Aberto (Expedição) -->
     <div id="modal-expedicao-abertos" class="hidden fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -4751,6 +4753,24 @@ function printStockCountSheet() {
               }, 300); // Aguarda 300 milissegundos
           }
 
+          // Debounce das buscas por digitação (Produtos e Financeiro).
+          // Evita re-renderizar a lista inteira a cada tecla, mantendo o resultado final igual.
+          let financeSearchTimeout;
+          function renderFinanceDebounced() {
+              clearTimeout(financeSearchTimeout);
+              financeSearchTimeout = setTimeout(() => {
+                  renderFinance();
+              }, 300);
+          }
+
+          let productsSearchTimeout;
+          function renderProductsDebounced() {
+              clearTimeout(productsSearchTimeout);
+              productsSearchTimeout = setTimeout(() => {
+                  renderProducts();
+              }, 300);
+          }
+
   
   
         function renderPosProductModal() {
@@ -6507,6 +6527,14 @@ function loadQuoteToCart(id) {
         // RENDER FINANCEIRO - COMPARAÇÕES REVISADAS
         // ==========================================
         function renderFinance() {                    
+            // Índice nome->cliente montado uma única vez por render (antes: busca linear
+            // em STATE.clients para cada título). O primeiro cadastro com o nome vence,
+            // mantendo o mesmo resultado do antigo .find().
+            const clientesPorNome = new Map();
+            for (const c of (STATE.clients || [])) {
+                const k = String(c.name).trim();
+                if (!clientesPorNome.has(k)) clientesPorNome.set(k, c);
+            }
             // ========== CONTAS A RECEBER ==========
             const salesMap = {};
             STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO' && l.finStatus !== 'PARCELADO').forEach(l => {
@@ -6594,7 +6622,7 @@ function loadQuoteToCart(id) {
                     
                     // SÓ CRIA O BOTÃO SE O STATUS NÃO FOR "PAGO"
                     if (r.status !== 'PAGO') {
-                        const client = STATE.clients.find(c => String(c.name).trim() === String(r.clientName).trim());
+                        const client = clientesPorNome.get(String(r.clientName).trim());
                         
                         if (client && client.phone) {
                             let num = client.phone.replace(/\D/g, '');
