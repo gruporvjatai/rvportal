@@ -355,6 +355,17 @@
           </div>
       </div>
 
+      <!-- Toast de confirmacao centralizado (padrao) -->
+      <div id="confirm-toast" class="hidden fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-none">
+          <div class="pointer-events-auto bg-white border border-slate-200 rounded-xl shadow-2xl p-5 w-full max-w-sm">
+              <p id="confirm-toast-msg" class="text-sm font-bold text-slate-700 mb-4 text-center whitespace-pre-line"></p>
+              <div class="flex gap-2">
+                  <button id="confirm-toast-no" type="button" class="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-bold">Cancelar</button>
+                  <button id="confirm-toast-yes" type="button" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold">Confirmar</button>
+              </div>
+          </div>
+      </div>
+
      <div id="view-dash" class="hidden-section"><h2 class="text-2xl font-bold text-slate-800 mb-6">Visão Geral do Estoque</h2><div id="dash-grid" class="flex flex-col gap-3 pb-10"></div></div>
       
       <div id="view-pos" class="hidden-section">
@@ -2076,6 +2087,28 @@
             _toastConfirmTimer = setTimeout(cleanup, 15000);
         }
 
+        // Toast de confirmacao centralizado. Retorna uma Promise<boolean>.
+        function showConfirmToast(msg, options = {}) {
+            return new Promise(resolve => {
+                const box = document.getElementById('confirm-toast');
+                if (!box) { resolve(window.confirm(msg)); return; }
+                document.getElementById('confirm-toast-msg').textContent = msg;
+                const yes = document.getElementById('confirm-toast-yes');
+                const no = document.getElementById('confirm-toast-no');
+                yes.textContent = options.yesLabel || 'Confirmar';
+                no.textContent = options.noLabel || 'Cancelar';
+                const cleanup = (val) => {
+                    box.classList.add('hidden');
+                    yes.onclick = null;
+                    no.onclick = null;
+                    resolve(val);
+                };
+                yes.onclick = () => cleanup(true);
+                no.onclick = () => cleanup(false);
+                box.classList.remove('hidden');
+            });
+        }
+
 
     // Retorna o primeiro e último dia do mês atual no formato ISO local (yyyy-mm-dd)
         function getCurrentMonthRange() {
@@ -2855,7 +2888,7 @@ async function submeterAjusteEstoque() {
   const abaixo = validas.filter(v => v.para < Number(v.p.committed));
   let msg = `Aplicar ${validas.length} ajuste(s) de estoque?`;
   if (abaixo.length) msg += `\n\nAtenção: ${abaixo.length} produto(s) ficarão com físico abaixo do comprometido.`;
-  if (!confirm(msg)) return;
+  if (!(await showConfirmToast(msg))) return;
 
   showLoading(true);
   try {

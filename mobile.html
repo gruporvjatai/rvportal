@@ -97,6 +97,17 @@
         </div>
     </div>
 
+    <!-- Toast de confirmacao centralizado (padrao) -->
+    <div id="confirm-toast" class="hidden fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-none">
+        <div class="pointer-events-auto bg-white border border-slate-200 rounded-2xl shadow-2xl p-5 w-[90%] max-w-sm">
+            <p id="confirm-toast-msg" class="text-sm font-bold text-slate-700 mb-4 text-center whitespace-pre-line"></p>
+            <div class="flex gap-2">
+                <button id="confirm-toast-no" type="button" class="flex-1 py-3 bg-slate-200 text-slate-700 rounded-xl text-sm font-bold active:scale-95 transition-transform">Cancelar</button>
+                <button id="confirm-toast-yes" type="button" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold active:scale-95 transition-transform">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <main class="p-4 overflow-x-hidden">
 
      <div id="view-quotes" class="hidden-section">
@@ -1168,6 +1179,28 @@
             no.onclick = () => { cleanup(); if (typeof onNo === 'function') onNo(); };
             box.classList.remove('hidden');
             _toastConfirmTimer = setTimeout(cleanup, 15000);
+        }
+
+        // Toast de confirmacao centralizado. Retorna uma Promise<boolean>.
+        function showConfirmToast(msg, options = {}) {
+            return new Promise(resolve => {
+                const box = document.getElementById('confirm-toast');
+                if (!box) { resolve(window.confirm(msg)); return; }
+                document.getElementById('confirm-toast-msg').textContent = msg;
+                const yes = document.getElementById('confirm-toast-yes');
+                const no = document.getElementById('confirm-toast-no');
+                yes.textContent = options.yesLabel || 'Confirmar';
+                no.textContent = options.noLabel || 'Cancelar';
+                const cleanup = (val) => {
+                    box.classList.add('hidden');
+                    yes.onclick = null;
+                    no.onclick = null;
+                    resolve(val);
+                };
+                yes.onclick = () => cleanup(true);
+                no.onclick = () => cleanup(false);
+                box.classList.remove('hidden');
+            });
         }
     
 
@@ -3808,7 +3841,7 @@ function downloadPDF(blob, filename) {
             const abaixo = validas.filter(v => v.para < Number(v.p.committed));
             let msg = `Aplicar ${validas.length} ajuste(s) de estoque?`;
             if (abaixo.length) msg += `\n\nAtenção: ${abaixo.length} produto(s) ficarão com físico abaixo do comprometido.`;
-            if (!confirm(msg)) return;
+            if (!(await showConfirmToast(msg))) return;
 
             showLoading(true);
             try {
