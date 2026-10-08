@@ -4519,6 +4519,30 @@ function downloadPDF(blob, filename) {
           document.getElementById('modal-comprometido').classList.add('hidden');
       }
 
+      // Fecha modais com a tecla Esc (padronizacao). Preserva o conteudo de
+      // formularios longos de cadastro.
+      const ESC_MODAL_CLOSE_MAP = {
+          'modal-categorias-produto': closeCategoriasProdutoModal,
+          'modal-catprod-edit': closeEditCategoriaProduto,
+          'modal-catprod-produtos': closeVerProdutosCategoria,
+          'modal-comprometido': closeComprometido,
+          'modal-ajuste-historico': closeAjusteHistorico,
+          'modal-period-report': closePeriodReportModal,
+          'modal-partner-report': closePartnerModal,
+          'modal-parcel-rec': closeParcelarModal,
+          'modal-expense-report': closeExpenseReportModal
+      };
+      document.addEventListener('keydown', function(event) {
+          if (event.key !== 'Escape' && event.key !== 'Esc') return;
+          const ae = document.activeElement;
+          const tag = ae?.tagName?.toLowerCase();
+          if ((tag === 'input' || tag === 'textarea' || tag === 'select') && ae.closest && ae.closest('#modal-expense, #modal-payexpense, #modal-receivable-edit')) return;
+          Object.entries(ESC_MODAL_CLOSE_MAP).forEach(([id, fn]) => {
+              const el = document.getElementById(id);
+              if (el && !el.classList.contains('hidden')) fn();
+          });
+      });
+
         function renderClients() {
             const list = document.getElementById('clients-list');
             if(!list) return;

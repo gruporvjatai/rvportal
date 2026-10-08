@@ -478,7 +478,12 @@
 </div>
       
 <div id="view-expedition" class="hidden-section">
-         <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="truck"></i> Expedição / Entregas Pendentes</h2>
+         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+             <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2"><i data-lucide="truck"></i> Expedição / Entregas Pendentes</h2>
+             <button onclick="openRelatorioAbertos()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow-lg flex items-center gap-2">
+                 <i data-lucide="clipboard-list" class="w-4 h-4"></i> Relatório de Itens em Aberto
+             </button>
+         </div>
          
          <div class="bg-white rounded-xl border shadow-sm overflow-hidden mb-8">
             <div class="overflow-x-auto max-h-[40vh]">
@@ -2022,6 +2027,38 @@
           <button onclick="confirmarSalvarObsExpedicao()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-lg font-bold shadow-lg shadow-emerald-200 transition">Salvar Observação</button>
         </div>
       </div>
+    <!-- Modal Relatório de Itens em Aberto (Expedição) -->
+    <div id="modal-expedicao-abertos" class="hidden fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="bg-slate-900 p-4 flex justify-between items-center shrink-0">
+          <h3 class="text-white font-bold flex items-center gap-2">
+            <i data-lucide="clipboard-list"></i> Itens em Aberto na Expedição
+          </h3>
+          <div class="flex items-center gap-2">
+            <button onclick="printRelatorioAbertos()" class="text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+            <button onclick="closeRelatorioAbertos()" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+          </div>
+        </div>
+        <div class="px-4 py-3 bg-slate-50 border-b shrink-0 text-xs text-slate-500">
+          <span id="exp-abertos-resumo"></span>
+        </div>
+        <div class="overflow-y-auto flex-1">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
+              <tr>
+                <th class="p-3 text-center">Pedido</th>
+                <th class="p-3">Cliente</th>
+                <th class="p-3">Produto</th>
+                <th class="p-3 text-center">Qtd</th>
+                <th class="p-3 text-center">Entregue</th>
+                <th class="p-3 text-center">Falta</th>
+                <th class="p-3 text-center">Situação</th>
+              </tr>
+            </thead>
+            <tbody id="exp-abertos-list" class="divide-y"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
     
 
@@ -2105,7 +2142,23 @@
             'modal-period-report': closePeriodReportModal,
             'modal-partner-report': closePartnerModal,
             'modal-stock-count-filters': closeStockCountFilters,
-            'modal-ajuste-historico': closeAjusteHistorico
+            'modal-ajuste-historico': closeAjusteHistorico,
+            // Modais criados nesta etapa (categorias, olhinhos, itens em aberto)
+            'modal-categorias-despesa': closeCategoriasDespesaModal,
+            'modal-catdesp-reassign': cancelCategoriaDespesaDelete,
+            'modal-catdesp-edit': closeEditCategoriaDespesa,
+            'modal-catdesp-despesas': closeVerDespesasCategoria,
+            'modal-categorias-produto': closeCategoriasProdutoModal,
+            'modal-catprod-edit': closeEditCategoriaProduto,
+            'modal-catprod-produtos': closeVerProdutosCategoria,
+            'modal-comprometido': closeComprometido,
+            'modal-expedicao-abertos': closeRelatorioAbertos,
+            // Demais modais sem entrada previa (padronizacao do Esc)
+            'modal-parcel-rec': closeParcelarModal,
+            'modal-receipt': closeReceiptModal,
+            'modal-payexpense': () => document.getElementById('modal-payexpense').classList.add('hidden'),
+            'modal-expense-report': () => document.getElementById('modal-expense-report').classList.add('hidden'),
+            'modal-editar-obs-expedicao': fecharModalEditarObsExpedicao
         };
         
         function closeAllModals() {
@@ -2117,11 +2170,15 @@
             }
         }
         
+        // Formularios longos de cadastro: preserva o que foi digitado ao pressionar Esc.
+        const ESC_FORM_PROTEGIDO = '#client-form-container, #prod-form-container, #user-form-container, #modal-expense, #modal-revenue, #modal-payexpense, #client-credit-modal, #modal-receivable-edit';
+
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape' || event.key === 'Esc') {
-                const tag = document.activeElement?.tagName?.toLowerCase();
-                if (tag === 'input' || tag === 'textarea' || tag === 'select') {
-                    return; // não fecha se estiver digitando
+                const ae = document.activeElement;
+                const tag = ae?.tagName?.toLowerCase();
+                if ((tag === 'input' || tag === 'textarea' || tag === 'select') && ae.closest && ae.closest(ESC_FORM_PROTEGIDO)) {
+                    return; // nao fecha formulario de cadastro enquanto digita
                 }
                 closeAllModals();
             }
@@ -5260,6 +5317,131 @@ function loadQuoteToCart(id) {
 }
 
   
+        // Itens de venda ainda nao entregues, um por linha, ordenados por produto
+        // para facilitar a separacao no estoque. Referencia a venda (Pedido + Nome).
+        function getItensAbertosExpedicao() {
+            return (STATE.logs || [])
+                .filter(l => l.type === 'venda' && String(l.status || '').toUpperCase() !== 'CANCELADO')
+                .map(l => {
+                    const qtd = Number(l.quantity) || 0;
+                    const entregue = Number(l.deliveredQty) || 0;
+                    return {
+                        orderId: l.id,
+                        date: l.date,
+                        clientName: l.clientName || '',
+                        productName: l.productName || '',
+                        quantity: qtd,
+                        delivered: entregue,
+                        falta: qtd - entregue
+                    };
+                })
+                .filter(i => i.falta > 0)
+                .sort((a, b) => {
+                    const byProd = String(a.productName).localeCompare(String(b.productName), 'pt-BR');
+                    if (byProd !== 0) return byProd;
+                    return String(a.orderId).localeCompare(String(b.orderId), 'pt-BR', { numeric: true });
+                });
+        }
+
+        function openRelatorioAbertos() {
+            const itens = getItensAbertosExpedicao();
+            const body = document.getElementById('exp-abertos-list');
+            const resumo = document.getElementById('exp-abertos-resumo');
+            const pedidos = new Set(itens.map(i => String(i.orderId))).size;
+            const totalFalta = itens.reduce((a, i) => a + i.falta, 0);
+            if (resumo) resumo.innerHTML = `<b>${itens.length}</b> item(ns) em aberto em <b>${pedidos}</b> pedido(s) · total a separar/entregar: <b class="text-amber-600">${totalFalta}</b>`;
+            if (body) {
+                if (!itens.length) {
+                    body.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400 font-bold">Nenhum item em aberto.</td></tr>';
+                } else {
+                    body.innerHTML = itens.map(i => {
+                        const situacao = i.delivered > 0 ? 'PARCIAL' : 'PENDENTE';
+                        return `<tr class="hover:bg-slate-50 border-b">
+                            <td class="p-3 text-center font-black text-slate-700">#${i.orderId}</td>
+                            <td class="p-3 font-medium text-slate-700">${i.clientName || '-'}</td>
+                            <td class="p-3">${i.productName}</td>
+                            <td class="p-3 text-center">${i.quantity}</td>
+                            <td class="p-3 text-center text-green-600 font-bold">${i.delivered}</td>
+                            <td class="p-3 text-center text-amber-600 font-black">${i.falta}</td>
+                            <td class="p-3 text-center"><span class="px-2 py-1 rounded text-[10px] font-bold ${situacao === 'PARCIAL' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}">${situacao}</span></td>
+                        </tr>`;
+                    }).join('');
+                }
+            }
+            document.getElementById('modal-expedicao-abertos').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeRelatorioAbertos() {
+            document.getElementById('modal-expedicao-abertos').classList.add('hidden');
+        }
+
+        function printRelatorioAbertos() {
+            const itens = getItensAbertosExpedicao();
+            if (!itens.length) return showToast("Nenhum item em aberto para imprimir", true);
+            const totalFalta = itens.reduce((a, i) => a + i.falta, 0);
+            const company = {
+                name: "RV NEGOCIOS E COMPANHIA LTDA",
+                cnpj: "61.893.912/0001-24",
+                phone: "(64) 3636-4861",
+                address: "Jataí - GO",
+                logoUrl: LOGO_NEGOCIOS_URL
+            };
+            const rowsHtml = itens.map(i => `
+                <tr>
+                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center; font-weight:bold;">#${i.orderId}</td>
+                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${i.clientName || '-'}</td>
+                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${i.productName}</td>
+                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center;">${i.quantity}</td>
+                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center;">${i.delivered}</td>
+                    <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align:center; font-weight:bold; color:#b45309;">${i.falta}</td>
+                </tr>
+            `).join('');
+            const el = document.getElementById('print-area');
+            el.innerHTML = `
+                <div style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 15px;">
+                    <div style="display: flex; border: 1px solid #000; margin-bottom: 0;">
+                        <div style="width: 100px; padding: 5px; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center;">
+                            <img src="${company.logoUrl}" style="max-height: 80px; max-width: 100%;" />
+                        </div>
+                        <div style="flex: 1; padding: 10px; border-right: 1px solid #000;">
+                            <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                            <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj} | IE: 20.298.776-0</p>
+                            <p style="margin: 2px 0; font-size: 12px;">Endereço: ${company.address}</p>
+                            <p style="margin: 2px 0; font-size: 12px;">Telefone: ${company.phone}</p>
+                        </div>
+                        <div style="width: 200px; padding: 10px; background-color: #f9f9f9; text-align: right;">
+                            <h3 style="margin: 0; font-size: 14px; font-weight: bold;">ITENS EM ABERTO</h3>
+                            <p style="margin: 5px 0; font-size: 12px;">Emissão: ${new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div style="background-color: #f8fafc; border: 1px solid #000; border-top: none; padding: 8px; margin-bottom: 15px; font-size: 12px;">
+                        <strong>Pendentes de entrega, agrupados por produto.</strong> ${itens.length} item(ns).
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000;">
+                        <thead>
+                            <tr style="background-color: #f1f5f9;">
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Pedido</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Cliente</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Produto</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Qtd</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Entregue</th>
+                                <th style="border-bottom: 1px solid #000; padding: 6px; text-align: center;">Falta</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                        <tfoot>
+                            <tr style="background-color: #fffbeb;">
+                                <td colspan="5" style="border-top: 2px solid #000; border-right: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 12px;">TOTAL A ENTREGAR:</td>
+                                <td style="border-top: 2px solid #000; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; color: #b45309;">${totalFalta}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+            setTimeout(() => window.print(), 500);
+        }
+
         function renderExpedition() {
             const tbody = document.getElementById('expedition-list');
             if(!tbody) return;
