@@ -816,6 +816,9 @@
       <button onclick="openStockCountFilters()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
         <i data-lucide="printer"></i> Ficha de Contagem
       </button>
+      <button onclick="openAjusteHistorico()" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
+        <i data-lucide="history"></i> Histórico
+      </button>
     </div>
 
     <!-- Modo + motivo -->
@@ -869,28 +872,34 @@
         </button>
       </div>
     </div>
+  </div>
+</div>
 
-    <!-- Historico -->
-    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-      <div class="p-4 border-b bg-slate-50 flex items-center justify-between">
-        <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="history" class="w-4 h-4 text-indigo-600"></i> Histórico de ajustes</h3>
-        <span class="text-xs text-slate-400 font-medium">Últimos 100</span>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left">
-          <thead class="bg-white text-slate-500">
-            <tr>
-              <th class="p-3 font-bold">Data</th>
-              <th class="p-3 font-bold">Produto</th>
-              <th class="p-3 font-bold">Motivo</th>
-              <th class="p-3 text-center font-bold">De → Para</th>
-              <th class="p-3 text-center font-bold">Delta</th>
-              <th class="p-3 font-bold">Observação</th>
-            </tr>
-          </thead>
-          <tbody id="adj-history" class="divide-y"></tbody>
-        </table>
-      </div>
+<!-- Modal do historico de ajustes de estoque -->
+<div id="modal-ajuste-historico" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+    <div class="p-4 border-b bg-slate-50 flex items-center justify-between">
+      <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="history" class="w-5 h-5 text-indigo-600"></i> Histórico de ajustes</h3>
+      <button onclick="closeAjusteHistorico()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+    </div>
+    <div class="overflow-auto flex-1">
+      <table class="w-full text-sm text-left">
+        <thead class="bg-white text-slate-500 sticky top-0 border-b">
+          <tr>
+            <th class="p-3 font-bold">Data</th>
+            <th class="p-3 font-bold">Produto</th>
+            <th class="p-3 font-bold">Motivo</th>
+            <th class="p-3 text-center font-bold">De → Para</th>
+            <th class="p-3 text-center font-bold">Delta</th>
+            <th class="p-3 font-bold">Observação</th>
+          </tr>
+        </thead>
+        <tbody id="adj-history" class="divide-y"></tbody>
+      </table>
+    </div>
+    <div class="p-3 border-t bg-slate-50 flex justify-between items-center">
+      <span class="text-xs text-slate-400 font-medium">Últimos 100 ajustes</span>
+      <button onclick="closeAjusteHistorico()" class="px-4 py-2 bg-slate-200 rounded font-bold hover:bg-slate-300">Fechar</button>
     </div>
   </div>
 </div>
@@ -1919,7 +1928,8 @@
             'pos-history-modal': closePosHistoryModal,
             'modal-period-report': closePeriodReportModal,
             'modal-partner-report': closePartnerModal,
-            'modal-stock-count-filters': closeStockCountFilters
+            'modal-stock-count-filters': closeStockCountFilters,
+            'modal-ajuste-historico': closeAjusteHistorico
         };
         
         function closeAllModals() {
@@ -2866,6 +2876,18 @@ async function submeterAjusteEstoque() {
     showToast("Erro ao aplicar ajustes: " + err.message, true);
     showLoading(false);
   }
+}
+
+// Abre/fecha o modal do historico de ajustes.
+function openAjusteHistorico() {
+  if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+  loadAjusteHistorico();
+  document.getElementById('modal-ajuste-historico').classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeAjusteHistorico() {
+  document.getElementById('modal-ajuste-historico').classList.add('hidden');
 }
 
 // Historico de ajustes (logs tipo ajuste_estoque).
@@ -5146,7 +5168,6 @@ function loadQuoteToCart(id) {
           panelCat?.classList.add('hidden');
           panelAdj?.classList.remove('hidden');
           renderStockAdjust();
-          loadAjusteHistorico();
         } else {
           panelAdj?.classList.add('hidden');
           panelCat?.classList.remove('hidden');

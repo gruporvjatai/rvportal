@@ -259,13 +259,23 @@
                   <input type="text" id="adj-obs" placeholder="Observação (opcional)" class="w-full p-2 border rounded-lg text-sm outline-none focus:border-orange-500 font-medium">
                   <span id="adj-summary" class="text-xs font-bold text-slate-500"></span>
                   <button onclick="submeterAjusteEstoque()" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 active:scale-95 transition-transform">Aplicar ajustes</button>
+                  <button onclick="openAjusteHistorico()" class="w-full py-3 bg-slate-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"><i data-lucide="history" class="w-4 h-4"></i> Histórico de ajustes</button>
               </div>
 
               <div id="adj-list" class="flex flex-col gap-3"></div>
+          </div>
+      </div>
 
-              <div class="mt-6">
-                  <h3 class="font-black text-slate-800 text-sm mb-2 flex items-center gap-2"><i data-lucide="history" class="w-4 h-4 text-orange-500"></i> Histórico de ajustes</h3>
-                  <div id="adj-history" class="flex flex-col gap-2"></div>
+      <!-- Modal historico de ajustes (mobile) -->
+      <div id="modal-ajuste-historico" class="hidden fixed inset-0 bg-slate-900/70 z-[90] flex items-end sm:items-center justify-center">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[85vh]">
+              <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl sm:rounded-t-2xl">
+                  <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="history" class="text-orange-500 w-5 h-5"></i> Histórico de ajustes</h3>
+                  <button onclick="closeAjusteHistorico()" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+              </div>
+              <div id="adj-history" class="p-4 flex flex-col gap-2 overflow-y-auto flex-1"></div>
+              <div class="p-4 border-t bg-slate-50">
+                  <button onclick="closeAjusteHistorico()" class="w-full py-3 bg-slate-200 text-slate-700 rounded-xl font-bold">Fechar</button>
               </div>
           </div>
       </div>
@@ -3570,7 +3580,6 @@ function downloadPDF(blob, filename) {
                 panelCat?.classList.add('hidden');
                 panelAdj?.classList.remove('hidden');
                 renderStockAdjust();
-                loadAjusteHistorico();
             } else {
                 panelAdj?.classList.add('hidden');
                 panelCat?.classList.remove('hidden');
@@ -3820,6 +3829,17 @@ function downloadPDF(blob, filename) {
                 showToast("Erro ao aplicar ajustes: " + err.message, true);
                 showLoading(false);
             }
+        }
+
+        function openAjusteHistorico() {
+            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            loadAjusteHistorico();
+            document.getElementById('modal-ajuste-historico').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeAjusteHistorico() {
+            document.getElementById('modal-ajuste-historico').classList.add('hidden');
         }
 
         function loadAjusteHistorico() {
