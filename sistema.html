@@ -2041,24 +2041,43 @@
             <button onclick="closeRelatorioAbertos()" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
           </div>
         </div>
+        <div class="px-4 pt-3 bg-white border-b shrink-0">
+          <div class="flex gap-1">
+            <button id="exp-abertos-tab-detalhado" onclick="setRelatorioAbertosModo('detalhado')" class="px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-amber-600 text-amber-700">Detalhado</button>
+            <button id="exp-abertos-tab-produto" onclick="setRelatorioAbertosModo('produto')" class="px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-800">Por Produto</button>
+          </div>
+        </div>
         <div class="px-4 py-3 bg-slate-50 border-b shrink-0 text-xs text-slate-500">
           <span id="exp-abertos-resumo"></span>
         </div>
         <div class="overflow-y-auto flex-1">
-          <table class="w-full text-sm text-left">
-            <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
-              <tr>
-                <th class="p-3 text-center">Pedido</th>
-                <th class="p-3">Cliente</th>
-                <th class="p-3">Produto</th>
-                <th class="p-3 text-center">Qtd</th>
-                <th class="p-3 text-center">Entregue</th>
-                <th class="p-3 text-center">Falta</th>
-                <th class="p-3 text-center">Situação</th>
-              </tr>
-            </thead>
-            <tbody id="exp-abertos-list" class="divide-y"></tbody>
-          </table>
+          <div id="exp-abertos-panel-detalhado">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
+                <tr>
+                  <th class="p-3 text-center">Pedido</th>
+                  <th class="p-3">Cliente</th>
+                  <th class="p-3">Produto</th>
+                  <th class="p-3 text-center">Qtd</th>
+                  <th class="p-3 text-center">Entregue</th>
+                  <th class="p-3 text-center">Falta</th>
+                  <th class="p-3 text-center">Situação</th>
+                </tr>
+              </thead>
+              <tbody id="exp-abertos-list" class="divide-y"></tbody>
+            </table>
+          </div>
+          <div id="exp-abertos-panel-produto" class="hidden">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
+                <tr>
+                  <th class="p-3">Produto</th>
+                  <th class="p-3 w-44 text-center">Qtd a entregar</th>
+                </tr>
+              </thead>
+              <tbody id="exp-abertos-produtos-list" class="divide-y"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -5363,13 +5382,55 @@ function loadQuoteToCart(id) {
                 });
         }
 
-        function openRelatorioAbertos() {
+        // Modo de visualização do relatório: 'detalhado' (por linha/pedido) ou 'produto' (agrupado).
+        let EXP_ABERTOS_MODO = 'detalhado';
+
+        // Soma a quantidade a entregar (falta) por produto, para facilitar a separação.
+        function getItensAbertosPorProduto() {
+            const mapa = new Map();
+            getItensAbertosExpedicao().forEach(i => {
+                const nome = String(i.productName || '').trim() || '(sem produto)';
+                if (!mapa.has(nome)) mapa.set(nome, { productName: nome, falta: 0 });
+                mapa.get(nome).falta += i.falta;
+            });
+            return Array.from(mapa.values())
+                .sort((a, b) => a.productName.localeCompare(b.productName, 'pt-BR'));
+        }
+
+        function setRelatorioAbertosModo(modo) {
+            EXP_ABERTOS_MODO = (modo === 'produto') ? 'produto' : 'detalhado';
+            renderRelatorioAbertos();
+        }
+
+        function renderRelatorioAbertos() {
             const itens = getItensAbertosExpedicao();
-            const body = document.getElementById('exp-abertos-list');
+            const produtos = getItensAbertosPorProduto();
             const resumo = document.getElementById('exp-abertos-resumo');
             const pedidos = new Set(itens.map(i => String(i.orderId))).size;
             const totalFalta = itens.reduce((a, i) => a + i.falta, 0);
-            if (resumo) resumo.innerHTML = `<b>${itens.length}</b> item(ns) em aberto em <b>${pedidos}</b> pedido(s) · total a separar/entregar: <b class="text-amber-600">${totalFalta}</b>`;
+            const produtoMode = EXP_ABERTOS_MODO === 'produto';
+
+            // Abas
+            const tabAtivo = 'px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-amber-600 text-amber-700';
+            const tabInativo = 'px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-800';
+            const tabDet = document.getElementById('exp-abertos-tab-detalhado');
+            const tabProd = document.getElementById('exp-abertos-tab-produto');
+            if (tabDet) tabDet.className = produtoMode ? tabInativo : tabAtivo;
+            if (tabProd) tabProd.className = produtoMode ? tabAtivo : tabInativo;
+            const painelDet = document.getElementById('exp-abertos-panel-detalhado');
+            const painelProd = document.getElementById('exp-abertos-panel-produto');
+            if (painelDet) painelDet.classList.toggle('hidden', produtoMode);
+            if (painelProd) painelProd.classList.toggle('hidden', !produtoMode);
+
+            // Resumo
+            if (resumo) {
+                resumo.innerHTML = produtoMode
+                    ? `<b>${produtos.length}</b> produto(s) em aberto · total a separar/entregar: <b class="text-amber-600">${totalFalta}</b>`
+                    : `<b>${itens.length}</b> item(ns) em aberto em <b>${pedidos}</b> pedido(s) · total a separar/entregar: <b class="text-amber-600">${totalFalta}</b>`;
+            }
+
+            // Lista detalhada
+            const body = document.getElementById('exp-abertos-list');
             if (body) {
                 if (!itens.length) {
                     body.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400 font-bold">Nenhum item em aberto.</td></tr>';
@@ -5388,6 +5449,25 @@ function loadQuoteToCart(id) {
                     }).join('');
                 }
             }
+
+            // Lista por produto (nome + quantidade a entregar)
+            const bodyProd = document.getElementById('exp-abertos-produtos-list');
+            if (bodyProd) {
+                if (!produtos.length) {
+                    bodyProd.innerHTML = '<tr><td colspan="2" class="p-8 text-center text-slate-400 font-bold">Nenhum item em aberto.</td></tr>';
+                } else {
+                    bodyProd.innerHTML = produtos.map(p => `<tr class="hover:bg-amber-50/40 border-b">
+                        <td class="p-3 font-medium text-slate-800">${p.productName}</td>
+                        <td class="p-3 text-center font-black text-amber-600 text-base">${p.falta}</td>
+                    </tr>`).join('');
+                }
+            }
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function openRelatorioAbertos() {
+            renderRelatorioAbertos();
             document.getElementById('modal-expedicao-abertos').classList.remove('hidden');
             if (window.lucide) lucide.createIcons();
         }
@@ -5407,16 +5487,65 @@ function loadQuoteToCart(id) {
                 address: "Jataí - GO",
                 logoUrl: LOGO_NEGOCIOS_URL
             };
-            const rowsHtml = itens.map(i => `
-                <tr>
-                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center; font-weight:bold;">#${i.orderId}</td>
-                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${i.clientName || '-'}</td>
-                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${i.productName}</td>
-                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center;">${i.quantity}</td>
-                    <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center;">${i.delivered}</td>
-                    <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align:center; font-weight:bold; color:#b45309;">${i.falta}</td>
-                </tr>
-            `).join('');
+            let subtituloHtml, tabelaHtml;
+            if (EXP_ABERTOS_MODO === 'produto') {
+                const produtos = getItensAbertosPorProduto();
+                const linhas = produtos.map(p => `
+                    <tr>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${p.productName}</td>
+                        <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align:center; font-weight:bold; color:#b45309;">${p.falta}</td>
+                    </tr>
+                `).join('');
+                subtituloHtml = `<strong>Separação por produto.</strong> ${produtos.length} produto(s) · total a separar: ${totalFalta}.`;
+                tabelaHtml = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #000;">
+                        <thead>
+                            <tr style="background-color: #f1f5f9;">
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Produto</th>
+                                <th style="border-bottom: 1px solid #000; padding: 6px; text-align: center; width: 140px;">Qtd a entregar</th>
+                            </tr>
+                        </thead>
+                        <tbody>${linhas}</tbody>
+                        <tfoot>
+                            <tr style="background-color: #fffbeb;">
+                                <td style="border-top: 2px solid #000; border-right: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 12px;">TOTAL A ENTREGAR:</td>
+                                <td style="border-top: 2px solid #000; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; color: #b45309;">${totalFalta}</td>
+                            </tr>
+                        </tfoot>
+                    </table>`;
+            } else {
+                const rowsHtml = itens.map(i => `
+                    <tr>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center; font-weight:bold;">#${i.orderId}</td>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${i.clientName || '-'}</td>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${i.productName}</td>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center;">${i.quantity}</td>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center;">${i.delivered}</td>
+                        <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align:center; font-weight:bold; color:#b45309;">${i.falta}</td>
+                    </tr>
+                `).join('');
+                subtituloHtml = `<strong>Pendentes de entrega, detalhado por pedido.</strong> ${itens.length} item(ns).`;
+                tabelaHtml = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000;">
+                        <thead>
+                            <tr style="background-color: #f1f5f9;">
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Pedido</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Cliente</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Produto</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Qtd</th>
+                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Entregue</th>
+                                <th style="border-bottom: 1px solid #000; padding: 6px; text-align: center;">Falta</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                        <tfoot>
+                            <tr style="background-color: #fffbeb;">
+                                <td colspan="5" style="border-top: 2px solid #000; border-right: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 12px;">TOTAL A ENTREGAR:</td>
+                                <td style="border-top: 2px solid #000; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; color: #b45309;">${totalFalta}</td>
+                            </tr>
+                        </tfoot>
+                    </table>`;
+            }
             const el = document.getElementById('print-area');
             el.innerHTML = `
                 <div style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 15px;">
@@ -5436,27 +5565,9 @@ function loadQuoteToCart(id) {
                         </div>
                     </div>
                     <div style="background-color: #f8fafc; border: 1px solid #000; border-top: none; padding: 8px; margin-bottom: 15px; font-size: 12px;">
-                        <strong>Pendentes de entrega, agrupados por produto.</strong> ${itens.length} item(ns).
+                        ${subtituloHtml}
                     </div>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000;">
-                        <thead>
-                            <tr style="background-color: #f1f5f9;">
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Pedido</th>
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Cliente</th>
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Produto</th>
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Qtd</th>
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Entregue</th>
-                                <th style="border-bottom: 1px solid #000; padding: 6px; text-align: center;">Falta</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rowsHtml}</tbody>
-                        <tfoot>
-                            <tr style="background-color: #fffbeb;">
-                                <td colspan="5" style="border-top: 2px solid #000; border-right: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 12px;">TOTAL A ENTREGAR:</td>
-                                <td style="border-top: 2px solid #000; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; color: #b45309;">${totalFalta}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                    ${tabelaHtml}
                 </div>
             `;
             setTimeout(() => window.print(), 500);
