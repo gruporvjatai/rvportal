@@ -705,21 +705,7 @@
                  <div>
                     <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Categoria</label>
                     <select id="exp-item" class="w-full p-3 border rounded-xl focus:border-red-500 outline-none bg-slate-50">
-                        <option value="Fornecedor">Fornecedor</option>
-                        <option value="Salário">Salário</option>
-                        <option value="Energia">Energia</option>
-                        <option value="Água">Água</option>
-                        <option value="Internet">Internet</option>
-                        <option value="Imposto">Imposto</option>
-                        <option value="Sistema">Sistema</option>
-                        <option value="Contabilidade">Contabilidade</option>
-                        <option value="Combustível">Combustível</option>
-                        <option value="Man. Maquinas">Man. Máquinas</option>
-                        <option value="Juros/Taxas">Juros/Taxas</option>
-                        <option value="Veículos">Veículos</option>
-                        <option value="Marcenaria">Marcenaria</option>
-                        <option value="Instalação">Instalação</option>
-                        <option value="Outros">Outros</option>
+                        <option value="">Selecione...</option>
                     </select>
                 </div>
                 <div>
@@ -983,22 +969,6 @@
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
                     <select id="exp-report-category" class="w-full p-3 border rounded-xl bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500">
                         <option value="TODAS">Todas as Categorias</option>
-                        <option value="FORNECEDOR">FORNECEDOR</option>
-                        <option value="SALÁRIO">SALÁRIO</option>
-                        <option value="ENERGIA">ENERGIA</option>
-                        <option value="ESCRITORIO">ESCRITÓRIO</option>
-                        <option value="ÁGUA">ÁGUA</option>
-                        <option value="INTERNET">INTERNET</option>
-                        <option value="IMPOSTO">IMPOSTO</option>
-                        <option value="SISTEMA">SISTEMA</option>
-                        <option value="CONTABILIDADE">CONTABILIDADE</option>
-                        <option value="COMBUSTÍVEL">COMBUSTÍVEL</option>
-                        <option value="MAN. MAQUINAS">MAN. MAQUINAS</option>
-                        <option value="JUROS/TAXAS">JUROS/TAXAS</option>
-                        <option value="VEÍCULOS">VEÍCULOS</option>
-                        <option value="MARCENARIA">MARCENARIA</option>
-                        <option value="INSTALAÇÃO">INSTALAÇÃO</option>
-                        <option value="OUTROS">OUTROS</option>
                     </select>
                 </div>
     
@@ -1048,7 +1018,7 @@
         const supabaseKey = window.SUPABASE_ANON_KEY;
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], sales: [], categories: [] };
+        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], sales: [], categories: [], categoriesDespesas: [] };
 
         // Resolve o produto de uma log sempre por ID (produto_id) quando houver,
         // com fallback por nome para registros antigos sem vínculo.
@@ -1283,10 +1253,10 @@
 
        async function loadData() {
                 try {
-                    const [resProd, resCli, resLog, resDesp, resCat] = await Promise.all([
+                    const [resProd, resCli, resLog, resDesp, resCat, resCatDesp] = await Promise.all([
                         fetchAllRecords('produtos'), fetchAllRecords('clientes'),
                         fetchAllRecords('logs'), fetchAllRecords('despesas'),
-                        fetchAllRecords('categorias')
+                        fetchAllRecords('categorias'), fetchAllRecords('categorias_despesas')
                     ]);
             
                     STATE.products = (resProd.data || []).map(p => ({
@@ -1304,6 +1274,12 @@
                     STATE.categories = (resCat.data || [])
                         .map(c => ({ id: c.id, nome: c.nome }))
                         .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+
+                    STATE.categoriesDespesas = (resCatDesp.data || [])
+                        .map(c => ({ id: c.id, nome: c.nome }))
+                        .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+                    const catDespPorId = {};
+                    STATE.categoriesDespesas.forEach(c => { catDespPorId[String(c.id)] = c.nome; });
             
                     STATE.clients = (resCli.data || []).map(c => ({
                         id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
@@ -1408,12 +1384,15 @@
                     STATE.expenses = (resDesp.data || []).map(e => ({
                         id: e.id, item: e.item, quantity: Number(e.quantidade), cost: Number(e.custo), 
                         date: e.data, note: e.observacao, status: e.status || 'PENDENTE',
+                        categoriaId: e.categoria_id != null ? e.categoria_id : null,
+                        categoriaNome: e.categoria_id != null ? (catDespPorId[String(e.categoria_id)] || '') : '',
                         valorPago: Number(e.valor_pago || 0),
                         descontoTotal: Number(e.desconto_total || 0),
                         acrescimoTotal: Number(e.acrescimo_total || 0),
                         provider: e.observacao ? (e.observacao.startsWith('Fornecedor:') ? e.observacao.replace('Fornecedor:', '').trim() : '') : ''
                     }));
             
+                    preencherCategoriasDespesaSelectMobile();
                     onDataLoaded();
                 } catch (err) {
                     showLoading(false);
@@ -1517,7 +1496,7 @@
                 <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${isVencido ? 'border-l-red-500' : 'border-l-red-500'} relative">
                     <div class="flex-1 pr-2">
                         <span class="text-[10px] font-bold text-slate-400 uppercase">${formatDate(e.date)} ${isVencido ? '<span class="text-red-500 ml-1">VENCIDO</span>' : ''}</span>
-                        <h4 class="font-bold text-slate-700 text-sm leading-tight">${e.item}</h4>
+                        <h4 class="font-bold text-slate-700 text-sm leading-tight">${e.categoriaNome || e.item}</h4>
                         <p class="text-[10px] text-slate-500 truncate">${e.provider || e.note || '-'}</p>
                         ${(e.valorPago || 0) > 0 ? `<p class="text-[10px] text-orange-500 font-bold mt-1">Pago ${formatMoney(e.valorPago)} | Resta ${formatMoney(Math.max(0, saldoExp))}</p>` : `<p class="text-[10px] text-red-600 font-bold mt-1">Pagar: ${formatMoney(Math.max(0, saldoExp))}</p>`}
                         ${(e.acrescimoTotal || 0) > 0 ? `<p class="text-[10px] text-red-500 font-bold">+ Juros ${formatMoney(e.acrescimoTotal)}</p>` : ''}
@@ -1559,7 +1538,7 @@
                 extrato.push({ 
                     type: 'out', 
                     date: l.date, 
-                    title: exp ? exp.item : 'Despesa', 
+                    title: exp ? (exp.categoriaNome || exp.item) : 'Despesa', 
                     desc: l.note || '-', 
                     val: l.totalValue, 
                     uid: l.uid,
@@ -1985,12 +1964,34 @@
             }
         }
 
+        function getCategoriaDespesaNomeMobile(id) {
+            const c = (STATE.categoriesDespesas || []).find(x => String(x.id) === String(id));
+            return c ? c.nome : '';
+        }
+
+        function preencherCategoriasDespesaSelectMobile() {
+            const opts = (STATE.categoriesDespesas || [])
+                .map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+            const sel = document.getElementById('exp-item');
+            if (sel) {
+                const cur = sel.value;
+                sel.innerHTML = '<option value="">Selecione...</option>' + opts;
+                if (cur) sel.value = cur;
+            }
+            const rep = document.getElementById('exp-report-category');
+            if (rep) {
+                const cur = rep.value;
+                rep.innerHTML = '<option value="TODAS">Todas as Categorias</option>' + opts;
+                rep.value = cur || 'TODAS';
+            }
+        }
+
         function openEditExpense(id) {
             const exp = STATE.expenses.find(e => String(e.id) === String(id));
             if(!exp) return;
             
             document.getElementById('exp-id').value = exp.id;
-            document.getElementById('exp-item').value = exp.item;
+            document.getElementById('exp-item').value = (exp.categoriaId != null) ? String(exp.categoriaId) : '';
             document.getElementById('exp-provider').value = exp.provider || '';
             document.getElementById('exp-cost').value = exp.cost;
             try { document.getElementById('exp-date').value = exp.date.split('T')[0]; } catch(e){}
@@ -2002,21 +2003,24 @@
             const idVal = document.getElementById('exp-id').value;
             const isNew = !idVal;
             
-            const item = document.getElementById('exp-item').value;
+            const categoriaId = document.getElementById('exp-item').value;
+            const categoriaNome = getCategoriaDespesaNomeMobile(categoriaId);
             const provider = document.getElementById('exp-provider').value.trim();
             const cost = parseFloat(document.getElementById('exp-cost').value) || 0;
             const date = document.getElementById('exp-date').value || getHojeLocalStr();
             const noteBase = document.getElementById('exp-note').value.trim();
             
-            if(!item || !cost) return showToast("Preencha categoria e valor", true);
+            if(!categoriaId || !cost) return showToast("Preencha categoria e valor", true);
             showLoading(true);
 
             const finalNote = provider ? `Fornecedor: ${provider}${noteBase ? ' | ' + noteBase : ''}` : noteBase;
 
             const payload = {
-                item: item, quantidade: 1, unidade: 'Un',
+                quantidade: 1, unidade: 'Un',
+                categoria_id: Number(categoriaId),
                 custo: cost, data: date, observacao: finalNote, status: 'PENDENTE'
             };
+            if (isNew) payload.item = categoriaNome;
 
             const parcelas = isNew ? Math.max(1, parseInt(document.getElementById('exp-parcelas')?.value) || 1) : 1;
             const intervalo = isNew ? Math.max(1, parseInt(document.getElementById('exp-parcel-int')?.value) || 30) : 30;
@@ -4732,7 +4736,7 @@ function showFilteredExpenses() {
 
     // Filtro por categoria
     if (category !== 'TODAS') {
-        filtered = filtered.filter(e => e.item === category);
+        filtered = filtered.filter(e => String(e.categoriaId) === String(category));
     }
 
     // Filtro por status
@@ -4782,7 +4786,7 @@ function showFilteredExpenses() {
         return `
             <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2 flex flex-col gap-1">
                 <div class="flex justify-between items-start">
-                    <span class="font-bold text-sm text-slate-800">${e.item}</span>
+                    <span class="font-bold text-sm text-slate-800">${e.categoriaNome || e.item}</span>
                     <span class="font-black ${e.status === 'PAGO' ? 'text-green-600' : (isVencido ? 'text-red-600' : 'text-orange-500')}">${formatMoney(valor)}</span>
                 </div>
                 <div class="flex justify-between items-center text-[10px] text-slate-500">

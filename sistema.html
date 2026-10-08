@@ -583,6 +583,10 @@
                     class="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1">
                 <i data-lucide="file-text" class="w-4 h-4"></i> Recibo Avulso
             </button>
+            <button id="btn-categorias-despesa" onclick="openCategoriasDespesaModal()" 
+                    class="hidden bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1">
+                <i data-lucide="tags" class="w-4 h-4"></i> Categorias
+            </button>
         </div>
     </div>
 
@@ -662,23 +666,6 @@
       <div class="flex items-center gap-2 flex-wrap">
         <select id="exp-category-filter" onchange="renderFinance()" class="p-1.5 border rounded-lg text-xs font-bold bg-white focus:ring-1 focus:ring-red-500 outline-none">
           <option value="">Todas as Categorias</option>
-          <option value="FORNECEDOR">FORNECEDOR</option>
-          <option value="SALÁRIO">SALÁRIO</option>
-          <option value="ENERGIA">ENERGIA</option>
-          <option value="ESCRITORIO">ESCRITÓRIO</option>
-          <option value="ÁGUA">ÁGUA</option>
-          <option value="INTERNET">INTERNET</option>
-          <option value="IMPOSTO">IMPOSTO</option>
-          <option value="SISTEMA">SISTEMA</option>
-          <option value="CONTABILIDADE">CONTABILIDADE</option>
-          <option value="COMBUSTÍVEL">COMBUSTÍVEL</option>
-          <option value="MAN. MAQUINAS">MAN. MAQUINAS</option>
-          <option value="JUROS/TAXAS">JUROS/TAXAS</option>
-          <option value="VEÍCULOS">VEÍCULOS</option>
-          <option value="MARCENARIA">MARCENARIA</option>
-          <option value="INSTALAÇÃO">INSTALAÇÃO</option>
-          <option value="PROLABORE">PROLABORE</option>
-          <option value="OUTROS">OUTROS</option>
         </select>             
         <button onclick="refresh()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1" title="Atualizar Lista"><i data-lucide="list-restart" class="w-4 h-4"></i></button>
         <button onclick="openNewExpense()"class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1"><i data-lucide="minus-circle" class="w-4 h-4"></i> Lançar Saída</button>
@@ -1565,25 +1552,9 @@
                  <input type="hidden" id="exp-id">
                  <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Categoria da Despesa</label>
-                    <select id="exp-item" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
-                      <option value="FORNECEDOR">FORNECEDOR</option>
-                      <option value="SALÁRIO">SALÁRIO</option>
-                      <option value="ENERGIA">ENERGIA</option>
-                      <option value="ESCRITORIO">ESCRITÓRIO</option>
-                      <option value="ÁGUA">ÁGUA</option>
-                      <option value="INTERNET">INTERNET</option>
-                      <option value="IMPOSTO">IMPOSTO</option>
-                      <option value="SISTEMA">SISTEMA</option>
-                      <option value="CONTABILIDADE">CONTABILIDADE</option>
-                      <option value="COMBUSTÍVEL">COMBUSTÍVEL</option>
-                      <option value="MAN. MAQUINAS">MAN. MAQUINAS</option>
-                      <option value="JUROS/TAXAS">JUROS/TAXAS</option>
-                      <option value="VEÍCULOS">VEÍCULOS</option>
-                      <option value="MARCENARIA">MARCENARIA</option>
-                      <option value="INSTALAÇÃO">INSTALAÇÃO</option>
-                      <option value="PROLABORE">PROLABORE</option>
-                      <option value="OUTROS">OUTROS</option>                      
-                    </select>
+                     <select id="exp-item" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
+                       <option value="">Selecione...</option>
+                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Nome / Fornecedor</label>
@@ -1615,6 +1586,58 @@
             <div class="p-5 border-t bg-slate-50 flex gap-3">
                 <button onclick="closeExpenseModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button onclick="saveExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Salvar Pendente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL CATEGORIAS DE DESPESA ========== -->
+    <div id="modal-categorias-despesa" class="hidden fixed inset-0 bg-black/50 z-[60] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <i data-lucide="tags" class="text-red-600"></i> Categorias de Despesa
+                </h3>
+                <button onclick="closeCategoriasDespesaModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-4 border-b bg-white flex gap-2 items-end">
+                <div class="flex-1">
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Nova categoria</label>
+                    <input id="catdesp-new-name" type="text" placeholder="Ex: FRETES" class="w-full p-2.5 border rounded-lg outline-none focus:border-red-500 font-bold uppercase" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoriaDespesa();}">
+                </div>
+                <button onclick="addCategoriaDespesa()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg font-bold shadow flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Adicionar</button>
+            </div>
+            <div class="overflow-y-auto flex-1">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-600 sticky top-0">
+                        <tr>
+                            <th class="p-3">Categoria</th>
+                            <th class="p-3 text-center">Despesas</th>
+                            <th class="p-3 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="catdesp-list" class="divide-y"></tbody>
+                </table>
+            </div>
+            <p class="text-xs text-slate-400 p-4 border-t">Para excluir, primeiro escolha para qual categoria mover as despesas existentes. Categorias em uso não podem ficar órfãs.</p>
+        </div>
+    </div>
+
+    <!-- ========== MODAL REATRIBUIR DESPESAS (antes de excluir categoria) ========== -->
+    <div id="modal-catdesp-reassign" class="hidden fixed inset-0 bg-black/60 z-[70] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+            <div class="p-5 border-b bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="arrow-right-left" class="text-amber-600"></i> Mover despesas</h3>
+            </div>
+            <div class="p-5 space-y-4">
+                <p id="catdesp-reassign-msg" class="text-sm text-slate-600"></p>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Mover as despesas para</label>
+                    <select id="catdesp-reassign-target" class="w-full p-3 border rounded-xl outline-none focus:border-amber-500 bg-white font-medium"></select>
+                </div>
+            </div>
+            <div class="p-5 border-t bg-slate-50 flex gap-3">
+                <button onclick="cancelCategoriaDespesaDelete()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="confirmCategoriaDespesaDelete()" class="flex-1 py-3 bg-amber-600 rounded-xl font-bold text-white hover:bg-amber-700 shadow-lg">Mover e excluir</button>
             </div>
         </div>
     </div>
@@ -1817,23 +1840,6 @@
                     <label class="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
                     <select id="exp-report-category" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-500 outline-none bg-white">
                         <option value="TODAS">Todas as Categorias</option>
-                        <option value="FORNECEDOR">FORNECEDOR</option>
-                        <option value="SALÁRIO">SALÁRIO</option>
-                        <option value="ENERGIA">ENERGIA</option>
-                        <option value="ESCRITORIO">ESCRITÓRIO</option>
-                        <option value="ÁGUA">ÁGUA</option>
-                        <option value="INTERNET">INTERNET</option>
-                        <option value="IMPOSTO">IMPOSTO</option>
-                        <option value="SISTEMA">SISTEMA</option>
-                        <option value="CONTABILIDADE">CONTABILIDADE</option>
-                        <option value="COMBUSTÍVEL">COMBUSTÍVEL</option>
-                        <option value="MAN. MAQUINAS">MAN. MAQUINAS</option>
-                        <option value="JUROS/TAXAS">JUROS/TAXAS</option>
-                        <option value="VEÍCULOS">VEÍCULOS</option>
-                        <option value="MARCENARIA">MARCENARIA</option>
-                        <option value="INSTALAÇÃO">INSTALAÇÃO</option>
-                        <option value="PROLABORE">PROLABORE</option>
-                        <option value="OUTROS">OUTROS</option>
                     </select>
                 </div>
     
@@ -1920,7 +1926,7 @@
         const LOGO_NEGOCIOS_URL = new URL('logorvnegocios.png', window.location.href).href;
 
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
-        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], categories: [] /*custoMaterialB10: 0 */};
+        let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], categories: [], categoriesDespesas: [] /*custoMaterialB10: 0 */};
         // Resolve o produto de uma log sempre por ID (produto_id) quando houver,
         // com fallback por nome para registros antigos sem vínculo.
         function produtoDeLog(l) {
@@ -2191,13 +2197,14 @@
 
         async function loadData() {
     try {
-        const [resProd, resCli, resLog, resDesp, resEquipe, resCat, /*resConf*/] = await Promise.all([
+        const [resProd, resCli, resLog, resDesp, resEquipe, resCat, resCatDesp] = await Promise.all([
             fetchAllRecords('produtos'),
             fetchAllRecords('clientes'),
             fetchAllRecords('logs'),
             fetchAllRecords('despesas'),
             fetchAllRecords('equipe'),
-            fetchAllRecords('categorias')
+            fetchAllRecords('categorias'),
+            fetchAllRecords('categorias_despesas')
            //sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
         ]);
 
@@ -2217,6 +2224,12 @@
         STATE.categories = (resCat.data || [])
             .map(c => ({ id: c.id, nome: c.nome }))
             .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+
+        STATE.categoriesDespesas = (resCatDesp.data || [])
+            .map(c => ({ id: c.id, nome: c.nome }))
+            .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+        const catDespPorId = {};
+        STATE.categoriesDespesas.forEach(c => { catDespPorId[String(c.id)] = c.nome; });
 
         STATE.clients = (resCli.data || []).map(c => ({
             id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
@@ -2307,6 +2320,10 @@
         STATE.expenses = (resDesp.data || []).map(e => ({
             id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
             cost: Number(e.custo), date: e.data, note: e.observacao,
+            // Categoria da despesa: referencia por ID (texto padronizado resolvido
+            // dinamicamente, refletindo renomeios sem reescrever historico).
+            categoriaId: e.categoria_id != null ? e.categoria_id : null,
+            categoriaNome: e.categoria_id != null ? (catDespPorId[String(e.categoria_id)] || '') : '',
             // Despesa de salário: nome ATUAL do funcionário pelo equipe_id;
             // demais despesas (compras/fornecedores) usam o texto salvo.
             provider: resolverNomeEquipe(e.equipe_id, e.fornecedor || ''),
@@ -2321,10 +2338,13 @@
         if (dadosUsuario.nivel === 'admin') {
             const navUsersBtn = document.getElementById('nav-users');
             if (navUsersBtn) navUsersBtn.classList.remove('hidden');
+            const btnCatDesp = document.getElementById('btn-categorias-despesa');
+            if (btnCatDesp) btnCatDesp.classList.remove('hidden');
             const resUsers = await fetchAllRecords('usuarios');
             STATE.users = resUsers.data || [];
         }
 
+        preencherCategoriasDespesaSelects();
         onDataLoaded();
     } catch (err) {
         showLoading(false);
@@ -4180,13 +4200,14 @@ function printStockCountSheet() {
       async function saveExpense() {
           const idVal = document.getElementById('exp-id').value;
           const isNew = !idVal;
-          const item = document.getElementById('exp-item').value;
+          const categoriaId = document.getElementById('exp-item').value;
+          const categoriaNome = getCategoriaDespesaNome(categoriaId);
           const provider = document.getElementById('exp-provider').value.trim();
           const cost = parseFloat(document.getElementById('exp-cost').value);
           const date = document.getElementById('exp-date').value || getHojeLocalStr();
           const note = document.getElementById('exp-note').value.trim();
       
-          if (!item || isNaN(cost) || cost <= 0) {
+          if (!categoriaId || isNaN(cost) || cost <= 0) {
               showToast("Preencha a categoria e o valor corretamente", true);
               return;
           }
@@ -4196,16 +4217,22 @@ function printStockCountSheet() {
           const parcelas = isNew ? Math.max(1, parseInt(document.getElementById('exp-parcelas')?.value) || 1) : 1;
           const intervalo = isNew ? Math.max(1, parseInt(document.getElementById('exp-parcel-int')?.value) || 30) : 30;
 
-          const makePayload = (custo, data, obs) => ({
-              item: item,
-              quantidade: 1,
-              unidade: 'Un',
-              custo: custo,
-              data: data,
-              fornecedor: provider,   // agora vai para sua própria coluna
-              observacao: obs,        // observação fica só com o que o usuário digitou nela
-              status: 'PENDENTE'
-          });
+          const makePayload = (custo, data, obs) => {
+              const p = {
+                  quantidade: 1,
+                  unidade: 'Un',
+                  custo: custo,
+                  data: data,
+                  categoria_id: Number(categoriaId),
+                  fornecedor: provider,   // agora vai para sua própria coluna
+                  observacao: obs,        // observação fica só com o que o usuário digitou nela
+                  status: 'PENDENTE'
+              };
+              // Em despesa NOVA grava o nome no `item` (compat de exibição/histórico).
+              // Na edição o `item` antigo é preservado (não perde descrição/fornecedor legado).
+              if (isNew) p.item = categoriaNome;
+              return p;
+          };
 
           let error;
           if (isNew && parcelas > 1) {
@@ -4343,7 +4370,7 @@ function printStockCountSheet() {
                         id: await getNextIdFromDB(),
                         uid: uidBatch,
                         tipo: 'despesa',
-                        produto_nome: exp.item,
+                        produto_nome: exp.categoriaNome || exp.item,
                         quantidade: exp.quantity || 1,
                         data: dataPgto,
                         observacao: 'Ref Despesa #' + exp.id,
@@ -4387,11 +4414,12 @@ function printStockCountSheet() {
 
             const payload = {
                 id: getNextId(STATE.expenses),
-                item: exp.item,
+                item: exp.categoriaNome || exp.item,
                 quantidade: exp.quantity || 1,
                 unidade: exp.unit || 'Un',
                 custo: exp.cost,
                 data: novaDataStr,
+                categoria_id: exp.categoriaId != null ? exp.categoriaId : null,
                 fornecedor: exp.provider || '',
                 observacao: exp.note || '',
                 status: 'PENDENTE',
@@ -4447,7 +4475,7 @@ function printStockCountSheet() {
                 return;
             }
             document.getElementById('exp-id').value = exp.id;
-            document.getElementById('exp-item').value = exp.item;
+            document.getElementById('exp-item').value = (exp.categoriaId != null) ? String(exp.categoriaId) : '';
             document.getElementById('exp-cost').value = exp.cost;
             document.getElementById('exp-date').value = exp.date ? exp.date.split('T')[0] : '';
         
@@ -5426,6 +5454,181 @@ function loadQuoteToCart(id) {
         renderCategoriesPanel();
       }
 
+      // ================== CATEGORIAS DE DESPESA ==================
+      function getCategoriaDespesaNome(id) {
+        const c = (STATE.categoriesDespesas || []).find(x => String(x.id) === String(id));
+        return c ? c.nome : '';
+      }
+
+      // Converte um texto (ex.: vindo do OCR) para o id de uma categoria existente.
+      // Sem correspondencia, cai em OUTROS.
+      function resolverCategoriaDespesaPorTexto(texto) {
+        const cats = STATE.categoriesDespesas || [];
+        const t = String(texto || '').trim().toUpperCase();
+        const outros = cats.find(c => (c.nome || '').toUpperCase() === 'OUTROS');
+        if (!t) return outros ? String(outros.id) : '';
+        const exato = cats.find(c => (c.nome || '').toUpperCase() === t);
+        if (exato) return String(exato.id);
+        const contem = cats.find(c => t.includes((c.nome || '').toUpperCase()) || (c.nome || '').toUpperCase().includes(t));
+        if (contem) return String(contem.id);
+        return outros ? String(outros.id) : '';
+      }
+
+      function preencherCategoriasDespesaSelects() {
+        const cats = STATE.categoriesDespesas || [];
+        const opts = cats.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+        const selForm = document.getElementById('exp-item');
+        if (selForm) {
+          const cur = selForm.value;
+          selForm.innerHTML = '<option value="">Selecione...</option>' + opts;
+          if (cur) selForm.value = cur;
+        }
+        const selFilter = document.getElementById('exp-category-filter');
+        if (selFilter) {
+          const cur = selFilter.value;
+          selFilter.innerHTML = '<option value="">Todas as Categorias</option>' + opts;
+          selFilter.value = cur;
+        }
+        const selReport = document.getElementById('exp-report-category');
+        if (selReport) {
+          const cur = selReport.value;
+          selReport.innerHTML = '<option value="TODAS">Todas as Categorias</option>' + opts;
+          selReport.value = cur || 'TODAS';
+        }
+      }
+
+      function renderCategoriasDespesaModal() {
+        const list = document.getElementById('catdesp-list');
+        if (!list) return;
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
+        const cats = STATE.categoriesDespesas || [];
+        if (!cats.length) {
+          list.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-slate-400">Nenhuma categoria cadastrada.</td></tr>';
+          return;
+        }
+        list.innerHTML = cats.map(c => {
+          const emUso = (STATE.expenses || []).filter(e => String(e.categoriaId) === String(c.id)).length;
+          const nomeEsc = String(c.nome || '').replace(/"/g, '&quot;');
+          return `
+            <tr class="hover:bg-slate-50">
+              <td class="p-3"><input id="catdesp-in-${c.id}" type="text" value="${nomeEsc}" class="w-full max-w-xs p-2 border rounded font-bold uppercase" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCategoriaDespesa('${c.id}');}"></td>
+              <td class="p-3 text-center font-bold text-slate-600">${emUso}</td>
+              <td class="p-3 text-center">
+                <div class="flex gap-2 justify-center">
+                  <button onclick="saveCategoriaDespesa('${c.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold">Salvar</button>
+                  <button onclick="deleteCategoriaDespesa('${c.id}')" class="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded text-xs font-bold">Excluir</button>
+                </div>
+              </td>
+            </tr>`;
+        }).join('');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function openCategoriasDespesaModal() {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        renderCategoriasDespesaModal();
+        document.getElementById('modal-categorias-despesa').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function closeCategoriasDespesaModal() {
+        document.getElementById('modal-categorias-despesa').classList.add('hidden');
+      }
+
+      async function addCategoriaDespesa() {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        const input = document.getElementById('catdesp-new-name');
+        const nome = (input?.value || '').trim().toUpperCase();
+        if (!nome) return showToast("Informe o nome da categoria.", true);
+        if ((STATE.categoriesDespesas || []).some(c => (c.nome || '').toUpperCase() === nome)) return showToast("Categoria já existe.", true);
+        showLoading(true);
+        const { error } = await sb.from('categorias_despesas').insert([{ nome }]);
+        if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+        if (input) input.value = '';
+        showToast("Categoria criada!");
+        await loadData();
+        renderCategoriasDespesaModal();
+      }
+
+      async function saveCategoriaDespesa(id) {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        const cat = (STATE.categoriesDespesas || []).find(c => String(c.id) === String(id));
+        if (!cat) return;
+        const input = document.getElementById('catdesp-in-' + id);
+        const novo = (input?.value || '').trim().toUpperCase();
+        const antigo = cat.nome || '';
+        if (!novo) return showToast("Informe o nome da categoria.", true);
+        if (novo === antigo) return showToast("Nada para alterar.");
+        if ((STATE.categoriesDespesas || []).some(c => String(c.id) !== String(id) && (c.nome || '').toUpperCase() === novo)) return showToast("Já existe uma categoria com esse nome.", true);
+        showLoading(true);
+        const { error } = await sb.from('categorias_despesas').update({ nome: novo }).eq('id', id);
+        if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+        showToast("Categoria atualizada!");
+        await loadData();
+        renderCategoriasDespesaModal();
+      }
+
+      let _catDespDeleteId = null;
+
+      async function deleteCategoriaDespesa(id) {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        const cat = (STATE.categoriesDespesas || []).find(c => String(c.id) === String(id));
+        if (!cat) return;
+        const emUso = (STATE.expenses || []).filter(e => String(e.categoriaId) === String(id)).length;
+
+        if (emUso === 0) {
+          if (!(await showConfirmToast(`Excluir a categoria "${cat.nome}"?`))) return;
+          showLoading(true);
+          const { error } = await sb.from('categorias_despesas').delete().eq('id', id);
+          if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+          showToast("Categoria excluída!");
+          await loadData();
+          renderCategoriasDespesaModal();
+          return;
+        }
+
+        // Trava: em uso. Obriga escolher destino antes de excluir.
+        _catDespDeleteId = String(id);
+        const msg = document.getElementById('catdesp-reassign-msg');
+        if (msg) msg.innerHTML = `A categoria <b>${cat.nome}</b> está em uso por <b>${emUso}</b> despesa(s). Escolha para qual categoria mover os registros antes de excluir.`;
+        const sel = document.getElementById('catdesp-reassign-target');
+        if (sel) {
+          sel.innerHTML = '<option value="">Selecione...</option>' + (STATE.categoriesDespesas || [])
+            .filter(c => String(c.id) !== String(id))
+            .map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+        }
+        document.getElementById('modal-catdesp-reassign').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function cancelCategoriaDespesaDelete() {
+        _catDespDeleteId = null;
+        document.getElementById('modal-catdesp-reassign').classList.add('hidden');
+      }
+
+      async function confirmCategoriaDespesaDelete() {
+        const id = _catDespDeleteId;
+        if (!id) return cancelCategoriaDespesaDelete();
+        const target = document.getElementById('catdesp-reassign-target')?.value;
+        if (!target) return showToast("Escolha a categoria de destino.", true);
+        showLoading(true);
+        try {
+          const { error: errMove } = await sb.from('despesas').update({ categoria_id: Number(target) }).eq('categoria_id', id);
+          if (errMove) throw errMove;
+          const { error: errDel } = await sb.from('categorias_despesas').delete().eq('id', id);
+          if (errDel) throw errDel;
+          _catDespDeleteId = null;
+          document.getElementById('modal-catdesp-reassign').classList.add('hidden');
+          showToast("Despesas movidas e categoria excluída!");
+          await loadData();
+          renderCategoriasDespesaModal();
+        } catch (err) {
+          console.error(err);
+          showLoading(false);
+          showToast("Erro: " + err.message, true);
+        }
+      }
+
       // Leva o admin da edicao do produto direto para o ajuste daquele item.
       function irParaAjusteProduto(id) {
         if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
@@ -6079,7 +6282,7 @@ function loadQuoteToCart(id) {
         
 
     if (termExp) filteredExp = filteredExp.filter(e => 
-        normalizeSearch(e.item).includes(termExp) || 
+        normalizeSearch(e.categoriaNome || e.item).includes(termExp) || 
         normalizeSearch(e.note).includes(termExp) || 
         normalizeSearch(e.provider).includes(termExp) ||
         String(e.id).includes(termExp)
@@ -6087,7 +6290,7 @@ function loadQuoteToCart(id) {
     if (statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
     if (startExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] >= startExp);
     if (endExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] <= endExp);
-        if (catFilterExp) filteredExp = filteredExp.filter(e => e.item === catFilterExp);
+        if (catFilterExp) filteredExp = filteredExp.filter(e => String(e.categoriaId) === String(catFilterExp));
 
     filteredExp.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
@@ -6101,8 +6304,9 @@ function loadQuoteToCart(id) {
     // Fornecedor vem direto da coluna própria (e.provider); observação fica só com a nota do usuário
     const providerVal = (e.provider || '').trim();
 
-    let displayName = providerVal || e.item;   // fornecedor vira principal (se houver); senão, categoria
-    let displaySub = providerVal ? e.item : ''; // se mostrou fornecedor em cima, categoria vira subtítulo
+    let displayName = providerVal || e.categoriaNome || e.item;   // fornecedor vira principal (se houver); senão, categoria
+    let displaySub = providerVal ? (e.categoriaNome || e.item) : ''; // se mostrou fornecedor em cima, categoria vira subtítulo
+    const catTag = e.categoriaNome ? `<span class="inline-block text-[9px] font-bold uppercase bg-red-50 text-red-700 border border-red-100 px-1.5 py-0.5 rounded">${e.categoriaNome}</span>` : '';
 
     const subParts = [displaySub, e.note].filter(s => s && s.trim());
     const subLine = subParts.join(' | ');
@@ -6124,7 +6328,7 @@ function loadQuoteToCart(id) {
         </td>
         <td class="p-3 text-xs border-r border-slate-100 text-center font-mono font-bold text-slate-600">#${e.id}</td>
         <td class="p-3 border-r border-slate-100">
-            <div class="font-bold text-slate-800 text-xs">${displayName}</div>                       
+            <div class="font-bold text-slate-800 text-xs flex items-center gap-1 flex-wrap">${displayName}${catTag ? ' ' + catTag : ''}</div>                       
             ${subLine ? `<div class="text-[10px] text-slate-500" title="${subLine}">${subLine}</div>` : ''}           
         </td>
         <td class="p-3 border-r border-slate-100">
@@ -6784,7 +6988,7 @@ function loadQuoteToCart(id) {
             // Filtro de busca textual (item, nota, fornecedor)
             if (termExp) {
                 filteredExp = filteredExp.filter(e =>
-                    (e.item && normalizeSearch(e.item).includes(termExp)) ||
+                    (e.categoriaNome || e.item) && normalizeSearch(e.categoriaNome || e.item).includes(termExp) ||
                     (e.note && normalizeSearch(e.note).includes(termExp)) ||
                     (e.provider && normalizeSearch(e.provider).includes(termExp))
                 );
@@ -6803,9 +7007,9 @@ function loadQuoteToCart(id) {
                 filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] <= endExp);
             }
         
-            // Filtro por categoria (item)
+            // Filtro por categoria (id)
             if (catFilterExp) {
-                filteredExp = filteredExp.filter(e => e.item === catFilterExp);
+                filteredExp = filteredExp.filter(e => String(e.categoriaId) === String(catFilterExp));
             }
         
             // Ordena por data (mais antiga primeiro, para manter o mesmo padrão da tela)
@@ -6827,11 +7031,11 @@ function loadQuoteToCart(id) {
                 const situacao = e.status === 'PAGO' ? 'PAGO' : (dataVencStr < hojeLocalStr ? 'VENCIDO' : 'PENDENTE');
         
                 // Nome principal: fornecedor se existir, senão categoria
-                const displayName = (e.provider && e.provider.trim()) ? e.provider.trim() : e.item;
+                const displayName = (e.provider && e.provider.trim()) ? e.provider.trim() : (e.categoriaNome || e.item);
                 // Subtítulo: se mostrou fornecedor, exibe a categoria; senão, exibe a observação
                 let subLine = '';
                 if (e.provider && e.provider.trim()) {
-                    subLine = e.item;
+                    subLine = e.categoriaNome || e.item;
                     if (e.note && e.note.trim()) subLine += ' | ' + e.note.trim();
                 } else {
                     subLine = e.note || '';
@@ -6840,7 +7044,7 @@ function loadQuoteToCart(id) {
                 return `
                     <tr>
                         <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${formatDate(e.date)}</td>
-                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; font-weight: bold;">${e.item}</td>
+                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; font-weight: bold;">${e.categoriaNome || e.item}</td>
                         <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${displayName}</td>
                         <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align: center;">${situacao}</td>
                         <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align: right; font-weight: bold;">${formatMoney(e.cost)}</td>
@@ -6853,7 +7057,7 @@ function loadQuoteToCart(id) {
             if (startExp) filterText.push(`De: ${formatDate(startExp)}`);
             if (endExp) filterText.push(`Até: ${formatDate(endExp)}`);
             if (termExp) filterText.push(`Busca: "${termExp}"`);
-            if (catFilterExp) filterText.push(`Categoria: ${catFilterExp}`);
+            if (catFilterExp) filterText.push(`Categoria: ${getCategoriaDespesaNome(catFilterExp)}`);
             const subheader = filterText.length > 0 ? filterText.join(' | ') : 'Todos os registros';
         
             // Dados da empresa para o cabeçalho
@@ -7765,7 +7969,8 @@ function loadQuoteToCart(id) {
   // Função para limpar completamente o formulário de despesa
     function resetExpenseForm() {
         document.getElementById('exp-id').value = '';
-        document.getElementById('exp-item').value = 'Fornecedor';
+        const catForn = (STATE.categoriesDespesas || []).find(c => (c.nome || '').toUpperCase() === 'FORNECEDOR');
+        document.getElementById('exp-item').value = catForn ? String(catForn.id) : '';
         document.getElementById('exp-provider').value = '';
         document.getElementById('exp-cost').value = '';
         document.getElementById('exp-date').value = '';
@@ -8218,7 +8423,7 @@ async function processDocument(file) {
         const extracted = extractDataFromText(text);
 
         // Preenche o modal
-        document.getElementById('exp-item').value = extracted.categoria || 'Outros';
+        document.getElementById('exp-item').value = resolverCategoriaDespesaPorTexto(extracted.categoria);
         document.getElementById('exp-provider').value = extracted.fornecedor || '';
         document.getElementById('exp-cost').value = extracted.valor || '';
         if (extracted.data) {
@@ -8506,7 +8711,7 @@ function openReceiptFromExpense(expenseId) {
 
     // 3. Se ainda estiver vazio, usa a categoria como último fallback
     if (!fornecedor) {
-        fornecedor = exp.item;
+        fornecedor = exp.categoriaNome || exp.item;
     }
 
     // Preenche o modal
@@ -8517,7 +8722,7 @@ function openReceiptFromExpense(expenseId) {
     } else {
         document.getElementById('receipt-date').value = getHojeLocalStr();
     }
-    document.getElementById('receipt-desc').value = descricao || exp.item;
+    document.getElementById('receipt-desc').value = descricao || exp.categoriaNome || exp.item;
     document.getElementById('receipt-payment').value = ''; // deixa vazio ou "a definir"
 
     // Abre o modal
