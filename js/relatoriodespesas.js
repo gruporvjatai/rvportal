@@ -1,4 +1,25 @@
 // ========== RELATÓRIO DE DESPESAS ==========
+
+// Nome da categoria da despesa (por id em categorias_despesas, com fallback
+// para o texto legado `item`).
+function expenseCategoriaNome(e) {
+    if (!e) return '';
+    if (e.categoriaNome) return e.categoriaNome;
+    if (e.categoriaId != null && typeof getCategoriaDespesaNome === 'function') {
+        return getCategoriaDespesaNome(e.categoriaId) || e.item || '';
+    }
+    return e.item || '';
+}
+
+// Compara a despesa com a categoria selecionada (id do select). 'TODAS'
+// (ou vazio) não filtra. Mantém compatibilidade com despesas sem categoria_id.
+function expenseMatchCategoria(e, categoriaId) {
+    if (!categoriaId || categoriaId === 'TODAS') return true;
+    if (String(e.categoriaId) === String(categoriaId)) return true;
+    const catName = (typeof getCategoriaDespesaNome === 'function') ? getCategoriaDespesaNome(categoriaId) : '';
+    return e.categoriaId == null && !!catName && String(e.item || '') === catName;
+}
+
 function openExpenseReportModal() {
     // Preenche com o mês atual
     const hoje = new Date();
@@ -44,9 +65,9 @@ function applyExpenseFilters() {
         filtered = filtered.filter(e => (e.date || '').split('T')[0] <= end);
     }
 
-    // Filtro por categoria
-    if (category) {
-        filtered = filtered.filter(e => e.item === category);
+    // Filtro por categoria (por id em categorias_despesas; 'TODAS' = sem filtro)
+    if (category && category !== 'TODAS') {
+        filtered = filtered.filter(e => expenseMatchCategoria(e, category));
     }
 
     // Filtro por status
@@ -119,7 +140,7 @@ function renderExpenseReportResults(expenses) {
         html += `
             <tr class="hover:bg-slate-50">
                 <td class="p-3 text-xs font-medium">${formatDate(e.date)}</td>
-                <td class="p-3 font-bold text-slate-700">${e.item}</td>
+                <td class="p-3 font-bold text-slate-700">${expenseCategoriaNome(e) || '—'}</td>
                 <td class="p-3 text-sm text-slate-600">${providerVal}</td>
                 <td class="p-3 text-right font-bold text-red-600">${formatMoney(e.cost)}</td>
                 <td class="p-3 text-center">
@@ -186,7 +207,10 @@ function printExpenseReport() {
         '': 'Todos'
     };
 
-    const filtroTexto = `Período: ${start ? formatDate(start + 'T00:00:00') : 'Início'} até ${end ? formatDate(end + 'T00:00:00') : 'Hoje'} | Categoria: ${category || 'Todas'} | Status: ${statusMap[status] || 'Todos'}`;
+    const categoriaNome = (category && category !== 'TODAS' && typeof getCategoriaDespesaNome === 'function')
+        ? (getCategoriaDespesaNome(category) || 'Todas')
+        : 'Todas';
+    const filtroTexto = `Período: ${start ? formatDate(start + 'T00:00:00') : 'Início'} até ${end ? formatDate(end + 'T00:00:00') : 'Hoje'} | Categoria: ${categoriaNome} | Status: ${statusMap[status] || 'Todos'}`;
 
     printWindow.document.write(`
         <html>
@@ -264,10 +288,8 @@ function printFilteredExpenses() {
         return eDate >= start && eDate <= end;
     });
 
-    // Filtro por categoria
-    if (category !== 'TODAS') {
-        filtered = filtered.filter(e => e.item === category);
-    }
+    // Filtro por categoria (por id em categorias_despesas; 'TODAS' = sem filtro)
+    filtered = filtered.filter(e => expenseMatchCategoria(e, category));
 
     // Filtro por status
     const hojeLocalStr = getHojeLocalStr();
@@ -322,7 +344,7 @@ function printFilteredExpenses() {
         return `
             <tr>
                 <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px;">${formatDate(e.date)}</td>
-                <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px; font-weight:bold;">${e.item}</td>
+                <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px; font-weight:bold;">${expenseCategoriaNome(e) || '—'}</td>
                 <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px;">${providerVal}</td>
                 <td style="border-bottom:1px solid #ccc; border-right:1px solid #000; padding:5px; text-align:center;">
                     <span style="font-weight:bold; ${e.status === 'PAGO' ? 'color:green;' : (isVencido ? 'color:red;' : 'color:orange;')}">${situacao}</span>
@@ -332,7 +354,10 @@ function printFilteredExpenses() {
         `;
     }).join('');
 
-    const filtroTexto = `Período: ${formatDate(start + 'T00:00:00')} até ${formatDate(end + 'T00:00:00')} | Categoria: ${category === 'TODAS' ? 'Todas' : category} | Status: ${statusFilter === 'TODOS' ? 'Todos' : statusFilter}`;
+    const categoriaNomeFiltro = (category && category !== 'TODAS' && typeof getCategoriaDespesaNome === 'function')
+        ? (getCategoriaDespesaNome(category) || 'Todas')
+        : 'Todas';
+    const filtroTexto = `Período: ${formatDate(start + 'T00:00:00')} até ${formatDate(end + 'T00:00:00')} | Categoria: ${categoriaNomeFiltro} | Status: ${statusFilter === 'TODOS' ? 'Todos' : statusFilter}`;
 
     const el = document.getElementById('print-area');
     el.innerHTML = `
