@@ -202,14 +202,16 @@
       <div id="view-prod" class="hidden-section">
           <div class="flex justify-between items-center mb-4">
               <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i data-lucide="package" class="text-orange-500"></i> Produtos</h2>
-              <button onclick="openProductForm()" class="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-xl font-bold shadow-lg shadow-orange-200 flex items-center gap-2 active:scale-95 transition-transform"><i data-lucide="plus"></i> Novo</button>
+              <div class="flex gap-2">
+                  <button id="btn-categorias-produto" onclick="openCategoriasProdutoModal()" class="hidden bg-white border border-indigo-200 text-indigo-700 p-3 rounded-xl font-bold shadow-sm flex items-center gap-2 active:scale-95 transition-transform"><i data-lucide="tags"></i></button>
+                  <button onclick="openProductForm()" class="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-xl font-bold shadow-lg shadow-orange-200 flex items-center gap-2 active:scale-95 transition-transform"><i data-lucide="plus"></i> Novo</button>
+              </div>
           </div>
 
           <!-- Sub-abas -->
           <div class="flex gap-2 mb-4 bg-slate-100 p-1 rounded-xl">
               <button id="prodtab-catalogo" onclick="switchProdTab('catalogo')" class="flex-1 py-2 rounded-lg text-sm font-bold">Catálogo</button>
               <button id="prodtab-ajuste" onclick="switchProdTab('ajuste')" class="hidden flex-1 py-2 rounded-lg text-sm font-bold">Ajuste</button>
-              <button id="prodtab-categorias" onclick="switchProdTab('categorias')" class="hidden flex-1 py-2 rounded-lg text-sm font-bold">Categorias</button>
           </div>
 
           <!-- Painel catalogo -->
@@ -276,19 +278,6 @@
 
               <div id="adj-list" class="flex flex-col gap-3"></div>
           </div>
-
-          <!-- Painel categorias (admin) -->
-          <div id="prod-panel-categorias" class="hidden">
-              <div class="bg-white rounded-2xl border p-3 mb-3 flex flex-col gap-2">
-                  <label class="text-xs font-black uppercase text-slate-500">Nova categoria</label>
-                  <div class="flex gap-2">
-                      <input id="cat-new-name" type="text" placeholder="Ex: MADEIRA" class="flex-1 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-medium uppercase">
-                      <button onclick="addCategory()" class="px-4 bg-indigo-600 text-white rounded-xl font-bold active:scale-95 transition-transform flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Add</button>
-                  </div>
-              </div>
-              <div id="cat-list" class="flex flex-col gap-2"></div>
-              <p class="text-[11px] text-slate-400 mt-3 px-1">Renomear atualiza os produtos que usam a categoria. Serviços não controlam estoque.</p>
-          </div>
       </div>
 
       <!-- Modal historico de ajustes (mobile) -->
@@ -302,6 +291,65 @@
               <div class="p-4 border-t bg-slate-50">
                   <button onclick="closeAjusteHistorico()" class="w-full py-3 bg-slate-200 text-slate-700 rounded-xl font-bold">Fechar</button>
               </div>
+          </div>
+      </div>
+
+      <!-- ========== MODAL CATEGORIAS DE PRODUTO (mobile) ========== -->
+      <div id="modal-categorias-produto" class="hidden fixed inset-0 bg-slate-900/70 z-[95] flex items-end sm:items-center justify-center">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[88vh]">
+              <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl sm:rounded-t-2xl">
+                  <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="tags" class="text-indigo-600 w-5 h-5"></i> Categorias</h3>
+                  <button onclick="closeCategoriasProdutoModal()" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+              </div>
+              <div class="p-4 border-b flex gap-2 items-end bg-white">
+                  <div class="flex-1">
+                      <label class="text-[11px] font-black uppercase text-slate-500">Nova categoria</label>
+                      <input id="catprod-new-name" type="text" placeholder="Ex: MADEIRA" class="w-full mt-1 p-3 border rounded-xl text-sm outline-none focus:border-indigo-500 font-bold uppercase" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoriaProduto();}">
+                  </div>
+                  <button onclick="addCategoriaProduto()" class="px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold active:scale-95 transition-transform flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Add</button>
+              </div>
+              <div id="catprod-list" class="flex flex-col gap-2 p-4 overflow-y-auto flex-1"></div>
+              <p class="text-[11px] text-slate-400 px-4 pb-4">Toque no numero para ver os produtos. Renomear atualiza os produtos que usam a categoria.</p>
+          </div>
+      </div>
+
+      <!-- ========== MODAL EDITAR CATEGORIA DE PRODUTO (mobile) ========== -->
+      <div id="modal-catprod-edit" class="hidden fixed inset-0 bg-slate-900/80 z-[96] flex items-end sm:items-center justify-center">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col">
+              <div class="p-5 border-b bg-slate-50 rounded-t-3xl sm:rounded-t-2xl">
+                  <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="pencil" class="text-indigo-600 w-5 h-5"></i> Editar categoria</h3>
+              </div>
+              <div class="p-5 space-y-3">
+                  <label class="text-[11px] font-black uppercase text-slate-500">Nome da categoria</label>
+                  <input id="catprod-edit-name" type="text" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-500 font-bold uppercase" onkeydown="if(event.key==='Enter'){event.preventDefault();saveEditCategoriaProduto();}">
+              </div>
+              <div class="p-5 border-t bg-slate-50 flex gap-3">
+                  <button onclick="closeEditCategoriaProduto()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600">Cancelar</button>
+                  <button onclick="saveEditCategoriaProduto()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">Salvar</button>
+              </div>
+          </div>
+      </div>
+
+      <!-- ========== MODAL PRODUTOS DA CATEGORIA (mobile) ========== -->
+      <div id="modal-catprod-produtos" class="hidden fixed inset-0 bg-slate-900/80 z-[96] flex items-end sm:items-center justify-center">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[88vh]">
+              <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl sm:rounded-t-2xl">
+                  <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="package" class="text-indigo-600 w-5 h-5"></i> <span id="catprod-prod-title">Produtos</span></h3>
+                  <button onclick="closeVerProdutosCategoria()" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+              </div>
+              <div id="catprod-prod-list" class="flex flex-col gap-2 p-4 overflow-y-auto flex-1"></div>
+          </div>
+      </div>
+
+      <!-- ========== MODAL ESTOQUE COMPROMETIDO (mobile) ========== -->
+      <div id="modal-comprometido" class="hidden fixed inset-0 bg-slate-900/80 z-[96] flex items-end sm:items-center justify-center">
+          <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[88vh]">
+              <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl sm:rounded-t-2xl">
+                  <h3 class="font-black text-slate-800 text-lg flex items-center gap-2"><i data-lucide="eye" class="text-amber-600 w-5 h-5"></i> Comprometido</h3>
+                  <button onclick="closeComprometido()" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+              </div>
+              <p id="comprometido-sub" class="px-5 pt-4 text-sm text-slate-500"></p>
+              <div id="comprometido-list" class="flex flex-col gap-2 p-4 overflow-y-auto flex-1"></div>
           </div>
       </div>
 
@@ -1363,6 +1411,7 @@
                             date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
                             clientId: l.cliente_id != null ? l.cliente_id : null,
                             clientName: resolverNomeCliente(l.cliente_id, l.cliente_nome), paymentMethod: l.forma_pagamento, status: l.status,
+                            deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
                             finStatus: l.status_financeiro, dueDate: l.vencimento, paidValue: Number(l.valor_pago),
                             discount: Number(l.desconto), acrescimo: Number(l.acrescimo || 0),
                             pgtoAnotacao: l.pgto_anotacao || '', deliveryAddress: l.endereco_entrega
@@ -3624,21 +3673,20 @@ function downloadPDF(blob, filename) {
             const isAdmin = !!(dadosUsuario && dadosUsuario.nivel === 'admin');
             const btn = document.getElementById('prodtab-ajuste');
             if (btn) btn.classList.toggle('hidden', !isAdmin);
-            const btnCat = document.getElementById('prodtab-categorias');
+            const btnCat = document.getElementById('btn-categorias-produto');
             if (btnCat) btnCat.classList.toggle('hidden', !isAdmin);
             if (!isAdmin && PROD_TAB !== 'catalogo') PROD_TAB = 'catalogo';
         }
 
         function switchProdTab(tab) {
-            if (tab !== 'catalogo' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
+            if (tab !== 'catalogo' && tab !== 'ajuste') tab = 'catalogo';
+            if (tab === 'ajuste' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
             PROD_TAB = tab;
 
             const panelCat = document.getElementById('prod-panel-catalogo');
             const panelAdj = document.getElementById('prod-panel-ajuste');
-            const panelCategorias = document.getElementById('prod-panel-categorias');
             const btnCat = document.getElementById('prodtab-catalogo');
             const btnAdj = document.getElementById('prodtab-ajuste');
-            const btnCategorias = document.getElementById('prodtab-categorias');
 
             const activeCls = ['bg-white', 'shadow', 'text-orange-600'];
             const idleCls = ['text-slate-500'];
@@ -3649,16 +3697,12 @@ function downloadPDF(blob, filename) {
             };
             setBtn(btnCat, tab === 'catalogo');
             setBtn(btnAdj, tab === 'ajuste');
-            setBtn(btnCategorias, tab === 'categorias');
 
             panelCat?.classList.toggle('hidden', tab !== 'catalogo');
             panelAdj?.classList.toggle('hidden', tab !== 'ajuste');
-            panelCategorias?.classList.toggle('hidden', tab !== 'categorias');
 
             if (tab === 'ajuste') {
                 renderStockAdjust();
-            } else if (tab === 'categorias') {
-                renderCategoriesPanel();
             } else {
                 renderProductCatalog();
             }
@@ -3724,7 +3768,7 @@ function downloadPDF(blob, filename) {
                         ? '<span class="text-[10px] font-bold text-amber-600 uppercase">Parceiro</span>'
                         : `<div class="flex gap-4 text-center">
                               <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Físico</span><span class="font-black text-slate-700">${p.stock}</span></div>
-                              <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Comprom.</span><span class="font-black text-amber-600">${p.committed}</span></div>
+                              <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Comprom.</span>${Number(p.committed) > 0 ? `<button onclick="verComprometido('${p.id}')" class="font-black text-amber-600 inline-flex items-center gap-0.5 active:scale-95">${p.committed}<i data-lucide="eye" class="w-3.5 h-3.5"></i></button>` : `<span class="font-black text-amber-600">${p.committed}</span>`}</div>
                               <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Disp.</span><span class="font-black ${Number(p.available) <= 0 ? 'text-red-500' : 'text-emerald-600'}">${p.available}</span></div>
                            </div>`);
                 return `
@@ -4251,8 +4295,10 @@ function downloadPDF(blob, filename) {
           sel.value = selected || '';
       }
 
-      function renderCategoriesPanel() {
-          const list = document.getElementById('cat-list');
+      let _catProdEditId = null;
+
+      function renderCategoriasProdutoModal() {
+          const list = document.getElementById('catprod-list');
           if (!list) return;
           if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
           const cats = STATE.categories || [];
@@ -4262,25 +4308,84 @@ function downloadPDF(blob, filename) {
           }
           list.innerHTML = cats.map(c => {
               const emUso = (STATE.products || []).filter(p => (p.category || '') === c.nome).length;
-              const nomeEsc = String(c.nome || '').replace(/"/g, '&quot;');
+              const nomeJs = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+              const nomeHtml = String(c.nome || '').replace(/</g, '&lt;');
+              const eyeCls = emUso > 0 ? 'bg-indigo-50 text-indigo-700 active:scale-95' : 'bg-slate-100 text-slate-300';
               return `
-                <div class="bg-white rounded-xl border p-3 flex flex-col gap-2">
-                  <input id="cat-in-${c.id}" type="text" value="${nomeEsc}" class="w-full p-2 border rounded-lg text-sm font-bold uppercase outline-none focus:border-orange-500" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCategory('${c.id}');}">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[11px] text-slate-400 font-bold">${emUso} produto(s)</span>
-                    <div class="flex gap-2">
-                      <button onclick="saveCategory('${c.id}')" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold active:scale-95 transition-transform">Salvar</button>
-                      <button onclick="deleteCategory('${c.id}')" class="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold active:scale-95 transition-transform">Excluir</button>
-                    </div>
+                <div class="bg-white rounded-xl border p-3 flex items-center justify-between gap-2">
+                  <span class="font-bold text-slate-700 text-sm uppercase truncate flex-1">${nomeHtml}</span>
+                  <button ${emUso > 0 ? `onclick="verProdutosCategoria('${nomeJs}')"` : 'disabled'} class="px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 ${eyeCls}" title="Ver produtos">${emUso} <i data-lucide="eye" class="w-4 h-4"></i></button>
+                  <div class="flex gap-1.5">
+                    <button onclick="openEditCategoriaProduto('${c.id}')" class="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold active:scale-95 transition-transform">Editar</button>
+                    <button onclick="deleteCategoriaProduto('${c.id}')" class="px-2.5 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold active:scale-95 transition-transform">Excluir</button>
                   </div>
                 </div>`;
           }).join('');
           if (window.lucide) lucide.createIcons();
       }
 
-      async function addCategory() {
+      function openCategoriasProdutoModal() {
           if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
-          const input = document.getElementById('cat-new-name');
+          renderCategoriasProdutoModal();
+          const inp = document.getElementById('catprod-new-name');
+          if (inp) inp.value = '';
+          document.getElementById('modal-categorias-produto').classList.remove('hidden');
+          if (window.lucide) lucide.createIcons();
+      }
+
+      function closeCategoriasProdutoModal() {
+          document.getElementById('modal-categorias-produto').classList.add('hidden');
+      }
+
+      function openEditCategoriaProduto(id) {
+          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
+          if (!cat) return;
+          _catProdEditId = String(id);
+          const inp = document.getElementById('catprod-edit-name');
+          if (inp) { inp.value = cat.nome || ''; inp.focus(); }
+          document.getElementById('modal-catprod-edit').classList.remove('hidden');
+          if (window.lucide) lucide.createIcons();
+      }
+
+      function closeEditCategoriaProduto() {
+          _catProdEditId = null;
+          document.getElementById('modal-catprod-edit').classList.add('hidden');
+      }
+
+      async function saveEditCategoriaProduto() {
+          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          const id = _catProdEditId;
+          if (!id) return closeEditCategoriaProduto();
+          const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
+          if (!cat) return closeEditCategoriaProduto();
+          const novo = (document.getElementById('catprod-edit-name')?.value || '').trim().toUpperCase();
+          const antigo = cat.nome || '';
+          if (!novo) return showToast("Informe o nome da categoria.", true);
+          if (novo === antigo) return closeEditCategoriaProduto();
+          if ((STATE.categories || []).some(c => String(c.id) !== String(id) && (c.nome || '').toUpperCase() === novo)) return showToast("Já existe uma categoria com esse nome.", true);
+          showLoading(true);
+          try {
+              const { error } = await sb.from('categorias').update({ nome: novo }).eq('id', id);
+              if (error) throw error;
+              // Propaga o nome novo para os produtos que usavam o nome antigo.
+              const { error: errProd } = await sb.from('produtos').update({ categoria: novo }).eq('categoria', antigo);
+              if (errProd) throw errProd;
+              _catProdEditId = null;
+              document.getElementById('modal-catprod-edit').classList.add('hidden');
+              showToast("Categoria atualizada!");
+              await loadData();
+              renderCategoriasProdutoModal();
+          } catch (err) {
+              console.error(err);
+              showLoading(false);
+              showToast("Erro: " + err.message, true);
+          }
+      }
+
+      async function addCategoriaProduto() {
+          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          const input = document.getElementById('catprod-new-name');
           const nome = (input?.value || '').trim().toUpperCase();
           if (!nome) return showToast("Informe o nome da categoria.", true);
           if ((STATE.categories || []).some(c => (c.nome || '').toUpperCase() === nome)) return showToast("Categoria já existe.", true);
@@ -4290,37 +4395,10 @@ function downloadPDF(blob, filename) {
           if (input) input.value = '';
           showToast("Categoria criada!");
           await loadData();
-          renderCategoriesPanel();
+          renderCategoriasProdutoModal();
       }
 
-      async function saveCategory(id) {
-          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
-          const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
-          if (!cat) return;
-          const input = document.getElementById('cat-in-' + id);
-          const novo = (input?.value || '').trim().toUpperCase();
-          const antigo = cat.nome || '';
-          if (!novo) return showToast("Informe o nome da categoria.", true);
-          if (novo === antigo) return showToast("Nada para alterar.");
-          if ((STATE.categories || []).some(c => String(c.id) !== String(id) && (c.nome || '').toUpperCase() === novo)) return showToast("Já existe uma categoria com esse nome.", true);
-          showLoading(true);
-          try {
-              const { error } = await sb.from('categorias').update({ nome: novo }).eq('id', id);
-              if (error) throw error;
-              // Propaga o nome novo para os produtos que usavam o nome antigo.
-              const { error: errProd } = await sb.from('produtos').update({ categoria: novo }).eq('categoria', antigo);
-              if (errProd) throw errProd;
-              showToast("Categoria atualizada!");
-              await loadData();
-              renderCategoriesPanel();
-          } catch (err) {
-              console.error(err);
-              showLoading(false);
-              showToast("Erro: " + err.message, true);
-          }
-      }
-
-      async function deleteCategory(id) {
+      async function deleteCategoriaProduto(id) {
           if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
           const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
           if (!cat) return;
@@ -4334,7 +4412,77 @@ function downloadPDF(blob, filename) {
           if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
           showToast("Categoria excluída!");
           await loadData();
-          renderCategoriesPanel();
+          renderCategoriasProdutoModal();
+      }
+
+      function verProdutosCategoria(nome) {
+          const title = document.getElementById('catprod-prod-title');
+          if (title) title.innerText = `Produtos: ${nome || 'Sem categoria'}`;
+          const list = document.getElementById('catprod-prod-list');
+          if (!list) return;
+          const prods = (STATE.products || []).filter(p => (p.category || '') === nome);
+          if (!prods.length) {
+              list.innerHTML = '<p class="p-6 text-center text-slate-400 text-sm">Nenhum produto nesta categoria.</p>';
+          } else {
+              prods.sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
+              list.innerHTML = prods.map(p => {
+                  const noStock = p.parceiro || p.servico;
+                  return `
+                    <div class="bg-white rounded-xl border p-3 flex items-center justify-between gap-2">
+                      <span class="font-bold text-slate-700 text-sm flex-1">${p.name}${p.servico ? ' <span class="text-[10px] text-indigo-600 uppercase">Serviço</span>' : ''}</span>
+                      <div class="flex gap-3 text-center">
+                        <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Preço</span><span class="font-bold text-slate-700 text-xs">${formatMoney(p.price)}</span></div>
+                        <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Físico</span><span class="font-bold text-slate-700 text-xs">${noStock ? '—' : p.stock}</span></div>
+                        <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Disp.</span><span class="font-bold text-xs ${(!noStock && Number(p.available) <= 0) ? 'text-red-500' : 'text-emerald-600'}">${noStock ? '—' : p.available}</span></div>
+                      </div>
+                    </div>`;
+              }).join('');
+          }
+          document.getElementById('modal-catprod-produtos').classList.remove('hidden');
+          if (window.lucide) lucide.createIcons();
+      }
+
+      function closeVerProdutosCategoria() {
+          document.getElementById('modal-catprod-produtos').classList.add('hidden');
+      }
+
+      function verComprometido(id) {
+          const p = (STATE.products || []).find(x => String(x.id) === String(id));
+          if (!p) return;
+          const sub = document.getElementById('comprometido-sub');
+          if (sub) sub.innerHTML = `<b>${p.name}</b> — comprometido: <b class="text-amber-600">${p.committed}</b>`;
+          const list = document.getElementById('comprometido-list');
+          if (!list) return;
+          const pend = (STATE.logs || [])
+              .filter(l => String(l.type) === 'venda' && (String(l.productId) === String(id) || (l.productId == null && String(l.productName || '').trim() === String(p.name).trim())))
+              .map(l => ({ ...l, falta: Number(l.quantity || 0) - Number(l.deliveredQty || 0) }))
+              .filter(l => l.falta > 0 && String(l.deliveryStatus || '').toUpperCase() !== 'ENTREGUE' && String(l.status || '').toUpperCase() !== 'CANCELADO');
+          if (!pend.length) {
+              list.innerHTML = '<p class="p-6 text-center text-slate-400 text-sm">Nenhuma venda pendente de entrega comprometendo este estoque.</p>';
+          } else {
+              pend.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+              list.innerHTML = pend.map(l => {
+                  const situacao = Number(l.deliveredQty || 0) > 0 ? 'PARCIAL' : 'PENDENTE';
+                  const sCls = situacao === 'PARCIAL' ? 'bg-amber-100 text-amber-700' : 'bg-orange-100 text-orange-600';
+                  return `
+                    <div class="bg-white rounded-xl border p-3 flex items-center justify-between gap-2">
+                      <div class="flex flex-col">
+                        <span class="font-black text-slate-700 text-sm">Pedido #${l.id}</span>
+                        <span class="text-xs text-slate-500">${l.clientName || '-'}</span>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <div class="text-center"><span class="block text-[9px] uppercase text-slate-400 font-bold">Falta</span><span class="font-black text-amber-600">${l.falta}</span></div>
+                        <span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${sCls}">${situacao}</span>
+                      </div>
+                    </div>`;
+              }).join('');
+          }
+          document.getElementById('modal-comprometido').classList.remove('hidden');
+          if (window.lucide) lucide.createIcons();
+      }
+
+      function closeComprometido() {
+          document.getElementById('modal-comprometido').classList.add('hidden');
       }
 
         function renderClients() {

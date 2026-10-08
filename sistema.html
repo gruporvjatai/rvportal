@@ -738,6 +738,9 @@
   <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
     <h2 class="text-2xl font-bold text-slate-800">Produtos</h2>
     <div class="flex gap-2">
+      <button id="btn-categorias-produto" onclick="openCategoriasProdutoModal()" class="hidden bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-4 py-2 rounded font-bold shadow flex items-center gap-2">
+        <i data-lucide="tags"></i> Categorias
+      </button>
       <button onclick="openProductForm()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
         <i data-lucide="plus"></i> Novo Produto
       </button>
@@ -748,7 +751,6 @@
   <div class="flex gap-2 mb-4 border-b border-slate-200">
     <button id="prodtab-catalogo" onclick="switchProdTab('catalogo')" class="px-4 py-2 -mb-px border-b-2 border-transparent text-sm font-bold text-slate-500 hover:text-slate-800">Catálogo</button>
     <button id="prodtab-ajuste" onclick="switchProdTab('ajuste')" class="hidden px-4 py-2 -mb-px border-b-2 border-transparent text-sm font-bold text-slate-500 hover:text-slate-800">Ajuste de Estoque</button>
-    <button id="prodtab-categorias" onclick="switchProdTab('categorias')" class="hidden px-4 py-2 -mb-px border-b-2 border-transparent text-sm font-bold text-slate-500 hover:text-slate-800">Categorias</button>
   </div>
 
   <!-- ===================== PAINEL CATALOGO ===================== -->
@@ -871,32 +873,6 @@
         </button>
       </div>
     </div>
-  </div>
-
-  <!-- ===================== PAINEL CATEGORIAS (ADMIN) ===================== -->
-  <div id="prod-panel-categorias" class="hidden">
-    <div class="bg-white rounded-xl shadow-sm border p-4 mb-4 flex flex-wrap gap-2 items-end">
-      <div class="flex-1 min-w-[220px]">
-        <label class="block text-xs font-bold text-slate-500 mb-1">Nova categoria</label>
-        <input id="cat-new-name" type="text" placeholder="Ex: MADEIRA" class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategory();}">
-      </div>
-      <button onclick="addCategory()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
-        <i data-lucide="plus"></i> Adicionar
-      </button>
-    </div>
-    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-      <table class="w-full text-sm text-left">
-        <thead class="bg-slate-50 text-slate-700">
-          <tr>
-            <th class="p-3">Categoria</th>
-            <th class="p-3 text-center">Produtos</th>
-            <th class="p-3 text-center">Ações</th>
-          </tr>
-        </thead>
-        <tbody id="cat-list" class="divide-y"></tbody>
-      </table>
-    </div>
-    <p class="text-xs text-slate-400 mt-3">Renomear uma categoria atualiza também os produtos que a usam. Serviços não controlam estoque.</p>
   </div>
 </div>
 
@@ -1638,6 +1614,106 @@
             <div class="p-5 border-t bg-slate-50 flex gap-3">
                 <button onclick="cancelCategoriaDespesaDelete()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button onclick="confirmCategoriaDespesaDelete()" class="flex-1 py-3 bg-amber-600 rounded-xl font-bold text-white hover:bg-amber-700 shadow-lg">Mover e excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL CATEGORIAS DE PRODUTO ========== -->
+    <div id="modal-categorias-produto" class="hidden fixed inset-0 bg-black/50 z-[60] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <i data-lucide="tags" class="text-indigo-600"></i> Categorias de Produto
+                </h3>
+                <button onclick="closeCategoriasProdutoModal()" class="text-slate-400 hover:text-indigo-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-4 border-b bg-white flex gap-2 items-end">
+                <div class="flex-1">
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Nova categoria</label>
+                    <input id="catprod-new-name" type="text" placeholder="Ex: MADEIRA" class="w-full p-2.5 border rounded-lg outline-none focus:border-indigo-500 font-bold uppercase" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoriaProduto();}">
+                </div>
+                <button onclick="addCategoriaProduto()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2.5 rounded-lg font-bold shadow flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Adicionar</button>
+            </div>
+            <div class="overflow-y-auto flex-1">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-600 sticky top-0">
+                        <tr>
+                            <th class="p-3">Categoria</th>
+                            <th class="p-3 text-center">Produtos</th>
+                            <th class="p-3 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="catprod-list" class="divide-y"></tbody>
+                </table>
+            </div>
+            <p class="text-xs text-slate-400 p-4 border-t">Renomear uma categoria atualiza também os produtos que a usam. Clique no número para ver os produtos da categoria.</p>
+        </div>
+    </div>
+
+    <!-- ========== MODAL EDITAR CATEGORIA DE PRODUTO ========== -->
+    <div id="modal-catprod-edit" class="hidden fixed inset-0 bg-black/60 z-[70] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+            <div class="p-5 border-b bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="pencil" class="text-indigo-600"></i> Editar categoria</h3>
+            </div>
+            <div class="p-5 space-y-3">
+                <label class="block text-xs font-bold text-slate-500">Nome da categoria</label>
+                <input id="catprod-edit-name" type="text" class="w-full p-3 border rounded-xl outline-none focus:border-indigo-500 font-bold uppercase" onkeydown="if(event.key==='Enter'){event.preventDefault();saveEditCategoriaProduto();}">
+            </div>
+            <div class="p-5 border-t bg-slate-50 flex gap-3">
+                <button onclick="closeEditCategoriaProduto()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onclick="saveEditCategoriaProduto()" class="flex-1 py-3 bg-indigo-700 rounded-xl font-bold text-white hover:bg-indigo-800 shadow-lg">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL PRODUTOS DA CATEGORIA ========== -->
+    <div id="modal-catprod-produtos" class="hidden fixed inset-0 bg-black/60 z-[70] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <i data-lucide="package" class="text-indigo-600"></i> <span id="catprod-prod-title">Produtos da categoria</span>
+                </h3>
+                <button onclick="closeVerProdutosCategoria()" class="text-slate-400 hover:text-indigo-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="overflow-y-auto flex-1">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-600 sticky top-0">
+                        <tr>
+                            <th class="p-3">Produto</th>
+                            <th class="p-3 text-center">Preço</th>
+                            <th class="p-3 text-center">Físico</th>
+                            <th class="p-3 text-center">Disponível</th>
+                        </tr>
+                    </thead>
+                    <tbody id="catprod-prod-list" class="divide-y"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL ESTOQUE COMPROMETIDO ========== -->
+    <div id="modal-comprometido" class="hidden fixed inset-0 bg-black/60 z-[70] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="eye" class="text-amber-600"></i> Estoque comprometido</h3>
+                <button onclick="closeComprometido()" class="text-slate-400 hover:text-amber-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="px-5 pt-4">
+                <p id="comprometido-sub" class="text-sm text-slate-500"></p>
+            </div>
+            <div class="overflow-y-auto flex-1">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-600 sticky top-0">
+                        <tr>
+                            <th class="p-3 text-center">Pedido</th>
+                            <th class="p-3">Cliente</th>
+                            <th class="p-3 text-center">Falta entregar</th>
+                            <th class="p-3 text-center">Situação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comprometido-list" class="divide-y"></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -5300,26 +5376,25 @@ function loadQuoteToCart(id) {
         switchProdTab(PROD_TAB);
       }
 
-      // Garante que a sub-aba de ajuste so exista para admin.
+      // Garante que a sub-aba de ajuste e o botao de categorias so existam para admin.
       function applyProdAdminGate() {
         const isAdmin = !!(dadosUsuario && dadosUsuario.nivel === 'admin');
         const btn = document.getElementById('prodtab-ajuste');
         if (btn) btn.classList.toggle('hidden', !isAdmin);
-        const btnCat = document.getElementById('prodtab-categorias');
+        const btnCat = document.getElementById('btn-categorias-produto');
         if (btnCat) btnCat.classList.toggle('hidden', !isAdmin);
         if (!isAdmin && PROD_TAB !== 'catalogo') PROD_TAB = 'catalogo';
       }
 
       function switchProdTab(tab) {
-        if (tab !== 'catalogo' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
+        if (tab !== 'catalogo' && tab !== 'ajuste') tab = 'catalogo';
+        if (tab === 'ajuste' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
         PROD_TAB = tab;
 
         const panelCat = document.getElementById('prod-panel-catalogo');
         const panelAdj = document.getElementById('prod-panel-ajuste');
-        const panelCategorias = document.getElementById('prod-panel-categorias');
         const btnCat = document.getElementById('prodtab-catalogo');
         const btnAdj = document.getElementById('prodtab-ajuste');
-        const btnCategorias = document.getElementById('prodtab-categorias');
 
         const activeCls = ['border-indigo-600', 'text-indigo-700'];
         const idleCls = ['border-transparent', 'text-slate-500'];
@@ -5330,16 +5405,12 @@ function loadQuoteToCart(id) {
         };
         setBtn(btnCat, tab === 'catalogo');
         setBtn(btnAdj, tab === 'ajuste');
-        setBtn(btnCategorias, tab === 'categorias');
 
         panelCat?.classList.toggle('hidden', tab !== 'catalogo');
         panelAdj?.classList.toggle('hidden', tab !== 'ajuste');
-        panelCategorias?.classList.toggle('hidden', tab !== 'categorias');
 
         if (tab === 'ajuste') {
           renderStockAdjust();
-        } else if (tab === 'categorias') {
-          renderCategoriesPanel();
         } else {
           renderProductCatalog();
         }
@@ -5366,8 +5437,10 @@ function loadQuoteToCart(id) {
         sel.value = selected || '';
       }
 
-      function renderCategoriesPanel() {
-        const list = document.getElementById('cat-list');
+      let _catProdEditId = null;
+
+      function renderCategoriasProdutoModal() {
+        const list = document.getElementById('catprod-list');
         if (!list) return;
         if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
         const cats = STATE.categories || [];
@@ -5377,17 +5450,21 @@ function loadQuoteToCart(id) {
         }
         list.innerHTML = cats.map(c => {
           const emUso = (STATE.products || []).filter(p => (p.category || '') === c.nome).length;
-          const nomeEsc = String(c.nome || '').replace(/"/g, '&quot;');
+          const nomeJs = String(c.nome || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+          const nomeHtml = String(c.nome || '').replace(/</g, '&lt;');
+          const eyeCls = emUso > 0 ? 'text-indigo-600 hover:bg-indigo-50' : 'text-slate-300 cursor-default';
           return `
             <tr class="hover:bg-slate-50">
-              <td class="p-3">
-                <input id="cat-in-${c.id}" type="text" value="${nomeEsc}" class="w-full max-w-xs p-2 border rounded font-medium" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCategory('${c.id}');}">
+              <td class="p-3 font-bold text-slate-700">${nomeHtml}</td>
+              <td class="p-3 text-center">
+                <button ${emUso > 0 ? `onclick="verProdutosCategoria('${nomeJs}')"` : 'disabled'} class="inline-flex items-center gap-1 px-2 py-1 rounded-lg font-bold ${eyeCls}" title="Ver produtos da categoria">
+                  ${emUso} <i data-lucide="eye" width="14"></i>
+                </button>
               </td>
-              <td class="p-3 text-center font-bold text-slate-600">${emUso}</td>
               <td class="p-3 text-center">
                 <div class="flex gap-2 justify-center">
-                  <button onclick="saveCategory('${c.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold">Salvar</button>
-                  <button onclick="deleteCategory('${c.id}')" class="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded text-xs font-bold">Excluir</button>
+                  <button onclick="openEditCategoriaProduto('${c.id}')" class="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded text-xs font-bold">Editar</button>
+                  <button onclick="deleteCategoriaProduto('${c.id}')" class="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded text-xs font-bold">Excluir</button>
                 </div>
               </td>
             </tr>`;
@@ -5395,9 +5472,68 @@ function loadQuoteToCart(id) {
         if (window.lucide) lucide.createIcons();
       }
 
-      async function addCategory() {
+      function openCategoriasProdutoModal() {
         if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
-        const input = document.getElementById('cat-new-name');
+        renderCategoriasProdutoModal();
+        const inp = document.getElementById('catprod-new-name');
+        if (inp) inp.value = '';
+        document.getElementById('modal-categorias-produto').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function closeCategoriasProdutoModal() {
+        document.getElementById('modal-categorias-produto').classList.add('hidden');
+      }
+
+      function openEditCategoriaProduto(id) {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
+        if (!cat) return;
+        _catProdEditId = String(id);
+        const inp = document.getElementById('catprod-edit-name');
+        if (inp) { inp.value = cat.nome || ''; inp.focus(); inp.select?.(); }
+        document.getElementById('modal-catprod-edit').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function closeEditCategoriaProduto() {
+        _catProdEditId = null;
+        document.getElementById('modal-catprod-edit').classList.add('hidden');
+      }
+
+      async function saveEditCategoriaProduto() {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        const id = _catProdEditId;
+        if (!id) return closeEditCategoriaProduto();
+        const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
+        if (!cat) return closeEditCategoriaProduto();
+        const novo = (document.getElementById('catprod-edit-name')?.value || '').trim().toUpperCase();
+        const antigo = cat.nome || '';
+        if (!novo) return showToast("Informe o nome da categoria.", true);
+        if (novo === antigo) return closeEditCategoriaProduto();
+        if ((STATE.categories || []).some(c => String(c.id) !== String(id) && (c.nome || '').toUpperCase() === novo)) return showToast("Já existe uma categoria com esse nome.", true);
+        showLoading(true);
+        try {
+          const { error } = await sb.from('categorias').update({ nome: novo }).eq('id', id);
+          if (error) throw error;
+          // Propaga o nome novo para os produtos que usavam o nome antigo.
+          const { error: errProd } = await sb.from('produtos').update({ categoria: novo }).eq('categoria', antigo);
+          if (errProd) throw errProd;
+          _catProdEditId = null;
+          document.getElementById('modal-catprod-edit').classList.add('hidden');
+          showToast("Categoria atualizada!");
+          await loadData();
+          renderCategoriasProdutoModal();
+        } catch (err) {
+          console.error(err);
+          showLoading(false);
+          showToast("Erro: " + err.message, true);
+        }
+      }
+
+      async function addCategoriaProduto() {
+        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        const input = document.getElementById('catprod-new-name');
         const nome = (input?.value || '').trim().toUpperCase();
         if (!nome) return showToast("Informe o nome da categoria.", true);
         if ((STATE.categories || []).some(c => (c.nome || '').toUpperCase() === nome)) return showToast("Categoria já existe.", true);
@@ -5407,37 +5543,10 @@ function loadQuoteToCart(id) {
         if (input) input.value = '';
         showToast("Categoria criada!");
         await loadData();
-        renderCategoriesPanel();
+        renderCategoriasProdutoModal();
       }
 
-      async function saveCategory(id) {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
-        const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
-        if (!cat) return;
-        const input = document.getElementById('cat-in-' + id);
-        const novo = (input?.value || '').trim().toUpperCase();
-        const antigo = cat.nome || '';
-        if (!novo) return showToast("Informe o nome da categoria.", true);
-        if (novo === antigo) return showToast("Nada para alterar.");
-        if ((STATE.categories || []).some(c => String(c.id) !== String(id) && (c.nome || '').toUpperCase() === novo)) return showToast("Já existe uma categoria com esse nome.", true);
-        showLoading(true);
-        try {
-          const { error } = await sb.from('categorias').update({ nome: novo }).eq('id', id);
-          if (error) throw error;
-          // Propaga o nome novo para os produtos que usavam o nome antigo.
-          const { error: errProd } = await sb.from('produtos').update({ categoria: novo }).eq('categoria', antigo);
-          if (errProd) throw errProd;
-          showToast("Categoria atualizada!");
-          await loadData();
-          renderCategoriesPanel();
-        } catch (err) {
-          console.error(err);
-          showLoading(false);
-          showToast("Erro: " + err.message, true);
-        }
-      }
-
-      async function deleteCategory(id) {
+      async function deleteCategoriaProduto(id) {
         if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
         const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
         if (!cat) return;
@@ -5451,7 +5560,70 @@ function loadQuoteToCart(id) {
         if (error) { showLoading(false); return showToast("Erro: " + error.message, true); }
         showToast("Categoria excluída!");
         await loadData();
-        renderCategoriesPanel();
+        renderCategoriasProdutoModal();
+      }
+
+      function verProdutosCategoria(nome) {
+        const title = document.getElementById('catprod-prod-title');
+        if (title) title.innerText = `Produtos: ${nome || 'Sem categoria'}`;
+        const list = document.getElementById('catprod-prod-list');
+        if (!list) return;
+        const prods = (STATE.products || []).filter(p => (p.category || '') === nome);
+        if (!prods.length) {
+          list.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum produto nesta categoria.</td></tr>';
+        } else {
+          prods.sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
+          list.innerHTML = prods.map(p => {
+            const noStock = p.parceiro || p.servico;
+            return `
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 font-bold text-slate-700">${p.name}${p.servico ? ' <span class="text-[10px] text-indigo-600 uppercase font-bold">Serviço</span>' : ''}</td>
+                <td class="p-3 text-center">${formatMoney(p.price)}</td>
+                <td class="p-3 text-center">${noStock ? '—' : p.stock}</td>
+                <td class="p-3 text-center font-bold ${(!noStock && Number(p.available) <= 0) ? 'text-red-600' : 'text-emerald-600'}">${noStock ? '—' : p.available}</td>
+              </tr>`;
+          }).join('');
+        }
+        document.getElementById('modal-catprod-produtos').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function closeVerProdutosCategoria() {
+        document.getElementById('modal-catprod-produtos').classList.add('hidden');
+      }
+
+      function verComprometido(id) {
+        const p = (STATE.products || []).find(x => String(x.id) === String(id));
+        if (!p) return;
+        const sub = document.getElementById('comprometido-sub');
+        if (sub) sub.innerHTML = `<b>${p.name}</b> — comprometido: <b class="text-amber-600">${p.committed}</b>`;
+        const list = document.getElementById('comprometido-list');
+        if (!list) return;
+        const pend = (STATE.logs || [])
+          .filter(l => String(l.type) === 'venda' && (String(l.productId) === String(id) || (l.productId == null && String(l.productName || '').trim() === String(p.name).trim())))
+          .map(l => ({ ...l, falta: Number(l.quantity || 0) - Number(l.deliveredQty || 0) }))
+          .filter(l => l.falta > 0 && String(l.deliveryStatus || '').toUpperCase() !== 'ENTREGUE' && String(l.status || '').toUpperCase() !== 'CANCELADO');
+        if (!pend.length) {
+          list.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhuma venda pendente de entrega comprometendo este estoque.</td></tr>';
+        } else {
+          pend.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+          list.innerHTML = pend.map(l => {
+            const situacao = Number(l.deliveredQty || 0) > 0 ? 'PARCIAL' : 'PENDENTE';
+            return `
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 text-center font-bold text-slate-700">#${l.id}</td>
+                <td class="p-3 text-slate-700">${l.clientName || '-'}</td>
+                <td class="p-3 text-center font-bold text-amber-600">${l.falta}</td>
+                <td class="p-3 text-center"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${situacao === 'PARCIAL' ? 'bg-amber-100 text-amber-700' : 'bg-orange-100 text-orange-600'}">${situacao}</span></td>
+              </tr>`;
+          }).join('');
+        }
+        document.getElementById('modal-comprometido').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function closeComprometido() {
+        document.getElementById('modal-comprometido').classList.add('hidden');
       }
 
       // ================== CATEGORIAS DE DESPESA ==================
@@ -5719,7 +5891,7 @@ function loadQuoteToCart(id) {
               <td class="p-4 font-medium">${formatMoney(p.price)}</td>
               <td class="p-4 font-medium text-slate-500">${formatMoney(p.cost || 0)}</td>
               <td class="p-4 font-bold text-center">${noStock ? '—' : p.stock}</td>
-              <td class="p-4 font-bold text-center text-amber-600">${noStock ? '—' : p.committed}</td>
+              <td class="p-4 font-bold text-center text-amber-600">${noStock ? '—' : (Number(p.committed) > 0 ? `<button onclick="verComprometido('${p.id}')" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-amber-50" title="Ver quem está comprometendo este estoque">${p.committed} <i data-lucide="eye" width="14"></i></button>` : '0')}</td>
               <td class="p-4 font-bold text-center ${dispCls}">${noStock ? '—' : p.available}</td>
               <td class="p-4 text-center"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${status.cls}">${status.label}</span></td>
               <td class="p-4 text-center">
