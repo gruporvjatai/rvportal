@@ -68,6 +68,8 @@
         body { background: white; margin: 0; padding: 0; font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .no-print { display: none !important; }
         .print-only { display: block !important; }
+        /* Overlays/modais nunca devem sair na impressão: imprime só o #print-area. */
+        .fixed.inset-0 { display: none !important; }
         
         /* APLICADO NAS DUAS TELAS DE IMPRESSÃO */
         .invoice-full, .invoice-box-orig { 
@@ -5483,91 +5485,102 @@ function loadQuoteToCart(id) {
             const company = {
                 name: "RV NEGOCIOS E COMPANHIA LTDA",
                 cnpj: "61.893.912/0001-24",
+                ie: "20.298.776-0",
                 phone: "(64) 3636-4861",
                 address: "Jataí - GO",
                 logoUrl: LOGO_NEGOCIOS_URL
             };
-            let subtituloHtml, tabelaHtml;
-            if (EXP_ABERTOS_MODO === 'produto') {
-                const produtos = getItensAbertosPorProduto();
-                const linhas = produtos.map(p => `
-                    <tr>
-                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${p.productName}</td>
-                        <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align:center; font-weight:bold; color:#b45309;">${p.falta}</td>
-                    </tr>
-                `).join('');
-                subtituloHtml = `<strong>Separação por produto.</strong> ${produtos.length} produto(s) · total a separar: ${totalFalta}.`;
-                tabelaHtml = `
-                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #000;">
-                        <thead>
-                            <tr style="background-color: #f1f5f9;">
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Produto</th>
-                                <th style="border-bottom: 1px solid #000; padding: 6px; text-align: center; width: 140px;">Qtd a entregar</th>
-                            </tr>
-                        </thead>
-                        <tbody>${linhas}</tbody>
-                        <tfoot>
-                            <tr style="background-color: #fffbeb;">
-                                <td style="border-top: 2px solid #000; border-right: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 12px;">TOTAL A ENTREGAR:</td>
-                                <td style="border-top: 2px solid #000; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; color: #b45309;">${totalFalta}</td>
-                            </tr>
-                        </tfoot>
-                    </table>`;
+            const produtos = getItensAbertosPorProduto();
+            const totalPedidos = new Set(itens.map(i => String(i.orderId))).size;
+            const produtoMode = EXP_ABERTOS_MODO === 'produto';
+            const emissao = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const th = (txt, extra) => `<th style="background:#0f172a; color:#fff; border:1px solid #0f172a; padding:8px 10px; font-size:11px; text-transform:uppercase; letter-spacing:.3px; ${extra || ''}">${txt}</th>`;
+
+            let cabecalhoTabela, corpoTabela, rodapeTabela, tituloTabela, resumoEsquerda;
+            if (produtoMode) {
+                tituloTabela = "Relação para separação (por produto)";
+                resumoEsquerda = `<b>${produtos.length}</b> produto(s) pendente(s) de entrega`;
+                cabecalhoTabela = `<tr>
+                    ${th('Produto', 'text-align:left;')}
+                    ${th('Qtd a entregar', 'text-align:center; width:130px;')}
+                    ${th('Conferido', 'text-align:center; width:80px;')}
+                </tr>`;
+                corpoTabela = produtos.map((p, idx) => `
+                    <tr style="background:${idx % 2 ? '#f8fafc' : '#fff'};">
+                        <td style="border:1px solid #cbd5e1; padding:8px 10px; font-weight:600; color:#1e293b;">${p.productName}</td>
+                        <td style="border:1px solid #cbd5e1; padding:8px 10px; text-align:center; font-weight:800; font-size:14px; color:#b45309;">${p.falta}</td>
+                        <td style="border:1px solid #cbd5e1; padding:8px 10px; text-align:center;"><div style="width:18px; height:18px; border:2px solid #334155; border-radius:3px; margin:0 auto;"></div></td>
+                    </tr>`).join('');
+                rodapeTabela = `<tr style="background:#fffbeb;">
+                    <td style="border:1px solid #0f172a; padding:9px 10px; text-align:right; font-weight:800; text-transform:uppercase; font-size:11px;">Total a entregar</td>
+                    <td style="border:1px solid #0f172a; padding:9px 10px; text-align:center; font-weight:900; font-size:16px; color:#b45309;">${totalFalta}</td>
+                    <td style="border:1px solid #0f172a;"></td>
+                </tr>`;
             } else {
-                const rowsHtml = itens.map(i => `
-                    <tr>
-                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center; font-weight:bold;">#${i.orderId}</td>
-                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${i.clientName || '-'}</td>
-                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px;">${i.productName}</td>
-                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center;">${i.quantity}</td>
-                        <td style="border-bottom: 1px solid #ccc; border-right: 1px solid #000; padding: 5px; text-align:center;">${i.delivered}</td>
-                        <td style="border-bottom: 1px solid #ccc; padding: 5px; text-align:center; font-weight:bold; color:#b45309;">${i.falta}</td>
-                    </tr>
-                `).join('');
-                subtituloHtml = `<strong>Pendentes de entrega, detalhado por pedido.</strong> ${itens.length} item(ns).`;
-                tabelaHtml = `
-                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000;">
-                        <thead>
-                            <tr style="background-color: #f1f5f9;">
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Pedido</th>
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Cliente</th>
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: left;">Produto</th>
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Qtd</th>
-                                <th style="border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 6px; text-align: center;">Entregue</th>
-                                <th style="border-bottom: 1px solid #000; padding: 6px; text-align: center;">Falta</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rowsHtml}</tbody>
-                        <tfoot>
-                            <tr style="background-color: #fffbeb;">
-                                <td colspan="5" style="border-top: 2px solid #000; border-right: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; font-size: 12px;">TOTAL A ENTREGAR:</td>
-                                <td style="border-top: 2px solid #000; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; color: #b45309;">${totalFalta}</td>
-                            </tr>
-                        </tfoot>
-                    </table>`;
+                tituloTabela = "Pendências de entrega (por pedido)";
+                resumoEsquerda = `<b>${itens.length}</b> item(ns) em <b>${totalPedidos}</b> pedido(s)`;
+                cabecalhoTabela = `<tr>
+                    ${th('Pedido', 'text-align:center; width:70px;')}
+                    ${th('Cliente', 'text-align:left;')}
+                    ${th('Produto', 'text-align:left;')}
+                    ${th('Qtd', 'text-align:center; width:60px;')}
+                    ${th('Entregue', 'text-align:center; width:70px;')}
+                    ${th('Falta', 'text-align:center; width:60px;')}
+                </tr>`;
+                corpoTabela = itens.map((i, idx) => `
+                    <tr style="background:${idx % 2 ? '#f8fafc' : '#fff'};">
+                        <td style="border:1px solid #cbd5e1; padding:7px 9px; text-align:center; font-weight:800; color:#334155;">#${i.orderId}</td>
+                        <td style="border:1px solid #cbd5e1; padding:7px 9px; color:#1e293b;">${i.clientName || '-'}</td>
+                        <td style="border:1px solid #cbd5e1; padding:7px 9px; color:#1e293b;">${i.productName}</td>
+                        <td style="border:1px solid #cbd5e1; padding:7px 9px; text-align:center;">${i.quantity}</td>
+                        <td style="border:1px solid #cbd5e1; padding:7px 9px; text-align:center; color:#047857; font-weight:700;">${i.delivered}</td>
+                        <td style="border:1px solid #cbd5e1; padding:7px 9px; text-align:center; font-weight:800; color:#b45309;">${i.falta}</td>
+                    </tr>`).join('');
+                rodapeTabela = `<tr style="background:#fffbeb;">
+                    <td colspan="5" style="border:1px solid #0f172a; padding:9px 10px; text-align:right; font-weight:800; text-transform:uppercase; font-size:11px;">Total a entregar</td>
+                    <td style="border:1px solid #0f172a; padding:9px 10px; text-align:center; font-weight:900; font-size:16px; color:#b45309;">${totalFalta}</td>
+                </tr>`;
             }
+
             const el = document.getElementById('print-area');
             el.innerHTML = `
-                <div style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 15px;">
-                    <div style="display: flex; border: 1px solid #000; margin-bottom: 0;">
-                        <div style="width: 100px; padding: 5px; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center;">
-                            <img src="${company.logoUrl}" style="max-height: 80px; max-width: 100%;" />
+                <div class="invoice-box-orig" style="font-family:'Helvetica','Arial',sans-serif; max-width:820px; margin:auto; padding:15px; color:#0f172a;">
+                    <div style="display:flex; border:1px solid #0f172a; border-bottom:none;">
+                        <div style="width:110px; padding:8px; border-right:1px solid #0f172a; display:flex; align-items:center; justify-content:center;">
+                            <img src="${company.logoUrl}" style="max-height:78px; max-width:100%;" />
                         </div>
-                        <div style="flex: 1; padding: 10px; border-right: 1px solid #000;">
-                            <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
-                            <p style="margin: 2px 0; font-size: 12px;">CNPJ: ${company.cnpj} | IE: 20.298.776-0</p>
-                            <p style="margin: 2px 0; font-size: 12px;">Endereço: ${company.address}</p>
-                            <p style="margin: 2px 0; font-size: 12px;">Telefone: ${company.phone}</p>
+                        <div style="flex:1; padding:10px 12px; border-right:1px solid #0f172a;">
+                            <h2 style="margin:0; font-size:18px; font-weight:800; color:#059669; text-transform:uppercase;">${company.name}</h2>
+                            <p style="margin:4px 0 0; font-size:11px; color:#475569;">CNPJ: ${company.cnpj} &nbsp;|&nbsp; IE: ${company.ie}</p>
+                            <p style="margin:2px 0 0; font-size:11px; color:#475569;">${company.address} &nbsp;|&nbsp; Tel: ${company.phone}</p>
                         </div>
-                        <div style="width: 200px; padding: 10px; background-color: #f9f9f9; text-align: right;">
-                            <h3 style="margin: 0; font-size: 14px; font-weight: bold;">ITENS EM ABERTO</h3>
-                            <p style="margin: 5px 0; font-size: 12px;">Emissão: ${new Date().toLocaleDateString()}</p>
+                        <div style="width:210px; padding:10px 12px; background:#f8fafc; text-align:right;">
+                            <h3 style="margin:0; font-size:14px; font-weight:800; text-transform:uppercase;">Itens em Aberto</h3>
+                            <p style="margin:5px 0 0; font-size:11px; color:#64748b;">${produtoMode ? 'Separação por produto' : 'Pendências por pedido'}</p>
+                            <p style="margin:6px 0 0; font-size:11px;">Emissão: <b>${emissao}</b></p>
                         </div>
                     </div>
-                    <div style="background-color: #f8fafc; border: 1px solid #000; border-top: none; padding: 8px; margin-bottom: 15px; font-size: 12px;">
-                        ${subtituloHtml}
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#fffbeb; border:1px solid #0f172a; padding:8px 12px; font-size:12px;">
+                        <span>${resumoEsquerda}</span>
+                        <span>Total a entregar: <b style="font-size:16px; color:#b45309;">${totalFalta}</b></span>
                     </div>
-                    ${tabelaHtml}
+                    <div style="margin:16px 0 6px; font-size:12px; font-weight:800; text-transform:uppercase; color:#0f172a; border-left:4px solid #059669; padding-left:8px;">${tituloTabela}</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                        <thead>${cabecalhoTabela}</thead>
+                        <tbody>${corpoTabela}</tbody>
+                        <tfoot>${rodapeTabela}</tfoot>
+                    </table>
+                    <div style="display:flex; justify-content:space-between; margin-top:55px;">
+                        <div style="width:45%; text-align:center;">
+                            <div style="border-top:1px solid #0f172a; margin-bottom:5px;"></div>
+                            <span style="font-size:10px; font-weight:700; text-transform:uppercase;">Conferente / Separador</span>
+                        </div>
+                        <div style="width:45%; text-align:center;">
+                            <div style="border-top:1px solid #0f172a; margin-bottom:5px;"></div>
+                            <span style="font-size:10px; font-weight:700; text-transform:uppercase;">Responsável pela Entrega</span>
+                        </div>
+                    </div>
+                    <p style="margin-top:18px; font-size:9px; color:#94a3b8; text-align:center;">Documento gerado automaticamente pelo RV Portal em ${emissao}.</p>
                 </div>
             `;
             setTimeout(() => window.print(), 500);
