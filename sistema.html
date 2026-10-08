@@ -977,7 +977,16 @@
                 </div>
                 <h3 class="font-bold text-slate-800 text-lg">Despesas</h3>
                 <p class="text-xs text-slate-500 font-medium">Relatório detalhado de despesas com filtros por período, categoria e status.</p>
-            </div>              
+            </div>
+
+            <!-- 🟢 NOVO CARD 5: Valor em Estoque (custo) -->
+            <div onclick="openValorEstoqueModal()" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-teal-500 hover:shadow-md cursor-pointer transition-all flex flex-col items-center text-center gap-3">
+                <div class="w-14 h-14 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center">
+                    <i data-lucide="warehouse" class="w-7 h-7"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-lg">Valor em Estoque</h3>
+                <p class="text-xs text-slate-500 font-medium">Valor do estoque atual pelo custo dos produtos, detalhado por item com total geral.</p>
+            </div>
           </div>
       </div>
 
@@ -1768,6 +1777,41 @@
         </div>
     </div>
 
+    <!-- Modal Valor em Estoque (custo) -->
+    <div id="modal-valor-estoque" class="hidden fixed inset-0 bg-black/60 z-[70] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="warehouse" class="text-teal-600"></i> Valor em Estoque (Custo)</h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="printValorEstoque()" class="text-white bg-teal-600 hover:bg-teal-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+                    <button onclick="closeValorEstoque()" class="text-slate-400 hover:text-teal-600"><i data-lucide="x"></i></button>
+                </div>
+            </div>
+            <div class="px-5 pt-4">
+                <p id="valor-estoque-resumo" class="text-sm text-slate-500"></p>
+            </div>
+            <div class="overflow-y-auto flex-1">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3">Produto</th>
+                            <th class="p-3 text-center w-32">Qtd em estoque</th>
+                            <th class="p-3 text-right w-32">Custo unit.</th>
+                            <th class="p-3 text-right w-36">Valor em estoque</th>
+                        </tr>
+                    </thead>
+                    <tbody id="valor-estoque-list" class="divide-y"></tbody>
+                    <tfoot>
+                        <tr class="bg-teal-50 border-t-2 border-teal-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.06)]">
+                            <td colspan="3" class="p-3 text-right font-bold text-teal-900 uppercase text-xs">Total em estoque:</td>
+                            <td id="valor-estoque-total" class="p-3 text-right font-black text-teal-700 text-base"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <div id="pos-history-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden">
         
@@ -2176,6 +2220,7 @@
             'modal-catprod-produtos': closeVerProdutosCategoria,
             'modal-comprometido': closeComprometido,
             'modal-expedicao-abertos': closeRelatorioAbertos,
+            'modal-valor-estoque': closeValorEstoque,
             // Demais modais sem entrada previa (padronizacao do Esc)
             'modal-parcel-rec': closeParcelarModal,
             'modal-receipt': closeReceiptModal,
@@ -6027,6 +6072,121 @@ function loadQuoteToCart(id) {
 
       function closeComprometido() {
         document.getElementById('modal-comprometido').classList.add('hidden');
+      }
+
+      // ================== VALOR EM ESTOQUE (CUSTO) ==================
+      // Detalha o valor do estoque atual pelo custo unitario de cada produto.
+      function getValorEstoque() {
+        return (STATE.products || [])
+          .map(p => {
+            const qty = Number(p.stock) || 0;
+            const cost = Number(p.cost) || 0;
+            return {
+              id: p.id,
+              name: p.name,
+              unidade: p.unidade || 'un',
+              qty: qty,
+              cost: cost,
+              valor: qty * cost
+            };
+          })
+          .filter(i => i.qty > 0)
+          .sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
+      }
+
+      function openValorEstoqueModal() {
+        const itens = getValorEstoque();
+        const total = itens.reduce((a, i) => a + i.valor, 0);
+        const resumo = document.getElementById('valor-estoque-resumo');
+        if (resumo) resumo.innerHTML = `<b>${itens.length}</b> produto(s) com estoque · valor total a custo: <b class="text-teal-600">${formatMoney(total)}</b>`;
+        const list = document.getElementById('valor-estoque-list');
+        if (list) {
+          if (!itens.length) {
+            list.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum produto com estoque.</td></tr>';
+          } else {
+            list.innerHTML = itens.map(i => `
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 font-medium text-slate-700">${i.name}</td>
+                <td class="p-3 text-center font-bold text-slate-700">${i.qty} <span class="text-[10px] text-slate-400 font-normal">${i.unidade}</span></td>
+                <td class="p-3 text-right text-slate-600">${formatMoney(i.cost)}</td>
+                <td class="p-3 text-right font-bold text-slate-800">${formatMoney(i.valor)}</td>
+              </tr>`).join('');
+          }
+        }
+        const totalEl = document.getElementById('valor-estoque-total');
+        if (totalEl) totalEl.innerHTML = formatMoney(total);
+        document.getElementById('modal-valor-estoque').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function closeValorEstoque() {
+        document.getElementById('modal-valor-estoque').classList.add('hidden');
+      }
+
+      function printValorEstoque() {
+        const itens = getValorEstoque();
+        if (!itens.length) return showToast("Nenhum produto com estoque para imprimir", true);
+        const total = itens.reduce((a, i) => a + i.valor, 0);
+        const company = {
+          name: "RV NEGOCIOS E COMPANHIA LTDA",
+          cnpj: "61.893.912/0001-24",
+          ie: "20.298.776-0",
+          phone: "(64) 3636-4861",
+          address: "Jataí - GO",
+          logoUrl: LOGO_NEGOCIOS_URL
+        };
+        const emissao = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const corpo = itens.map((i, idx) => `
+          <tr style="background:${idx % 2 ? '#f8fafc' : '#fff'};">
+            <td style="border:1px solid #cbd5e1; padding:7px 9px; color:#1e293b;">${i.name}</td>
+            <td style="border:1px solid #cbd5e1; padding:7px 9px; text-align:center;">${i.qty} ${i.unidade}</td>
+            <td style="border:1px solid #cbd5e1; padding:7px 9px; text-align:right;">${formatMoney(i.cost)}</td>
+            <td style="border:1px solid #cbd5e1; padding:7px 9px; text-align:right; font-weight:700; color:#0f766e;">${formatMoney(i.valor)}</td>
+          </tr>`).join('');
+        const el = document.getElementById('print-area');
+        el.innerHTML = `
+          <div class="invoice-box-orig" style="font-family:'Helvetica','Arial',sans-serif; max-width:820px; margin:auto; padding:15px; color:#0f172a;">
+            <div style="display:flex; border:1px solid #0f172a; border-bottom:none;">
+              <div style="width:110px; padding:8px; border-right:1px solid #0f172a; display:flex; align-items:center; justify-content:center;">
+                <img src="${company.logoUrl}" style="max-height:78px; max-width:100%;" />
+              </div>
+              <div style="flex:1; padding:10px 12px; border-right:1px solid #0f172a;">
+                <h2 style="margin:0; font-size:18px; font-weight:800; color:#059669; text-transform:uppercase;">${company.name}</h2>
+                <p style="margin:4px 0 0; font-size:11px; color:#475569;">CNPJ: ${company.cnpj} &nbsp;|&nbsp; IE: ${company.ie}</p>
+                <p style="margin:2px 0 0; font-size:11px; color:#475569;">${company.address} &nbsp;|&nbsp; Tel: ${company.phone}</p>
+              </div>
+              <div style="width:210px; padding:10px 12px; background:#f8fafc; text-align:right;">
+                <h3 style="margin:0; font-size:14px; font-weight:800; text-transform:uppercase;">Valor em Estoque</h3>
+                <p style="margin:5px 0 0; font-size:11px; color:#64748b;">Avaliado pelo custo</p>
+                <p style="margin:6px 0 0; font-size:11px;">Emissão: <b>${emissao}</b></p>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f0fdfa; border:1px solid #0f172a; padding:8px 12px; font-size:12px;">
+              <span><b>${itens.length}</b> produto(s) em estoque</span>
+              <span>Valor total em estoque: <b style="font-size:16px; color:#0f766e;">${formatMoney(total)}</b></span>
+            </div>
+            <div style="margin:16px 0 6px; font-size:12px; font-weight:800; text-transform:uppercase; color:#0f172a; border-left:4px solid #0d9488; padding-left:8px;">Detalhamento por produto</div>
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+              <thead>
+                <tr>
+                  <th style="background:#0f172a; color:#fff; border:1px solid #0f172a; padding:8px 10px; font-size:11px; text-transform:uppercase; text-align:left;">Produto</th>
+                  <th style="background:#0f172a; color:#fff; border:1px solid #0f172a; padding:8px 10px; font-size:11px; text-transform:uppercase; text-align:center; width:110px;">Qtd</th>
+                  <th style="background:#0f172a; color:#fff; border:1px solid #0f172a; padding:8px 10px; font-size:11px; text-transform:uppercase; text-align:right; width:130px;">Custo unit.</th>
+                  <th style="background:#0f172a; color:#fff; border:1px solid #0f172a; padding:8px 10px; font-size:11px; text-transform:uppercase; text-align:right; width:150px;">Valor em estoque</th>
+                </tr>
+              </thead>
+              <tbody>${corpo}</tbody>
+              <tfoot>
+                <tr style="background:#ccfbf1;">
+                  <td colspan="3" style="border:1px solid #0f172a; padding:9px 10px; text-align:right; font-weight:800; text-transform:uppercase; font-size:11px;">Total em estoque</td>
+                  <td style="border:1px solid #0f172a; padding:9px 10px; text-align:right; font-weight:900; font-size:15px; color:#0f766e;">${formatMoney(total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <p style="margin-top:18px; font-size:9px; color:#94a3b8; text-align:center;">Documento gerado automaticamente pelo RV Portal em ${emissao}.</p>
+          </div>
+        `;
+        setTimeout(() => window.print(), 500);
       }
 
       // ================== CATEGORIAS DE DESPESA ==================
