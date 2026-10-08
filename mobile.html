@@ -195,8 +195,8 @@
 
           <button onclick="openValorEstoqueModal()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
               <div>
-                  <h3 class="text-base font-black text-slate-800 mb-1">Valor em Estoque</h3>
-                  <p class="text-xs text-slate-500 font-medium">Estoque atual pelo custo, por item com total.</p>
+                  <h3 class="text-base font-black text-slate-800 mb-1">Valor em Estoque Disponível</h3>
+                  <p class="text-xs text-slate-500 font-medium">Físico menos o vendido (comprometido), pelo custo.</p>
               </div>
               <div class="w-12 h-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
                   <i data-lucide="warehouse" class="w-6 h-6"></i>
@@ -1118,7 +1118,7 @@
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[88vh] overflow-hidden">
             <div class="p-4 border-b flex justify-between items-center bg-slate-50">
                 <h3 class="font-black text-slate-800 text-lg flex items-center gap-2">
-                    <i data-lucide="warehouse" class="text-teal-600 w-5 h-5"></i> Valor em Estoque
+                    <i data-lucide="warehouse" class="text-teal-600 w-5 h-5"></i> Valor em Estoque Disponível
                 </h3>
                 <button onclick="closeValorEstoque()" class="text-slate-400 hover:text-teal-600 bg-white rounded-full p-1">
                     <i data-lucide="x"></i>
@@ -1132,7 +1132,7 @@
                     <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
                         <tr>
                             <th class="p-3">Produto</th>
-                            <th class="p-3 text-center w-24">Qtd</th>
+                            <th class="p-3 text-center w-24">Disponível</th>
                             <th class="p-3 text-right w-28">Valor</th>
                         </tr>
                     </thead>
@@ -1140,7 +1140,7 @@
                 </table>
             </div>
             <div class="p-4 border-t bg-teal-50 flex justify-between items-center">
-                <span class="font-bold text-teal-900 uppercase text-xs">Total em estoque</span>
+                <span class="font-bold text-teal-900 uppercase text-xs">Total disponível</span>
                 <span id="valor-estoque-total" class="font-black text-teal-700 text-lg"></span>
             </div>
         </div>
@@ -4968,9 +4968,14 @@ function downloadPDF(blob, filename) {
       function getValorEstoque() {
           return (STATE.products || [])
               .map(p => {
-                  const qty = Number(p.stock) || 0;
+                  const fisico = Number(p.stock) || 0;
+                  const comprometido = Number(p.committed) || 0;
+                  // Disponível = físico - vendido (comprometido). O vendido é do
+                  // cliente (só guardamos), então não entra no nosso valor.
+                  // Negativo é desconsiderado.
+                  const disponivel = Math.round((fisico - comprometido) * 100) / 100;
                   const cost = Number(p.cost) || 0;
-                  return { id: p.id, name: p.name, unidade: p.unidade || 'un', qty: qty, cost: cost, valor: qty * cost };
+                  return { id: p.id, name: p.name, unidade: p.unidade || 'un', fisico: fisico, comprometido: comprometido, qty: disponivel, cost: cost, valor: disponivel * cost };
               })
               .filter(i => i.qty > 0)
               .sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
@@ -4980,16 +4985,16 @@ function downloadPDF(blob, filename) {
           const itens = getValorEstoque();
           const total = itens.reduce((a, i) => a + i.valor, 0);
           const resumo = document.getElementById('valor-estoque-resumo');
-          if (resumo) resumo.innerHTML = `<b>${itens.length}</b> produto(s) com estoque · total a custo: <b class="text-teal-600">${formatMoney(total)}</b>`;
+          if (resumo) resumo.innerHTML = `<b>${itens.length}</b> produto(s) com disponível · total a custo: <b class="text-teal-600">${formatMoney(total)}</b>`;
           const list = document.getElementById('valor-estoque-list');
           if (list) {
               if (!itens.length) {
-                  list.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-slate-400">Nenhum produto com estoque.</td></tr>';
+                  list.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-slate-400">Nenhum produto com estoque disponível.</td></tr>';
               } else {
                   list.innerHTML = itens.map(i => `
               <tr>
-                <td class="p-3 font-medium text-slate-700">${i.name}</td>
-                <td class="p-3 text-center font-bold text-slate-700">${i.qty} <span class="text-[10px] text-slate-400 font-normal">${i.unidade}</span></td>
+                <td class="p-3 font-medium text-slate-700">${i.name}<br><span class="text-[10px] text-slate-400">físico ${i.fisico} · comp. ${i.comprometido}</span></td>
+                <td class="p-3 text-center font-bold text-emerald-700">${i.qty} <span class="text-[10px] text-slate-400 font-normal">${i.unidade}</span></td>
                 <td class="p-3 text-right font-bold text-slate-800">${formatMoney(i.valor)}</td>
               </tr>`).join('');
               }
