@@ -2314,6 +2314,38 @@
             return { data: allRecords };
         }
 
+        // Estoque comprometido derivado dos logs: e a soma do que ainda falta
+        // expedir (quantidade - qtd_entregue) das vendas ativas. Assim o numero
+        // nunca diverge do que realmente esta pendente de entrega.
+        function recomputarEstoqueComprometido() {
+            const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const porId = {};
+            const porNome = {};
+            STATE.logs.forEach(l => {
+                if (l.type !== 'venda') return;
+                if (String(l.status || '').toUpperCase() === 'CANCELADO') return;
+                const falta = Number(l.quantity || 0) - Number(l.deliveredQty || 0);
+                if (!(falta > 0)) return;
+                if (l.productId != null) {
+                    const k = String(l.productId);
+                    porId[k] = (porId[k] || 0) + falta;
+                } else if (l.productName) {
+                    const k = norm(l.productName);
+                    porNome[k] = (porNome[k] || 0) + falta;
+                }
+            });
+            STATE.products.forEach(p => {
+                if (p.servico || p.parceiro) {
+                    p.committed = 0;
+                } else {
+                    const byId = porId[String(p.id)] || 0;
+                    const byName = porNome[norm(p.name)] || 0;
+                    p.committed = Math.round((byId + byName) * 100) / 100;
+                }
+                p.available = Math.round((Number(p.stock || 0) - p.committed) * 100) / 100;
+            });
+        }
+
         async function loadData() {
     try {
         const [resProd, resCli, resLog, resDesp, resEquipe, resCat, resCatDesp] = await Promise.all([
@@ -2435,6 +2467,8 @@
             q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); 
             return q; 
         });
+
+        recomputarEstoqueComprometido();
 
         STATE.expenses = (resDesp.data || []).map(e => ({
             id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
