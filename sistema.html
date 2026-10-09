@@ -1298,7 +1298,6 @@
             <div class="p-3 border-b flex justify-between items-center bg-slate-50">
                 <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="eye" class="text-emerald-600"></i> Visualizar Venda</h3>
                 <div class="flex items-center gap-2">
-                    <button onclick="printVendaView()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
                     <button onclick="fecharVendaView()" class="p-2 bg-slate-200 hover:bg-red-100 hover:text-red-600 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
             </div>
@@ -9951,14 +9950,6 @@ body { margin: 0 !important; padding: 16px !important; }
         function fecharVendaView() {
             const m = document.getElementById('modal-venda-view');
             if (m) m.classList.add('hidden');
-        }
-
-        function printVendaView() {
-            const frame = document.getElementById('venda-view-frame');
-            if (frame && frame.contentWindow) {
-                frame.contentWindow.focus();
-                frame.contentWindow.print();
-            }
         }
 
         async function duplicateQuote(id) {
