@@ -767,6 +767,9 @@
       <button id="btn-categorias-produto" onclick="openCategoriasProdutoModal()" class="hidden bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-4 py-2 rounded font-bold shadow flex items-center gap-2">
         <i data-lucide="tags"></i> Categorias
       </button>
+      <button id="btn-mov-produto" onclick="openMovProdutoModal()" class="hidden bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded font-bold shadow flex items-center gap-2">
+        <i data-lucide="arrow-left-right"></i> Movimentações
+      </button>
       <button onclick="openProductForm()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2">
         <i data-lucide="plus"></i> Novo Produto
       </button>
@@ -859,7 +862,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span class="text-sm font-bold text-slate-600">Motivo:</span>
-        <select id="adj-motivo" class="p-2 border rounded font-medium text-slate-700">
+        <select id="adj-motivo" class="p-2 border rounded font-medium text-slate-700" onchange="onAdjMotivoChange()">
           <option value="Inventário/Contagem">Inventário/Contagem</option>
           <option value="Entrada/Reposição">Entrada/Reposição</option>
           <option value="Saída">Saída</option>
@@ -867,6 +870,9 @@
           <option value="Devolução">Devolução</option>
           <option value="Correção">Correção</option>
         </select>
+      </div>
+      <div id="adj-fornecedor-wrap" class="hidden flex-1 min-w-[180px]">
+        <input id="adj-fornecedor" type="text" placeholder="Fornecedor da compra (opcional)" class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium">
       </div>
       <div class="flex-1 min-w-[180px]">
         <input id="adj-obs" type="text" placeholder="Observação (opcional)" class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium">
@@ -886,6 +892,7 @@
               <th class="p-3 text-center" id="adj-input-label">Contado</th>
               <th class="p-3 text-center">Novo Físico</th>
               <th class="p-3 text-center">Novo Disponível</th>
+              <th class="p-3 text-center hidden" id="adj-th-custo">Custo unit.</th>
               <th class="p-3 text-center">Situação</th>
             </tr>
           </thead>
@@ -927,6 +934,110 @@
     <div class="p-3 border-t bg-slate-50 flex justify-between items-center">
       <span class="text-xs text-slate-400 font-medium">Últimos 100 ajustes</span>
       <button onclick="closeAjusteHistorico()" class="px-4 py-2 bg-slate-200 rounded font-bold hover:bg-slate-300">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Relatorio de Movimentacoes de Produtos -->
+<div id="modal-mov-produto" class="hidden fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[92vh] overflow-hidden my-4">
+    <div class="p-4 border-b bg-slate-50 flex items-center justify-between">
+      <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="arrow-left-right" class="w-5 h-5 text-indigo-600"></i> Relatório de Movimentações</h3>
+      <button onclick="closeMovProdutoModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+    </div>
+
+    <div class="p-4 border-b bg-white grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Início</label>
+        <input type="date" id="mov-start" class="w-full p-2 border rounded text-sm">
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Fim</label>
+        <input type="date" id="mov-end" class="w-full p-2 border rounded text-sm">
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Produto</label>
+        <select id="mov-produto" class="w-full p-2 border rounded text-sm"><option value="">Todos os produtos</option></select>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Forma de Pagamento</label>
+        <select id="mov-pagamento" class="w-full p-2 border rounded text-sm">
+          <option value="Todos">Todas</option>
+          <option>Dinheiro</option>
+          <option>PIX</option>
+          <option>Carteira</option>
+          <option>Cartão Débito</option>
+          <option>Cartão Crédito</option>
+          <option>Boleto 21 dias</option>
+          <option>Boleto 28 dias</option>
+          <option>Boleto 30 dias</option>
+          <option>Boleto Programado</option>
+        </select>
+      </div>
+      <div class="md:col-span-4 flex flex-wrap gap-x-4 gap-y-2 items-center">
+        <span class="text-[10px] font-bold uppercase text-slate-500">Tipos:</span>
+        <label class="flex items-center gap-2 text-sm font-medium"><input type="checkbox" id="mov-t-venda" checked onchange="renderMovRelatorio()"> Vendas</label>
+        <label class="flex items-center gap-2 text-sm font-medium"><input type="checkbox" id="mov-t-compra" checked onchange="renderMovRelatorio()"> Compras</label>
+        <label class="flex items-center gap-2 text-sm font-medium"><input type="checkbox" id="mov-t-ajuste" checked onchange="renderMovRelatorio()"> Ajustes</label>
+        <label class="flex items-center gap-2 text-sm font-medium"><input type="checkbox" id="mov-t-preco" checked onchange="renderMovRelatorio()"> Preço/Custo</label>
+        <select id="mov-motivo" class="p-1.5 border rounded text-sm" onchange="renderMovRelatorio()">
+          <option value="Todos">Todos os motivos</option>
+          <option>Inventário/Contagem</option>
+          <option>Entrada/Reposição</option>
+          <option>Saída</option>
+          <option>Perda/Avaria</option>
+          <option>Devolução</option>
+          <option>Correção</option>
+        </select>
+        <button onclick="renderMovRelatorio()" class="ml-auto bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><i data-lucide="filter"></i> Aplicar</button>
+      </div>
+    </div>
+
+    <div class="px-4 pt-3 flex flex-wrap gap-2 items-center border-b bg-white">
+      <button id="mov-tab-a" onclick="setMovView('A')" class="px-4 py-2 -mb-px border-b-2 text-sm font-bold">Linha do tempo</button>
+      <button id="mov-tab-b" onclick="setMovView('B')" class="px-4 py-2 -mb-px border-b-2 text-sm font-bold">Resumo por produto</button>
+      <div class="ml-auto flex gap-2 pb-3">
+        <button onclick="movProdutoCSV()" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-sm"><i data-lucide="file-spreadsheet"></i> CSV</button>
+        <button onclick="movProdutoPDF()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-sm"><i data-lucide="file-text"></i> PDF</button>
+        <button onclick="movProdutoPrint()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-sm"><i data-lucide="printer"></i> Imprimir</button>
+      </div>
+    </div>
+
+    <div class="overflow-auto flex-1 p-4 bg-slate-100">
+      <div id="mov-resumo-boxes" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3"></div>
+      <div id="mov-view-a" class="bg-white rounded-lg border shadow-sm overflow-hidden">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-800 text-white">
+            <tr>
+              <th class="p-3 font-bold">Data</th>
+              <th class="p-3 font-bold">Tipo</th>
+              <th class="p-3 font-bold">Produto</th>
+              <th class="p-3 font-bold">Detalhe</th>
+              <th class="p-3 text-center font-bold">Qtd</th>
+              <th class="p-3 text-right font-bold">Valor</th>
+            </tr>
+          </thead>
+          <tbody id="mov-list-a" class="divide-y"></tbody>
+        </table>
+      </div>
+      <div id="mov-view-b" class="hidden bg-white rounded-lg border shadow-sm overflow-hidden">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-slate-800 text-white">
+            <tr>
+              <th class="p-3 font-bold">Produto</th>
+              <th class="p-3 text-center font-bold">Comprado</th>
+              <th class="p-3 text-center font-bold">Vendido</th>
+              <th class="p-3 text-center font-bold">Ajuste líq.</th>
+              <th class="p-3 text-center font-bold">Mov. líq.</th>
+              <th class="p-3 text-center font-bold">Estoque</th>
+              <th class="p-3 text-right font-bold">Custo atual</th>
+              <th class="p-3 text-right font-bold">Preço atual</th>
+              <th class="p-3 font-bold">Últ. alteração</th>
+            </tr>
+          </thead>
+          <tbody id="mov-list-b" class="divide-y"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -2363,6 +2474,7 @@
             'modal-cliente-picker': closeClientPickerModal,
             'modal-cliente-vendas': closeClienteVendasModal,
             'modal-venda-view': fecharVendaView,
+            'modal-mov-produto': closeMovProdutoModal,
             // Demais modais sem entrada previa (padronizacao do Esc)
             'modal-parcel-rec': closeParcelarModal,
             'modal-receipt': closeReceiptModal,
@@ -2726,7 +2838,12 @@
                     discount: Number(l.desconto), acrescimo: Number(l.acrescimo || 0),
                     pgtoAnotacao: l.pgto_anotacao || '',
                     finStatus: l.status_financeiro, dueDate: l.vencimento,
-                    paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega
+                    paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega,
+                    valorAntigo: l.valor_antigo != null ? Number(l.valor_antigo) : null,
+                    valorNovo: l.valor_novo != null ? Number(l.valor_novo) : null,
+                    campoAlterado: l.campo_alterado || null,
+                    valorUnitario: l.valor_unitario != null ? Number(l.valor_unitario) : null,
+                    fornecedor: l.fornecedor || null
                 });
             }
         });
@@ -3015,8 +3132,43 @@
                 payload.foto_url = null;
             }
 
+            // Snapshot dos valores anteriores (para auditar alteracao de preco/custo).
+            const prodAnterior = isNew ? null : STATE.products.find(p => String(p.id) === String(newId));
+
             const { error } = await sb.from('produtos').upsert(payload);
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+
+            // Registra alteracoes de preco de venda e de custo (auditoria de precos).
+            if (!isNew && prodAnterior) {
+                const precoAntigo = Number(prodAnterior.price) || 0;
+                const custoAntigo = Number(prodAnterior.cost) || 0;
+                const precoNovo = Number(payload.preco) || 0;
+                const custoNovo = Number(payload.custo) || 0;
+                const mudancas = [];
+                if (precoNovo !== precoAntigo) mudancas.push({ campo: 'preco', de: precoAntigo, para: precoNovo });
+                if (custoNovo !== custoAntigo) mudancas.push({ campo: 'custo', de: custoAntigo, para: custoNovo });
+                let nextMovId = getNextId(STATE.logs, STATE.quotes);
+                for (const m of mudancas) {
+                    try {
+                        await sb.from('logs').insert([{
+                            id: nextMovId++,
+                            tipo: 'alteracao_preco',
+                            produto_id: newId,
+                            produto_nome: payload.nome,
+                            quantidade: 0,
+                            data: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString(),
+                            observacao: (m.campo === 'custo' ? 'Custo' : 'Preço') + `: ${formatMoney(m.de)} -> ${formatMoney(m.para)}`,
+                            valor_total: 0,
+                            valor_antigo: m.de,
+                            valor_novo: m.para,
+                            campo_alterado: m.campo,
+                            cliente_nome: 'Sistema',
+                            forma_pagamento: '',
+                            status: 'ATIVO'
+                        }]);
+                    } catch (err) { console.error('Falha ao registrar alteracao de preco:', err); }
+                }
+            }
 
             // Estoque inicial entra no historico como ajuste de abertura.
             if (isNew && !isServico && !payload.produto_parceiro && estoqueInicial > 0) {
@@ -3303,6 +3455,8 @@ function buildAjusteLogPayload(o) {
     data: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString(),
     observacao: `[${o.motivo}] ${fmtQtd(de)} -> ${fmtQtd(para)}` + (o.obs ? ` | ${o.obs}` : ''),
     valor_total: 0,
+    valor_unitario: o.valorUnitario != null ? o.valorUnitario : null,
+    fornecedor: o.fornecedor || null,
     cliente_nome: 'Sistema',
     forma_pagamento: '',
     status: 'ATIVO',
@@ -3420,6 +3574,8 @@ async function submeterAjusteEstoque() {
   const motivo = document.getElementById('adj-motivo')?.value || '';
   const obs = (document.getElementById('adj-obs')?.value || '').trim();
   if (!motivo) return showToast("Selecione um motivo para o ajuste.", true);
+  const isCompra = motivo === 'Entrada/Reposição';
+  const fornecedor = isCompra ? (document.getElementById('adj-fornecedor')?.value || '').trim() : '';
 
   const validas = [];
   const invalidas = [];
@@ -3449,14 +3605,40 @@ async function submeterAjusteEstoque() {
   showLoading(true);
   try {
     let nextLogId = getNextId(STATE.logs, STATE.quotes);
+    const agora = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
     for (const v of validas) {
-      const { error: upErr } = await sb.from('produtos').update({ estoque_fisico: v.para }).eq('id', v.p.id);
+      // Custo unitario (apenas em Entrada/Reposicao).
+      let custoUnit = null;
+      if (isCompra) {
+        const cEl = document.getElementById('adjcost-' + v.p.id);
+        const c = cEl ? parseFloat(cEl.value) : NaN;
+        if (!isNaN(c) && c > 0) custoUnit = Math.round(c * 100) / 100;
+      }
+
+      const updatePayload = { estoque_fisico: v.para };
+      if (custoUnit != null) updatePayload.custo = custoUnit;
+      const { error: upErr } = await sb.from('produtos').update(updatePayload).eq('id', v.p.id);
       if (upErr) throw upErr;
+
       const { error: logErr } = await sb.from('logs').insert([buildAjusteLogPayload({
         id: nextLogId++, prodId: v.p.id, prodName: v.p.name,
-        de: v.de, para: v.para, motivo, obs
+        de: v.de, para: v.para, motivo, obs,
+        valorUnitario: custoUnit, fornecedor
       })]);
       if (logErr) throw logErr;
+
+      // A compra tambem atualiza o custo do produto: registra a alteracao de custo.
+      if (custoUnit != null && custoUnit !== (Number(v.p.cost) || 0)) {
+        try {
+          await sb.from('logs').insert([{
+            id: nextLogId++, tipo: 'alteracao_preco',
+            produto_id: v.p.id, produto_nome: v.p.name, quantidade: 0, data: agora,
+            observacao: `Custo: ${formatMoney(Number(v.p.cost) || 0)} -> ${formatMoney(custoUnit)}`,
+            valor_total: 0, valor_antigo: Number(v.p.cost) || 0, valor_novo: custoUnit,
+            campo_alterado: 'custo', cliente_nome: 'Sistema', forma_pagamento: '', status: 'ATIVO'
+          }]);
+        } catch (err) { console.error('Falha ao registrar alteracao de custo:', err); }
+      }
     }
     showToast(`${validas.length} ajuste(s) aplicado(s).` + (abaixo.length ? ` ${abaixo.length} abaixo do comprometido.` : ''));
     await loadData();
@@ -3477,6 +3659,432 @@ function openAjusteHistorico() {
 
 function closeAjusteHistorico() {
   document.getElementById('modal-ajuste-historico').classList.add('hidden');
+}
+
+// ================== RELATORIO DE MOVIMENTACOES DE PRODUTOS ==================
+let _movEventos = [];
+let _movResumo = [];
+let _movView = 'A';
+
+function openMovProdutoModal() {
+  if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+  const sel = document.getElementById('mov-produto');
+  if (sel) {
+    const atual = sel.value;
+    const prods = (STATE.products || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
+    sel.innerHTML = '<option value="">Todos os produtos</option>' +
+      prods.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    sel.value = atual;
+  }
+  const start = document.getElementById('mov-start');
+  const end = document.getElementById('mov-end');
+  if (start && !start.value) { const d = new Date(); d.setDate(d.getDate() - 30); start.value = getLocalISODate(d); }
+  if (end && !end.value) end.value = getLocalISODate(new Date());
+  setMovView('A');
+  renderMovRelatorio();
+  document.getElementById('modal-mov-produto').classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeMovProdutoModal() {
+  document.getElementById('modal-mov-produto').classList.add('hidden');
+}
+
+function setMovView(v) {
+  _movView = (v === 'B') ? 'B' : 'A';
+  const va = document.getElementById('mov-view-a');
+  const vb = document.getElementById('mov-view-b');
+  if (va) va.classList.toggle('hidden', _movView !== 'A');
+  if (vb) vb.classList.toggle('hidden', _movView !== 'B');
+  const a = document.getElementById('mov-tab-a');
+  const b = document.getElementById('mov-tab-b');
+  const on = ['border-indigo-600', 'text-indigo-700'];
+  const off = ['border-transparent', 'text-slate-500'];
+  [[a, 'A'], [b, 'B']].forEach(([el, which]) => {
+    if (!el) return;
+    el.classList.remove(...on, ...off);
+    el.classList.add(...(_movView === which ? on : off));
+  });
+}
+
+function coletarMovimentacoes() {
+  const start = document.getElementById('mov-start')?.value || '';
+  const end = document.getElementById('mov-end')?.value || '';
+  const prodId = document.getElementById('mov-produto')?.value || '';
+  const pagamento = document.getElementById('mov-pagamento')?.value || 'Todos';
+  const motivoF = document.getElementById('mov-motivo')?.value || 'Todos';
+  const tipos = {
+    venda: document.getElementById('mov-t-venda')?.checked,
+    compra: document.getElementById('mov-t-compra')?.checked,
+    ajuste: document.getElementById('mov-t-ajuste')?.checked,
+    preco: document.getElementById('mov-t-preco')?.checked
+  };
+  const eventos = [];
+  (STATE.logs || []).forEach(l => {
+    if (prodId && String(l.productId) !== String(prodId)) return;
+    const data = String(l.date || '').split('T')[0];
+    if (start && data < start) return;
+    if (end && data > end) return;
+
+    if (l.type === 'venda' && l.status !== 'CANCELADO') {
+      if (!tipos.venda) return;
+      if (pagamento && pagamento !== 'Todos' && l.paymentMethod !== pagamento) return;
+      eventos.push({
+        data, tipo: 'venda', produtoId: l.productId, produto: l.productName,
+        detalhe: (l.clientName || 'Consumidor Final') + (l.paymentMethod ? ' · ' + l.paymentMethod : ''),
+        qtd: -(Number(l.quantity) || 0), valor: Number(l.totalValue) || 0
+      });
+    } else if (l.type === 'ajuste_estoque') {
+      const info = parseAjusteObs(l.note);
+      const isCompra = info.motivo === 'Entrada/Reposição';
+      if (isCompra) {
+        if (!tipos.compra) return;
+        if (motivoF !== 'Todos' && info.motivo !== motivoF) return;
+        const q = Number(l.quantity) || 0;
+        const vu = Number(l.valorUnitario) || 0;
+        eventos.push({
+          data, tipo: 'compra', produtoId: l.productId, produto: l.productName,
+          detalhe: (l.fornecedor || 'Compra') + (info.obs ? ' · ' + info.obs : ''),
+          qtd: q, valor: vu * q
+        });
+      } else {
+        if (!tipos.ajuste) return;
+        if (motivoF !== 'Todos' && info.motivo !== motivoF) return;
+        eventos.push({
+          data, tipo: 'ajuste', produtoId: l.productId, produto: l.productName,
+          detalhe: info.motivo + (info.obs ? ' · ' + info.obs : ''),
+          qtd: Number(l.quantity) || 0, valor: null
+        });
+      }
+    } else if (l.type === 'alteracao_preco') {
+      if (!tipos.preco) return;
+      const campo = l.campoAlterado === 'custo' ? 'custo' : 'preco';
+      const de = Number(l.valorAntigo) || 0;
+      const para = Number(l.valorNovo) || 0;
+      const pct = de > 0 ? ((para - de) / de * 100) : null;
+      eventos.push({
+        data, tipo: 'preco', campo, produtoId: l.productId, produto: l.productName,
+        de, para, pct,
+        detalhe: `${campo === 'custo' ? 'Custo' : 'Preço'}: ${formatMoney(de)} → ${formatMoney(para)}` +
+          (pct != null ? ` (${pct > 0 ? '+' : ''}${pct.toFixed(1)}%)` : ''),
+        qtd: null, valor: null
+      });
+    }
+  });
+  eventos.sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0));
+  return eventos;
+}
+
+function renderMovRelatorio() {
+  const eventos = coletarMovimentacoes();
+  _movEventos = eventos;
+
+  const map = {};
+  const ensure = (e) => {
+    const key = e.produtoId != null ? String(e.produtoId) : ('n:' + e.produto);
+    if (!map[key]) map[key] = { key, produtoId: e.produtoId, nome: e.produto || '(sem produto)', comprado: 0, vendido: 0, ajuste: 0, compradoValor: 0, vendidoValor: 0, ultPreco: null, ultCusto: null };
+    return map[key];
+  };
+  eventos.forEach(e => {
+    const r = ensure(e);
+    if (e.tipo === 'compra') { r.comprado += e.qtd; r.compradoValor += e.valor || 0; }
+    else if (e.tipo === 'venda') { r.vendido += Math.abs(e.qtd); r.vendidoValor += e.valor || 0; }
+    else if (e.tipo === 'ajuste') { r.ajuste += e.qtd; }
+    else if (e.tipo === 'preco') {
+      const alvo = { texto: e.detalhe.replace(/^[^:]+:\s*/, '') + (e.campo === 'custo' ? '' : ''), data: e.data };
+      if (e.campo === 'custo') { if (!r.ultCusto || e.data >= r.ultCusto.data) r.ultCusto = alvo; }
+      else { if (!r.ultPreco || e.data >= r.ultPreco.data) r.ultPreco = alvo; }
+    }
+  });
+  const resumo = Object.values(map).map(r => {
+    const p = r.produtoId != null ? (STATE.products || []).find(x => String(x.id) === String(r.produtoId)) : null;
+    r.estoqueAtual = p ? Number(p.stock) : null;
+    r.custoAtual = p ? Number(p.cost) : null;
+    r.precoAtual = p ? Number(p.price) : null;
+    r.movLiquido = r.comprado + r.ajuste - r.vendido;
+    return r;
+  }).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  _movResumo = resumo;
+
+  const totalVendido = eventos.filter(e => e.tipo === 'venda').reduce((s, e) => s + (e.valor || 0), 0);
+  const totalComprado = eventos.filter(e => e.tipo === 'compra').reduce((s, e) => s + (e.valor || 0), 0);
+  const nAjustes = eventos.filter(e => e.tipo === 'ajuste').length;
+  const nPrecos = eventos.filter(e => e.tipo === 'preco').length;
+
+  const box = (label, val, cls) => `
+    <div class="bg-white rounded-lg border p-3 shadow-sm">
+      <div class="text-[10px] uppercase font-bold text-slate-400">${label}</div>
+      <div class="text-lg font-black ${cls}">${val}</div>
+    </div>`;
+  const boxes = document.getElementById('mov-resumo-boxes');
+  if (boxes) boxes.innerHTML =
+    box('Total vendido', formatMoney(totalVendido), 'text-emerald-700') +
+    box('Total comprado', formatMoney(totalComprado), 'text-blue-700') +
+    box('Ajustes', nAjustes, 'text-slate-700') +
+    box('Alterações preço/custo', nPrecos, 'text-amber-600');
+
+  const tipoBadge = { venda: 'bg-emerald-100 text-emerald-700', compra: 'bg-blue-100 text-blue-700', ajuste: 'bg-slate-200 text-slate-600', preco: 'bg-amber-100 text-amber-700' };
+  const tipoLabel = { venda: 'Venda', compra: 'Compra', ajuste: 'Ajuste', preco: 'Preço' };
+
+  const listA = document.getElementById('mov-list-a');
+  if (listA) listA.innerHTML = eventos.length ? eventos.map(e => `
+    <tr class="hover:bg-slate-50">
+      <td class="p-3 text-xs text-slate-500 whitespace-nowrap">${formatDate(e.data)}</td>
+      <td class="p-3"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${tipoBadge[e.tipo]}">${tipoLabel[e.tipo]}</span></td>
+      <td class="p-3 font-bold text-slate-700">${e.produto || '—'}</td>
+      <td class="p-3 text-xs text-slate-500">${e.detalhe}</td>
+      <td class="p-3 text-center font-bold ${e.qtd > 0 ? 'text-emerald-600' : (e.qtd < 0 ? 'text-red-500' : 'text-slate-300')}">${e.qtd == null ? '—' : ((e.qtd > 0 ? '+' : '') + fmtQtd(e.qtd))}</td>
+      <td class="p-3 text-right font-bold text-slate-700">${e.valor == null ? '—' : formatMoney(e.valor)}</td>
+    </tr>`).join('') : '<tr><td colspan="6" class="p-8 text-center text-slate-400">Nenhuma movimentação encontrada.</td></tr>';
+
+  const listB = document.getElementById('mov-list-b');
+  if (listB) listB.innerHTML = resumo.length ? resumo.map(r => `
+    <tr class="hover:bg-slate-50">
+      <td class="p-3 font-bold text-slate-700">${r.nome}</td>
+      <td class="p-3 text-center text-blue-700 font-bold">${fmtQtd(r.comprado)}</td>
+      <td class="p-3 text-center text-emerald-700 font-bold">${fmtQtd(r.vendido)}</td>
+      <td class="p-3 text-center font-bold ${r.ajuste > 0 ? 'text-emerald-600' : (r.ajuste < 0 ? 'text-red-500' : 'text-slate-400')}">${(r.ajuste > 0 ? '+' : '') + fmtQtd(r.ajuste)}</td>
+      <td class="p-3 text-center font-black text-slate-800">${(r.movLiquido > 0 ? '+' : '') + fmtQtd(r.movLiquido)}</td>
+      <td class="p-3 text-center">${r.estoqueAtual == null ? '—' : fmtQtd(r.estoqueAtual)}</td>
+      <td class="p-3 text-right">${r.custoAtual == null ? '—' : formatMoney(r.custoAtual)}</td>
+      <td class="p-3 text-right">${r.precoAtual == null ? '—' : formatMoney(r.precoAtual)}</td>
+      <td class="p-3 text-xs text-slate-500">${(r.ultPreco ? 'Preço ' + r.ultPreco.texto : '') + (r.ultCusto ? (r.ultPreco ? '<br>' : '') + 'Custo ' + r.ultCusto.texto : '') || '—'}</td>
+    </tr>`).join('') : '<tr><td colspan="9" class="p-8 text-center text-slate-400">Nenhum produto encontrado.</td></tr>';
+}
+
+function movFiltrosLabel() {
+  const start = document.getElementById('mov-start')?.value || '';
+  const end = document.getElementById('mov-end')?.value || '';
+  const prodSel = document.getElementById('mov-produto');
+  const prodTxt = prodSel && prodSel.value ? (prodSel.options[prodSel.selectedIndex]?.text || 'Todos') : 'Todos';
+  const pag = document.getElementById('mov-pagamento')?.value || 'Todos';
+  const motivo = document.getElementById('mov-motivo')?.value || 'Todos';
+  const tipos = [];
+  if (document.getElementById('mov-t-venda')?.checked) tipos.push('Vendas');
+  if (document.getElementById('mov-t-compra')?.checked) tipos.push('Compras');
+  if (document.getElementById('mov-t-ajuste')?.checked) tipos.push('Ajustes');
+  if (document.getElementById('mov-t-preco')?.checked) tipos.push('Preço/Custo');
+  let periodo = 'Tudo';
+  if (start || end) periodo = `${start ? formatDate(start) : 'início'} até ${end ? formatDate(end) : 'hoje'}`;
+  return `Período: ${periodo} | Produto: ${prodTxt} | Pagamento: ${pag} | Motivo: ${motivo} | Tipos: ${tipos.join(', ') || 'nenhum'}`;
+}
+
+function baixarTextoArquivo(nome, conteudo, mime) {
+  const blob = new Blob([conteudo], { type: mime || 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function movCSVCampo(v) {
+  const s = (v == null ? '' : String(v));
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function movProdutoCSV() {
+  const eventos = _movEventos || [];
+  if (!eventos.length) return showToast('Nada para exportar.', true);
+  const sep = ';';
+  const linhas = [];
+  const hoje = getLocalISODate(new Date());
+
+  if (_movView === 'B') {
+    linhas.push(['Produto', 'Comprado', 'Vendido', 'Ajuste liquido', 'Mov. liquido', 'Estoque atual', 'Custo atual', 'Preco atual', 'Ult. alteracao preco', 'Ult. alteracao custo'].map(movCSVCampo).join(sep));
+    (_movResumo || []).forEach(r => {
+      linhas.push([
+        r.nome, fmtQtd(r.comprado), fmtQtd(r.vendido), (r.ajuste > 0 ? '+' : '') + fmtQtd(r.ajuste),
+        (r.movLiquido > 0 ? '+' : '') + fmtQtd(r.movLiquido),
+        r.estoqueAtual == null ? '' : fmtQtd(r.estoqueAtual),
+        r.custoAtual == null ? '' : r.custoAtual.toFixed(2).replace('.', ','),
+        r.precoAtual == null ? '' : r.precoAtual.toFixed(2).replace('.', ','),
+        r.ultPreco ? r.ultPreco.texto.replace(/\./g, '') : '',
+        r.ultCusto ? r.ultCusto.texto.replace(/\./g, '') : ''
+      ].map(movCSVCampo).join(sep));
+    });
+  } else {
+    const tipoLabel = { venda: 'Venda', compra: 'Compra', ajuste: 'Ajuste', preco: 'Preço' };
+    linhas.push(['Data', 'Tipo', 'Produto', 'Detalhe', 'Quantidade', 'Valor'].map(movCSVCampo).join(sep));
+    eventos.forEach(e => {
+      linhas.push([
+        formatDate(e.data), tipoLabel[e.tipo] || e.tipo, e.produto || '', e.detalhe || '',
+        e.qtd == null ? '' : fmtQtd(e.qtd),
+        e.valor == null ? '' : e.valor.toFixed(2).replace('.', ',')
+      ].map(movCSVCampo).join(sep));
+    });
+  }
+  baixarTextoArquivo(`RV Portal - Movimentacoes - ${hoje}.csv`, '\ufeff' + linhas.join('\r\n'), 'text/csv;charset=utf-8');
+}
+
+function movProdutoPrint() {
+  const eventos = _movEventos || [];
+  if (!eventos.length) return showToast('Nada para imprimir.', true);
+  showLoading(true);
+  const company = { name: 'RV PORTAL MADEIRAS', cnpj: '30.942.123/0001-02', logoUrl: LOGO_URL };
+  const filtros = movFiltrosLabel();
+  let corpo = '';
+
+  if (_movView === 'B') {
+    const rowsB = (_movResumo || []).map(r => `
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:6px 5px;font-size:11px;font-weight:bold;">${r.nome}</td>
+        <td style="padding:6px 5px;font-size:11px;text-align:center;color:#1d4ed8;font-weight:bold;">${fmtQtd(r.comprado)}</td>
+        <td style="padding:6px 5px;font-size:11px;text-align:center;color:#059669;font-weight:bold;">${fmtQtd(r.vendido)}</td>
+        <td style="padding:6px 5px;font-size:11px;text-align:center;">${(r.ajuste > 0 ? '+' : '') + fmtQtd(r.ajuste)}</td>
+        <td style="padding:6px 5px;font-size:11px;text-align:center;font-weight:bold;">${(r.movLiquido > 0 ? '+' : '') + fmtQtd(r.movLiquido)}</td>
+        <td style="padding:6px 5px;font-size:11px;text-align:center;">${r.estoqueAtual == null ? '-' : fmtQtd(r.estoqueAtual)}</td>
+        <td style="padding:6px 5px;font-size:11px;text-align:right;">${r.custoAtual == null ? '-' : formatMoney(r.custoAtual)}</td>
+        <td style="padding:6px 5px;font-size:11px;text-align:right;">${r.precoAtual == null ? '-' : formatMoney(r.precoAtual)}</td>
+      </tr>`).join('');
+    corpo = `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#f1f5f9;border-bottom:2px solid #0f172a;">
+          <th style="padding:8px 5px;text-align:left;font-size:11px;">Produto</th>
+          <th style="padding:8px 5px;text-align:center;font-size:11px;">Comprado</th>
+          <th style="padding:8px 5px;text-align:center;font-size:11px;">Vendido</th>
+          <th style="padding:8px 5px;text-align:center;font-size:11px;">Ajuste líq.</th>
+          <th style="padding:8px 5px;text-align:center;font-size:11px;">Mov. líq.</th>
+          <th style="padding:8px 5px;text-align:center;font-size:11px;">Estoque</th>
+          <th style="padding:8px 5px;text-align:right;font-size:11px;">Custo</th>
+          <th style="padding:8px 5px;text-align:right;font-size:11px;">Preço</th>
+        </tr></thead>
+        <tbody>${rowsB}</tbody>
+      </table>`;
+  } else {
+    const tipoLabel = { venda: 'Venda', compra: 'Compra', ajuste: 'Ajuste', preco: 'Preço' };
+    const rowsA = eventos.map(e => `
+      <tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:6px 5px;font-size:11px;">${formatDate(e.data)}</td>
+        <td style="padding:6px 5px;font-size:11px;text-transform:uppercase;font-weight:bold;">${tipoLabel[e.tipo] || e.tipo}</td>
+        <td style="padding:6px 5px;font-size:11px;font-weight:bold;">${e.produto || '-'}</td>
+        <td style="padding:6px 5px;font-size:11px;">${e.detalhe || ''}</td>
+        <td style="padding:6px 5px;font-size:11px;text-align:center;">${e.qtd == null ? '-' : ((e.qtd > 0 ? '+' : '') + fmtQtd(e.qtd))}</td>
+        <td style="padding:6px 5px;font-size:11px;text-align:right;">${e.valor == null ? '-' : formatMoney(e.valor)}</td>
+      </tr>`).join('');
+    corpo = `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#f1f5f9;border-bottom:2px solid #0f172a;">
+          <th style="padding:8px 5px;text-align:left;font-size:11px;">Data</th>
+          <th style="padding:8px 5px;text-align:left;font-size:11px;">Tipo</th>
+          <th style="padding:8px 5px;text-align:left;font-size:11px;">Produto</th>
+          <th style="padding:8px 5px;text-align:left;font-size:11px;">Detalhe</th>
+          <th style="padding:8px 5px;text-align:center;font-size:11px;">Qtd</th>
+          <th style="padding:8px 5px;text-align:right;font-size:11px;">Valor</th>
+        </tr></thead>
+        <tbody>${rowsA}</tbody>
+      </table>`;
+  }
+
+  const el = document.getElementById('print-area');
+  el.innerHTML = `
+    <div class="invoice-box-orig" style="font-family:'Helvetica',sans-serif;max-width:900px;margin:auto;padding:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:15px;margin-bottom:20px;">
+        <div style="display:flex;gap:15px;align-items:center;">
+          <img src="${company.logoUrl}" style="max-height:60px;" />
+          <div>
+            <h2 style="margin:0;font-size:18px;font-weight:bold;color:#059669;">${company.name}</h2>
+            <p style="margin:2px 0;font-size:11px;color:#64748b;">CNPJ: ${company.cnpj}</p>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <h3 style="margin:0;font-size:16px;font-weight:bold;">RELATÓRIO DE MOVIMENTAÇÕES</h3>
+          <p style="margin:2px 0;font-size:11px;">${_movView === 'B' ? 'Resumo por produto' : 'Linha do tempo'}</p>
+          <p style="margin:2px 0;font-size:11px;">Impresso em: ${new Date().toLocaleString('pt-BR')}</p>
+        </div>
+      </div>
+      <div style="background-color:#f8fafc;border:1px solid #cbd5e1;padding:10px;margin-bottom:20px;font-size:12px;border-radius:6px;">
+        <strong>Filtros aplicados:</strong> ${filtros}
+      </div>
+      ${corpo}
+    </div>`;
+
+  showLoading(false);
+  closeMovProdutoModal();
+  setTimeout(() => {
+    window.print();
+    el.innerHTML = '';
+  }, 500);
+}
+
+async function movProdutoPDF() {
+  const eventos = _movEventos || [];
+  if (!eventos.length) return showToast('Nada para exportar.', true);
+  if (typeof pdfMake === 'undefined') return showToast('Gerador de PDF não disponível.', true);
+  showLoading(true);
+  try {
+    const logoBase64 = await getLogoBase64RV(LOGO_URL).catch(() => null);
+    const filtros = movFiltrosLabel();
+    let tableBody = [];
+
+    if (_movView === 'B') {
+      tableBody.push([
+        { text: 'Produto', style: 'th' }, { text: 'Comprado', style: 'th', alignment: 'center' },
+        { text: 'Vendido', style: 'th', alignment: 'center' }, { text: 'Ajuste líq.', style: 'th', alignment: 'center' },
+        { text: 'Mov. líq.', style: 'th', alignment: 'center' }, { text: 'Estoque', style: 'th', alignment: 'center' },
+        { text: 'Custo', style: 'th', alignment: 'right' }, { text: 'Preço', style: 'th', alignment: 'right' }
+      ]);
+      (_movResumo || []).forEach(r => tableBody.push([
+        r.nome, fmtQtd(r.comprado), fmtQtd(r.vendido), (r.ajuste > 0 ? '+' : '') + fmtQtd(r.ajuste),
+        (r.movLiquido > 0 ? '+' : '') + fmtQtd(r.movLiquido),
+        r.estoqueAtual == null ? '-' : fmtQtd(r.estoqueAtual),
+        r.custoAtual == null ? '-' : formatMoney(r.custoAtual),
+        r.precoAtual == null ? '-' : formatMoney(r.precoAtual)
+      ]));
+    } else {
+      const tipoLabel = { venda: 'Venda', compra: 'Compra', ajuste: 'Ajuste', preco: 'Preço' };
+      tableBody.push([
+        { text: 'Data', style: 'th' }, { text: 'Tipo', style: 'th' }, { text: 'Produto', style: 'th' },
+        { text: 'Detalhe', style: 'th' }, { text: 'Qtd', style: 'th', alignment: 'center' },
+        { text: 'Valor', style: 'th', alignment: 'right' }
+      ]);
+      eventos.forEach(e => tableBody.push([
+        formatDate(e.data), tipoLabel[e.tipo] || e.tipo, e.produto || '-', e.detalhe || '',
+        e.qtd == null ? '-' : ((e.qtd > 0 ? '+' : '') + fmtQtd(e.qtd)),
+        e.valor == null ? '-' : formatMoney(e.valor)
+      ]));
+    }
+
+    const headerCell = logoBase64
+      ? { columns: [ { image: logoBase64, width: 70 }, { stack: [
+            { text: 'RV PORTAL MADEIRAS', bold: true, fontSize: 14, color: '#059669', margin: [8, 0, 0, 0] },
+            { text: 'CNPJ: 30.942.123/0001-02', fontSize: 9, color: '#64748b', margin: [8, 0, 0, 0] }
+          ] } ] }
+      : { text: 'RV PORTAL MADEIRAS', bold: true, fontSize: 14, color: '#059669' };
+
+    const docDefinition = {
+      pageSize: 'A4',
+      pageOrientation: _movView === 'B' ? 'portrait' : 'landscape',
+      pageMargins: [30, 30, 30, 30],
+      defaultStyle: { font: 'Roboto', fontSize: 9 },
+      styles: { th: { bold: true, fontSize: 9, fillColor: '#e2e8f0' } },
+      content: [
+        { columns: [
+          headerCell,
+          { stack: [
+            { text: 'RELATÓRIO DE MOVIMENTAÇÕES', bold: true, fontSize: 12, alignment: 'right' },
+            { text: _movView === 'B' ? 'Resumo por produto' : 'Linha do tempo', fontSize: 9, alignment: 'right' },
+            { text: 'Emitido: ' + new Date().toLocaleString('pt-BR'), fontSize: 8, color: '#64748b', alignment: 'right' }
+          ] }
+        ], margin: [0, 0, 0, 4] },
+        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: _movView === 'B' ? 535 : 782, y2: 0, lineWidth: 1.5, lineColor: '#059669' }], margin: [0, 6, 0, 8] },
+        { text: 'Filtros: ' + filtros, fontSize: 8, color: '#334155', margin: [0, 0, 0, 8] },
+        { table: { headerRows: 1, widths: _movView === 'B'
+            ? ['*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto']
+            : ['auto', 'auto', '*', '*', 'auto', 'auto'],
+          body: tableBody }, layout: 'lightHorizontalLines' }
+      ]
+    };
+    pdfMake.createPdf(docDefinition).download(`RV Portal - Movimentacoes - ${getLocalISODate(new Date())}.pdf`);
+  } catch (err) {
+    console.error(err);
+    showToast('Erro ao gerar PDF: ' + err.message, true);
+  } finally {
+    showLoading(false);
+  }
 }
 
 // Historico de ajustes (logs tipo ajuste_estoque).
@@ -5996,6 +6604,8 @@ function loadQuoteToCart(id) {
         if (btn) btn.classList.toggle('hidden', !isAdmin);
         const btnCat = document.getElementById('btn-categorias-produto');
         if (btnCat) btnCat.classList.toggle('hidden', !isAdmin);
+        const btnMov = document.getElementById('btn-mov-produto');
+        if (btnMov) btnMov.classList.toggle('hidden', !isAdmin);
         if (!isAdmin && PROD_TAB !== 'catalogo') PROD_TAB = 'catalogo';
       }
 
@@ -6708,6 +7318,10 @@ function loadQuoteToCart(id) {
       }
 
       // ================== AJUSTE DE ESTOQUE (TABELA EM LOTE) ==================
+      function onAdjMotivoChange() {
+        renderStockAdjust();
+      }
+
       function renderStockAdjust() {
         const list = document.getElementById('adj-list');
         if (!list) return;
@@ -6718,6 +7332,11 @@ function loadQuoteToCart(id) {
         const typeFilter = document.getElementById('adj-type')?.value || '';
         const onlyDiv = document.getElementById('adj-only-divergent')?.checked;
         const mode = document.getElementById('adj-mode')?.value || 'contagem';
+        const isCompra = (document.getElementById('adj-motivo')?.value || '') === 'Entrada/Reposição';
+        const thCusto = document.getElementById('adj-th-custo');
+        if (thCusto) thCusto.classList.toggle('hidden', !isCompra);
+        const fWrap = document.getElementById('adj-fornecedor-wrap');
+        if (fWrap) fWrap.classList.toggle('hidden', !isCompra);
 
         const catSelect = document.getElementById('adj-category');
         if (catSelect) {
@@ -6749,7 +7368,7 @@ function loadQuoteToCart(id) {
         filtered.sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
 
         if (!filtered.length) {
-          list.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-400">Nenhum produto encontrado.</td></tr>';
+          list.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400">Nenhum produto encontrado.</td></tr>';
           atualizarResumoAjuste();
           return;
         }
@@ -6773,6 +7392,9 @@ function loadQuoteToCart(id) {
               </td>
               <td class="p-3 text-center font-bold" id="adjnew-${p.id}">—</td>
               <td class="p-3 text-center font-bold" id="adjnewavail-${p.id}">—</td>
+              <td class="adj-custo-cell p-3 text-center ${isCompra ? '' : 'hidden'}">
+                ${isP ? '<span class="text-[10px] text-slate-400 font-bold">—</span>' : `<input type="number" step="0.01" min="0" id="adjcost-${p.id}" class="w-24 p-1 border rounded text-center text-sm" placeholder="R$">`}
+              </td>
               <td class="p-3 text-center" id="adjflag-${p.id}">${isP ? '<span class="text-[10px] font-bold text-slate-400">Parceiro</span>' : ''}</td>
             </tr>`;
         }).join('');
