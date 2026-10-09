@@ -41,7 +41,7 @@
     <meta name="theme-color" content="#0f172a"> 
     <link rel="manifest" href="manifest.json">
 
-    <style>
+    <style id="app-styles">
       body { background-color: #f1f5f9; font-family: 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
 
             /* Correção forçada para garantir que as bordas apareçam em todos os inputs e caixas */
@@ -1133,11 +1133,27 @@
                 <div class="bg-white rounded-lg border shadow-sm overflow-hidden">
                     <table class="w-full text-sm text-left">
                         <thead class="bg-slate-800 text-white">
-                            <tr><th class="p-3">Pedido</th><th class="p-3">Pgto</th><th class="p-3">Itens</th><th class="p-3 text-right">Valor</th></tr>
+                            <tr><th class="p-3">Pedido</th><th class="p-3">Pgto</th><th class="p-3">Itens</th><th class="p-3 text-right">Valor</th><th class="p-3 text-center">Ver</th></tr>
                         </thead>
                         <tbody id="cli-vendas-list" class="divide-y"></tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VISUALIZADOR DE VENDA (formato PDV) -->
+    <div id="modal-venda-view" class="hidden fixed inset-0 bg-black/70 z-[70] flex items-start justify-center p-4" onclick="if(event.target===this) fecharVendaView()">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh] overflow-hidden">
+            <div class="p-3 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="eye" class="text-emerald-600"></i> Visualizar Venda</h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="printVendaView()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+                    <button onclick="fecharVendaView()" class="p-2 bg-slate-200 hover:bg-red-100 hover:text-red-600 rounded-lg transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto bg-slate-200 p-3">
+                <iframe id="venda-view-frame" class="w-full bg-white rounded shadow" style="height:80vh;border:0;"></iframe>
             </div>
         </div>
     </div>
@@ -2330,6 +2346,7 @@
             'modal-foto-produto': fecharFotoProduto,
             'modal-cliente-picker': closeClientPickerModal,
             'modal-cliente-vendas': closeClienteVendasModal,
+            'modal-venda-view': fecharVendaView,
             // Demais modais sem entrada previa (padronizacao do Esc)
             'modal-parcel-rec': closeParcelarModal,
             'modal-receipt': closeReceiptModal,
@@ -8078,54 +8095,13 @@ function loadQuoteToCart(id) {
         }
 
           function reprintSale(id) {
-            const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
-            if(!items.length) return;
-            
-            const totalDiscount = items[0].discount || 0;
-            const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
-            const grossTotal = netTotal + totalDiscount;
-            const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
-            
-            // Extrai apenas a observação extra (após o pipe), removendo a metragem
-            let obsLimpa = '';
-            const rawObs = items[0].note || '';
-            if (rawObs.includes(' | ')) {
-                obsLimpa = rawObs.split(' | ').slice(1).join(' | ').trim();
-            } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
-                // Se não tem metragem, usa a observação inteira
-                obsLimpa = rawObs;
-            }
-            
-            const saleObj = {
-                id: id, 
-                date: items[0].date, 
-                clientName: items[0].clientName, 
-                paymentMethod: items[0].paymentMethod, 
-                discount: totalDiscount,
-                deliveryAddress: items[0].deliveryAddress,
-                observacao: obsLimpa,  // <-- agora só a parte extra, sem a metragem
-                items: items.map(i => {
-                    const grossItemTotal = i.totalValue * fator;
-                    let metragem = '';
-                    if (i.note) {
-                        const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
-                        if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
-                    }
-                    return { 
-                        name: i.productName, 
-                        prodId: i.productId,
-                        qty: i.quantity, 
-                        price: i.quantity > 0 ? (grossItemTotal / i.quantity) : 0, 
-                        total: grossItemTotal,
-                        metragem: metragem
-                    };
-                })
-            };
-            
-            renderInvoice(saleObj, false); 
+            const saleObj = montarSaleObjVenda(id);
+            if (!saleObj) return;
+
+            renderInvoice(saleObj, false);
             if (typeof closePosHistoryModal === 'function') closePosHistoryModal();
             setTimeout(() => window.print(), 500);
-        }
+          }
         async function fazerLogout() {
             try { await sb.auth.signOut(); } catch(e) {}
             localStorage.removeItem('rv_user');
@@ -8890,7 +8866,8 @@ function loadQuoteToCart(id) {
                 (l.clientId != null && String(l.clientId) === String(client.id)) ||
                 normalizeSearch(l.clientName) === normalizeSearch(client.name)
             )).forEach(l => {
-                if (!map[l.id]) map[l.id] = { id: l.id, date: l.date, paymentMethod: l.paymentMethod || 'Não Informado', total: 0, items: [] };
+                if (!map[l.id]) map[l.id] = { id: l.id, date: l.date, paymentMethod: l.paymentMethod || 'Não Informado', total: 0, items: [], isMDF: false };
+                if (l.note && l.note.includes('MDF Orçamento #')) map[l.id].isMDF = true;
                 map[l.id].total += Number(l.totalValue) || 0;
                 if (l.productName) map[l.id].items.push(`${l.productName}${Number(l.quantity) ? ' (x' + l.quantity + ')' : ''}`);
             });
@@ -8920,7 +8897,7 @@ function loadQuoteToCart(id) {
             const total = sales.reduce((acc, s) => acc + s.total, 0);
             if (resumo) resumo.innerHTML = `<span class="font-bold text-slate-600">${sales.length}</span> venda(s) · Total <span class="font-bold text-emerald-700">${formatMoney(total)}</span>`;
             if (!sales.length) {
-                box.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Nenhuma venda encontrada para este cliente.</td></tr>';
+                box.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Nenhuma venda encontrada para este cliente.</td></tr>';
                 return;
             }
             box.innerHTML = sales.map(s => `
@@ -8929,6 +8906,7 @@ function loadQuoteToCart(id) {
                     <td class="p-3 text-xs text-slate-600">${s.paymentMethod}</td>
                     <td class="p-3 text-xs text-slate-500">${s.items.join(', ')}</td>
                     <td class="p-3 text-right text-sm font-bold text-emerald-700">${formatMoney(s.total)}</td>
+                    <td class="p-3 text-center"><button onclick="visualizarVendaPDV('${s.id}')" class="text-slate-500 hover:text-emerald-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Visualizar venda"><i data-lucide="eye" width="16"></i></button></td>
                 </tr>`).join('');
         }
 
@@ -8937,54 +8915,208 @@ function loadQuoteToCart(id) {
             const { client, sales } = _cliVendasAtual;
             if (!sales.length) return showToast('Nenhuma venda para imprimir.', true);
 
-            const total = sales.reduce((acc, s) => acc + s.total, 0);
-            const rowsHtml = sales.map(s => `
-                <tr style="border-bottom: 1px solid #e2e8f0;">
-                    <td style="padding: 7px 5px; font-size: 11px;">${formatDate(s.date)}</td>
-                    <td style="padding: 7px 5px; font-size: 11px; font-weight: bold;">#${s.id}</td>
-                    <td style="padding: 7px 5px; font-size: 11px; text-transform: uppercase;">${s.paymentMethod}</td>
-                    <td style="padding: 7px 5px; font-size: 10px; color: #475569;">${s.items.join(', ')}</td>
-                    <td style="padding: 7px 5px; font-size: 12px; font-weight: bold; text-align: right; color: #059669;">${formatMoney(s.total)}</td>
+            showLoading(true);
+
+            const ordering = sales.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            let totalLiquidoGeral = 0;
+            let totalRVPotal = 0;
+            let totalMDF = 0;
+            const pagamentosMap = {};
+
+            const rowsHtml = ordering.map(s => {
+                totalLiquidoGeral += s.total;
+                if (s.isMDF) totalMDF += s.total; else totalRVPotal += s.total;
+
+                const pgto = s.paymentMethod;
+                if (!pagamentosMap[pgto]) pagamentosMap[pgto] = 0;
+                pagamentosMap[pgto] += s.total;
+
+                const rowClass = s.isMDF ? 'style="background-color: #dbeafe;"' : '';
+                return `
+                    <tr style="border-bottom: 1px solid #e2e8f0;" ${rowClass}>
+                        <td style="padding: 8px 5px; font-size: 11px;">${formatDate(s.date)}</td>
+                        <td style="padding: 8px 5px; font-size: 11px; font-weight: bold;">#${s.id}</td>
+                        <td style="padding: 8px 5px; font-size: 11px;">${client.name}</td>
+                        <td style="padding: 8px 5px; font-size: 11px; text-transform: uppercase;">${s.paymentMethod}</td>
+                        <td style="padding: 8px 5px; font-size: 12px; font-weight: bold; text-align: right; color: #059669;">${formatMoney(s.total)}</td>
+                    </tr>`;
+            }).join('');
+
+            const pgtoRowsHtml = Object.entries(pagamentosMap).map(([metodo, valor]) => `
+                <tr>
+                    <td style="padding: 6px; border-bottom: 1px dashed #ccc; font-size: 12px;">${metodo}</td>
+                    <td style="padding: 6px; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; font-size: 12px;">${formatMoney(valor)}</td>
                 </tr>`).join('');
+
+            const company = {
+                name: "RV PORTAL MADEIRAS",
+                cnpj: "30.942.123/0001-02",
+                logoUrl: LOGO_URL
+            };
+
+            const datas = ordering.map(s => (s.date || '').split('T')[0]).filter(Boolean).sort();
+            const periodo = datas.length ? `${formatDate(datas[0])} até ${formatDate(datas[datas.length - 1])}` : '-';
+            const filtroTexto = `Cliente: ${client.name} | Período: ${periodo}`;
 
             const el = document.getElementById('print-area');
             el.innerHTML = `
-            <div class="invoice-full">
-                <div class="header-section">
-                    <div class="logo-area"><img src="${LOGO_NEGOCIOS_URL}" style="max-height: 80px;" /></div>
-                    <div class="company-details">
-                        <h2 class="company-title" style="font-size: 14px; white-space: nowrap;">RV NEGOCIOS E COMPANHIA LTDA</h2>
-                        <div class="company-info">CNPJ: 61.893.912/0001-24 | IE: 20.298.776-0</div>
-                        <div class="company-info">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                <div class="invoice-box-orig" style="font-family: 'Helvetica', sans-serif; max-width: 800px; margin: auto; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <img src="${company.logoUrl}" style="max-height: 60px;" />
+                            <div>
+                                <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: #059669;">${company.name}</h2>
+                                <p style="margin: 2px 0; font-size: 11px; color: #64748b;">CNPJ: ${company.cnpj}</p>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <h3 style="margin: 0; font-size: 16px; font-weight: bold;">RELATÓRIO DE VENDAS</h3>
+                            <p style="margin: 2px 0; font-size: 11px;">Impresso em: ${new Date().toLocaleString('pt-BR')}</p>
+                        </div>
                     </div>
-                    <div class="doc-meta">
-                        <div class="doc-title">EXTRATO DE VENDAS</div>
-                        <div class="meta-row"><strong>Cliente:</strong> ${client.name}</div>
-                        <div class="meta-row"><strong>Emitido:</strong> ${new Date().toLocaleString('pt-BR')}</div>
+
+                    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 20px; font-size: 12px; border-radius: 6px;">
+                        <strong>Filtros aplicados:</strong> ${filtroTexto}
                     </div>
-                </div>
-                <div class="info-grid">
-                    <div class="info-col">
-                        <div class="col-header">Dados do Cliente</div>
-                        <div class="col-content"><strong>${client.name}</strong><br>${client.doc || ''}<br>${client.phone || ''}<br>${client.address || ''}</div>
+
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                        <thead>
+                            <tr style="background-color: #f1f5f9; border-bottom: 2px solid #0f172a;">
+                                <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Data</th>
+                                <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pedido</th>
+                                <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Cliente</th>
+                                <th style="padding: 8px 5px; text-align: left; font-size: 11px;">Pgto</th>
+                                <th style="padding: 8px 5px; text-align: right; font-size: 11px;">Valor Liq.</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+
+                    <div style="display: flex; justify-content: space-between; gap: 20px;">
+                        <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px;">
+                            <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Receitas por Método</h4>
+                            <table style="width: 100%; border-collapse: collapse;">${pgtoRowsHtml}</table>
+                        </div>
+
+                        <div style="width: 45%; border: 1px solid #000; padding: 15px; border-radius: 6px; background-color: #f8fafc;">
+                            <h4 style="margin: 0 0 10px 0; font-size: 13px; border-bottom: 1px solid #000; padding-bottom: 5px; text-transform: uppercase;">Resumo do Período</h4>
+                            <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 5px 0;">Qtd. Pedidos:</td>
+                                    <td style="padding: 5px 0; text-align: right; font-weight: bold;">${ordering.length}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;">Vendas RV Portal:</td>
+                                    <td style="padding: 5px 0; text-align: right; font-weight: bold; color: #059669;">${formatMoney(totalRVPotal)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 0;">Vendas MDF:</td>
+                                    <td style="padding: 5px 0; text-align: right; font-weight: bold; color: #3b82f6;">${formatMoney(totalMDF)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0; font-size: 14px; font-weight: 900; border-top: 1px solid #000; margin-top: 5px;">LÍQUIDO TOTAL:</td>
+                                    <td style="padding: 10px 0; font-size: 16px; font-weight: 900; text-align: right; border-top: 1px solid #000; margin-top: 5px; color: #0f172a;">${formatMoney(totalLiquidoGeral)}</td>
+                                </tr>
+                            </table>
+                        </div>
                     </div>
-                    <div class="info-col">
-                        <div class="col-header">Resumo</div>
-                        <div class="col-content"><strong>Vendas:</strong> ${sales.length}<br><strong>Total:</strong> ${formatMoney(total)}</div>
-                    </div>
-                </div>
-                <table class="full-table">
-                    <thead><tr><th>Data</th><th>Pedido</th><th>Pgto</th><th>Itens</th><th align="right">Valor</th></tr></thead>
-                    <tbody>${rowsHtml}</tbody>
-                </table>
-                <div class="footer-section">
-                    <div class="notes-area"><div class="notes-title">Observações:</div><div class="notes-text">Extrato gerado pelo RV Portal com todas as vendas registradas para este cliente.</div></div>
-                    <div class="totals-area">
-                        <div class="total-row final"><span>TOTAL:</span><span>${formatMoney(total)}</span></div>
-                    </div>
-                </div>
-            </div>`;
-            setTimeout(() => window.print(), 500);
+                </div>`;
+
+            showLoading(false);
+            closeClienteVendasModal();
+            setTimeout(() => {
+                window.print();
+                el.innerHTML = '';
+            }, 500);
+        }
+
+        // ===== VISUALIZADOR DE VENDA (mesmo formato da impressao do PDV) =====
+        function montarSaleObjVenda(id) {
+            const items = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
+            if (!items.length) return null;
+
+            const totalDiscount = items[0].discount || 0;
+            const netTotal = items.reduce((acc, i) => acc + i.totalValue, 0);
+            const grossTotal = netTotal + totalDiscount;
+            const fator = netTotal > 0 ? (grossTotal / netTotal) : 1;
+
+            let obsLimpa = '';
+            const rawObs = items[0].note || '';
+            if (rawObs.includes(' | ')) {
+                obsLimpa = rawObs.split(' | ').slice(1).join(' | ').trim();
+            } else if (!rawObs.match(/\d+pçs\d+(\.\d+)?m/)) {
+                obsLimpa = rawObs;
+            }
+
+            return {
+                id: id,
+                date: items[0].date,
+                clientName: items[0].clientName,
+                paymentMethod: items[0].paymentMethod,
+                discount: totalDiscount,
+                deliveryAddress: items[0].deliveryAddress,
+                observacao: obsLimpa,
+                items: items.map(i => {
+                    const grossItemTotal = i.totalValue * fator;
+                    let metragem = '';
+                    if (i.note) {
+                        const match = i.note.match(/(\d+)pçs(\d+(?:\.\d+)?)m/);
+                        if (match) metragem = `${match[1]} pçs de ${match[2]}m`;
+                    }
+                    return {
+                        name: i.productName,
+                        prodId: i.productId,
+                        qty: i.quantity,
+                        price: i.quantity > 0 ? (grossItemTotal / i.quantity) : 0,
+                        total: grossItemTotal,
+                        metragem: metragem
+                    };
+                })
+            };
+        }
+
+        // Extrai o <style id="app-styles"> e troca @media print por @media all, para
+        // renderizar o documento no iframe do visualizador com o mesmo layout da impressao.
+        function estilosDocumentoImpresso() {
+            const el = document.getElementById('app-styles');
+            if (!el) return '';
+            return el.textContent.replace(/@media\s+print/g, '@media all');
+        }
+
+        function visualizarVendaPDV(id) {
+            const saleObj = montarSaleObjVenda(id);
+            if (!saleObj) return showToast('Venda não encontrada.', true);
+
+            const printArea = document.getElementById('print-area');
+            renderInvoice(saleObj, false);
+            const invoiceHtml = printArea.innerHTML;
+            printArea.innerHTML = '';
+
+            const frame = document.getElementById('venda-view-frame');
+            if (!frame) return;
+            frame.srcdoc = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><style>
+${estilosDocumentoImpresso()}
+html, body { background-color: #e2e8f0 !important; }
+body { margin: 0 !important; padding: 16px !important; }
+.pv-page { max-width: 820px; margin: 0 auto; background: #fff; padding: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+</style></head><body><div class="pv-page">${invoiceHtml}</div></body></html>`;
+
+            document.getElementById('modal-venda-view').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function fecharVendaView() {
+            const m = document.getElementById('modal-venda-view');
+            if (m) m.classList.add('hidden');
+        }
+
+        function printVendaView() {
+            const frame = document.getElementById('venda-view-frame');
+            if (frame && frame.contentWindow) {
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+            }
         }
 
         async function duplicateQuote(id) {
