@@ -1079,12 +1079,65 @@
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">Cliente</label>
-                    <input type="text" id="rep-per-client" placeholder="Digite o nome (Deixe vazio para Todos)" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none">
+                    <div onclick="openClientPickerModal()" class="w-full p-3 border rounded-xl bg-white text-left flex items-center justify-between cursor-pointer hover:border-indigo-400 transition">
+                        <span id="rep-per-client-label" class="text-slate-400 truncate">Todos os clientes</span>
+                        <span class="flex items-center gap-2 shrink-0">
+                            <span id="rep-per-client-clear" onclick="clearRelCliente(event)" class="hidden text-slate-400 hover:text-red-500 cursor-pointer"><i data-lucide="x" class="w-4 h-4"></i></span>
+                            <i data-lucide="search" class="text-slate-400 w-4 h-4"></i>
+                        </span>
+                    </div>
                 </div>
             </div>
             <div class="p-5 border-t bg-slate-50 flex gap-3">
                 <button onclick="closePeriodReportModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button onclick="printPeriodReport()" class="flex-1 py-3 bg-indigo-700 rounded-xl font-bold text-white hover:bg-indigo-800 shadow-lg flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Gerar e Imprimir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SELETOR DE CLIENTE (relatorios) -->
+    <div id="modal-cliente-picker" class="hidden fixed inset-0 bg-black/50 z-[60] flex items-start justify-center p-4 pt-16">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh] overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-indigo-600"></i> Selecionar Cliente</h3>
+                <button onclick="closeClientPickerModal()" class="text-slate-400 hover:text-red-500"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-3 border-b">
+                <div class="relative w-full">
+                    <i data-lucide="search" class="absolute left-3 top-3.5 text-slate-400 w-4 h-4"></i>
+                    <input type="text" id="cli-picker-search" placeholder="Buscar por nome, telefone ou documento..." class="w-full pl-9 p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-600" onkeyup="renderClientPickerDebounced()">
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto" id="cli-picker-list"></div>
+            <div class="p-3 border-t bg-slate-50">
+                <button onclick="selectClienteTodos()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-slate-700 text-sm">Limpar seleção (Todos os clientes)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VENDAS DO CLIENTE -->
+    <div id="modal-cliente-vendas" class="hidden fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 pt-10">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-700 flex items-center gap-2 min-w-0">
+                    <i data-lucide="history" class="text-emerald-600 shrink-0"></i>
+                    <span class="truncate">Vendas do Cliente: <span id="cli-vendas-nome" class="text-slate-900"></span></span>
+                </h3>
+                <button onclick="closeClienteVendasModal()" class="text-slate-400 hover:text-red-500 shrink-0"><i data-lucide="x"></i></button>
+            </div>
+            <div class="px-4 py-3 border-b bg-white flex justify-between items-center gap-3 flex-wrap">
+                <div id="cli-vendas-resumo" class="text-sm text-slate-500"></div>
+                <button onclick="printClienteVendas()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+            </div>
+            <div class="overflow-y-auto flex-1 p-4 bg-slate-100">
+                <div class="bg-white rounded-lg border shadow-sm overflow-hidden">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-800 text-white">
+                            <tr><th class="p-3">Pedido</th><th class="p-3">Pgto</th><th class="p-3">Itens</th><th class="p-3 text-right">Valor</th></tr>
+                        </thead>
+                        <tbody id="cli-vendas-list" class="divide-y"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -2275,6 +2328,8 @@
             'modal-expedicao-abertos': closeRelatorioAbertos,
             'modal-valor-estoque': closeValorEstoque,
             'modal-foto-produto': fecharFotoProduto,
+            'modal-cliente-picker': closeClientPickerModal,
+            'modal-cliente-vendas': closeClienteVendasModal,
             // Demais modais sem entrada previa (padronizacao do Esc)
             'modal-parcel-rec': closeParcelarModal,
             'modal-receipt': closeReceiptModal,
@@ -6781,7 +6836,7 @@ function loadQuoteToCart(id) {
             if (pagina.length === 0) {
                 list.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Nenhum cliente encontrado.</td></tr>';
             } else {
-                list.innerHTML = pagina.map(c=>`<tr class="hover:bg-slate-50"><td class="p-4 font-medium">${c.name}</td><td class="p-4">${c.phone}</td><td class="p-4">${c.doc}</td><td class="p-4 text-center flex justify-center gap-3"><button onclick="openClientForm('${c.id}')" class="text-indigo-700 hover:text-indigo-800"><i data-lucide="edit-3" width="16"></i></button><button onclick="deleteClient('${c.id}')" class="text-red-600 hover:text-red-800"><i data-lucide="trash-2" width="16"></i></button></td></tr>`).join('');
+                list.innerHTML = pagina.map(c=>`<tr class="hover:bg-slate-50"><td class="p-4 font-medium">${c.name}</td><td class="p-4">${c.phone}</td><td class="p-4">${c.doc}</td><td class="p-4 text-center flex justify-center gap-3"><button onclick="openClientForm('${c.id}')" class="text-indigo-700 hover:text-indigo-800" title="Editar"><i data-lucide="edit-3" width="16"></i></button><button onclick="openClienteVendasModal('${c.id}')" class="text-emerald-600 hover:text-emerald-800" title="Ver vendas"><i data-lucide="history" width="16"></i></button><button onclick="deleteClient('${c.id}')" class="text-red-600 hover:text-red-800" title="Excluir"><i data-lucide="trash-2" width="16"></i></button></td></tr>`).join('');
             }
             lucide.createIcons();
 
@@ -8568,7 +8623,8 @@ function loadQuoteToCart(id) {
             document.getElementById('rep-per-start').value = getLocalISODate(primeiroDia);
             document.getElementById('rep-per-end').value = getLocalISODate(ultimoDia);
             document.getElementById('rep-per-payment').value = 'Todos';
-            document.getElementById('rep-per-client').value = '';
+            _relCliente = null;
+            atualizarLabelClienteRel();
             
             document.getElementById('modal-period-report').classList.remove('hidden');
         }
@@ -8589,7 +8645,6 @@ function loadQuoteToCart(id) {
     const start = document.getElementById('rep-per-start').value;
     const end = document.getElementById('rep-per-end').value;
     const payment = document.getElementById('rep-per-payment').value;
-    const client = normalizeSearch(document.getElementById('rep-per-client').value.trim());
 
     const salesMap = {};
     STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO').forEach(l => {
@@ -8597,6 +8652,7 @@ function loadQuoteToCart(id) {
             salesMap[l.id] = {
                 id: l.id,
                 date: l.date,
+                clientId: l.clientId != null ? l.clientId : null,
                 clientName: l.clientName || 'Consumidor Final',
                 paymentMethod: l.paymentMethod || 'Não Informado',
                 totalValue: 0,
@@ -8616,7 +8672,9 @@ function loadQuoteToCart(id) {
     if (start) filteredSales = filteredSales.filter(s => (s.date||'').split('T')[0] >= start);
     if (end) filteredSales = filteredSales.filter(s => (s.date||'').split('T')[0] <= end);
     if (payment !== 'Todos') filteredSales = filteredSales.filter(s => s.paymentMethod === payment);
-    if (client) filteredSales = filteredSales.filter(s => normalizeSearch(s.clientName).includes(client));
+    if (_relCliente) filteredSales = filteredSales.filter(s =>
+        (s.clientId != null && String(s.clientId) === String(_relCliente.id)) ||
+        normalizeSearch(s.clientName) === normalizeSearch(_relCliente.name));
 
     filteredSales.sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -8667,7 +8725,7 @@ function loadQuoteToCart(id) {
         logoUrl: LOGO_URL
     };
 
-    const filtroTexto = `Período: ${start ? formatDate(start) : 'Início'} até ${end ? formatDate(end) : 'Hoje'} | Pgto: ${payment} ${client ? ' | Cliente: ' + client : ''}`;
+    const filtroTexto = `Período: ${start ? formatDate(start) : 'Início'} até ${end ? formatDate(end) : 'Hoje'} | Pgto: ${payment}${_relCliente ? ' | Cliente: ' + _relCliente.name : ''}`;
 
     const el = document.getElementById('print-area');
     el.innerHTML = `
@@ -8745,6 +8803,189 @@ function loadQuoteToCart(id) {
         el.innerHTML = '';
     }, 500);
 }
+
+        // ===== SELETOR DE CLIENTE (relatorios) =====
+        let _relCliente = null; // { id, name }
+        let _pickerTimer = null;
+
+        function openClientPickerModal() {
+            const inp = document.getElementById('cli-picker-search');
+            if (inp) inp.value = '';
+            renderClientPicker();
+            document.getElementById('modal-cliente-picker').classList.remove('hidden');
+            setTimeout(() => document.getElementById('cli-picker-search')?.focus(), 50);
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeClientPickerModal() {
+            document.getElementById('modal-cliente-picker').classList.add('hidden');
+        }
+
+        function renderClientPickerDebounced() {
+            clearTimeout(_pickerTimer);
+            _pickerTimer = setTimeout(renderClientPicker, 120);
+        }
+
+        function renderClientPicker() {
+            const list = document.getElementById('cli-picker-list');
+            if (!list) return;
+            const raw = (document.getElementById('cli-picker-search')?.value || '').trim();
+            const term = normalizeSearch(raw);
+            let arr = (STATE.clients || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
+            if (term) arr = arr.filter(c => cliFiltraCliente(c, term, raw));
+            const limit = arr.slice(0, 300);
+            if (!limit.length) {
+                list.innerHTML = '<p class="p-6 text-center text-slate-400 text-sm">Nenhum cliente encontrado.</p>';
+                return;
+            }
+            list.innerHTML = limit.map(c => `
+                <div onclick="selecionarClienteRel('${c.id}')" class="p-3 border-b last:border-0 hover:bg-indigo-50 cursor-pointer flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="font-bold text-slate-700 text-sm truncate">${c.name}</div>
+                        <div class="text-[11px] text-slate-400 truncate">${c.phone || ''}${c.doc ? ' · ' + c.doc : ''}</div>
+                    </div>
+                    <i data-lucide="chevron-right" class="text-slate-300 shrink-0 w-4 h-4"></i>
+                </div>`).join('');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function selecionarClienteRel(id) {
+            const c = (STATE.clients || []).find(x => String(x.id) === String(id));
+            if (!c) return;
+            _relCliente = { id: c.id, name: c.name || '' };
+            atualizarLabelClienteRel();
+            closeClientPickerModal();
+        }
+
+        function selectClienteTodos() {
+            _relCliente = null;
+            atualizarLabelClienteRel();
+            closeClientPickerModal();
+        }
+
+        function clearRelCliente(e) {
+            if (e) e.stopPropagation();
+            _relCliente = null;
+            atualizarLabelClienteRel();
+        }
+
+        function atualizarLabelClienteRel() {
+            const lbl = document.getElementById('rep-per-client-label');
+            const clr = document.getElementById('rep-per-client-clear');
+            if (lbl) {
+                lbl.textContent = _relCliente ? _relCliente.name : 'Todos os clientes';
+                lbl.classList.toggle('text-slate-700', !!_relCliente);
+                lbl.classList.toggle('text-slate-400', !_relCliente);
+            }
+            if (clr) clr.classList.toggle('hidden', !_relCliente);
+        }
+
+        // ===== VENDAS DO CLIENTE (aba Clientes) =====
+        let _cliVendasAtual = null; // { client, sales }
+
+        function getVendasDoCliente(client) {
+            if (!client) return [];
+            const map = {};
+            STATE.logs.filter(l => l.type === 'venda' && l.status !== 'CANCELADO' && (
+                (l.clientId != null && String(l.clientId) === String(client.id)) ||
+                normalizeSearch(l.clientName) === normalizeSearch(client.name)
+            )).forEach(l => {
+                if (!map[l.id]) map[l.id] = { id: l.id, date: l.date, paymentMethod: l.paymentMethod || 'Não Informado', total: 0, items: [] };
+                map[l.id].total += Number(l.totalValue) || 0;
+                if (l.productName) map[l.id].items.push(`${l.productName}${Number(l.quantity) ? ' (x' + l.quantity + ')' : ''}`);
+            });
+            return Object.values(map).sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+
+        function openClienteVendasModal(id) {
+            const c = (STATE.clients || []).find(x => String(x.id) === String(id));
+            if (!c) return;
+            const sales = getVendasDoCliente(c);
+            _cliVendasAtual = { client: c, sales };
+            const nomeEl = document.getElementById('cli-vendas-nome');
+            if (nomeEl) nomeEl.textContent = c.name || '';
+            renderClienteVendas(c, sales);
+            document.getElementById('modal-cliente-vendas').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function closeClienteVendasModal() {
+            document.getElementById('modal-cliente-vendas').classList.add('hidden');
+        }
+
+        function renderClienteVendas(client, sales) {
+            const box = document.getElementById('cli-vendas-list');
+            if (!box) return;
+            const resumo = document.getElementById('cli-vendas-resumo');
+            const total = sales.reduce((acc, s) => acc + s.total, 0);
+            if (resumo) resumo.innerHTML = `<span class="font-bold text-slate-600">${sales.length}</span> venda(s) · Total <span class="font-bold text-emerald-700">${formatMoney(total)}</span>`;
+            if (!sales.length) {
+                box.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Nenhuma venda encontrada para este cliente.</td></tr>';
+                return;
+            }
+            box.innerHTML = sales.map(s => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3 text-xs font-bold text-slate-500">#${s.id}<br><span class="font-normal">${formatDate(s.date)}</span></td>
+                    <td class="p-3 text-xs text-slate-600">${s.paymentMethod}</td>
+                    <td class="p-3 text-xs text-slate-500">${s.items.join(', ')}</td>
+                    <td class="p-3 text-right text-sm font-bold text-emerald-700">${formatMoney(s.total)}</td>
+                </tr>`).join('');
+        }
+
+        function printClienteVendas() {
+            if (!_cliVendasAtual) return;
+            const { client, sales } = _cliVendasAtual;
+            if (!sales.length) return showToast('Nenhuma venda para imprimir.', true);
+
+            const total = sales.reduce((acc, s) => acc + s.total, 0);
+            const rowsHtml = sales.map(s => `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 7px 5px; font-size: 11px;">${formatDate(s.date)}</td>
+                    <td style="padding: 7px 5px; font-size: 11px; font-weight: bold;">#${s.id}</td>
+                    <td style="padding: 7px 5px; font-size: 11px; text-transform: uppercase;">${s.paymentMethod}</td>
+                    <td style="padding: 7px 5px; font-size: 10px; color: #475569;">${s.items.join(', ')}</td>
+                    <td style="padding: 7px 5px; font-size: 12px; font-weight: bold; text-align: right; color: #059669;">${formatMoney(s.total)}</td>
+                </tr>`).join('');
+
+            const el = document.getElementById('print-area');
+            el.innerHTML = `
+            <div class="invoice-full">
+                <div class="header-section">
+                    <div class="logo-area"><img src="${LOGO_NEGOCIOS_URL}" style="max-height: 80px;" /></div>
+                    <div class="company-details">
+                        <h2 class="company-title" style="font-size: 14px; white-space: nowrap;">RV NEGOCIOS E COMPANHIA LTDA</h2>
+                        <div class="company-info">CNPJ: 61.893.912/0001-24 | IE: 20.298.776-0</div>
+                        <div class="company-info">Rua Mineiros, 532 | Jataí - GO | (64) 3636-4861</div>
+                    </div>
+                    <div class="doc-meta">
+                        <div class="doc-title">EXTRATO DE VENDAS</div>
+                        <div class="meta-row"><strong>Cliente:</strong> ${client.name}</div>
+                        <div class="meta-row"><strong>Emitido:</strong> ${new Date().toLocaleString('pt-BR')}</div>
+                    </div>
+                </div>
+                <div class="info-grid">
+                    <div class="info-col">
+                        <div class="col-header">Dados do Cliente</div>
+                        <div class="col-content"><strong>${client.name}</strong><br>${client.doc || ''}<br>${client.phone || ''}<br>${client.address || ''}</div>
+                    </div>
+                    <div class="info-col">
+                        <div class="col-header">Resumo</div>
+                        <div class="col-content"><strong>Vendas:</strong> ${sales.length}<br><strong>Total:</strong> ${formatMoney(total)}</div>
+                    </div>
+                </div>
+                <table class="full-table">
+                    <thead><tr><th>Data</th><th>Pedido</th><th>Pgto</th><th>Itens</th><th align="right">Valor</th></tr></thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+                <div class="footer-section">
+                    <div class="notes-area"><div class="notes-title">Observações:</div><div class="notes-text">Extrato gerado pelo RV Portal com todas as vendas registradas para este cliente.</div></div>
+                    <div class="totals-area">
+                        <div class="total-row final"><span>TOTAL:</span><span>${formatMoney(total)}</span></div>
+                    </div>
+                </div>
+            </div>`;
+            setTimeout(() => window.print(), 500);
+        }
 
         async function duplicateQuote(id) {
           if(!confirm("Deseja realmente duplicar este orçamento?")) return;
