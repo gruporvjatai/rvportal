@@ -7,3 +7,7 @@ project_id = "lyieiqhkspbowsrlngvn"
 # A Edge Function "notify" e chamada pelo banco (pg_net) sem JWT.
 # A autenticacao e feita pelo header "x-webhook-secret".
 verify_jwt = false
+
+[functions.produto-foto]
+# Upload/remocao de fotos de produto. Exige JWT do usuario autenticado.
+verify_jwt = true
