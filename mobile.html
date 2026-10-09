@@ -202,6 +202,16 @@
                   <i data-lucide="warehouse" class="w-6 h-6"></i>
               </div>
           </button>
+
+          <button onclick="openRelatorioAbertosMobile()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
+              <div>
+                  <h3 class="text-base font-black text-slate-800 mb-1">Itens em Aberto na Expedição</h3>
+                  <p class="text-xs text-slate-500 font-medium">Vendas pendentes de entrega, detalhado ou por produto.</p>
+              </div>
+              <div class="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                  <i data-lucide="clipboard-list" class="w-6 h-6"></i>
+              </div>
+          </button>
           
           
         </div>
@@ -4018,6 +4028,103 @@ function downloadPDF(blob, filename) {
             document.getElementById('view-report-result').classList.remove('hidden');
             document.getElementById('view-report-result').classList.add('flex');
             lucide.createIcons();
+        }
+
+        // Itens de venda ainda não entregues (mesma regra do desktop):
+        // vendas ativas com quantidade pendente = quantidade - entregue.
+        function getItensAbertosExpedicaoMobile() {
+            return (STATE.logs || [])
+                .filter(l => l.type === 'venda' && String(l.status || '').toUpperCase() !== 'CANCELADO')
+                .map(l => {
+                    const qtd = Number(l.quantity) || 0;
+                    const entregue = Number(l.deliveredQty) || 0;
+                    return { orderId: l.id, date: l.date, clientName: l.clientName || '', productName: l.productName || '', quantity: qtd, delivered: entregue, falta: qtd - entregue };
+                })
+                .filter(i => i.falta > 0)
+                .sort((a, b) => {
+                    const byProd = String(a.productName).localeCompare(String(b.productName), 'pt-BR');
+                    if (byProd !== 0) return byProd;
+                    return String(a.orderId).localeCompare(String(b.orderId), 'pt-BR', { numeric: true });
+                });
+        }
+
+        function getItensAbertosPorProdutoMobile() {
+            const mapa = new Map();
+            getItensAbertosExpedicaoMobile().forEach(i => {
+                const nome = String(i.productName || '').trim() || '(sem produto)';
+                if (!mapa.has(nome)) mapa.set(nome, { productName: nome, falta: 0 });
+                mapa.get(nome).falta += i.falta;
+            });
+            return Array.from(mapa.values()).sort((a, b) => a.productName.localeCompare(b.productName, 'pt-BR'));
+        }
+
+        let REL_ABERTOS_MODO_MOBILE = 'detalhado';
+
+        function setRelatorioAbertosModoMobile(modo) {
+            REL_ABERTOS_MODO_MOBILE = (modo === 'produto') ? 'produto' : 'detalhado';
+            renderRelatorioAbertosMobile();
+        }
+
+        function renderRelatorioAbertosMobile() {
+            const itens = getItensAbertosExpedicaoMobile();
+            const produtos = getItensAbertosPorProdutoMobile();
+            const pedidos = new Set(itens.map(i => String(i.orderId))).size;
+            const totalFalta = itens.reduce((a, i) => a + i.falta, 0);
+            const produtoMode = REL_ABERTOS_MODO_MOBILE === 'produto';
+
+            const tabAtivo = 'flex-1 py-2 rounded-lg text-sm font-black bg-amber-600 text-white';
+            const tabInativo = 'flex-1 py-2 rounded-lg text-sm font-black text-slate-500';
+
+            let listHtml = '';
+            if (produtoMode) {
+                listHtml = produtos.length ? produtos.map(p => `
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2 flex justify-between items-center">
+                        <span class="font-bold text-sm text-slate-800">${p.productName}</span>
+                        <span class="font-black text-amber-600 text-lg">${p.falta}</span>
+                    </div>`).join('')
+                    : '<div class="text-center p-6 text-slate-400 font-bold">Nenhum item em aberto.</div>';
+            } else {
+                listHtml = itens.length ? itens.map(i => {
+                    const situacao = i.delivered > 0 ? 'PARCIAL' : 'PENDENTE';
+                    return `
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2 flex flex-col gap-1">
+                        <div class="flex justify-between items-start">
+                            <span class="font-bold text-sm text-slate-800">#${i.orderId} · ${i.productName}</span>
+                            <span class="font-black text-amber-600">${i.falta}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[10px] text-slate-500">
+                            <span>${i.clientName || '-'}</span>
+                            <span class="px-2 py-0.5 rounded font-bold ${situacao === 'PARCIAL' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}">${situacao}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400">Qtd ${i.quantity} · entregue ${i.delivered} · falta ${i.falta}</div>
+                    </div>`;
+                }).join('')
+                    : '<div class="text-center p-6 text-slate-400 font-bold">Nenhum item em aberto.</div>';
+            }
+
+            const el = document.getElementById('report-result-content');
+            el.innerHTML = `
+                <div class="max-w-md mx-auto">
+                    <div class="bg-white p-5 rounded-2xl border shadow-sm mb-4 text-center">
+                        <h3 class="font-black text-xl text-amber-600 mb-1">ITENS EM ABERTO</h3>
+                        <p class="text-xs font-bold text-slate-500">Expedição · pendentes de entrega</p>
+                    </div>
+                    <div class="flex gap-2 mb-4 bg-slate-200/70 p-1 rounded-xl">
+                        <button onclick="setRelatorioAbertosModoMobile('detalhado')" class="${produtoMode ? tabInativo : tabAtivo}">Detalhado</button>
+                        <button onclick="setRelatorioAbertosModoMobile('produto')" class="${produtoMode ? tabAtivo : tabInativo}">Por Produto</button>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-center">
+                        <p class="text-xs font-bold text-amber-700">${produtoMode ? `${produtos.length} produto(s)` : `${itens.length} item(ns) em ${pedidos} pedido(s)`} · total a separar/entregar: <b>${totalFalta}</b></p>
+                    </div>
+                    <div class="mb-8">${listHtml}</div>
+                </div>`;
+            lucide.createIcons();
+        }
+
+        function openRelatorioAbertosMobile() {
+            renderRelatorioAbertosMobile();
+            document.getElementById('view-report-result').classList.remove('hidden');
+            document.getElementById('view-report-result').classList.add('flex');
         }
 
         function openPeriodReportModal() {
