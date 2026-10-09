@@ -44,6 +44,15 @@
     <style id="app-styles">
       body { background-color: #f1f5f9; font-family: 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
 
+      /* Switch moderno padronizado (RV) */
+      .rv-switch { position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+      .rv-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+      .rv-switch .rv-track { position: relative; width: 42px; height: 24px; flex: 0 0 auto; background-color: #cbd5e1; border-radius: 9999px; transition: background-color .2s ease; }
+      .rv-switch .rv-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background-color: #fff; border-radius: 9999px; box-shadow: 0 1px 3px rgba(15, 23, 42, .35); transition: transform .2s ease; }
+      .rv-switch input:checked + .rv-track { background-color: #22c55e; }
+      .rv-switch input:checked + .rv-track .rv-knob { transform: translateX(18px); }
+      .rv-switch input:focus-visible + .rv-track { box-shadow: 0 0 0 3px rgba(34, 197, 94, .35); }
+
             /* Correção forçada para garantir que as bordas apareçam em todos os inputs e caixas */
       .border { 
           border-width: 1px !important; 
@@ -544,8 +553,9 @@
               
               <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                   <button onclick="refresh()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded-lg text-sm font-bold" title="Atualizar Lista"><i data-lucide="list-restart" class="w-4 h-4"></i></button>
-                  <label class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1 cursor-pointer select-none" title="Incluir fotos ao imprimir/baixar orçamento">
-                      <input type="checkbox" id="sw-foto-orcamentos" class="w-4 h-4 accent-indigo-600" onchange="FOTO_ORCAMENTOS = this.checked">
+                  <label class="rv-switch" title="Incluir fotos ao imprimir/baixar orçamento">
+                      <input type="checkbox" id="sw-foto-orcamentos" onchange="FOTO_ORCAMENTOS = this.checked">
+                      <span class="rv-track"><span class="rv-knob"></span></span>
                       <span class="text-xs font-bold text-slate-600 whitespace-nowrap">Fotos</span>
                   </label>
                   <div class="relative w-full md:w-64">
@@ -749,9 +759,11 @@
   <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
     <h2 class="text-2xl font-bold text-slate-800">Produtos</h2>
     <div class="flex gap-2">
-      <button id="btn-toggle-fotos-produto" onclick="toggleFotosProdutoCatalogo()" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded font-bold shadow flex items-center gap-2">
-        <i data-lucide="image-off"></i> <span id="btn-toggle-fotos-produto-lbl">Mostrar fotos</span>
-      </button>
+      <label class="rv-switch bg-white border border-slate-300 px-4 py-2 rounded shadow" title="Mostrar/ocultar fotos no catálogo">
+        <input type="checkbox" id="sw-fotos-produto" onchange="setFotosProdutoCatalogo(this.checked)">
+        <span class="rv-track"><span class="rv-knob"></span></span>
+        <span id="btn-toggle-fotos-produto-lbl" class="text-sm font-bold text-slate-700 whitespace-nowrap">Mostrar fotos</span>
+      </label>
       <button id="btn-categorias-produto" onclick="openCategoriasProdutoModal()" class="hidden bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-4 py-2 rounded font-bold shadow flex items-center gap-2">
         <i data-lucide="tags"></i> Categorias
       </button>
@@ -1361,10 +1373,13 @@
                       </select>
                   </div>
                   
-                  <!-- Checkbox de parceiro -->
-                  <div class="flex items-center gap-2">
-                      <input type="checkbox" id="prd-parceiro" class="w-4 h-4 text-emerald-600 rounded" onchange="toggleProdutoParceiro()">
-                      <label for="prd-parceiro" class="text-sm font-bold text-slate-700 cursor-pointer">Produto de Parceiro (fornecedor externo)</label>
+                  <!-- Switch de parceiro -->
+                  <div>
+                      <label class="rv-switch">
+                          <input type="checkbox" id="prd-parceiro" onchange="toggleProdutoParceiro()">
+                          <span class="rv-track"><span class="rv-knob"></span></span>
+                          <span class="text-sm font-bold text-slate-700">Produto de Parceiro (fornecedor externo)</span>
+                      </label>
                   </div>
       
                   <!-- Fornecedor parceiro (visível apenas se checkbox marcado) -->
@@ -1932,8 +1947,9 @@
             <input type="date" id="pos-hist-end" class="p-2.5 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-emerald-600 bg-slate-50" onchange="renderRecentHistory()">
             <button onclick="renderRecentHistory()" class="p-2.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-700 font-bold transition" title="Atualizar Lista"><i data-lucide="list-restart" class="w-4 h-4"></i></button>
             <button onclick="document.getElementById('pos-hist-search').value=''; document.getElementById('pos-hist-start').value=''; document.getElementById('pos-hist-end').value=''; renderRecentHistory()" class="p-2.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-700 font-bold transition" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
-            <label class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 cursor-pointer select-none ml-auto" title="Incluir fotos ao imprimir/baixar venda">
-                <input type="checkbox" id="sw-foto-vendas" class="w-4 h-4 accent-emerald-600" onchange="FOTO_VENDAS = this.checked">
+            <label class="rv-switch ml-auto" title="Incluir fotos ao imprimir/baixar venda">
+                <input type="checkbox" id="sw-foto-vendas" onchange="FOTO_VENDAS = this.checked">
+                <span class="rv-track"><span class="rv-knob"></span></span>
                 <span class="text-xs font-bold text-slate-600 whitespace-nowrap">Fotos</span>
             </label>
         </div>
@@ -10236,13 +10252,10 @@ function removerFotoProdutoNoForm() {
 }
 
 // ---------- Aba Produtos: mostrar/ocultar fotos ----------
-function toggleFotosProdutoCatalogo() {
-    PRODUTOS_FOTOS_VISIVEIS = !PRODUTOS_FOTOS_VISIVEIS;
+function setFotosProdutoCatalogo(visivel) {
+    PRODUTOS_FOTOS_VISIVEIS = !!visivel;
     const lbl = document.getElementById('btn-toggle-fotos-produto-lbl');
-    const icon = document.querySelector('#btn-toggle-fotos-produto i');
     if (lbl) lbl.textContent = PRODUTOS_FOTOS_VISIVEIS ? 'Ocultar fotos' : 'Mostrar fotos';
-    if (icon) icon.setAttribute('data-lucide', PRODUTOS_FOTOS_VISIVEIS ? 'image' : 'image-off');
-    if (window.lucide) lucide.createIcons();
     renderProductCatalog();
 }
 
