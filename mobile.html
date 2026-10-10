@@ -409,72 +409,46 @@
       <!-- ==================== NOVA ABA CAIXA (FINANCEIRO) ==================== -->
       <div id="view-fin" class="hidden-section pb-28">
           <div class="flex justify-between items-center mb-4">
-              <h2 class="text-xl font-bold text-slate-800">Financeiro / Caixa</h2>
+              <h2 class="text-xl font-bold text-slate-800">Financeiro</h2>
+              <button onclick="toggleCardVisibility()" id="finance-eye-btn" class="bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-1" title="Mostrar/Ocultar valores">
+                  <i data-lucide="eye-off" class="w-4 h-4"></i>
+              </button>
           </div>
 
-          <!-- Filtro de periodo -->
-          <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
-              <button data-fin-period="hoje" onclick="setFinPeriod('hoje')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">Hoje</button>
-              <button data-fin-period="7d" onclick="setFinPeriod('7d')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">7 dias</button>
-              <button data-fin-period="30d" onclick="setFinPeriod('30d')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">30 dias</button>
-              <button data-fin-period="mes" onclick="setFinPeriod('mes')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">Este mês</button>
-              <button data-fin-period="tudo" onclick="setFinPeriod('tudo')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">Tudo</button>
-              <button data-fin-period="custom" onclick="setFinPeriod('custom')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">Personalizado</button>
-          </div>
-          <div id="fin-custom-range" class="hidden gap-2 mb-3 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
-              <div class="flex-1">
-                  <label class="block text-[9px] font-bold text-slate-400 uppercase ml-1">De</label>
-                  <input type="date" id="fin-ext-start" class="w-full p-1.5 bg-transparent text-xs outline-none" onchange="renderFinance()">
+          <!-- Cards de resumo (mesmos do desktop) -->
+          <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="bg-green-50 p-3 rounded-2xl border border-green-200 shadow-sm">
+                  <p class="text-green-800 text-[10px] font-bold uppercase leading-tight">Receitas (Recebidas)</p>
+                  <h3 id="fin-income" class="text-lg font-black text-green-700 truncate mt-1">R$ ****</h3>
               </div>
-              <div class="w-px bg-slate-200 my-1"></div>
-              <div class="flex-1">
-                  <label class="block text-[9px] font-bold text-slate-400 uppercase ml-1">Até</label>
-                  <input type="date" id="fin-ext-end" class="w-full p-1.5 bg-transparent text-xs outline-none" onchange="renderFinance()">
+              <div class="bg-red-50 p-3 rounded-2xl border border-red-200 shadow-sm">
+                  <p class="text-red-800 text-[10px] font-bold uppercase leading-tight">Saídas (Despesas Pagas)</p>
+                  <h3 id="fin-expenses" class="text-lg font-black text-red-700 truncate mt-1">R$ ****</h3>
+              </div>
+              <div class="col-span-2 bg-slate-800 p-4 rounded-2xl shadow-md text-white flex justify-between items-center relative overflow-hidden">
+                  <div class="relative z-10">
+                      <p class="text-[10px] font-bold uppercase mb-1 text-slate-400 tracking-wider">Saldo em Caixa</p>
+                      <h3 id="fin-balance" class="text-2xl font-black text-white">R$ ****</h3>
+                  </div>
+                  <i data-lucide="wallet" class="w-12 h-12 text-slate-700 absolute right-4 -bottom-2 z-0 transform rotate-[-15deg]"></i>
               </div>
           </div>
 
           <!-- Sub-abas -->
-          <div class="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-xl mb-4">
-              <button id="fin-tab-resumo" onclick="switchFinTab('resumo')" class="flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all bg-slate-900 text-white shadow">Resumo</button>
-              <button id="fin-tab-receber" onclick="switchFinTab('receber')" class="relative flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all text-slate-500">Receber<span id="fin-badge-receber" class="hidden min-w-[16px] h-4 px-1 rounded-full bg-slate-300 text-slate-700 text-[9px] font-black items-center justify-center"></span></button>
+          <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl mb-4">
+              <button id="fin-tab-receber" onclick="switchFinTab('receber')" class="relative flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all bg-slate-900 text-white shadow">Receber<span id="fin-badge-receber" class="hidden min-w-[16px] h-4 px-1 rounded-full bg-slate-300 text-slate-700 text-[9px] font-black items-center justify-center"></span></button>
               <button id="fin-tab-pagar" onclick="switchFinTab('pagar')" class="relative flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all text-slate-500">Pagar<span id="fin-badge-pagar" class="hidden min-w-[16px] h-4 px-1 rounded-full bg-slate-300 text-slate-700 text-[9px] font-black items-center justify-center"></span></button>
               <button id="fin-tab-extrato" onclick="switchFinTab('extrato')" class="flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all text-slate-500">Extrato</button>
           </div>
 
-          <!-- Painel Resumo -->
-          <div id="fin-panel-resumo">
-              <div class="grid grid-cols-2 gap-3 mb-4">
-                  <div class="bg-green-50 p-3 rounded-2xl border border-green-200 shadow-sm">
-                      <p class="text-green-800 text-[10px] font-bold uppercase leading-tight">A Receber (em aberto)</p>
-                      <h3 id="fin-open-rec" class="text-lg font-black text-green-700 truncate mt-1">R$ 0,00</h3>
-                  </div>
-                  <div class="bg-red-50 p-3 rounded-2xl border border-red-200 shadow-sm">
-                      <p class="text-red-800 text-[10px] font-bold uppercase leading-tight">A Pagar (em aberto)</p>
-                      <h3 id="fin-open-pay" class="text-lg font-black text-red-700 truncate mt-1">R$ 0,00</h3>
-                  </div>
-                  <div class="bg-green-50 p-3 rounded-2xl border border-green-200 shadow-sm">
-                      <p class="text-green-800 text-[10px] font-bold uppercase leading-tight">Recebido <span class="fin-period-label">(período)</span></p>
-                      <h3 id="fin-income" class="text-base font-bold text-green-700 truncate mt-1">R$ 0,00</h3>
-                  </div>
-                  <div class="bg-red-50 p-3 rounded-2xl border border-red-200 shadow-sm">
-                      <p class="text-red-800 text-[10px] font-bold uppercase leading-tight">Pago <span class="fin-period-label">(período)</span></p>
-                      <h3 id="fin-expenses" class="text-base font-bold text-red-700 truncate mt-1">R$ 0,00</h3>
-                  </div>
-                  <div class="col-span-2 bg-slate-800 p-4 rounded-2xl shadow-md text-white flex justify-between items-center relative overflow-hidden">
-                      <div class="relative z-10">
-                          <p class="text-[10px] font-bold uppercase mb-1 text-slate-400 tracking-wider">Resultado do período</p>
-                          <h3 id="fin-balance" class="text-2xl font-black text-white">R$ 0,00</h3>
-                      </div>
-                      <i data-lucide="wallet" class="w-12 h-12 text-slate-700 absolute right-4 -bottom-2 z-0 transform rotate-[-15deg]"></i>
-                  </div>
-              </div>
-
+          <!-- Vence hoje / Atrasados (oculto quando vazio) -->
+          <div id="fin-attention-wrap" class="mb-4 hidden">
               <h3 class="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2"><i data-lucide="alert-circle" class="w-4 h-4 text-orange-500"></i> Vence hoje / Atrasados</h3>
               <div id="fin-attention-list" class="flex flex-col gap-2"></div>
           </div>
 
           <!-- Painel Receber -->
-          <div id="fin-panel-receber" class="hidden">
+          <div id="fin-panel-receber">
               <div class="flex gap-2 mb-3">
                   <input type="text" id="fin-rec-search" placeholder="Buscar cliente..." class="flex-1 p-2.5 border rounded-xl text-sm outline-none focus:border-emerald-500 bg-white" onkeyup="renderFinanceDebounced()">
                   <select id="fin-rec-status" class="w-28 p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
@@ -504,6 +478,25 @@
 
           <!-- Painel Extrato -->
           <div id="fin-panel-extrato" class="hidden">
+              <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
+                  <button data-fin-period="hoje" onclick="setFinPeriod('hoje')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">Hoje</button>
+                  <button data-fin-period="7d" onclick="setFinPeriod('7d')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">7 dias</button>
+                  <button data-fin-period="30d" onclick="setFinPeriod('30d')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">30 dias</button>
+                  <button data-fin-period="mes" onclick="setFinPeriod('mes')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">Este mês</button>
+                  <button data-fin-period="tudo" onclick="setFinPeriod('tudo')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">Tudo</button>
+                  <button data-fin-period="custom" onclick="setFinPeriod('custom')" class="fin-period-chip shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border bg-white text-slate-500 border-slate-200">Personalizado</button>
+              </div>
+              <div id="fin-custom-range" class="hidden gap-2 mb-3 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
+                  <div class="flex-1">
+                      <label class="block text-[9px] font-bold text-slate-400 uppercase ml-1">De</label>
+                      <input type="date" id="fin-ext-start" class="w-full p-1.5 bg-transparent text-xs outline-none" onchange="renderFinance()">
+                  </div>
+                  <div class="w-px bg-slate-200 my-1"></div>
+                  <div class="flex-1">
+                      <label class="block text-[9px] font-bold text-slate-400 uppercase ml-1">Até</label>
+                      <input type="date" id="fin-ext-end" class="w-full p-1.5 bg-transparent text-xs outline-none" onchange="renderFinance()">
+                  </div>
+              </div>
               <div class="mb-3">
                   <select id="fin-ext-type" class="w-full p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
                       <option value="">Tudo</option>
@@ -894,7 +887,7 @@
         </button>
         <button onclick="navigate('fin')" id="nav-fin" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
             <i data-lucide="wallet" class="mb-1 w-6 h-6"></i>
-            <span class="text-[10px] uppercase font-medium">Caixa</span>
+            <span class="text-[10px] uppercase font-medium">Financeiro</span>
         </button>
         <button onclick="navigate('prod')" id="nav-prod" class="flex-1 flex flex-col items-center justify-center py-3 text-slate-400 transition-colors">
             <i data-lucide="package" class="mb-1 w-6 h-6"></i>
@@ -1711,7 +1704,7 @@
             _quoteSearchTimeout = setTimeout(() => { renderQuotesList(); }, 300);
         }
         // ===== FINANCEIRO (MOBILE): sub-abas, periodo e acoes =====
-        let finTab = 'resumo';
+        let finTab = 'receber';
         let finPeriod = 'mes';
         let _finReceivables = [];
         let _finRenderTimer = null;
@@ -1722,6 +1715,35 @@
         }
         function finSaldoExp(e) {
             return Math.max(0, (Number(e.cost) || 0) + (Number(e.acrescimoTotal) || 0) - (Number(e.descontoTotal) || 0) - (Number(e.valorPago) || 0));
+        }
+
+        // Controle de visibilidade dos cards de resumo (padrao: oculto).
+        let showCardsValues = false;
+        let lastIncome = 0;
+        let lastExpenses = 0;
+        let lastBalance = 0;
+
+        function formatCardValue(val) {
+            if (!showCardsValues) return 'R$ ****';
+            return formatMoney(val);
+        }
+        function updateCardValues() {
+            const inc = document.getElementById('fin-income');
+            const exp = document.getElementById('fin-expenses');
+            const bal = document.getElementById('fin-balance');
+            if (inc) inc.innerText = formatCardValue(lastIncome);
+            if (exp) exp.innerText = formatCardValue(lastExpenses);
+            if (bal) bal.innerText = formatCardValue(lastBalance);
+        }
+        function toggleCardVisibility() {
+            showCardsValues = !showCardsValues;
+            const btn = document.getElementById('finance-eye-btn');
+            if (btn) {
+                const icon = btn.querySelector('i');
+                if (icon) icon.setAttribute('data-lucide', showCardsValues ? 'eye' : 'eye-off');
+            }
+            updateCardValues();
+            lucide.createIcons();
         }
 
         // Compat: despesas antigas guardavam o fornecedor dentro da observacao
@@ -1802,7 +1824,7 @@
 
         function switchFinTab(tab) {
             finTab = tab;
-            ['resumo', 'receber', 'pagar', 'extrato'].forEach(t => {
+            ['receber', 'pagar', 'extrato'].forEach(t => {
                 const btn = document.getElementById('fin-tab-' + t);
                 const panel = document.getElementById('fin-panel-' + t);
                 const active = (t === tab);
@@ -2002,25 +2024,29 @@
 
             const range = getFinRange();
             const extratoPeriodo = extratoAll.filter(i => finInRange(i.date, range));
-            const recebidoPeriodo = extratoPeriodo.filter(i => i.type === 'in').reduce((a, i) => a + i.val, 0);
-            const pagoPeriodo = extratoPeriodo.filter(i => i.type === 'out').reduce((a, i) => a + i.val, 0);
 
-            // Totais em aberto (nao dependem do periodo). O status vem da coluna
-            // status_financeiro, igual ao desktop.
+            // Totais em aberto (para badges e bloco de atencao). O status vem da
+            // coluna status_financeiro, igual ao desktop.
             const abertasRec = receivablesArr.filter(r => r.status !== 'PAGO' && finSaldoRec(r) > 0.005);
             const abertasPay = STATE.expenses.filter(e => e.status !== 'PAGO' && finSaldoExp(e) > 0.005);
-            const openRec = abertasRec.reduce((a, r) => a + finSaldoRec(r), 0);
-            const openPay = abertasPay.reduce((a, e) => a + finSaldoExp(e), 0);
 
-            const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = formatMoney(v); };
-            setTxt('fin-open-rec', openRec);
-            setTxt('fin-open-pay', openPay);
-            setTxt('fin-income', recebidoPeriodo);
-            setTxt('fin-expenses', pagoPeriodo);
-            setTxt('fin-balance', recebidoPeriodo - pagoPeriodo);
-
-            const lbl = finPeriod === 'tudo' ? '(total)' : '(no período)';
-            document.querySelectorAll('.fin-period-label').forEach(el => el.textContent = lbl);
+            // Cards de resumo (mesma logica do desktop): Receitas recebidas,
+            // Saidas pagas e Saldo em caixa (acumulado, independe do periodo).
+            lastIncome = receivablesArr.reduce((a, s) => {
+                const cashPaid = Number(s.paid) || 0;
+                if (s.status === 'PAGO') {
+                    if (cashPaid > 0) return a + cashPaid;
+                    if ((Number(s.credito) || 0) > 0) return a;
+                    return a + s.val;
+                }
+                return a + cashPaid;
+            }, 0);
+            const despesaEfetiva = e => e.status === 'PAGO'
+                ? ((Number(e.valorPago) || 0) > 0 ? Number(e.valorPago) : Number(e.cost || 0))
+                : Number(e.valorPago || 0);
+            lastExpenses = STATE.expenses.reduce((a, e) => a + ((e.status === 'PAGO' || e.status === 'PARCIAL') ? despesaEfetiva(e) : 0), 0);
+            lastBalance = lastIncome - lastExpenses;
+            updateCardValues();
 
             // Badges
             const recOverdue = abertasRec.filter(r => { const v = (r.dueDate || '').split('T')[0]; return v && v < hojeLocalStr; }).length;
@@ -2051,6 +2077,8 @@
                         <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 shrink-0"></i>
                     </div>`).join('') : _finEmpty('Nada vencendo hoje ou atrasado.');
             }
+            const attWrap = document.getElementById('fin-attention-wrap');
+            if (attWrap) attWrap.classList.toggle('hidden', att.length === 0);
 
             renderFinReceber();
             renderFinPagar();
