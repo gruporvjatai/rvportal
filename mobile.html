@@ -2073,8 +2073,8 @@
             arr.sort((a, b) => {
                 const va = (a.dueDate || '').split('T')[0];
                 const vb = (b.dueDate || '').split('T')[0];
-                if (va !== vb) return va < vb ? -1 : 1;
-                return Number(a.id) - Number(b.id);
+                if (va !== vb) return va < vb ? 1 : -1;
+                return Number(b.id) - Number(a.id);
             });
             return { arr, hojeLocalStr, term, status };
         }
@@ -2117,8 +2117,8 @@
             arr.sort((a, b) => {
                 const va = (a.date || '').split('T')[0];
                 const vb = (b.date || '').split('T')[0];
-                if (va !== vb) return va < vb ? -1 : 1;
-                return Number(a.id) - Number(b.id);
+                if (va !== vb) return va < vb ? 1 : -1;
+                return Number(b.id) - Number(a.id);
             });
             return { arr, hojeLocalStr, term, status };
         }
@@ -4036,7 +4036,11 @@ function downloadPDF(blob, filename) {
             const statusFilter = document.getElementById('quote-status-filter')?.value || '';
 
             let baseList = currentDocType === 'orcamento' ? (STATE.quotes || []) : (STATE.sales || []);
-            let filteredList = baseList.slice().reverse();
+            let filteredList = baseList.slice().sort((a, b) => {
+                const da = String(a.date || ''), db = String(b.date || '');
+                if (da !== db) return db.localeCompare(da);
+                return Number(b.id) - Number(a.id);
+            });
 
             if (term) filteredList = filteredList.filter(q => q.clientName && q.clientName.toLowerCase().includes(term));
             if (currentDocType === 'orcamento' && statusFilter) filteredList = filteredList.filter(q => q.status === statusFilter);
