@@ -441,12 +441,6 @@
               <button id="fin-tab-extrato" onclick="switchFinTab('extrato')" class="flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all text-slate-500">Extrato</button>
           </div>
 
-          <!-- Vence hoje / Atrasados (oculto quando vazio) -->
-          <div id="fin-attention-wrap" class="mb-4 hidden">
-              <h3 class="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2"><i data-lucide="alert-circle" class="w-4 h-4 text-orange-500"></i> Vence hoje / Atrasados</h3>
-              <div id="fin-attention-list" class="flex flex-col gap-2"></div>
-          </div>
-
           <!-- Painel Receber -->
           <div id="fin-panel-receber">
               <div class="flex gap-2 mb-3">
@@ -2053,32 +2047,6 @@
             const payOverdue = abertasPay.filter(e => { const v = (e.date || '').split('T')[0]; return v && v < hojeLocalStr; }).length;
             _finSetBadge('fin-badge-receber', abertasRec.length, recOverdue > 0);
             _finSetBadge('fin-badge-pagar', abertasPay.length, payOverdue > 0);
-
-            // Atencao: vence hoje / atrasados
-            const att = [];
-            abertasRec.forEach(r => {
-                const v = (r.dueDate || '').split('T')[0];
-                if (v && v <= hojeLocalStr) att.push({ kind: 'rec', id: r.id, label: r.clientName || r.desc, sub: `${formatDate(r.dueDate)} · ${formatMoney(finSaldoRec(r))}`, overdue: v < hojeLocalStr });
-            });
-            abertasPay.forEach(e => {
-                const v = (e.date || '').split('T')[0];
-                if (v && v <= hojeLocalStr) att.push({ kind: 'pay', id: e.id, label: e.categoriaNome || e.item, sub: `${formatDate(e.date)} · ${formatMoney(finSaldoExp(e))}`, overdue: v < hojeLocalStr });
-            });
-            att.sort((a, b) => (a.overdue === b.overdue) ? 0 : (a.overdue ? -1 : 1));
-            const attBody = document.getElementById('fin-attention-list');
-            if (attBody) {
-                attBody.innerHTML = att.length ? att.slice(0, 12).map(a => `
-                    <div onclick="openFinActions('${a.kind}','${a.id}')" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 border-l-4 ${a.overdue ? 'border-l-red-500' : 'border-l-amber-400'} flex justify-between items-center active:bg-slate-50">
-                        <div class="flex-1 pr-2 min-w-0">
-                            <span class="text-[10px] font-bold ${a.overdue ? 'text-red-500' : 'text-amber-600'} uppercase">${a.overdue ? 'Atrasado' : 'Vence hoje'}</span>
-                            <h4 class="font-bold text-slate-700 text-sm truncate">${a.label}</h4>
-                            <p class="text-[10px] text-slate-500">${a.sub}</p>
-                        </div>
-                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 shrink-0"></i>
-                    </div>`).join('') : _finEmpty('Nada vencendo hoje ou atrasado.');
-            }
-            const attWrap = document.getElementById('fin-attention-wrap');
-            if (attWrap) attWrap.classList.toggle('hidden', att.length === 0);
 
             renderFinReceber();
             renderFinPagar();
