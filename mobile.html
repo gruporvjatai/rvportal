@@ -2143,8 +2143,8 @@
                 <div onclick="openFinActions('pay','${e.id}')" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${pago ? 'border-l-slate-300' : (atrasado ? 'border-l-red-500' : 'border-l-red-400')} active:bg-slate-50">
                     <div class="flex-1 pr-2 min-w-0">
                         <span class="text-[10px] font-bold text-slate-400 uppercase">${formatDate(e.date)}${atrasado ? ' <span class="text-red-500 ml-1">ATRASADO</span>' : (pago ? ' <span class="text-slate-400 ml-1">PAGO</span>' : '')}</span>
-                        <h4 class="font-bold text-slate-700 text-sm leading-tight truncate">${e.categoriaNome || e.item || 'Despesa'}</h4>
-                        <p class="text-[10px] text-slate-500 truncate">${e.provider || e.note || '-'}</p>
+                        <h4 class="font-bold text-slate-700 text-sm leading-tight truncate">${e.provider || e.categoriaNome || e.item || 'Despesa'}</h4>
+                        <p class="text-[10px] text-slate-500 truncate">${e.provider ? (e.categoriaNome || e.item || '-') : (e.note || '-')}</p>
                         <p class="text-[10px] ${pago ? 'text-slate-400' : (parcial ? 'text-orange-500' : 'text-red-600')} font-bold mt-0.5">${pago ? 'Pago' : (parcial ? 'Pago ' + formatMoney(e.valorPago) + ' | Resta ' + formatMoney(saldo) : 'Pagar: ' + formatMoney(saldo))}</p>
                     </div>
                     ${pago ? '' : `<button onclick="event.stopPropagation(); payExpense('${e.id}')" class="shrink-0 bg-red-100 text-red-700 active:bg-red-200 text-[11px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Pagar</button>`}
