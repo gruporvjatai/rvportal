@@ -1901,12 +1901,12 @@
                 const r = _finReceivables.find(x => String(x.id) === String(id));
                 if (!r) return;
                 const falta = finSaldoRec(r);
-                const pago = falta <= 0.005;
+                const pago = r.status === 'PAGO';
                 title = r.clientName || 'Cliente';
                 sub = `${r.desc} · ${pago ? 'Quitado' : 'Falta ' + formatMoney(falta)}`;
                 if (!pago) actions.push({ label: 'Receber / Baixar', icon: 'check', cls: 'emerald', onclick: `openBaixaReceita('${r.id}', ${r.val}, ${r.paid})` });
                 if (!pago && String(r.desc).indexOf('Venda #') === 0 && !(r.paid || 0)) actions.push({ label: 'Parcelar', icon: 'calendar-days', cls: 'amber', onclick: `openParcelarReceber('${r.id}')` });
-                if ((r.paid || 0) > 0) actions.push({ label: 'Estornar última baixa', icon: 'rotate-ccw', cls: 'slate', onclick: `estornarRecebimento('${r.id}')` });
+                if (r.baixasCount > 0) actions.push({ label: 'Estornar última baixa', icon: 'rotate-ccw', cls: 'slate', onclick: `estornarRecebimento('${r.id}')` });
             } else {
                 const e = STATE.expenses.find(x => String(x.id) === String(id));
                 if (!e) return;
@@ -1969,9 +1969,14 @@
                 const st = calcTituloFinanceiro(r.id);
                 r.jur = st.jur;
                 r.disc = st.disc;
+                // Pago efetivo = maior entre as baixas (logs de recebimento) e o
+                // valor_pago gravado no próprio título (importações antigas).
+                // NÃO define o status: o status segue a coluna status_financeiro
+                // (mesma fonte de verdade do desktop).
                 r.paid = Math.max(r.paid, st.money);
+                r.baixasCount = st.baixas.length;
                 r.valLista = st.total + st.jur - st.disc;
-                r.saldo = st.saldo;
+                r.saldo = Math.max(0, r.valLista - r.paid);
             });
             _finReceivables = receivablesArr;
 
@@ -1980,6 +1985,14 @@
             STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO').forEach(l => {
                 if (!l.date) return;
                 extratoAll.push({ type: 'in', date: l.date, title: l.note || 'Recebimento', desc: l.paymentMethod || '-', val: Number(l.totalValue) || 0, uid: l.uid, refId: l.id });
+            });
+            // Títulos quitados na importação (status PAGO) sem log de recebimento:
+            // entram como recebido na data do título, igual ao desktop.
+            receivablesArr.forEach(r => {
+                if (r.status !== 'PAGO' || r.baixasCount > 0) return;
+                const val = r.paid > 0 ? r.paid : r.val;
+                if (val <= 0 || !r.date) return;
+                extratoAll.push({ type: 'in', date: r.date, title: r.clientName || r.desc, desc: 'Quitação (importação)', val, uid: 'legado-rec-' + r.id, refId: r.id, noEstorno: true });
             });
             STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO').forEach(l => {
                 const exp = STATE.expenses.find(e => String(e.id) === String(l.productName));
@@ -1992,8 +2005,9 @@
             const recebidoPeriodo = extratoPeriodo.filter(i => i.type === 'in').reduce((a, i) => a + i.val, 0);
             const pagoPeriodo = extratoPeriodo.filter(i => i.type === 'out').reduce((a, i) => a + i.val, 0);
 
-            // Totais em aberto (nao dependem do periodo)
-            const abertasRec = receivablesArr.filter(r => finSaldoRec(r) > 0.005);
+            // Totais em aberto (nao dependem do periodo). O status vem da coluna
+            // status_financeiro, igual ao desktop.
+            const abertasRec = receivablesArr.filter(r => r.status !== 'PAGO' && finSaldoRec(r) > 0.005);
             const abertasPay = STATE.expenses.filter(e => e.status !== 'PAGO' && finSaldoExp(e) > 0.005);
             const openRec = abertasRec.reduce((a, r) => a + finSaldoRec(r), 0);
             const openPay = abertasPay.reduce((a, e) => a + finSaldoExp(e), 0);
@@ -2052,12 +2066,12 @@
             let arr = _finReceivables.slice();
             if (term) arr = arr.filter(r => String(r.clientName || '').toLowerCase().includes(term) || String(r.desc || '').toLowerCase().includes(term));
             arr = arr.filter(r => {
-                const falta = finSaldoRec(r);
+                const pago = r.status === 'PAGO';
                 const v = (r.dueDate || '').split('T')[0];
-                const vencido = v && v < hojeLocalStr && falta > 0.005;
-                if (status === 'ABERTOS') return falta > 0.005;
+                const vencido = !pago && v && v < hojeLocalStr;
+                if (status === 'ABERTOS') return !pago;
                 if (status === 'VENCIDOS') return vencido;
-                if (status === 'PAGOS') return falta <= 0.005;
+                if (status === 'PAGOS') return pago;
                 return true;
             });
             arr.sort((a, b) => {
@@ -2075,9 +2089,9 @@
             const { arr, hojeLocalStr } = getRecebiveisFiltrados();
             if (!arr.length) { body.innerHTML = _finEmpty('Não há contas a receber.'); return; }
             body.innerHTML = arr.map(r => {
-                const falta = finSaldoRec(r);
+                const pago = r.status === 'PAGO';
+                const falta = pago ? 0 : finSaldoRec(r);
                 const v = (r.dueDate || '').split('T')[0];
-                const pago = falta <= 0.005;
                 const atrasado = !pago && v && v < hojeLocalStr;
                 return `
                 <div onclick="openFinActions('rec','${r.id}')" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${pago ? 'border-l-slate-300' : (atrasado ? 'border-l-red-500' : 'border-l-emerald-500')} active:bg-slate-50">
@@ -2154,7 +2168,7 @@
                     </div>
                     <div class="flex flex-col items-end gap-1.5 shrink-0">
                         <span class="font-black text-sm ${i.type === 'in' ? 'text-green-600' : 'text-red-600'}">${i.type === 'in' ? '+' : '-'} ${formatMoney(i.val)}</span>
-                        <button onclick="${i.type === 'in' ? `estornarRecebimento('${i.uid}')` : `estornarDespesaLog('${i.refId}')`}" class="text-[9px] font-bold text-slate-400 uppercase bg-slate-50 border border-slate-200 py-1 px-2 rounded active:bg-red-50 active:text-red-500">Estornar</button>
+                        ${i.noEstorno ? '' : `<button onclick="${i.type === 'in' ? `estornarRecebimento('${i.uid}')` : `estornarDespesaLog('${i.refId}')`}" class="text-[9px] font-bold text-slate-400 uppercase bg-slate-50 border border-slate-200 py-1 px-2 rounded active:bg-red-50 active:text-red-500">Estornar</button>`}
                     </div>
                 </div>
             `).join('');
@@ -2245,9 +2259,9 @@
                 const logo = await _finLogoBase64();
                 let total = 0;
                 const linhas = arr.map(r => {
-                    const falta = finSaldoRec(r);
+                    const pago = r.status === 'PAGO';
                     const v = (r.dueDate || '').split('T')[0];
-                    const situacao = falta <= 0.005 ? 'PAGO' : (v && v < hojeLocalStr ? 'VENCIDO' : 'ABERTO');
+                    const situacao = pago ? 'PAGO' : (v && v < hojeLocalStr ? 'VENCIDO' : 'ABERTO');
                     const valor = Number(r.val) || 0;
                     total += valor;
                     return [ formatDate(r.dueDate), r.clientName || '-', r.desc || '-', r.payment || '-', situacao, formatMoney(valor) ];
