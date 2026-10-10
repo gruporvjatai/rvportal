@@ -477,12 +477,13 @@
           <div id="fin-panel-receber" class="hidden">
               <div class="flex gap-2 mb-3">
                   <input type="text" id="fin-rec-search" placeholder="Buscar cliente..." class="flex-1 p-2.5 border rounded-xl text-sm outline-none focus:border-emerald-500 bg-white" onkeyup="renderFinanceDebounced()">
-                  <select id="fin-rec-status" class="w-32 p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
+                  <select id="fin-rec-status" class="w-28 p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
                       <option value="ABERTOS">Em aberto</option>
                       <option value="VENCIDOS">Vencidos</option>
                       <option value="PAGOS">Pagos</option>
                       <option value="">Todos</option>
                   </select>
+                  <button onclick="compartilharContasReceber()" title="Compartilhar PDF" class="shrink-0 w-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center active:scale-95"><i data-lucide="share-2" class="w-4 h-4"></i></button>
               </div>
               <div id="fin-receivables-list" class="flex flex-col gap-3"></div>
           </div>
@@ -491,11 +492,12 @@
           <div id="fin-panel-pagar" class="hidden">
               <div class="flex gap-2 mb-3">
                   <input type="text" id="fin-pay-search" placeholder="Buscar fornecedor/item..." class="flex-1 p-2.5 border rounded-xl text-sm outline-none focus:border-red-500 bg-white" onkeyup="renderFinanceDebounced()">
-                  <select id="fin-pay-status" class="w-32 p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
+                  <select id="fin-pay-status" class="w-28 p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
                       <option value="PENDENTE">Pendentes</option>
                       <option value="PAGO">Pagos</option>
                       <option value="">Todos</option>
                   </select>
+                  <button onclick="compartilharContasPagar()" title="Compartilhar PDF" class="shrink-0 w-11 rounded-xl bg-red-600 text-white flex items-center justify-center active:scale-95"><i data-lucide="share-2" class="w-4 h-4"></i></button>
               </div>
               <div id="fin-payables-list" class="flex flex-col gap-3"></div>
           </div>
@@ -1674,7 +1676,7 @@
                         valorPago: Number(e.valor_pago || 0),
                         descontoTotal: Number(e.desconto_total || 0),
                         acrescimoTotal: Number(e.acrescimo_total || 0),
-                        provider: e.observacao ? (e.observacao.startsWith('Fornecedor:') ? e.observacao.replace('Fornecedor:', '').trim() : '') : ''
+                        provider: (e.fornecedor && String(e.fornecedor).trim()) || _finExtrairFornecedorObs(e.observacao)
                     }));
             
                     preencherCategoriasDespesaSelectMobile();
@@ -1720,6 +1722,22 @@
         }
         function finSaldoExp(e) {
             return Math.max(0, (Number(e.cost) || 0) + (Number(e.acrescimoTotal) || 0) - (Number(e.descontoTotal) || 0) - (Number(e.valorPago) || 0));
+        }
+
+        // Compat: despesas antigas guardavam o fornecedor dentro da observacao
+        // no formato "Fornecedor: X | obs". Estas helpers extraem/limpam isso,
+        // pois agora o fornecedor vai para a coluna propria (igual ao desktop).
+        function _finExtrairFornecedorObs(obs) {
+            if (!obs) return '';
+            const m = String(obs).match(/^Fornecedor:\s*([^|]*)(?:\||$)/);
+            return m ? m[1].trim() : '';
+        }
+        function _finLimparObsFornecedor(obs) {
+            if (!obs) return '';
+            return String(obs)
+                .replace(/^Fornecedor:\s*[^|]*\|\s*/, '')
+                .replace(/^Fornecedor:\s*[^|]*$/, '')
+                .trim();
         }
 
         function getFinRange() {
@@ -2020,19 +2038,18 @@
                     </div>`).join('') : _finEmpty('Nada vencendo hoje ou atrasado.');
             }
 
-            renderFinReceber(receivablesArr, hojeLocalStr);
-            renderFinPagar(hojeLocalStr);
+            renderFinReceber();
+            renderFinPagar();
             renderFinExtrato(extratoPeriodo);
 
             lucide.createIcons();
         }
 
-        function renderFinReceber(list, hojeLocalStr) {
-            const body = document.getElementById('fin-receivables-list');
-            if (!body) return;
+        function getRecebiveisFiltrados() {
             const term = (document.getElementById('fin-rec-search')?.value || '').trim().toLowerCase();
             const status = document.getElementById('fin-rec-status')?.value ?? 'ABERTOS';
-            let arr = list.slice();
+            const hojeLocalStr = getHojeLocalStr();
+            let arr = _finReceivables.slice();
             if (term) arr = arr.filter(r => String(r.clientName || '').toLowerCase().includes(term) || String(r.desc || '').toLowerCase().includes(term));
             arr = arr.filter(r => {
                 const falta = finSaldoRec(r);
@@ -2049,6 +2066,13 @@
                 if (va !== vb) return va < vb ? -1 : 1;
                 return Number(a.id) - Number(b.id);
             });
+            return { arr, hojeLocalStr, term, status };
+        }
+
+        function renderFinReceber() {
+            const body = document.getElementById('fin-receivables-list');
+            if (!body) return;
+            const { arr, hojeLocalStr } = getRecebiveisFiltrados();
             if (!arr.length) { body.innerHTML = _finEmpty('Não há contas a receber.'); return; }
             body.innerHTML = arr.map(r => {
                 const falta = finSaldoRec(r);
@@ -2068,11 +2092,10 @@
             }).join('');
         }
 
-        function renderFinPagar(hojeLocalStr) {
-            const body = document.getElementById('fin-payables-list');
-            if (!body) return;
+        function getPagaveisFiltrados() {
             const term = (document.getElementById('fin-pay-search')?.value || '').trim().toLowerCase();
             const status = document.getElementById('fin-pay-status')?.value ?? 'PENDENTE';
+            const hojeLocalStr = getHojeLocalStr();
             let arr = STATE.expenses.slice();
             if (term) arr = arr.filter(e => String(e.categoriaNome || e.item || '').toLowerCase().includes(term) || String(e.provider || '').toLowerCase().includes(term) || String(e.note || '').toLowerCase().includes(term));
             arr = arr.filter(e => {
@@ -2087,6 +2110,13 @@
                 if (va !== vb) return va < vb ? -1 : 1;
                 return Number(a.id) - Number(b.id);
             });
+            return { arr, hojeLocalStr, term, status };
+        }
+
+        function renderFinPagar() {
+            const body = document.getElementById('fin-payables-list');
+            if (!body) return;
+            const { arr, hojeLocalStr } = getPagaveisFiltrados();
             if (!arr.length) { body.innerHTML = _finEmpty('Não há contas a pagar.'); return; }
             body.innerHTML = arr.map(e => {
                 const saldo = finSaldoExp(e);
@@ -2128,6 +2158,163 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        // ===== Relatorios financeiros em PDF (pdfmake + compartilhar) =====
+        async function _finLogoBase64() {
+            try { return await getLogoBase64RV(new URL('logo.png', window.location.href).href); }
+            catch (e) { return null; }
+        }
+
+        async function _finCompartilharPDF(docDefinition, filename, titulo, texto) {
+            const pdfBlob = await new Promise((resolve, reject) => {
+                pdfMake.createPdf(docDefinition).getBlob((blob) => blob ? resolve(blob) : reject(new Error('Falha ao gerar o PDF')));
+            });
+            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ title: titulo, text: texto, files: [file] });
+                    showToast("Relatório compartilhado!");
+                    return;
+                } catch (shareErr) {
+                    console.warn('Compartilhamento cancelado/falhou:', shareErr);
+                }
+            }
+            downloadPDF(pdfBlob, filename);
+            showToast("PDF baixado!");
+        }
+
+        function _finRelatorioDocDefinition(logoBase64, titulo, subheader, colunas, linhas, totalLabel, totalValor, corTotal) {
+            const hoje = new Date().toLocaleDateString('pt-BR');
+            const body = [[
+                ...colunas.map(c => ({ text: c.label, style: 'tableHeader', alignment: c.align || 'left' }))
+            ]];
+            linhas.forEach((fila, idx) => {
+                const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                body.push(colunas.map((c, i) => ({
+                    text: String(fila[i] == null ? '' : fila[i]),
+                    alignment: c.align || 'left',
+                    fillColor: bg, margin: [4, 5, 4, 5], fontSize: 9
+                })));
+            });
+            body.push(colunas.map((c, i) => ({
+                text: i === 0 ? totalLabel : (i === colunas.length - 1 ? totalValor : ''),
+                bold: true, alignment: c.align || 'left',
+                fillColor: corTotal || '#f1f5f9', margin: [4, 6, 4, 6], fontSize: 10
+            })));
+
+            return {
+                pageSize: 'A4',
+                pageMargins: [40, 40, 40, 40],
+                defaultStyle: { font: 'Roboto' },
+                content: [
+                    { table: { widths: [90, '*', 180], body: [[
+                        logoBase64 ? { image: logoBase64, width: 80, alignment: 'center' } : '',
+                        { stack: [
+                            { text: 'RV PORTAL MADEIRAS', fontSize: 15, bold: true, color: '#059669' },
+                            { text: 'CNPJ: 30.942.123/0001-02', fontSize: 9, color: '#475569' }
+                        ], margin: [10, 6, 0, 0] },
+                        { stack: [
+                            { text: titulo, fontSize: 12, bold: true, alignment: 'right' },
+                            { text: 'Emissão: ' + hoje, fontSize: 9, alignment: 'right', margin: [0, 4, 0, 0] }
+                        ], margin: [0, 6, 0, 0] }
+                    ]] }, layout: 'noBorders', margin: [0, 0, 0, 4] },
+                    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5 }], margin: [0, 2, 0, 8] },
+                    { text: [ { text: 'Filtros: ', bold: true, fontSize: 8 }, { text: subheader, fontSize: 8, color: '#475569' } ], margin: [0, 0, 0, 10] },
+                    { table: { headerRows: 1, widths: colunas.map(c => c.width || 'auto'), body: body },
+                      layout: {
+                          hLineWidth: (i, node) => (i === 0 || i === node.table.body.length - 1) ? 1 : 0.5,
+                          vLineWidth: () => 0,
+                          hLineColor: () => '#94a3b8'
+                      }, margin: [0, 0, 0, 8] }
+                ],
+                styles: { tableHeader: { bold: true, fontSize: 9, color: 'white', fillColor: '#0f172a', margin: [4, 6, 4, 6] } }
+            };
+        }
+
+        function _finFiltrosTexto(partes) {
+            const f = partes.filter(Boolean);
+            return f.length ? f.join(' | ') : 'Todos os registros';
+        }
+
+        async function compartilharContasReceber() {
+            const { arr, hojeLocalStr } = getRecebiveisFiltrados();
+            if (!arr.length) return showToast("Nenhum dado para gerar o relatório", true);
+            showLoading(true);
+            try {
+                const logo = await _finLogoBase64();
+                let total = 0;
+                const linhas = arr.map(r => {
+                    const falta = finSaldoRec(r);
+                    const v = (r.dueDate || '').split('T')[0];
+                    const situacao = falta <= 0.005 ? 'PAGO' : (v && v < hojeLocalStr ? 'VENCIDO' : 'ABERTO');
+                    const valor = Number(r.val) || 0;
+                    total += valor;
+                    return [ formatDate(r.dueDate), r.clientName || '-', r.desc || '-', r.payment || '-', situacao, formatMoney(valor) ];
+                });
+                const colunas = [
+                    { label: 'Vencimento', width: 'auto' },
+                    { label: 'Cliente', width: '*' },
+                    { label: 'Referência', width: '*' },
+                    { label: 'Pagto', width: 'auto' },
+                    { label: 'Status', width: 'auto', align: 'center' },
+                    { label: 'Valor', width: 'auto', align: 'right' }
+                ];
+                const term = (document.getElementById('fin-rec-search')?.value || '').trim();
+                const status = document.getElementById('fin-rec-status')?.value || '';
+                const subheader = _finFiltrosTexto([
+                    status ? `Status: ${({ ABERTOS: 'Em Aberto', VENCIDOS: 'Vencidos', PAGOS: 'Pagos' })[status] || status}` : '',
+                    term ? `Busca: "${term}"` : ''
+                ]);
+                const dd = _finRelatorioDocDefinition(logo, 'RELATÓRIO: CONTAS A RECEBER', subheader, colunas, linhas, 'TOTAL NA LISTA:', formatMoney(total), '#f0fdf4');
+                const fname = `RV PORTAL - Contas a Receber ${getHojeLocalStr()}.pdf`;
+                await _finCompartilharPDF(dd, fname, 'Contas a Receber', 'Relatório de Contas a Receber - RV Portal');
+            } catch (e) {
+                console.error(e);
+                showToast("Falha ao gerar o PDF", true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function compartilharContasPagar() {
+            const { arr, hojeLocalStr } = getPagaveisFiltrados();
+            if (!arr.length) return showToast("Nenhum dado para gerar o relatório", true);
+            showLoading(true);
+            try {
+                const logo = await _finLogoBase64();
+                let total = 0;
+                const linhas = arr.map(e => {
+                    const saldo = finSaldoExp(e);
+                    const v = (e.date || '').split('T')[0];
+                    const situacao = (e.status === 'PAGO' || saldo <= 0.005) ? 'PAGO' : (v && v < hojeLocalStr ? 'VENCIDO' : 'PENDENTE');
+                    const valor = Number(e.cost) || 0;
+                    total += valor;
+                    const fornObs = (e.provider && String(e.provider).trim()) ? e.provider.trim() : (e.note || '-');
+                    return [ formatDate(e.date), e.categoriaNome || e.item || 'Despesa', fornObs, situacao, formatMoney(valor) ];
+                });
+                const colunas = [
+                    { label: 'Data', width: 'auto' },
+                    { label: 'Categoria', width: '*' },
+                    { label: 'Fornecedor / Obs', width: '*' },
+                    { label: 'Status', width: 'auto', align: 'center' },
+                    { label: 'Valor', width: 'auto', align: 'right' }
+                ];
+                const term = (document.getElementById('fin-pay-search')?.value || '').trim();
+                const status = document.getElementById('fin-pay-status')?.value || '';
+                const subheader = _finFiltrosTexto([
+                    status ? `Status: ${({ PENDENTE: 'Pendentes', PAGO: 'Pagos' })[status] || status}` : '',
+                    term ? `Busca: "${term}"` : ''
+                ]);
+                const dd = _finRelatorioDocDefinition(logo, 'RELATÓRIO: CONTAS A PAGAR', subheader, colunas, linhas, 'TOTAL NA LISTA:', formatMoney(total), '#fef2f2');
+                const fname = `RV PORTAL - Contas a Pagar ${getHojeLocalStr()}.pdf`;
+                await _finCompartilharPDF(dd, fname, 'Contas a Pagar', 'Relatório de Contas a Pagar - RV Portal');
+            } catch (e) {
+                console.error(e);
+                showToast("Falha ao gerar o PDF", true);
+            } finally {
+                showLoading(false);
+            }
         }
 
         // ===== Formas multiplas + desconto/juros na baixa (financeiro) =====
@@ -2554,7 +2741,7 @@
             document.getElementById('exp-provider').value = exp.provider || '';
             document.getElementById('exp-cost').value = exp.cost;
             try { document.getElementById('exp-date').value = exp.date.split('T')[0]; } catch(e){}
-            document.getElementById('exp-note').value = exp.note ? exp.note.replace(/^Fornecedor: [^|]* \| /, '').trim() : '';
+            document.getElementById('exp-note').value = _finLimparObsFornecedor(exp.note);
             document.getElementById('modal-expense').classList.remove('hidden');
         }
 
@@ -2572,12 +2759,10 @@
             if(!categoriaId || !cost) return showToast("Preencha categoria e valor", true);
             showLoading(true);
 
-            const finalNote = provider ? `Fornecedor: ${provider}${noteBase ? ' | ' + noteBase : ''}` : noteBase;
-
             const payload = {
                 quantidade: 1, unidade: 'Un',
                 categoria_id: Number(categoriaId),
-                custo: cost, data: date, observacao: finalNote, status: 'PENDENTE'
+                custo: cost, data: date, observacao: noteBase, fornecedor: provider, status: 'PENDENTE'
             };
             if (isNew) payload.item = categoriaNome;
 
@@ -2595,7 +2780,7 @@
                     const dt = new Date(date + 'T12:00:00');
                     dt.setDate(dt.getDate() + (k - 1) * intervalo);
                     const dataParc = dt.toISOString().split('T')[0];
-                    const obsParc = [finalNote, `Parcela ${k}/${parcelas}`].filter(s => s).join(' — ');
+                    const obsParc = [noteBase, `Parcela ${k}/${parcelas}`].filter(s => s).join(' — ');
                     rows.push({ ...payload, custo: vCents / 100, data: dataParc, observacao: obsParc, id: await getNextId('despesas') });
                 }
                 const res = await sb.from('despesas').insert(rows);
@@ -2752,9 +2937,10 @@
                 const novoId = await getNextId('despesas');
                 const payload = {
                     id: novoId,
-                    item: exp.item, quantidade: exp.quantity || 1, unidade: 'Un',
+                    item: exp.item || exp.categoriaNome || '', quantidade: exp.quantity || 1, unidade: 'Un',
+                    categoria_id: exp.categoriaId != null ? Number(exp.categoriaId) : null,
                     custo: exp.cost, data: novaDataStr,
-                    fornecedor: '', observacao: exp.note || '', status: 'PENDENTE',
+                    fornecedor: exp.provider || '', observacao: _finLimparObsFornecedor(exp.note), status: 'PENDENTE',
                     valor_pago: 0, desconto_total: 0, acrescimo_total: 0
                 };
                 const { error } = await sb.from('despesas').insert([payload]);
