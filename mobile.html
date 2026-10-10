@@ -458,9 +458,12 @@
 
           <!-- Painel Pagar -->
           <div id="fin-panel-pagar" class="hidden">
-              <div class="flex gap-2 mb-3">
-                  <input type="text" id="fin-pay-search" placeholder="Buscar fornecedor/item..." class="flex-1 p-2.5 border rounded-xl text-sm outline-none focus:border-red-500 bg-white" onkeyup="renderFinanceDebounced()">
-                  <select id="fin-pay-status" class="w-28 p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
+              <div class="flex gap-1.5 mb-3">
+                  <input type="text" id="fin-pay-search" placeholder="Buscar fornecedor/item..." class="flex-1 min-w-0 p-2.5 border rounded-xl text-sm outline-none focus:border-red-500 bg-white" onkeyup="renderFinanceDebounced()">
+                  <select id="fin-pay-cat" class="w-24 shrink-0 p-2.5 border rounded-xl text-[11px] font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
+                      <option value="">Categoria</option>
+                  </select>
+                  <select id="fin-pay-status" class="w-24 shrink-0 p-2.5 border rounded-xl text-[11px] font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
                       <option value="PENDENTE">Pendentes</option>
                       <option value="PAGO">Pagos</option>
                       <option value="">Todos</option>
@@ -2105,8 +2108,10 @@
         function getPagaveisFiltrados() {
             const term = (document.getElementById('fin-pay-search')?.value || '').trim().toLowerCase();
             const status = document.getElementById('fin-pay-status')?.value ?? 'PENDENTE';
+            const catId = document.getElementById('fin-pay-cat')?.value || '';
             const hojeLocalStr = getHojeLocalStr();
             let arr = STATE.expenses.slice();
+            if (catId) arr = arr.filter(e => String(e.categoriaId) === String(catId));
             if (term) arr = arr.filter(e => String(e.categoriaNome || e.item || '').toLowerCase().includes(term) || String(e.provider || '').toLowerCase().includes(term) || String(e.note || '').toLowerCase().includes(term));
             arr = arr.filter(e => {
                 const saldo = finSaldoExp(e);
@@ -2739,6 +2744,12 @@
                 const cur = rep.value;
                 rep.innerHTML = '<option value="TODAS">Todas as Categorias</option>' + opts;
                 rep.value = cur || 'TODAS';
+            }
+            const payCat = document.getElementById('fin-pay-cat');
+            if (payCat) {
+                const cur = payCat.value;
+                payCat.innerHTML = '<option value="">Categoria</option>' + opts;
+                payCat.value = cur || '';
             }
         }
 
