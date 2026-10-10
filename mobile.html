@@ -373,6 +373,18 @@
           </div>
       </div>
 
+      <!-- ========== VISUALIZADOR DE FOTO DE PRODUTO (mobile) ========== -->
+      <div id="modal-foto-produto" class="hidden fixed inset-0 bg-black z-[110] select-none">
+          <div class="absolute top-0 left-0 right-0 p-4 flex items-center justify-between gap-2 z-10 bg-gradient-to-b from-black/70 to-transparent">
+              <span id="modal-foto-produto-nome" class="text-white font-black text-sm truncate"></span>
+              <button onclick="fecharFotoProdutoMobile()" class="bg-white/15 text-white p-2 rounded-full backdrop-blur active:scale-95 shrink-0"><i data-lucide="x" class="w-6 h-6"></i></button>
+          </div>
+          <div id="foto-viewer-stage" class="absolute inset-0 flex items-center justify-center overflow-hidden" style="touch-action:none;">
+              <img id="foto-viewer-img" alt="" draggable="false" class="max-w-full max-h-full object-contain will-change-transform">
+          </div>
+          <div class="absolute bottom-5 left-0 right-0 text-center text-white/60 text-[11px] font-bold pointer-events-none">Duplo toque para ampliar · arraste para mover</div>
+      </div>
+
       <div id="view-clients" class="hidden-section">
           <div class="flex justify-between items-center mb-4">
               <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i data-lucide="users" class="text-blue-500"></i> Clientes</h2>
@@ -1529,7 +1541,8 @@
                         servico: (p.tipo || 'produto') === 'servico',
                         parceiro: Boolean(p.produto_parceiro),
                         fornecedor: p.fornecedor_parceiro || '',
-                        unidade: p.unidade_medida || 'un'
+                        unidade: p.unidade_medida || 'un',
+                        foto: p.foto_url || ''
                     }));
 
                     STATE.categories = (resCat.data || [])
@@ -2944,7 +2957,9 @@
         const badgeCls = p.servico ? 'bg-indigo-100 text-indigo-700' : (isPartner ? 'bg-amber-100 text-amber-700' : (p.available<=0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'));
         const badgeTxt = p.servico ? 'Serviço' : (isPartner ? 'Parceiro' : 'Disp: ' + p.available);
         return `
-        <div class="p-3 border rounded-xl bg-white flex flex-col gap-2">
+        <div class="p-3 border rounded-xl bg-white flex gap-2.5">
+            ${p.foto ? `<button type="button" onclick="abrirFotoProdutoPorId('${p.id}')" class="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 active:scale-95 transition" title="Ver foto"><img src="${p.foto}" alt="${p.name}" loading="lazy" decoding="async" class="w-full h-full object-cover"></button>` : ''}
+            <div class="flex-1 min-w-0 flex flex-col gap-2">
             <div class="flex justify-between">
                 <h4 class="font-bold text-sm text-slate-800 leading-tight">${p.name}</h4>
                 <span class="text-[10px] px-2 py-0.5 rounded h-max ${badgeCls} font-bold">
@@ -2966,6 +2981,7 @@
                         <i data-lucide="plus" class="w-5 h-5"></i>
                     </button>
                 </div>
+            </div>
             </div>
         </div>`;
     }).join('');
@@ -4357,24 +4373,129 @@ function downloadPDF(blob, filename) {
                               <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Comprom.</span>${Number(p.committed) > 0 ? `<button onclick="verComprometido('${p.id}')" class="font-black text-amber-600 inline-flex items-center gap-0.5 active:scale-95">${p.committed}<i data-lucide="eye" class="w-3.5 h-3.5"></i></button>` : `<span class="font-black text-amber-600">${p.committed}</span>`}</div>
                               <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Disp.</span><span class="font-black ${Number(p.available) <= 0 ? 'text-red-500' : 'text-emerald-600'}">${p.available}</span></div>
                            </div>`);
+                const thumb = p.foto
+                    ? `<button type="button" onclick="abrirFotoProdutoPorId('${p.id}')" class="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 active:scale-95 transition" title="Ver foto"><img src="${p.foto}" alt="${p.name}" loading="lazy" decoding="async" class="w-full h-full object-cover"></button>`
+                    : `<div class="w-20 h-20 shrink-0 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300" title="Sem foto"><i data-lucide="image" class="w-7 h-7"></i></div>`;
                 return `
-                <div class="bg-white p-4 rounded-2xl border shadow-sm">
-                    <div class="flex items-start justify-between">
-                        <div class="flex flex-col flex-1 mr-2 overflow-hidden">
-                            <h4 class="font-black text-slate-800 text-sm truncate mb-1">${p.name}</h4>
-                            <span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded w-max uppercase">${p.category || 'Geral'}</span>
+                <div class="bg-white p-3 rounded-2xl border shadow-sm">
+                    <div class="flex gap-3">
+                        ${thumb}
+                        <div class="flex-1 min-w-0 flex flex-col">
+                            <div class="flex items-start justify-between">
+                                <div class="flex flex-col flex-1 mr-2 overflow-hidden">
+                                    <h4 class="font-black text-slate-800 text-sm truncate mb-1">${p.name}</h4>
+                                    <span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded w-max uppercase">${p.category || 'Geral'}</span>
+                                </div>
+                                <button onclick="openProductForm('${p.id}')" class="p-2.5 bg-slate-50 text-slate-500 rounded-xl active:scale-95 transition">
+                                    <i data-lucide="edit-3" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+                                <span class="font-black text-orange-500 text-lg">${formatMoney(p.price)}</span>
+                                ${estoqueBloco}
+                            </div>
                         </div>
-                        <button onclick="openProductForm('${p.id}')" class="p-3 bg-slate-50 text-slate-500 rounded-xl active:scale-95 transition">
-                            <i data-lucide="edit-3" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-                    <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-                        <span class="font-black text-orange-500 text-lg">${formatMoney(p.price)}</span>
-                        ${estoqueBloco}
                     </div>
                 </div>`;
             }).join('');
             lucide.createIcons();
+        }
+
+        // ================== FOTO DE PRODUTO (mobile, somente leitura) ==================
+        // Exibe foto do produto no catalogo/PDV e um visualizador em tela cheia
+        // com zoom (pinch/duplo toque) e arraste. O upload continua so no desktop.
+        let _fvScale = 1, _fvX = 0, _fvY = 0;
+        let _fvStartDist = 0, _fvStartScale = 1;
+        let _fvStartX = 0, _fvStartY = 0, _fvStartTouchX = 0, _fvStartTouchY = 0;
+        let _fvLastTap = 0, _fvDragging = false, _fvBound = false;
+
+        function _fvApply(animate) {
+            const img = document.getElementById('foto-viewer-img');
+            if (!img) return;
+            img.style.transition = animate ? 'transform 0.2s ease-out' : 'none';
+            img.style.transform = `translate(${_fvX}px, ${_fvY}px) scale(${_fvScale})`;
+        }
+
+        function _fvReset(animate) {
+            _fvScale = 1; _fvX = 0; _fvY = 0;
+            _fvApply(animate);
+        }
+
+        function abrirFotoProdutoMobile(url, nome) {
+            if (!url) return;
+            const img = document.getElementById('foto-viewer-img');
+            const nomeEl = document.getElementById('modal-foto-produto-nome');
+            if (img) img.src = url;
+            if (nomeEl) nomeEl.textContent = nome || 'Foto do produto';
+            _fvReset(false);
+            document.getElementById('modal-foto-produto').classList.remove('hidden');
+            _fvBindOnce();
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function abrirFotoProdutoPorId(id) {
+            const p = (STATE.products || []).find(x => String(x.id) === String(id));
+            if (p && p.foto) abrirFotoProdutoMobile(p.foto, p.name);
+        }
+
+        function fecharFotoProdutoMobile() {
+            const m = document.getElementById('modal-foto-produto');
+            if (m) m.classList.add('hidden');
+            const img = document.getElementById('foto-viewer-img');
+            if (img) img.removeAttribute('src');
+            _fvReset(false);
+        }
+
+        function _fvBindOnce() {
+            const stage = document.getElementById('foto-viewer-stage');
+            if (!stage || _fvBound) return;
+            _fvBound = true;
+            const dist2 = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+            stage.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    _fvStartDist = dist2(e.touches);
+                    _fvStartScale = _fvScale;
+                    _fvDragging = false;
+                } else if (e.touches.length === 1) {
+                    _fvStartTouchX = e.touches[0].clientX;
+                    _fvStartTouchY = e.touches[0].clientY;
+                    _fvStartX = _fvX; _fvStartY = _fvY;
+                    _fvDragging = true;
+                    const now = Date.now();
+                    if (now - _fvLastTap < 300) {
+                        if (_fvScale > 1.05) { _fvReset(true); }
+                        else { _fvScale = 2.5; _fvX = 0; _fvY = 0; _fvApply(true); }
+                        _fvLastTap = 0;
+                        _fvDragging = false;
+                    } else {
+                        _fvLastTap = now;
+                    }
+                }
+            }, { passive: true });
+
+            stage.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const d = dist2(e.touches);
+                    if (_fvStartDist > 0) {
+                        _fvScale = Math.max(1, Math.min(5, _fvStartScale * (d / _fvStartDist)));
+                        _fvApply(false);
+                    }
+                } else if (e.touches.length === 1 && _fvDragging && _fvScale > 1.01) {
+                    e.preventDefault();
+                    _fvX = _fvStartX + (e.touches[0].clientX - _fvStartTouchX);
+                    _fvY = _fvStartY + (e.touches[0].clientY - _fvStartTouchY);
+                    _fvApply(false);
+                }
+            }, { passive: false });
+
+            stage.addEventListener('touchend', (e) => {
+                if (e.touches.length === 0) {
+                    _fvDragging = false;
+                    if (_fvScale <= 1.02) _fvReset(true);
+                }
+            });
         }
 
         // ================== AJUSTE DE ESTOQUE (LOTE) ==================
