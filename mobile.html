@@ -1308,6 +1308,14 @@
             }
         };
 
+        // Registra o service worker para cache offline das fotos de produto,
+        // independente das notificacoes push. Nao altera dados nem sessoes.
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch((err) => {
+                console.warn('Falha ao registrar o service worker:', err);
+            });
+        }
+
         // Exige sessao real do Supabase Auth (nao basta o rv_user antigo).
         async function verificarSessaoAuth() {
             try {
