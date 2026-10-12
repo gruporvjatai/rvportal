@@ -4162,6 +4162,7 @@ function downloadPDF(blob, filename) {
                 
                 const valorDesconto = Number(q.absoluteDiscount) || 0;
                 const valorLiquido = currentDocType === 'venda' ? q.total : Math.max(0, q.total - valorDesconto);
+                const hasZap = !!getQuoteWhatsAppNumber(q);
                 
                 if (currentDocType === 'orcamento') {
                     let strip = "border-l-slate-300";
@@ -4192,7 +4193,7 @@ function downloadPDF(blob, filename) {
                                   <i data-lucide="user" class="w-4 h-4 text-slate-400 shrink-0"></i><span class="truncate">${q.clientName || 'Sem cliente'}</span>
                               </div>
                               <div class="flex items-center gap-2">
-                                  <button onclick="openWhatsApp('${q.id}', '${(q.clientName || '').replace(/'/g, "\\'")}')" class="w-10 h-10 shrink-0 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-transform" title="Enviar via WhatsApp">
+                                  <button onclick="openWhatsApp('${q.id}', '${(q.clientName || '').replace(/'/g, "\\'")}')" class="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center shadow-sm transition-transform ${hasZap ? 'bg-green-500 hover:bg-green-600 text-white active:scale-95' : 'bg-slate-100 text-slate-300 pointer-events-none'}" title="${hasZap ? 'Enviar via WhatsApp' : 'Cliente sem telefone'}">
                                       <i data-lucide="message-circle" class="w-5 h-5"></i>
                                   </button>
                                   <button onclick="shareQuote('${q.id}')" class="flex-1 p-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl flex justify-center items-center gap-1 font-bold shadow-sm active:scale-95 transition-transform text-xs">
@@ -4235,6 +4236,16 @@ function downloadPDF(blob, filename) {
             }).join('');
             lucide.createIcons();
         }
+
+      function getQuoteWhatsAppNumber(q) {
+          if (!q) return '';
+          let client = null;
+          if (q.clientId != null) client = STATE.clients.find(c => String(c.id) === String(q.clientId));
+          if (!client && q.clientName) client = STATE.clients.find(c => c.name === q.clientName);
+          let num = client && client.phone ? String(client.phone).replace(/\D/g, '') : '';
+          if (num.length >= 10 && !num.startsWith('55')) num = '55' + num;
+          return num.length >= 10 ? num : '';
+      }
 
       function openWhatsApp(quoteId, clientName) {
           // Busca o orçamento pelo ID
