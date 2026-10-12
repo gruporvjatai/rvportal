@@ -512,101 +512,111 @@
     </main>
 
     <div id="view-pos" class="hidden fixed inset-0 bg-slate-100 z-[60] flex-col">
-        <div class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md shrink-0">
-            <div class="flex items-center gap-3 min-w-0">
-                <button onclick="closeNewQuote()" class="text-white p-2 bg-slate-800 rounded-full hover:bg-slate-700 active:scale-95 shrink-0"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
-                <h2 id="pos-header-title" class="text-lg font-black tracking-wide text-white truncate">Novo Orçamento</h2>
+        <div class="bg-slate-900 text-white px-4 py-4 flex items-center gap-3 shadow-lg shrink-0">
+            <button onclick="closeNewQuote()" class="text-white p-2 bg-white/10 rounded-full active:scale-95 shrink-0"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <div class="min-w-0 flex-1">
+                <h2 id="pos-header-title" class="text-base font-black tracking-wide truncate leading-tight">Novo Orçamento</h2>
+                <div id="edit-mode-indicator" class="hidden text-[10px] text-emerald-300 font-bold uppercase tracking-wide">Editando registro</div>
             </div>
-            <span id="edit-mode-indicator" class="hidden text-[10px] bg-emerald-500 text-white px-2 py-1 rounded font-bold uppercase shrink-0">Editando</span>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 pb-32 space-y-4">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-3 flex gap-2 border-b border-slate-100">
-                    <button onclick="openPosProductModal()" class="flex-1 bg-indigo-600 text-white p-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md shadow-indigo-200 active:scale-95 transition-transform"><i data-lucide="search" class="w-5 h-5"></i> Adicionar Produtos</button>
-                    <button onclick="openProductForm(null, { fromPos: true })" class="bg-indigo-50 text-indigo-600 px-4 rounded-xl font-bold flex items-center justify-center active:scale-95 transition-transform border border-indigo-100" title="Cadastrar Novo Produto"><i data-lucide="package-plus"></i></button>
+        <div class="flex-1 overflow-y-auto pb-44">
+            <div class="px-4 pt-4">
+                <div class="flex gap-2">
+                    <button onclick="openPosProductModal()" class="flex-1 flex items-center gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3.5 shadow-sm active:scale-[0.99] transition-transform">
+                        <i data-lucide="search" class="w-5 h-5 text-indigo-600 shrink-0"></i>
+                        <span class="font-bold text-slate-400 text-sm truncate">Buscar e adicionar produto...</span>
+                    </button>
+                    <button onclick="openProductForm(null, { fromPos: true })" class="bg-indigo-600 text-white px-4 rounded-2xl flex items-center justify-center active:scale-95 transition-transform shadow-md shadow-indigo-200" title="Cadastrar novo produto"><i data-lucide="package-plus" class="w-5 h-5"></i></button>
                 </div>
-                <div class="flex items-center justify-between px-4 pt-3">
-                    <span class="text-xs font-black text-slate-500 uppercase flex items-center gap-1"><i data-lucide="shopping-cart" class="w-4 h-4"></i> Itens do Orçamento</span>
-                    <button onclick="clearCart()" class="text-red-500 text-[11px] font-bold border border-red-200 px-2 py-1 rounded-lg bg-white">LIMPAR</button>
-                </div>
-                <div id="pos-cart-items" class="p-3 flex flex-col gap-3"></div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-4">
-                <div>
-                    <input type="hidden" id="pos-client" value="">
-                    <label class="block text-xs font-black text-slate-500 uppercase mb-1">Cliente</label>
-                    <div class="flex gap-2">
-                        <button id="pos-client-btn" onclick="openPosClientModal()" class="flex-1 p-3 border rounded-xl text-left font-bold text-slate-700 flex justify-between items-center bg-slate-50 active:scale-[0.99] transition-transform">
-                            <span class="truncate">Consumidor Final</span>
-                            <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
+            <div class="px-4 mt-5">
+                <div class="flex items-center justify-between px-1 mb-2">
+                    <span class="text-xs font-black text-slate-500 uppercase tracking-wide">Itens do orçamento</span>
+                    <button onclick="clearCart()" class="text-red-500 text-[11px] font-bold flex items-center gap-1 active:scale-95"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Limpar</button>
+                </div>
+                <div id="pos-cart-items" class="flex flex-col gap-2.5"></div>
+            </div>
+
+            <div class="px-4 mt-5">
+                <span class="text-xs font-black text-slate-500 uppercase tracking-wide px-1">Cliente e pagamento</span>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm mt-2 overflow-hidden divide-y divide-slate-100">
+                    <div class="flex items-center gap-2 px-4 py-3.5">
+                        <input type="hidden" id="pos-client" value="">
+                        <button onclick="openPosClientModal()" class="flex items-center gap-3 flex-1 min-w-0 text-left active:opacity-70">
+                            <div class="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center shrink-0"><i data-lucide="user" class="w-4 h-4 text-indigo-600"></i></div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Cliente</div>
+                                <div id="pos-client-name" class="font-bold text-slate-800 text-sm truncate">Consumidor Final</div>
+                            </div>
+                            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 shrink-0"></i>
                         </button>
-                        <button onclick="openClientForm(null, { fromPos: true })" class="p-3 bg-slate-100 rounded-xl text-slate-600 font-bold flex items-center justify-center active:scale-95 transition-transform" title="Cadastrar Novo Cliente"><i data-lucide="user-plus"></i></button>
+                        <button onclick="openClientForm(null, { fromPos: true })" class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center active:scale-95 shrink-0" title="Cadastrar novo cliente"><i data-lucide="user-plus" class="w-4 h-4"></i></button>
                     </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 uppercase mb-1">Forma de Pagamento</label>
-                    <select id="pos-payment" class="w-full p-3 border rounded-xl text-sm bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
-                        <option>Dinheiro</option>
-                              <option>PIX</option>
-                              <option>Carteira</option>
-                              <option>Cartão Débito</option>
-                              <option>Cartão Crédito</option>
-                              <option>Boleto 21 dias</option>
-                              <option>Boleto 28 dias</option>
-                              <option>Boleto 30 dias</option>
-                              <option>Boleto Programado</option>
-                              <option>Cheque</option>
+                    <div class="flex items-center gap-3 px-4 py-3.5">
+                        <div class="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center shrink-0"><i data-lucide="credit-card" class="w-4 h-4 text-emerald-600"></i></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Forma de pagamento</div>
+                            <select id="pos-payment" class="w-full bg-transparent font-bold text-slate-800 text-sm outline-none mt-0.5 -ml-0.5">
+                                <option>Dinheiro</option>
+                                <option>PIX</option>
+                                <option>Carteira</option>
+                                <option>Cartão Débito</option>
+                                <option>Cartão Crédito</option>
+                                <option>Boleto 21 dias</option>
+                                <option>Boleto 28 dias</option>
+                                <option>Boleto 30 dias</option>
+                                <option>Boleto Programado</option>
+                                <option>Cheque</option>
                             </select>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 px-4 py-3.5">
+                        <div class="w-9 h-9 rounded-full bg-amber-50 flex items-center justify-center shrink-0"><i data-lucide="percent" class="w-4 h-4 text-amber-600"></i></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Desconto</div>
+                            <div class="flex items-center gap-2 mt-1">
+                                <input type="number" id="pos-discount" value="0" class="w-24 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500" onchange="renderCart()">
+                                <select id="pos-discount-type" class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500" onchange="renderCart()">
+                                    <option value="%">%</option><option value="$">R$</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <button onclick="togglePosSection('pos-extra')" class="w-full p-4 flex justify-between items-center text-left">
-                    <span class="font-black text-sm text-slate-700 flex items-center gap-2"><i data-lucide="sliders-horizontal" class="w-4 h-4 text-indigo-600"></i> Desconto, Endereço e Observações</span>
-                    <i id="pos-extra-chev" data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
-                </button>
-                <div id="pos-extra" class="hidden px-4 pb-4 pt-4 space-y-4 border-t border-slate-100">
-                    <div class="flex gap-2">
-                        <div class="w-1/3">
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo Desc.</label>
-                            <select id="pos-discount-type" class="w-full p-3 border rounded-xl text-sm bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" onchange="renderCart()">
-                                <option value="%">%</option><option value="$">R$</option>
-                            </select>
-                        </div>
-                        <div class="w-2/3">
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Desconto</label>
-                            <input type="number" id="pos-discount" value="0" class="w-full p-3 border rounded-xl text-sm bg-slate-50 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" onchange="renderCart()">
-                        </div>
+            <div class="px-4 mt-5 mb-2">
+                <span class="text-xs font-black text-slate-500 uppercase tracking-wide px-1">Entrega e observações</span>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm mt-2 overflow-hidden divide-y divide-slate-100">
+                    <div class="px-4 py-3.5">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <div class="w-9 h-9 rounded-full bg-sky-50 flex items-center justify-center shrink-0"><i data-lucide="map-pin" class="w-4 h-4 text-sky-600"></i></div>
+                            <span class="flex-1 font-bold text-slate-700 text-sm">Endereço de entrega manual</span>
+                            <input type="checkbox" id="pos-custom-address-check" class="w-5 h-5 text-indigo-600 rounded" onchange="toggleCustomAddress()">
+                        </label>
+                        <textarea id="pos-custom-address" class="hidden mt-3 w-full p-3 border border-slate-200 rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows="2" placeholder="Digite o endereço completo..."></textarea>
                     </div>
-
-                    <div>
-                        <div class="flex items-center gap-2 mb-2">
-                            <input type="checkbox" id="pos-custom-address-check" class="w-4 h-4 text-indigo-600 rounded" onchange="toggleCustomAddress()">
-                            <label for="pos-custom-address-check" class="text-xs font-bold text-slate-600">Endereço de Entrega Manual</label>
-                        </div>
-                        <textarea id="pos-custom-address" class="hidden w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows="2" placeholder="Digite o endereço completo..."></textarea>
-                    </div>
-
-                    <div>
-                        <div class="flex items-center gap-2 mb-2">
-                            <input type="checkbox" id="pos-custom-obs-check" class="w-4 h-4 text-indigo-600 rounded" onchange="toggleCustomObs()">
-                            <label for="pos-custom-obs-check" class="text-xs font-bold text-slate-600">Observações Extras</label>
-                        </div>
-                        <textarea id="pos-custom-obs" class="hidden w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows="2" placeholder="Digite as observações gerais..."></textarea>
+                    <div class="px-4 py-3.5">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <div class="w-9 h-9 rounded-full bg-violet-50 flex items-center justify-center shrink-0"><i data-lucide="sticky-note" class="w-4 h-4 text-violet-600"></i></div>
+                            <span class="flex-1 font-bold text-slate-700 text-sm">Observações</span>
+                            <input type="checkbox" id="pos-custom-obs-check" class="w-5 h-5 text-indigo-600 rounded" onchange="toggleCustomObs()">
+                        </label>
+                        <textarea id="pos-custom-obs" class="hidden mt-3 w-full p-3 border border-slate-200 rounded-xl text-sm bg-slate-50 outline-none focus:ring-2 focus:ring-indigo-500 resize-none" rows="2" placeholder="Digite as observações gerais..."></textarea>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white border-t p-4 shrink-0 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)]">
-            <div class="flex justify-between items-end mb-3 px-1">
-                <span class="text-xs font-bold text-slate-500">Total (<span id="cart-count">0</span> <span id="cart-item-word">itens</span>)</span>
+        <div class="bg-white border-t border-slate-200 px-4 py-3 shrink-0 shadow-[0_-8px_20px_-8px_rgba(0,0,0,0.15)]">
+            <div class="flex justify-between items-center mb-2.5 px-1">
+                <span class="text-xs font-bold text-slate-500">Total · <span id="cart-count">0</span> <span id="cart-item-word">itens</span></span>
                 <span id="pos-total-display" class="text-2xl font-black text-slate-800">R$ 0,00</span>
             </div>
-            <button onclick="saveQuote()" class="w-full bg-indigo-600 text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 active:scale-95 transition-transform flex justify-center items-center gap-2">
-                <i data-lucide="save"></i> Salvar Orçamento
+            <button onclick="saveQuote()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 active:scale-[0.99] transition-transform flex justify-center items-center gap-2">
+                <i data-lucide="save" class="w-5 h-5"></i> Salvar Orçamento
             </button>
         </div>
     </div>
@@ -3104,21 +3114,6 @@
             }
         }
 
-        function togglePosSection(id) {
-            const el = document.getElementById(id);
-            const chev = document.getElementById(id + '-chev');
-            if (!el) return;
-            el.classList.toggle('hidden');
-            if (chev) chev.style.transform = el.classList.contains('hidden') ? '' : 'rotate(180deg)';
-        }
-
-        function expandPosSection(id) {
-            const el = document.getElementById(id);
-            const chev = document.getElementById(id + '-chev');
-            if (el) el.classList.remove('hidden');
-            if (chev) chev.style.transform = 'rotate(180deg)';
-        }
-
         function calculateTotal() {
             const sub = CART.reduce((a,b)=>a+(b.qty * b.price), 0);
             const type = document.getElementById('pos-discount-type').value;
@@ -3134,10 +3129,16 @@
             if (ht) ht.innerText = CURRENT_QUOTE_ID ? ('Orçamento #' + CURRENT_QUOTE_ID) : 'Novo Orçamento';
             
             if(!CART.length) { 
-                box.innerHTML='<p class="text-center text-slate-400 my-4 text-sm font-bold">Nenhum item adicionado</p>'; 
+                box.innerHTML = `
+                <div class="bg-white rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center">
+                    <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3"><i data-lucide="shopping-cart" class="w-6 h-6 text-slate-300"></i></div>
+                    <p class="text-slate-400 text-sm font-bold">Nenhum item adicionado</p>
+                    <p class="text-slate-300 text-xs font-semibold mt-1">Toque em "Buscar e adicionar produto"</p>
+                </div>`;
                 document.getElementById('pos-total-display').innerText=formatMoney(0); 
                 document.getElementById('cart-count').innerText='0'; 
                 const w0 = document.getElementById('cart-item-word'); if (w0) w0.innerText='itens';
+                lucide.createIcons();
                 return; 
             }
             
@@ -3145,25 +3146,28 @@
             
             box.innerHTML = CART.map((i, idx) => {
                 let descExtra = '';
-                if (i.parceiro) descExtra = `<div class="text-[10px] text-slate-500 mt-0.5">${i.pecas} pçs de ${i.comprimento}m (${i.qty}m)</div>`;
+                if (i.parceiro) descExtra = `<div class="text-[10px] text-amber-600 font-bold mt-0.5">${i.pecas} pçs de ${i.comprimento}m (${i.qty}m)</div>`;
                 return `
-                <div class="bg-white p-3 border rounded-xl flex flex-col gap-2">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1 pr-2">
-                            <span class="font-bold text-sm text-slate-800 leading-tight">${i.name}</span>
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5">
+                    <div class="flex items-start gap-2">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-bold text-sm text-slate-800 leading-tight">${i.name}</div>
                             ${descExtra}
                         </div>
-                        <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 bg-red-50 p-1.5 rounded-lg active:scale-95 transition-transform">
+                        <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 bg-red-50 p-2 rounded-xl active:scale-95 transition-transform shrink-0">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     </div>
-                    <div class="flex justify-between items-center mt-1">
-                        <div class="flex items-center gap-2">
-                            <input type="number" value="${i.qty}" step="0.1" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-16 p-2 border rounded-lg bg-slate-50 text-center text-sm font-bold focus:border-indigo-500 outline-none" title="Qtd">
-                            <span class="text-slate-400 text-xs font-bold">x</span>
-                            <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-20 p-2 border rounded-lg bg-slate-50 text-center text-sm font-bold focus:border-indigo-500 outline-none" title="Unit.">
+                    <div class="flex items-center justify-between mt-3">
+                        <div class="flex items-center bg-slate-100 rounded-xl overflow-hidden">
+                            <button onclick="changeCartQty(${idx}, -1)" class="px-2.5 py-2 text-slate-600 active:bg-slate-200"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                            <input type="number" value="${i.qty}" step="0.1" min="0.1" onchange="updateCartItem(${idx}, 'qty', this.value)" class="w-12 py-2 bg-transparent text-center text-sm font-black text-slate-800 outline-none" title="Quantidade">
+                            <button onclick="changeCartQty(${idx}, 1)" class="px-2.5 py-2 text-slate-600 active:bg-slate-200"><i data-lucide="plus" class="w-4 h-4"></i></button>
                         </div>
-                        <div class="font-black text-slate-800 text-base">${formatMoney(i.total)}</div>
+                        <div class="font-black text-slate-800 text-lg">${formatMoney(i.total)}</div>
+                    </div>
+                    <div class="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400 font-bold">
+                        Unit. R$ <input type="number" step="0.01" value="${i.price}" onchange="updateCartItem(${idx}, 'price', this.value)" class="w-20 py-1 px-2 border border-slate-200 rounded-lg text-center text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" title="Valor unitário">${i.parceiro ? '/m' : ''}
                     </div>
                 </div>`;
             }).join('');
@@ -3172,6 +3176,16 @@
             document.getElementById('cart-count').innerText = CART.length;
             const w = document.getElementById('cart-item-word'); if (w) w.innerText = CART.length === 1 ? 'item' : 'itens';
             lucide.createIcons();
+        }
+        function changeCartQty(idx, delta) {
+            const item = CART[idx];
+            if (!item) return;
+            let q = Number(item.qty) || 0;
+            q = Math.round((q + delta) * 100) / 100;
+            if (q < 0.1) q = 0.1;
+            item.qty = q;
+            item.total = q * item.price;
+            renderCart();
         }
         function updateCartItem(idx, field, value) {
             const item = CART[idx];
@@ -3187,7 +3201,8 @@
             document.getElementById('pos-discount').value=0; 
             
             document.getElementById('pos-client').value = '';
-            document.getElementById('pos-client-btn').querySelector('span').innerText = 'Consumidor Final';
+            const clientNameEl = document.getElementById('pos-client-name');
+            if (clientNameEl) clientNameEl.innerText = 'Consumidor Final';
             
             document.getElementById('pos-custom-address-check').checked = false;
             document.getElementById('pos-custom-address').classList.add('hidden');
@@ -3196,11 +3211,6 @@
             document.getElementById('pos-custom-obs-check').checked = false;
             document.getElementById('pos-custom-obs').classList.add('hidden');
             document.getElementById('pos-custom-obs').value = '';
-            
-            const posExtra = document.getElementById('pos-extra');
-            if (posExtra) posExtra.classList.add('hidden');
-            const posExtraChev = document.getElementById('pos-extra-chev');
-            if (posExtraChev) posExtraChev.style.transform = '';
             
             renderCart(); 
         }
@@ -3340,7 +3350,7 @@
 
         function selectPosClient(id, name) {
             document.getElementById('pos-client').value = id;
-            document.getElementById('pos-client-btn').querySelector('span').innerText = name;
+            document.getElementById('pos-client-name').innerText = name;
             closePosClientModal();
             showToast(name !== 'Consumidor Final' ? `Cliente: ${name}` : "Consumidor Final");
         }
@@ -3446,7 +3456,7 @@
     
     CURRENT_QUOTE_ID = q.id; 
     
-    const clientSelectBtn = document.getElementById('pos-client-btn').querySelector('span');
+    const clientSelectBtn = document.getElementById('pos-client-name');
     const clientObj = (q.clientId != null)
         ? STATE.clients.find(c => String(c.id) === String(q.clientId))
         : STATE.clients.find(c => String(c.name).trim() === String(q.clientName).trim());
@@ -3483,8 +3493,6 @@
         document.getElementById('pos-custom-obs').classList.add('hidden');
         document.getElementById('pos-custom-obs').value = '';
     }
-
-    if (Number(q.discount) > 0 || q.deliveryAddress || customObsRestored) expandPosSection('pos-extra');
 
     document.getElementById('view-pos').classList.remove('hidden');
     document.getElementById('view-pos').classList.add('flex');
