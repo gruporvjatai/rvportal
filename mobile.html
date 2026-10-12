@@ -116,14 +116,9 @@
             <h2 id="quotes-title" class="text-2xl font-black text-slate-800 flex items-center gap-2">
                 <i data-lucide="folder-open" class="text-indigo-600"></i> Orçamentos
             </h2>
-            <div class="ml-auto flex items-center gap-2">
-                <button onclick="refresh()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 p-3 rounded-xl font-bold shadow-lg shadow-slate-200 flex items-center gap-2 active:scale-95 transition-transform" title="Atualizar Lista">
-                    <i data-lucide="list-restart"></i>
-                </button>
-                <button onclick="openNewQuote()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl font-bold shadow-lg shadow-indigo-200 flex items-center gap-2 active:scale-95 transition-transform">
-                    <i data-lucide="plus"></i> Novo
-                </button>
-            </div>
+            <button onclick="refresh()" class="ml-auto bg-white border border-slate-200 text-slate-500 p-3 rounded-xl shadow-sm active:scale-95 transition-transform" title="Atualizar lista">
+                <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+            </button>
          </div>
 
           <div class="flex bg-slate-200 p-1 rounded-xl mb-4">
@@ -145,7 +140,11 @@
               </select>
           </div>
 
-          <div id="quotes-list" class="flex flex-col gap-3"></div>
+          <div id="quotes-list" class="flex flex-col gap-3 pb-24"></div>
+
+          <button onclick="openNewQuote()" class="fixed right-5 bottom-24 z-50 bg-indigo-600 text-white pl-4 pr-5 py-3.5 rounded-full font-bold shadow-2xl shadow-indigo-600/40 flex items-center gap-2 active:scale-95 transition-transform">
+              <i data-lucide="plus" class="w-5 h-5"></i> Novo
+          </button>
       </div>
 
      <div id="view-reports" class="hidden-section">
@@ -611,11 +610,12 @@
         </div>
 
         <div class="bg-white border-t border-slate-200 px-4 py-3 shrink-0 shadow-[0_-8px_20px_-8px_rgba(0,0,0,0.15)]">
-            <div class="flex justify-between items-center mb-2.5 px-1">
+            <div class="flex justify-between items-center px-1">
                 <span class="text-xs font-bold text-slate-500">Total · <span id="cart-count">0</span> <span id="cart-item-word">itens</span></span>
                 <span id="pos-total-display" class="text-2xl font-black text-slate-800">R$ 0,00</span>
             </div>
-            <button onclick="saveQuote()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 active:scale-[0.99] transition-transform flex justify-center items-center gap-2">
+            <div id="pos-total-desconto" class="text-[11px] font-bold text-red-500 text-right mt-0.5" style="display:none;"></div>
+            <button onclick="saveQuote()" class="w-full mt-2.5 bg-indigo-600 text-white py-4 rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 active:scale-[0.99] transition-transform flex justify-center items-center gap-2">
                 <i data-lucide="save" class="w-5 h-5"></i> Salvar Orçamento
             </button>
         </div>
@@ -3138,21 +3138,38 @@
                 document.getElementById('pos-total-display').innerText=formatMoney(0); 
                 document.getElementById('cart-count').innerText='0'; 
                 const w0 = document.getElementById('cart-item-word'); if (w0) w0.innerText='itens';
+                const dt0 = document.getElementById('pos-total-desconto'); if (dt0) { dt0.style.display='none'; dt0.innerText=''; }
                 lucide.createIcons();
                 return; 
             }
             
             const totals = calculateTotal();
+            let subBruto = 0;
+            CART.forEach(it => { subBruto += (Number(it.fixedPrice) || Number(it.price) || 0) * (Number(it.qty) || 0); });
+            const descontoReal = Math.max(0, subBruto - totals.total);
+            const percTotal = subBruto > 0 ? (descontoReal / subBruto) * 100 : 0;
             
             box.innerHTML = CART.map((i, idx) => {
                 let descExtra = '';
                 if (i.parceiro) descExtra = `<div class="text-[10px] text-amber-600 font-bold mt-0.5">${i.pecas} pçs de ${i.comprimento}m (${i.qty}m)</div>`;
+                const fp = Number(i.fixedPrice) || Number(i.price) || 0;
+                const dPerc = fp > 0 ? ((fp - Number(i.price)) / fp) * 100 : 0;
+                const temDesconto = dPerc > 0.05;
+                const isDescAlto = dPerc > 30;
+                const cardClass = isDescAlto ? 'border-l-4 border-l-red-400' : '';
+                const badge = temDesconto
+                    ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isDescAlto ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'}">${dPerc.toFixed(1)}% off${isDescAlto ? ' !' : ''}</span>`
+                    : '';
+                const baseInfo = temDesconto
+                    ? `<span class="text-[10px] text-slate-400 font-semibold">base ${formatMoney(fp)}</span>`
+                    : '';
                 return `
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 ${cardClass}">
                     <div class="flex items-start gap-2">
                         <div class="min-w-0 flex-1">
                             <div class="font-bold text-sm text-slate-800 leading-tight">${i.name}</div>
                             ${descExtra}
+                            ${(badge || baseInfo) ? `<div class="flex items-center gap-1.5 mt-1">${baseInfo}${badge}</div>` : ''}
                         </div>
                         <button onclick="CART.splice(${idx},1);renderCart()" class="text-red-400 hover:text-red-600 bg-red-50 p-2 rounded-xl active:scale-95 transition-transform shrink-0">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -3175,6 +3192,16 @@
             document.getElementById('pos-total-display').innerText = formatMoney(totals.total);
             document.getElementById('cart-count').innerText = CART.length;
             const w = document.getElementById('cart-item-word'); if (w) w.innerText = CART.length === 1 ? 'item' : 'itens';
+            const dtEl = document.getElementById('pos-total-desconto');
+            if (dtEl) {
+                if (descontoReal > 0.01) {
+                    dtEl.innerText = `Desconto total: ${percTotal.toFixed(1)}% (-${formatMoney(descontoReal)})`;
+                    dtEl.style.display = 'block';
+                } else {
+                    dtEl.innerText = '';
+                    dtEl.style.display = 'none';
+                }
+            }
             lucide.createIcons();
         }
         function changeCartQty(idx, delta) {
@@ -3284,6 +3311,7 @@
                   const totalMetros = comprimento * pecas;
                   CART.push({
                       prodId: p.id, name: p.name, price: p.price,
+                      fixedPrice: p.price,
                       qty: totalMetros,
                       comprimento: comprimento,
                       pecas: pecas,
@@ -3300,7 +3328,7 @@
                       existing.qty += qty; 
                       existing.total = existing.qty * existing.price; 
                   } else { 
-                      CART.push({prodId: p.id, name: p.name, price: p.price, qty: qty, total: p.price * qty, parceiro: false}); 
+                      CART.push({prodId: p.id, name: p.name, price: p.price, fixedPrice: p.price, qty: qty, total: p.price * qty, parceiro: false}); 
                   }
                   if (qtyInput) qtyInput.value = "1";
               }
@@ -3416,6 +3444,7 @@
             ? STATE.products.find(p => String(p.id) === String(item.productId))
             : STATE.products.find(p => p.name === item.name);
         const isPartner = prod ? prod.parceiro : false;
+        const fixedPrice = prod ? prod.price : item.price;
         let comprimento = 0, pecas = 0, qty = item.qty;
         let obsItem = item.obs || '';
         
@@ -3446,6 +3475,7 @@
             prodId: prod ? prod.id : null,
             name: item.name,
             price: item.price,
+            fixedPrice: fixedPrice,
             qty: qty,
             comprimento: comprimento,
             pecas: pecas,
