@@ -1934,6 +1934,7 @@
                 sub = `${e.provider || e.note || '-'} · ${pago ? 'Pago' : 'Resta ' + formatMoney(finSaldoExp(e))}`;
                 if (!pago) actions.push({ label: 'Pagar', icon: 'check', cls: 'red', onclick: `payExpense('${e.id}')` });
                 actions.push({ label: 'Editar', icon: 'edit-3', cls: 'slate', onclick: `openEditExpense('${e.id}')` });
+                actions.push({ label: 'Excluir', icon: 'trash-2', cls: 'red', onclick: `excluirDespesa('${e.id}')` });
                 actions.push({ label: 'Duplicar (+30 dias)', icon: 'copy', cls: 'slate', onclick: `duplicarDespesa('${e.id}')` });
                 if ((e.valorPago || 0) > 0) actions.push({ label: 'Estornar última baixa', icon: 'rotate-ccw', cls: 'slate', onclick: `estornarDespesaLog('${e.id}')` });
             }
@@ -2971,6 +2972,20 @@
             } catch(e) {
                 showLoading(false);
                 showToast("Erro: " + e.message, true);
+            }
+        }
+
+        async function excluirDespesa(id) {
+            if (!confirm("Excluir esta despesa permanentemente? Esta ação não pode ser desfeita.")) return;
+            showLoading(true);
+            try {
+                const { error } = await sb.from('despesas').delete().eq('id', id);
+                if (error) throw error;
+                showToast("Despesa excluída!");
+                loadData();
+            } catch (e) {
+                showLoading(false);
+                showToast("Erro ao excluir: " + e.message, true);
             }
         }
 
