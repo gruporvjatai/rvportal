@@ -210,6 +210,16 @@
               </div>
           </button>
 
+          <button onclick="openHaverReportModal()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
+              <div>
+                  <h3 class="text-base font-black text-slate-800 mb-1">Crédito em Haver</h3>
+                  <p class="text-xs text-slate-500 font-medium">Clientes com saldo de crédito a favor.</p>
+              </div>
+              <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <i data-lucide="wallet" class="w-6 h-6"></i>
+              </div>
+          </button>
+
           <button onclick="openRelatorioAbertosMobile()" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex items-center justify-between active:scale-95 transition-transform text-left w-full">
               <div>
                   <h3 class="text-base font-black text-slate-800 mb-1">Itens em Aberto na Expedição</h3>
@@ -1216,6 +1226,41 @@
         </div>
     </div>
 
+    <!-- ========== MODAL CLIENTES COM CRÉDITO EM HAVER (mobile) ========== -->
+    <div id="modal-haver-report" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-center justify-center p-4 animate-[fadeIn_0.2s]">
+        <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[88vh] overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-black text-slate-800 text-lg flex items-center gap-2">
+                    <i data-lucide="wallet" class="text-emerald-600 w-5 h-5"></i> Crédito em Haver
+                </h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="compartilharHaverPDF()" class="text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><i data-lucide="share-2" class="w-4 h-4"></i> PDF</button>
+                    <button onclick="closeHaverReport()" class="text-slate-400 hover:text-emerald-600 bg-white rounded-full p-1">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="px-5 pt-4">
+                <p id="haver-report-resumo" class="text-sm text-slate-500"></p>
+            </div>
+            <div class="overflow-y-auto flex-1">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3">Cliente</th>
+                            <th class="p-3 text-right w-28">Crédito</th>
+                        </tr>
+                    </thead>
+                    <tbody id="haver-report-list" class="divide-y"></tbody>
+                </table>
+            </div>
+            <div class="p-4 border-t bg-emerald-50 flex justify-between items-center">
+                <span class="font-bold text-emerald-900 uppercase text-xs">Total em haver</span>
+                <span id="haver-report-total" class="font-black text-emerald-700 text-lg"></span>
+            </div>
+        </div>
+    </div>
+
     <!-- ========== MODAL NOVA RECEITA (AVULSA) ========== -->
     <div id="modal-revenue" class="hidden fixed inset-0 bg-slate-900/70 z-[80] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
         <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] animate-[fadeIn_0.3s_ease-out]">
@@ -1620,7 +1665,9 @@
                         id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
                         logradouro: c.logradouro || '', numero: c.numero || '', complemento: c.complemento || '',
                         bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || '',
-                        tipo: c.tipo || 'cliente'
+                        tipo: c.tipo || 'cliente',
+                        creditoHaver: Number(c.credito_haver) || 0,
+                        creditoHaverObs: c.credito_haver_obs || ''
                     }));
             
                     STATE.logs = [];
@@ -5572,6 +5619,17 @@ function downloadPDF(blob, filename) {
               .sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
       }
 
+      // ================== CLIENTES COM CRÉDITO EM HAVER ==================
+      function getClientesComHaver() {
+          return (STATE.clients || [])
+              .map(c => ({
+                  id: c.id, name: c.name || '-', phone: c.phone || '',
+                  obs: c.creditoHaverObs || '', valor: Number(c.creditoHaver) || 0
+              }))
+              .filter(c => c.valor > 0.005)
+              .sort((a, b) => b.valor - a.valor || String(a.name).localeCompare(String(b.name), 'pt-BR'));
+      }
+
       function openValorEstoqueModal() {
           const itens = getValorEstoque();
           const total = itens.reduce((a, i) => a + i.valor, 0);
@@ -5600,6 +5658,64 @@ function downloadPDF(blob, filename) {
           document.getElementById('modal-valor-estoque').classList.add('hidden');
       }
 
+      // ================== RELATÓRIO: CRÉDITO EM HAVER ==================
+      function openHaverReportModal() {
+          const clientes = getClientesComHaver();
+          const total = clientes.reduce((a, c) => a + c.valor, 0);
+          const resumo = document.getElementById('haver-report-resumo');
+          if (resumo) resumo.innerHTML = `<b>${clientes.length}</b> cliente(s) com crédito a favor · total <b class="text-emerald-600">${formatMoney(total)}</b>`;
+          const list = document.getElementById('haver-report-list');
+          if (list) {
+              if (!clientes.length) {
+                  list.innerHTML = '<tr><td colspan="2" class="p-6 text-center text-slate-400">Nenhum cliente com crédito em haver.</td></tr>';
+              } else {
+                  list.innerHTML = clientes.map(c => {
+                      const sub = [c.phone ? `Tel: ${c.phone}` : '', c.obs || ''].filter(Boolean).join(' · ');
+                      return `<tr>
+                          <td class="p-3 font-medium text-slate-700">${c.name}${sub ? `<br><span class="text-[10px] text-slate-400">${sub}</span>` : ''}</td>
+                          <td class="p-3 text-right font-bold text-emerald-700">${formatMoney(c.valor)}</td>
+                      </tr>`;
+                  }).join('');
+              }
+          }
+          const totalEl = document.getElementById('haver-report-total');
+          if (totalEl) totalEl.innerHTML = formatMoney(total);
+          document.getElementById('modal-haver-report').classList.remove('hidden');
+          if (window.lucide) lucide.createIcons();
+      }
+
+      function closeHaverReport() {
+          document.getElementById('modal-haver-report').classList.add('hidden');
+      }
+
+      async function compartilharHaverPDF() {
+          const clientes = getClientesComHaver();
+          if (!clientes.length) { showToast("Nenhum dado para gerar o relatório", true); return; }
+          showLoading(true);
+          try {
+              const logo = await _finLogoBase64();
+              let total = 0;
+              const linhas = clientes.map(c => {
+                  total += c.valor;
+                  return [ c.name, c.phone || '-', c.obs || '-', formatMoney(c.valor) ];
+              });
+              const colunas = [
+                  { label: 'Cliente', width: '*' },
+                  { label: 'Telefone', width: 110 },
+                  { label: 'Referência', width: '*' },
+                  { label: 'Crédito', width: 90, align: 'right' }
+              ];
+              const dd = _finRelatorioDocDefinition(logo, 'RELATÓRIO: CRÉDITO EM HAVER', 'Clientes com saldo de crédito a favor', colunas, linhas, 'TOTAL EM HAVER:', formatMoney(total), '#ecfdf5');
+              const fname = `RV PORTAL - Credito em Haver ${getHojeLocalStr()}.pdf`;
+              await _finCompartilharPDF(dd, fname, 'Crédito em Haver', 'Relatório de Crédito em Haver - RV Portal');
+          } catch (e) {
+              console.error(e);
+              showToast("Falha ao gerar o PDF", true);
+          } finally {
+              showLoading(false);
+          }
+      }
+
       // Fecha modais com a tecla Esc (padronizacao). Preserva o conteudo de
       // formularios longos de cadastro.
       const ESC_MODAL_CLOSE_MAP = {
@@ -5608,6 +5724,7 @@ function downloadPDF(blob, filename) {
           'modal-catprod-produtos': closeVerProdutosCategoria,
           'modal-comprometido': closeComprometido,
           'modal-valor-estoque': closeValorEstoque,
+          'modal-haver-report': closeHaverReport,
           'modal-ajuste-historico': closeAjusteHistorico,
           'modal-period-report': closePeriodReportModal,
           'modal-partner-report': closePartnerModal,

@@ -1131,6 +1131,15 @@
                 <h3 class="font-bold text-slate-800 text-lg">Valor em Estoque Disponível</h3>
                 <p class="text-xs text-slate-500 font-medium">Estoque físico menos o já vendido (comprometido), avaliado pelo custo. O que está vendido é do cliente.</p>
             </div>
+
+            <!-- 🟢 NOVO CARD 6: Crédito em Haver (clientes) -->
+            <div onclick="openHaverReportModal()" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all flex flex-col items-center text-center gap-3">
+                <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+                    <i data-lucide="wallet" class="w-7 h-7"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-lg">Crédito em Haver</h3>
+                <p class="text-xs text-slate-500 font-medium">Clientes com saldo de crédito a favor, com telefone e referência.</p>
+            </div>
           </div>
       </div>
 
@@ -2083,6 +2092,40 @@
         </div>
     </div>
 
+    <div id="modal-haver-report" class="hidden fixed inset-0 bg-black/60 z-[70] flex justify-center items-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="wallet" class="text-emerald-600"></i> Crédito em Haver (Clientes)</h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="printHaverReport()" class="text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
+                    <button onclick="closeHaverReport()" class="text-slate-400 hover:text-emerald-600"><i data-lucide="x"></i></button>
+                </div>
+            </div>
+            <div class="px-5 pt-4">
+                <p id="haver-report-resumo" class="text-sm text-slate-500"></p>
+            </div>
+            <div class="overflow-y-auto flex-1">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-slate-600 sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3">Cliente</th>
+                            <th class="p-3 w-40">Telefone</th>
+                            <th class="p-3">Referência</th>
+                            <th class="p-3 text-right w-36">Crédito</th>
+                        </tr>
+                    </thead>
+                    <tbody id="haver-report-list" class="divide-y"></tbody>
+                    <tfoot>
+                        <tr class="bg-emerald-50 border-t-2 border-emerald-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.06)]">
+                            <td colspan="3" class="p-3 text-right font-bold text-emerald-900 uppercase text-xs">Total em haver:</td>
+                            <td id="haver-report-total" class="p-3 text-right font-black text-emerald-700 text-base"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <div id="pos-history-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden">
         
@@ -2509,6 +2552,7 @@
             'modal-comprometido': closeComprometido,
             'modal-expedicao-abertos': closeRelatorioAbertos,
             'modal-valor-estoque': closeValorEstoque,
+            'modal-haver-report': closeHaverReport,
             'modal-foto-produto': fecharFotoProduto,
             'modal-cliente-picker': closeClientPickerModal,
             'modal-cliente-vendas': closeClienteVendasModal,
@@ -7011,6 +7055,115 @@ function loadQuoteToCart(id) {
                 <tr style="background:#ccfbf1;">
                   <td colspan="5" style="border:1px solid #0f172a; padding:9px 10px; text-align:right; font-weight:800; text-transform:uppercase; font-size:11px;">Total disponível</td>
                   <td style="border:1px solid #0f172a; padding:9px 10px; text-align:right; font-weight:900; font-size:15px; color:#0f766e;">${formatMoney(total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <p style="margin-top:18px; font-size:9px; color:#94a3b8; text-align:center;">Documento gerado automaticamente pelo RV Portal em ${emissao}.</p>
+          </div>
+        `;
+        setTimeout(() => window.print(), 500);
+      }
+
+      // ================== CRÉDITO EM HAVER (CLIENTES) ==================
+      function getClientesComHaver() {
+        return (STATE.clients || [])
+          .map(c => ({
+            id: c.id,
+            name: c.name || '-',
+            phone: c.phone || '',
+            obs: c.creditoHaverObs || '',
+            valor: Number(c.creditoHaver) || 0
+          }))
+          .filter(c => c.valor > 0.005)
+          .sort((a, b) => b.valor - a.valor || String(a.name).localeCompare(String(b.name), 'pt-BR'));
+      }
+
+      function openHaverReportModal() {
+        const clientes = getClientesComHaver();
+        const total = clientes.reduce((a, c) => a + c.valor, 0);
+        const resumo = document.getElementById('haver-report-resumo');
+        if (resumo) resumo.innerHTML = `<b>${clientes.length}</b> cliente(s) com crédito a favor · total em haver: <b class="text-emerald-600">${formatMoney(total)}</b>`;
+        const list = document.getElementById('haver-report-list');
+        if (list) {
+          if (!clientes.length) {
+            list.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-400">Nenhum cliente com crédito em haver.</td></tr>';
+          } else {
+            list.innerHTML = clientes.map(c => `
+              <tr class="hover:bg-slate-50">
+                <td class="p-3 font-medium text-slate-700">${c.name}</td>
+                <td class="p-3 text-slate-500">${c.phone || '-'}</td>
+                <td class="p-3 text-slate-500">${c.obs || '-'}</td>
+                <td class="p-3 text-right font-bold text-emerald-700">${formatMoney(c.valor)}</td>
+              </tr>`).join('');
+          }
+        }
+        const totalEl = document.getElementById('haver-report-total');
+        if (totalEl) totalEl.innerHTML = formatMoney(total);
+        document.getElementById('modal-haver-report').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function closeHaverReport() {
+        document.getElementById('modal-haver-report').classList.add('hidden');
+      }
+
+      function printHaverReport() {
+        const clientes = getClientesComHaver();
+        if (!clientes.length) return showToast("Nenhum cliente com crédito em haver", true);
+        const total = clientes.reduce((a, c) => a + c.valor, 0);
+        const company = {
+          name: "RV NEGOCIOS E COMPANHIA LTDA",
+          cnpj: "61.893.912/0001-24",
+          ie: "20.298.776-0",
+          phone: "(64) 3636-4861",
+          address: "Jataí - GO",
+          logoUrl: LOGO_NEGOCIOS_URL
+        };
+        const emissao = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const corpo = clientes.map((c, idx) => `
+          <tr style="background:${idx % 2 ? '#f8fafc' : '#fff'};">
+            <td style="border:1px solid #cbd5e1; padding:7px 9px; color:#1e293b;">${c.name}</td>
+            <td style="border:1px solid #cbd5e1; padding:7px 9px; color:#64748b;">${c.phone || '-'}</td>
+            <td style="border:1px solid #cbd5e1; padding:7px 9px; color:#64748b;">${c.obs || '-'}</td>
+            <td style="border:1px solid #cbd5e1; padding:7px 9px; text-align:right; font-weight:700; color:#047857;">${formatMoney(c.valor)}</td>
+          </tr>`).join('');
+        const el = document.getElementById('print-area');
+        el.innerHTML = `
+          <div class="invoice-box-orig" style="font-family:'Helvetica','Arial',sans-serif; max-width:820px; margin:auto; padding:15px; color:#0f172a;">
+            <div style="display:flex; border:1px solid #0f172a; border-bottom:none;">
+              <div style="width:110px; padding:8px; border-right:1px solid #0f172a; display:flex; align-items:center; justify-content:center;">
+                <img src="${company.logoUrl}" style="max-height:78px; max-width:100%;" />
+              </div>
+              <div style="flex:1; padding:10px 12px; border-right:1px solid #0f172a;">
+                <h2 style="margin:0; font-size:18px; font-weight:800; color:#059669; text-transform:uppercase;">${company.name}</h2>
+                <p style="margin:4px 0 0; font-size:11px; color:#475569;">CNPJ: ${company.cnpj} &nbsp;|&nbsp; IE: ${company.ie}</p>
+                <p style="margin:2px 0 0; font-size:11px; color:#475569;">${company.address} &nbsp;|&nbsp; Tel: ${company.phone}</p>
+              </div>
+              <div style="width:210px; padding:10px 12px; background:#f8fafc; text-align:right;">
+                <h3 style="margin:0; font-size:14px; font-weight:800; text-transform:uppercase;">Crédito em Haver</h3>
+                <p style="margin:5px 0 0; font-size:11px; color:#64748b;">Clientes com saldo de crédito a favor</p>
+                <p style="margin:6px 0 0; font-size:11px;">Emissão: <b>${emissao}</b></p>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#ecfdf5; border:1px solid #0f172a; padding:8px 12px; font-size:12px;">
+              <span><b>${clientes.length}</b> cliente(s) com crédito</span>
+              <span>Total em haver: <b style="font-size:16px; color:#047857;">${formatMoney(total)}</b></span>
+            </div>
+            <div style="margin:16px 0 6px; font-size:12px; font-weight:800; text-transform:uppercase; color:#0f172a; border-left:4px solid #059669; padding-left:8px;">Detalhamento por cliente</div>
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+              <thead>
+                <tr>
+                  <th style="background:#0f172a; color:#fff; border:1px solid #0f172a; padding:8px 10px; font-size:11px; text-transform:uppercase; text-align:left;">Cliente</th>
+                  <th style="background:#0f172a; color:#fff; border:1px solid #0f172a; padding:8px 10px; font-size:11px; text-transform:uppercase; text-align:left; width:150px;">Telefone</th>
+                  <th style="background:#0f172a; color:#fff; border:1px solid #0f172a; padding:8px 10px; font-size:11px; text-transform:uppercase; text-align:left;">Referência</th>
+                  <th style="background:#0f172a; color:#fff; border:1px solid #0f172a; padding:8px 10px; font-size:11px; text-transform:uppercase; text-align:right; width:130px;">Crédito</th>
+                </tr>
+              </thead>
+              <tbody>${corpo}</tbody>
+              <tfoot>
+                <tr style="background:#d1fae5;">
+                  <td colspan="3" style="border:1px solid #0f172a; padding:9px 10px; text-align:right; font-weight:800; text-transform:uppercase; font-size:11px;">Total em haver</td>
+                  <td style="border:1px solid #0f172a; padding:9px 10px; text-align:right; font-weight:900; font-size:15px; color:#047857;">${formatMoney(total)}</td>
                 </tr>
               </tfoot>
             </table>
