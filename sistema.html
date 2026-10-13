@@ -1416,7 +1416,7 @@
             <input type="hidden" id="cli-id">
             <div class="space-y-3">
                 <input type="text" id="cli-name" required placeholder="Nome do Cliente" class="w-full p-2 border rounded">
-                <input type="text" id="cli-phone" placeholder="Telefone" class="w-full p-2 border rounded">
+                <input type="text" id="cli-phone" placeholder="(00) 00000-0000" oninput="mascaraTelefoneInput(this)" class="w-full p-2 border rounded">
                 <div>
                     <input type="text" id="cli-doc" placeholder="CPF ou CNPJ" inputmode="numeric" oninput="mascaraDocInput(this)" class="w-full p-2 border rounded">
                     <p class="text-[11px] text-slate-400 mt-0.5">Formato aplicado automaticamente (CPF ou CNPJ).</p>
@@ -3021,7 +3021,7 @@
                              (isNew ? '' : (STATE.clients.find(x => String(x.id) === String(newId))?.address || ''));
 
             const payload = {
-                id: newId, nome: document.getElementById('cli-name').value.trim(), telefone: document.getElementById('cli-phone').value.trim(),
+                id: newId, nome: document.getElementById('cli-name').value.trim(), telefone: formatarTelefoneDigitos(document.getElementById('cli-phone').value),
                 documento: doc, endereco: endereco,
                 logradouro: endInfo.logradouro, numero: endInfo.numero, complemento: endInfo.complemento,
                 bairro: endInfo.bairro, cidade: endInfo.cidade, uf: endInfo.uf,
@@ -3079,6 +3079,23 @@
         function mascaraCepInput(el) {
             let d = el.value.replace(/\D/g, '').slice(0, 8);
             el.value = d.length > 5 ? d.replace(/^(\d{5})(\d)/, '$1-$2') : d;
+        }
+
+        // Padroniza telefone no formato (DD) XXXXX-XXXX / (DD) XXXX-XXXX.
+        // Aceita DDI 55 na frente (remove) e nao-valor retorna vazio.
+        function formatarTelefoneDigitos(valor) {
+            let d = String(valor || '').replace(/\D/g, '');
+            if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+            d = d.slice(0, 11);
+            if (!d) return '';
+            if (d.length <= 2) return '(' + d;
+            if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+            if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+            return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+        }
+
+        function mascaraTelefoneInput(el) {
+            el.value = formatarTelefoneDigitos(el.value);
         }
 
         function lerEnderecoCliente() {
@@ -7697,7 +7714,7 @@ function loadQuoteToCart(id) {
             if (pagina.length === 0) {
                 list.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400">Nenhum cliente encontrado.</td></tr>';
             } else {
-                list.innerHTML = pagina.map(c=>`<tr class="hover:bg-slate-50"><td class="p-4 font-medium">${c.name}</td><td class="p-4">${c.phone}</td><td class="p-4">${c.doc}</td><td class="p-4 text-center flex justify-center gap-3"><button onclick="openClientForm('${c.id}')" class="text-indigo-700 hover:text-indigo-800" title="Editar"><i data-lucide="edit-3" width="16"></i></button><button onclick="openClienteVendasModal('${c.id}')" class="text-emerald-600 hover:text-emerald-800" title="Ver vendas"><i data-lucide="history" width="16"></i></button><button onclick="deleteClient('${c.id}')" class="text-red-600 hover:text-red-800" title="Excluir"><i data-lucide="trash-2" width="16"></i></button></td></tr>`).join('');
+                list.innerHTML = pagina.map(c=>`<tr class="hover:bg-slate-50"><td class="p-4 font-medium">${c.name}</td><td class="p-4">${c.phone || ''}</td><td class="p-4">${c.doc || ''}</td><td class="p-4 text-center flex justify-center gap-3"><button onclick="openClientForm('${c.id}')" class="text-indigo-700 hover:text-indigo-800" title="Editar"><i data-lucide="edit-3" width="16"></i></button><button onclick="openClienteVendasModal('${c.id}')" class="text-emerald-600 hover:text-emerald-800" title="Ver vendas"><i data-lucide="history" width="16"></i></button><button onclick="deleteClient('${c.id}')" class="text-red-600 hover:text-red-800" title="Excluir"><i data-lucide="trash-2" width="16"></i></button></td></tr>`).join('');
             }
             lucide.createIcons();
 
@@ -7735,7 +7752,7 @@ function loadQuoteToCart(id) {
                 if(c) {
                     document.getElementById('cli-id').value = c.id;
                     document.getElementById('cli-name').value = c.name;
-                    document.getElementById('cli-phone').value = c.phone;
+                    document.getElementById('cli-phone').value = formatarTelefoneDigitos(c.phone);
                     document.getElementById('cli-doc').value = c.doc;
                     document.getElementById('cli-cep').value = c.cep ? String(c.cep) : '';
                     document.getElementById('cli-logradouro').value = c.logradouro || '';
@@ -8318,7 +8335,7 @@ function loadQuoteToCart(id) {
                 <div class="info-grid">
                     <div class="info-col">
                         <div class="col-header">Dados do Cliente</div>
-                        <div class="col-content"><strong>${cli.name}</strong><br>${cli.doc}<br>${cli.phone}<br>${addressToShow}</div>
+                        <div class="col-content"><strong>${cli.name}</strong><br>${[cli.doc, cli.phone].filter(Boolean).join('<br>')}<br>${addressToShow}</div>
                     </div>
                     <div class="info-col">
                         <div class="col-header">Pagamento</div>

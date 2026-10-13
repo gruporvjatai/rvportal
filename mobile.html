@@ -958,7 +958,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone / WhatsApp</label>
-                    <input type="tel" id="cli-phone" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium" placeholder="(00) 00000-0000">
+                    <input type="tel" id="cli-phone" oninput="mascaraTelefoneInput(this)" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium" placeholder="(00) 00000-0000">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Documento (CPF/CNPJ)</label>
@@ -5830,7 +5830,7 @@ function downloadPDF(blob, filename) {
                 if(c) {
                     document.getElementById('cli-id').value = c.id;
                     document.getElementById('cli-name').value = c.name;
-                    document.getElementById('cli-phone').value = c.phone;
+                    document.getElementById('cli-phone').value = formatarTelefoneDigitos(c.phone);
                     document.getElementById('cli-doc').value = c.doc;
                     document.getElementById('cli-cep').value = c.cep ? String(c.cep) : '';
                     document.getElementById('cli-logradouro').value = c.logradouro || '';
@@ -5882,7 +5882,7 @@ function downloadPDF(blob, filename) {
                              (isNew ? '' : (STATE.clients.find(x => String(x.id) === String(newId))?.address || ''));
 
             const payload = {
-                id: newId, nome: document.getElementById('cli-name').value.trim(), telefone: document.getElementById('cli-phone').value.trim(),
+                id: newId, nome: document.getElementById('cli-name').value.trim(), telefone: formatarTelefoneDigitos(document.getElementById('cli-phone').value),
                 documento: doc, endereco: endereco,
                 logradouro: endInfo.logradouro, numero: endInfo.numero, complemento: endInfo.complemento,
                 bairro: endInfo.bairro, cidade: endInfo.cidade, uf: endInfo.uf,
@@ -5940,6 +5940,23 @@ function downloadPDF(blob, filename) {
         function mascaraCepInput(el) {
             let d = el.value.replace(/\D/g, '').slice(0, 8);
             el.value = d.length > 5 ? d.replace(/^(\d{5})(\d)/, '$1-$2') : d;
+        }
+
+        // Padroniza telefone no formato (DD) XXXXX-XXXX / (DD) XXXX-XXXX.
+        // Aceita DDI 55 na frente (remove) e nao-valor retorna vazio.
+        function formatarTelefoneDigitos(valor) {
+            let d = String(valor || '').replace(/\D/g, '');
+            if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+            d = d.slice(0, 11);
+            if (!d) return '';
+            if (d.length <= 2) return '(' + d;
+            if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+            if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+            return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+        }
+
+        function mascaraTelefoneInput(el) {
+            el.value = formatarTelefoneDigitos(el.value);
         }
 
         function lerEnderecoCliente() {
