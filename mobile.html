@@ -470,6 +470,15 @@
 
           <!-- Painel Receber -->
           <div id="fin-panel-receber">
+              <div id="rec-lote-bar" class="hidden mb-3 p-2.5 rounded-2xl bg-emerald-600 text-white items-center justify-between gap-2 shadow-lg">
+                  <div class="text-[11px] font-bold leading-tight">
+                      <span id="rec-lote-count">0</span> titulo(s)<br><span id="rec-lote-total" class="text-emerald-100">R$ 0,00</span>
+                  </div>
+                  <div class="flex gap-2 shrink-0">
+                      <button onclick="cancelarSelecaoRec()" class="px-2.5 py-2 bg-white/20 active:bg-white/30 rounded-lg text-[11px] font-bold">Cancelar</button>
+                      <button onclick="abrirRecebimentoLote()" class="px-3 py-2 bg-white text-emerald-700 active:bg-emerald-50 rounded-lg text-[11px] font-bold flex items-center gap-1"><i data-lucide="layers" class="w-3.5 h-3.5"></i> Receber</button>
+                  </div>
+              </div>
               <div class="flex gap-2 mb-3">
                   <input type="text" id="fin-rec-search" placeholder="Buscar cliente..." class="flex-1 p-2.5 border rounded-xl text-sm outline-none focus:border-emerald-500 bg-white" onkeyup="renderFinanceDebounced()">
                   <select id="fin-rec-status" class="w-28 p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
@@ -817,6 +826,77 @@
             </div>
             <div class="p-5 border-t bg-white pb-8 sm:pb-5">
                 <button onclick="saveReceivableEdit()" class="w-full p-4 bg-green-600 rounded-xl font-bold text-white active:bg-green-700 shadow-lg flex justify-center gap-2"><i data-lucide="check-circle"></i> Confirmar Baixa</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-recebimento-lote" class="hidden fixed inset-0 bg-slate-900/70 z-[82] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[92vh]">
+            <div class="p-5 border-b flex justify-between items-center bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-3xl sm:rounded-t-2xl">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="layers" class="text-emerald-600"></i> Receber em Lote</h3>
+                    <p class="text-xs text-slate-500 mt-0.5"><span id="lote-qtd-lbl">0</span> titulo(s) - forma unica.</p>
+                </div>
+                <button onclick="closeRecebimentoLote()" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-5 space-y-4 overflow-y-auto flex-1">
+                <div class="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+                    <span class="text-xs font-bold text-slate-600">Total: <span id="lote-total-lbl" class="text-emerald-700"></span></span>
+                    <span class="text-xs font-bold text-slate-500">Em caixa: <span id="lote-restante-lbl" class="text-orange-600"></span></span>
+                </div>
+                <div class="max-h-40 overflow-y-auto border border-slate-100 rounded-xl divide-y" id="lote-titulos-list"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Forma de pagamento</label>
+                        <select id="lote-forma" class="w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none" onchange="atualizarResumoLote()"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Data</label>
+                        <input type="date" id="lote-data" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Juros do lote (R$)</label>
+                        <input type="number" id="lote-jur" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50" oninput="atualizarResumoLote()">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Desconto do lote (R$)</label>
+                        <input type="number" id="lote-disc" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50" oninput="atualizarResumoLote()">
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-400 -mt-1">Juros e desconto sao rateados proporcionalmente ao saldo de cada titulo.</p>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Observacao (opcional)</label>
+                    <input type="text" id="lote-obs" placeholder="Ex: recebimento semana 12" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50">
+                </div>
+                <div id="lote-resumo" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-xs font-bold text-slate-600 space-y-0.5"></div>
+            </div>
+            <div class="p-5 border-t bg-white pb-8 sm:pb-5 flex gap-3">
+                <button onclick="closeRecebimentoLote()" class="flex-1 p-4 bg-slate-100 rounded-xl font-bold text-slate-600 active:bg-slate-200">Cancelar</button>
+                <button onclick="confirmarRecebimentoLote()" class="flex-1 p-4 bg-green-600 rounded-xl font-bold text-white active:bg-green-700 shadow-lg">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-estorno-lote" class="hidden fixed inset-0 bg-slate-900/70 z-[83] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-5 border-b flex justify-between items-center bg-gradient-to-r from-red-50 to-orange-50 rounded-t-3xl sm:rounded-t-2xl">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="rotate-ccw" class="text-red-600"></i> Estorno de lote</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Esta baixa faz parte de um recebimento em lote.</p>
+                </div>
+                <button onclick="closeEstornoLote()" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-5 space-y-3 overflow-y-auto flex-1">
+                <p class="text-sm text-slate-600">Os titulos abaixo foram baixados juntos. O que deseja estornar?</p>
+                <div class="max-h-56 overflow-y-auto border border-slate-100 rounded-xl divide-y" id="estorno-lote-list"></div>
+                <div class="text-xs font-bold text-slate-500 text-right">Total do lote: <span id="estorno-lote-total" class="text-slate-700"></span></div>
+            </div>
+            <div class="p-5 border-t bg-white pb-8 sm:pb-5 flex flex-col gap-2">
+                <button id="estorno-lote-btn-all" onclick="confirmarEstornoLote(true)" class="w-full p-4 bg-red-600 rounded-xl font-bold text-white active:bg-red-700 shadow-lg">Estornar o lote inteiro</button>
+                <button id="estorno-lote-btn-one" onclick="confirmarEstornoLote(false)" class="w-full p-4 bg-slate-100 rounded-xl font-bold text-slate-600 active:bg-slate-200">Estornar apenas este titulo</button>
+                <button onclick="closeEstornoLote()" class="w-full p-2 font-bold text-slate-400">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1751,7 +1831,8 @@
                             deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
                             finStatus: l.status_financeiro, dueDate: l.vencimento, paidValue: Number(l.valor_pago),
                             discount: Number(l.desconto), acrescimo: Number(l.acrescimo || 0),
-                            pgtoAnotacao: l.pgto_anotacao || '', deliveryAddress: l.endereco_entrega
+                            pgtoAnotacao: l.pgto_anotacao || '', deliveryAddress: l.endereco_entrega,
+                            loteId: l.lote_id != null ? l.lote_id : null
                         });
                     });
                     
@@ -2200,20 +2281,33 @@
             if (!body) return;
             const { arr, hojeLocalStr } = getRecebiveisFiltrados();
             if (!arr.length) { body.innerHTML = _finEmpty('Não há contas a receber.'); return; }
+            const selMode = !!window._recSelMode;
+            const bar = document.getElementById('rec-lote-bar');
+            if (bar) {
+                if (selMode) { bar.classList.remove('hidden'); bar.classList.add('flex'); }
+                else { bar.classList.add('hidden'); bar.classList.remove('flex'); }
+            }
+            const barCount = document.getElementById('rec-lote-count');
+            if (barCount) barCount.innerText = (window._recSelected || new Set()).size;
+            const barTotal = document.getElementById('rec-lote-total');
+            if (barTotal) barTotal.innerText = formatMoney(_recTitulosSelecionados().reduce((a, t) => a + t.saldo, 0));
             body.innerHTML = arr.map(r => {
                 const pago = r.status === 'PAGO';
                 const falta = pago ? 0 : finSaldoRec(r);
                 const v = (r.dueDate || '').split('T')[0];
                 const atrasado = !pago && v && v < hojeLocalStr;
+                const sel = window._recSelected ? window._recSelected.has(String(r.id)) : false;
+                const elegivel = !pago && falta > 0.005;
                 return `
-                <div onclick="openFinActions('rec','${r.id}')" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${pago ? 'border-l-slate-300' : (atrasado ? 'border-l-red-500' : 'border-l-emerald-500')} active:bg-slate-50">
+                <div data-recid="${r.id}" ontouchstart="_recTStart(event,'${r.id}')" ontouchend="_recTEnd(event)" ontouchmove="_recTMove(event)" onclick="_recCardClick(event,'${r.id}')" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${sel ? 'ring-2 ring-emerald-500 border-l-emerald-600' : (pago ? 'border-l-slate-300' : (atrasado ? 'border-l-red-500' : 'border-l-emerald-500'))} active:bg-slate-50">
+                    ${selMode ? `<div class="shrink-0 w-6 h-6 rounded-full border-2 mr-2 flex items-center justify-center text-white text-xs font-black ${sel ? 'bg-emerald-600 border-emerald-600' : (elegivel ? 'border-slate-300 bg-white' : 'border-slate-100 bg-slate-50')}">${sel ? '&#10003;' : ''}</div>` : ''}
                     <div class="flex-1 pr-2 min-w-0">
                         <span class="text-[10px] font-bold text-slate-400 uppercase">${r.desc}${atrasado ? ' <span class="text-red-500 ml-1">ATRASADO</span>' : (pago ? ' <span class="text-slate-400 ml-1">PAGO</span>' : '')}</span>
                         <h4 class="font-bold text-slate-700 text-sm leading-tight truncate">${r.clientName || '-'}</h4>
                         <p class="text-[10px] text-slate-500 mt-0.5">Venc: ${formatDate(r.dueDate)} | ${r.payment || '-'}</p>
                         <p class="text-[10px] ${pago ? 'text-slate-400' : 'text-red-600'} font-bold mt-0.5">${pago ? 'Quitado' : 'Falta: ' + formatMoney(falta)}</p>
                     </div>
-                    ${pago ? '' : `<button onclick="event.stopPropagation(); openBaixaReceita('${r.id}', ${r.val}, ${r.paid})" class="shrink-0 bg-emerald-100 text-emerald-700 active:bg-emerald-200 text-[11px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Receber</button>`}
+                    ${(pago || selMode) ? '' : `<button onclick="event.stopPropagation(); openBaixaReceita('${r.id}', ${r.val}, ${r.paid})" class="shrink-0 bg-emerald-100 text-emerald-700 active:bg-emerald-200 text-[11px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Receber</button>`}
                 </div>`;
             }).join('');
         }
@@ -2568,6 +2662,304 @@
             document.getElementById('modal-receivable-edit').classList.remove('hidden');
         }
 
+        // ===================== Recebimento em Lote (MOBILE) =====================
+        let _recLP = { timer: null, id: null, x: 0, y: 0, fired: false };
+
+        function _recElegivel(id) {
+            const r = (_finReceivables || []).find(x => String(x.id) === String(id));
+            return !!(r && r.status !== 'PAGO' && finSaldoRec(r) > 0.005);
+        }
+
+        function _recTStart(e, id) {
+            if (window._recSelMode) return;
+            if (!_recElegivel(id)) return;
+            const t = e.touches && e.touches[0]; if (!t) return;
+            _recLP = { id, x: t.clientX, y: t.clientY, fired: false,
+                timer: setTimeout(() => { _recLP.fired = true; _recEntrarSelMode(id); }, 450) };
+        }
+        function _recTMove(e) {
+            if (!_recLP.timer) return;
+            const t = e.touches && e.touches[0]; if (!t) return;
+            if (Math.abs(t.clientX - _recLP.x) > 10 || Math.abs(t.clientY - _recLP.y) > 10) {
+                clearTimeout(_recLP.timer); _recLP.timer = null;
+            }
+        }
+        function _recTEnd() { if (_recLP.timer) { clearTimeout(_recLP.timer); _recLP.timer = null; } }
+        function _recCardClick(e, id) {
+            if (_recLP.fired) { _recLP.fired = false; if (e) { e.preventDefault(); e.stopPropagation(); } return; }
+            if (window._recSelMode) { if (e) { e.preventDefault(); e.stopPropagation(); } _recToggle(id); return; }
+            openFinActions('rec', id);
+        }
+
+        function _recEntrarSelMode(id) {
+            window._recSelMode = true;
+            if (!window._recSelected) window._recSelected = new Set();
+            if (_recElegivel(id)) window._recSelected.add(String(id));
+            try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) {}
+            renderFinance();
+        }
+        function _recToggle(id) {
+            if (!window._recSelected) window._recSelected = new Set();
+            if (!_recElegivel(id)) return;
+            if (window._recSelected.has(String(id))) window._recSelected.delete(String(id));
+            else window._recSelected.add(String(id));
+            renderFinance();
+        }
+        function cancelarSelecaoRec() {
+            window._recSelMode = false;
+            if (window._recSelected) window._recSelected.clear();
+            renderFinance();
+        }
+
+        function _recTitulosSelecionados() {
+            const sel = window._recSelected || new Set();
+            const out = [];
+            for (const id of sel) {
+                const st = calcTituloFinanceiro(id);
+                if (!st.rows.length) continue;
+                const pagoBase = Math.max(st.money, ...st.rows.map(r => Number(r.paidValue) || 0));
+                const saldo = Math.max(0, (st.total + st.jur - st.disc) - pagoBase);
+                if (saldo <= 0.005) continue;
+                const row = st.rows[0];
+                out.push({ id: String(id), saldo, clienteNome: row.clientName, clientId: row.clientId });
+            }
+            return out;
+        }
+
+        function _ratearPorPeso(total, pesos) {
+            const cents = Math.round((Number(total) || 0) * 100);
+            const soma = pesos.reduce((a, p) => a + p, 0);
+            const parts = pesos.map(() => 0);
+            if (cents === 0 || soma <= 0) return parts;
+            let rest = cents;
+            for (let i = 0; i < pesos.length; i++) {
+                let c = (i === pesos.length - 1) ? rest : Math.round(cents * pesos[i] / soma);
+                c = Math.max(0, Math.min(c, rest));
+                parts[i] = c; rest -= c;
+            }
+            return parts.map(c => c / 100);
+        }
+
+        function abrirRecebimentoLote() {
+            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            const tits = _recTitulosSelecionados();
+            if (tits.length < 2) return showToast("Selecione ao menos 2 titulos.", true);
+            window._loteTitulos = tits;
+            const sel = document.getElementById('lote-forma');
+            if (sel && sel.children.length === 0) sel.innerHTML = METODOS_PGTO.map(m => `<option>${m}</option>`).join('');
+            if (sel) sel.value = METODOS_PGTO[0];
+            document.getElementById('lote-data').value = getHojeLocalStr();
+            document.getElementById('lote-jur').value = 0;
+            document.getElementById('lote-disc').value = 0;
+            document.getElementById('lote-obs').value = '';
+            document.getElementById('lote-qtd-lbl').innerText = tits.length;
+            document.getElementById('lote-total-lbl').innerText = formatMoney(tits.reduce((a, t) => a + t.saldo, 0));
+            document.getElementById('lote-titulos-list').innerHTML = tits.map(t => `
+                <div class="p-2 flex justify-between items-center text-xs">
+                    <div class="min-w-0">
+                        <div class="font-bold text-slate-700 truncate">${t.clienteNome || 'Consumidor Final'}</div>
+                        <div class="text-[10px] text-slate-400">Titulo #${t.id}</div>
+                    </div>
+                    <div class="font-bold text-slate-700 whitespace-nowrap">${formatMoney(t.saldo)}</div>
+                </div>`).join('');
+            atualizarResumoLote();
+            document.getElementById('modal-recebimento-lote').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function closeRecebimentoLote() {
+            document.getElementById('modal-recebimento-lote').classList.add('hidden');
+            window._loteTitulos = null;
+        }
+
+        function _computarLote() {
+            const tits = window._loteTitulos || [];
+            const jur = numId('lote-jur');
+            const disc = numId('lote-disc');
+            const pesos = tits.map(t => t.saldo);
+            const jurPart = _ratearPorPeso(jur, pesos);
+            const discPart = _ratearPorPeso(disc, pesos);
+            const parcelas = tits.map((t, i) => ({
+                id: t.id, saldo: t.saldo, juros: jurPart[i], desconto: discPart[i],
+                valorPago: Math.max(0, Math.round((t.saldo + jurPart[i] - discPart[i]) * 100) / 100)
+            }));
+            return { tits, jur, disc, parcelas,
+                totalCaixa: parcelas.reduce((a, p) => a + p.valorPago, 0),
+                forma: document.getElementById('lote-forma').value };
+        }
+
+        function atualizarResumoLote() {
+            const el = document.getElementById('lote-resumo'); if (!el || !window._loteTitulos) return;
+            const c = _computarLote();
+            document.getElementById('lote-restante-lbl').innerText = formatMoney(c.totalCaixa);
+            el.innerHTML = `
+                <div>Receber em caixa: <span class="text-indigo-700">${formatMoney(c.totalCaixa)}</span> em 1 forma (${c.forma || '-'})</div>
+                ${c.jur > 0 ? `<div>+ Juros/Multa: <span class="text-red-600">${formatMoney(c.jur)}</span></div>` : ''}
+                ${c.disc > 0 ? `<div>- Desconto: <span class="text-green-600">${formatMoney(c.disc)}</span></div>` : ''}
+                <div class="pt-1 text-sm font-black text-green-700">Todos ficam QUITADOS</div>`;
+        }
+
+        async function confirmarRecebimentoLote() {
+            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            const c = _computarLote();
+            if (!c.tits.length) return;
+            if (c.totalCaixa <= 0 && c.jur <= 0 && c.disc <= 0) return showToast("Nada a receber.", true);
+            const loteId = gerarUid();
+            const dataStr = document.getElementById('lote-data').value || getHojeLocalStr();
+            const obs = (document.getElementById('lote-obs').value || '').trim();
+            const forma = c.forma;
+            const chaves = Array.from(new Set(c.tits.map(t => t.clientId != null ? String(t.clientId) : ('nome:' + String(t.clienteNome || '').trim()))));
+            const singleClient = chaves.length === 1 && c.tits[0].clientId != null;
+            const clienteNome = singleClient ? c.tits[0].clienteNome : 'Multiplos clientes';
+            const clienteId = singleClient ? c.tits[0].clientId : null;
+
+            showLoading(true);
+            try {
+                const { error: errLote } = await sb.from('recebimento_lotes').insert([{
+                    id: loteId, data: dataStr, cliente_id: clienteId, cliente_nome: clienteNome,
+                    total: c.totalCaixa, qtd_titulos: c.tits.length,
+                    usuario: (dadosUsuario && (dadosUsuario.nome || dadosUsuario.usuario)) || '',
+                    observacao: obs || null
+                }]);
+                if (errLote) throw errLote;
+
+                const inseridos = []; const alterados = [];
+                try {
+                    for (const p of c.parcelas) {
+                        const st = calcTituloFinanceiro(p.id);
+                        if (!st.rows.length) continue;
+                        const pagoBase = Math.max(st.money, ...st.rows.map(r => Number(r.paidValue) || 0));
+                        const newMoney = pagoBase + p.valorPago;
+                        const newSaldo = st.total + st.jur + p.juros - st.disc - p.desconto - newMoney;
+                        const finStatus = newSaldo <= 0.005 ? 'PAGO' : (newMoney > 0 ? 'PARCIAL' : 'PENDENTE');
+                        const uidBatch = gerarUid();
+                        await inserirLogBaixa({
+                            id: await getNextId('logs'), uid: uidBatch, tipo: 'recebimento',
+                            produto_nome: 'Baixa de Conta (Lote)', quantidade: 0, data: dataStr,
+                            observacao: 'Ref Lanc #' + p.id, valor_total: p.valorPago,
+                            desconto: p.desconto, acrescimo: p.juros,
+                            cliente_nome: st.rows[0].clientName,
+                            cliente_id: (st.rows[0].clientId != null) ? st.rows[0].clientId : null,
+                            forma_pagamento: forma, status: 'ATIVO', status_financeiro: 'PAGO',
+                            valor_pago: p.valorPago, lote_id: loteId
+                        });
+                        inseridos.push(uidBatch);
+                        for (let row of st.rows) {
+                            alterados.push({ uid: row.uid, prev: { valor_pago: row.paidValue, status_financeiro: row.finStatus, forma_pagamento: row.paymentMethod } });
+                            const upd = { valor_pago: newMoney, status_financeiro: finStatus };
+                            if (p.valorPago > 0) upd.forma_pagamento = forma;
+                            await sb.from('logs').update(upd).eq('uid', row.uid);
+                        }
+                    }
+                } catch (inner) {
+                    for (const u of inseridos) { try { await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', u); } catch (e) {} }
+                    for (const a of alterados) { try { await sb.from('logs').update(a.prev).eq('uid', a.uid); } catch (e) {} }
+                    try { await sb.from('recebimento_lotes').delete().eq('id', loteId); } catch (e) {}
+                    throw inner;
+                }
+
+                window._recSelMode = false;
+                if (window._recSelected) window._recSelected.clear();
+                document.getElementById('modal-recebimento-lote').classList.add('hidden');
+                window._loteTitulos = null;
+                showToast(`Lote recebido: ${c.tits.length} titulo(s)!`);
+                await loadData();
+                setTimeout(() => {
+                    showToastQuestion("Gerar comprovante em PDF deste lote?", () => _finCompartilharLotePDF({ loteId, data: dataStr, forma, obs, tits: c.tits, parcelas: c.parcelas, totalCaixa: c.totalCaixa }), null);
+                }, 400);
+            } catch (err) {
+                showLoading(false);
+                showToast("Erro: " + err.message, true);
+                console.error(err);
+            }
+        }
+
+        async function _finCompartilharLotePDF(d) {
+            showLoading(true);
+            try {
+                const logo = await _finLogoBase64();
+                const linhas = d.parcelas.map(p => {
+                    const t = d.tits.find(x => String(x.id) === String(p.id)) || {};
+                    return [ '#' + p.id, t.clienteNome || 'Consumidor Final', formatMoney(p.saldo), p.juros > 0 ? '+' + formatMoney(p.juros) : '-', p.desconto > 0 ? '-' + formatMoney(p.desconto) : '-', formatMoney(p.valorPago) ];
+                });
+                const colunas = [
+                    { label: 'Título', width: 'auto' },
+                    { label: 'Cliente', width: '*' },
+                    { label: 'Saldo', width: 'auto', align: 'right' },
+                    { label: 'Juros', width: 'auto', align: 'right' },
+                    { label: 'Desc.', width: 'auto', align: 'right' },
+                    { label: 'Pago', width: 'auto', align: 'right' }
+                ];
+                const subheader = `Lote ${String(d.loteId).slice(0,8)} | Data: ${formatDate(d.data)} | Forma: ${d.forma}${d.obs ? ' | Obs: ' + d.obs : ''}`;
+                const dd = _finRelatorioDocDefinition(logo, 'COMPROVANTE DE RECEBIMENTO', subheader, colunas, linhas, 'TOTAL RECEBIDO:', formatMoney(d.totalCaixa), '#ecfdf5');
+                const fname = `RV PORTAL - Comprovante Lote ${getHojeLocalStr()}.pdf`;
+                await _finCompartilharPDF(dd, fname, 'Comprovante de Recebimento', 'Comprovante de recebimento em lote - RV Portal');
+            } catch (e) {
+                console.error(e);
+                showToast("Falha ao gerar o PDF", true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Estorno de lote (MOBILE)
+        function abrirEstornoLote(loteId, parentId) {
+            const baixas = STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO' && String(l.loteId) === String(loteId));
+            const parentIds = Array.from(new Set(baixas.map(b => String((b.note.match(/#(\d+)/) || [])[1]))));
+            const tits = parentIds.map(pid => {
+                const st = calcTituloFinanceiro(pid);
+                const row = st.rows[0] || {};
+                const valor = baixas.filter(b => String((b.note.match(/#(\d+)/) || [])[1]) === pid).reduce((a, b) => a + Number(b.totalValue || 0), 0);
+                return { id: pid, clienteNome: row.clientName || 'Consumidor Final', valor, isAlvo: String(pid) === String(parentId) };
+            });
+            window._estornoLote = { loteId, parentId: String(parentId), tits };
+            document.getElementById('estorno-lote-list').innerHTML = tits.map(t => `
+                <div class="p-2 flex justify-between items-center text-xs ${t.isAlvo ? 'bg-red-50' : ''}">
+                    <div class="min-w-0">
+                        <div class="font-bold text-slate-700 truncate">${t.clienteNome}</div>
+                        <div class="text-[10px] text-slate-400">Titulo #${t.id}${t.isAlvo ? ' (selecionado)' : ''}</div>
+                    </div>
+                    <div class="font-bold text-slate-700 whitespace-nowrap">${formatMoney(t.valor)}</div>
+                </div>`).join('');
+            document.getElementById('estorno-lote-total').innerText = formatMoney(tits.reduce((a, t) => a + t.valor, 0));
+            document.getElementById('estorno-lote-btn-one').classList.toggle('hidden', !tits.some(t => t.isAlvo));
+            document.getElementById('modal-estorno-lote').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function closeEstornoLote() {
+            document.getElementById('modal-estorno-lote').classList.add('hidden');
+            window._estornoLote = null;
+        }
+        async function confirmarEstornoLote(todos) {
+            const info = window._estornoLote; if (!info) return;
+            const ids = todos ? info.tits.map(t => t.id) : [info.parentId];
+            document.getElementById('modal-estorno-lote').classList.add('hidden');
+            showLoading(true);
+            try {
+                for (const tid of ids) { await _estornarTituloBaixaMobile(tid); }
+                if (todos) { try { await sb.from('recebimento_lotes').update({ estornado: true, estornado_at: new Date().toISOString() }).eq('id', info.loteId); } catch (e) {} }
+                window._estornoLote = null;
+                showToast(todos ? "Lote estornado!" : "Titulo estornado!");
+                await loadData();
+            } catch (e) {
+                showLoading(false);
+                showToast("Erro: " + e.message, true);
+            }
+        }
+        async function _estornarTituloBaixaMobile(parentId) {
+            const baixas = STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === String(parentId));
+            if (!baixas.length) return false;
+            const datas = baixas.map(b => b.date || '').sort();
+            const ultima = datas[datas.length - 1];
+            const alvo = baixas.filter(b => String(b.date || '') === String(ultima));
+            for (const b of alvo) await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', b.uid);
+            const uids = new Set(alvo.map(b => b.uid));
+            STATE.logs.forEach(l => { if (uids.has(l.uid)) l.status = 'CANCELADO'; });
+            const st = calcTituloFinanceiro(parentId);
+            for (const row of st.rows) await sb.from('logs').update({ valor_pago: st.money, status_financeiro: st.status }).eq('uid', row.uid);
+            return true;
+        }
+        // ===================== /Recebimento em Lote (MOBILE) =====================
+
         // Parcelamento RECEBER (somente Financeiro): divide a venda A RECEBER em N títulos receita
         function openParcelarReceber(id) {
             const master = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda' && l.status !== 'CANCELADO');
@@ -2718,10 +3110,11 @@
             let err = await tenta(obj);
             if (!err) return;
             const msg = String(err.message || '');
-            if (/column .*acrescimo.* does not exist|column .*pgto_anotacao.* does not exist/i.test(msg)) {
+            if (/column .*acrescimo.* does not exist|column .*pgto_anotacao.* does not exist|column .*lote_id.* does not exist/i.test(msg)) {
                 const min = Object.assign({}, obj);
                 delete min.acrescimo;
                 delete min.pgto_anotacao;
+                delete min.lote_id;
                 err = await tenta(min);
                 if (!err) return;
             }
@@ -2805,6 +3198,16 @@
         }
 
         async function estornarRecebimento(ref) {
+            // Se a baixa desse titulo veio de um lote, abre o modal de estorno de lote.
+            const _byUid = STATE.logs.find(l => l.type === 'recebimento' && String(l.uid) === String(ref));
+            const _parentForLote = _byUid
+                ? String(((_byUid.note || '').match(/#(\d+)/) || [])[1] || '')
+                : String(ref);
+            if (_parentForLote) {
+                const _baixasParent = STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === _parentForLote);
+                const _loteId = (_baixasParent.find(b => b.loteId) || {}).loteId;
+                if (_loteId) return abrirEstornoLote(_loteId, _parentForLote);
+            }
             showLoading(true);
 
             try {
@@ -5756,6 +6159,8 @@ function downloadPDF(blob, filename) {
           'modal-comprometido': closeComprometido,
           'modal-valor-estoque': closeValorEstoque,
           'modal-haver-report': closeHaverReport,
+          'modal-recebimento-lote': closeRecebimentoLote,
+          'modal-estorno-lote': closeEstornoLote,
           'modal-ajuste-historico': closeAjusteHistorico,
           'modal-period-report': closePeriodReportModal,
           'modal-partner-report': closePartnerModal,
