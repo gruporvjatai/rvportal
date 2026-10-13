@@ -998,13 +998,15 @@
                         <option value="servico">Serviço (não controla estoque)</option>
                     </select>
                 </div>
-                <div>
-                    <label class="rv-switch" title="Produtos desativados não aparecem no catálogo nem no PDV">
+                <div class="flex items-center justify-between gap-3 bg-slate-50 border rounded-xl p-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold text-slate-700">Produto Ativo</p>
+                        <p class="text-[11px] text-slate-400 font-medium leading-tight">Desativados saem do catálogo e do PDV.</p>
+                    </div>
+                    <label class="rv-switch shrink-0" title="Produto ativo">
                         <input type="checkbox" id="prd-ativo" checked>
                         <span class="rv-track"><span class="rv-knob"></span></span>
-                        <span class="text-sm font-bold text-slate-700">Produto Ativo</span>
                     </label>
-                    <p class="text-[11px] text-slate-400 font-medium mt-1 ml-[50px]">Desativados ficam guardados, mas fora do catálogo e do PDV.</p>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
@@ -1013,10 +1015,16 @@
                     </select>
                 </div>
                 
-                <!-- Checkbox de parceiro -->
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="prd-parceiro" class="w-4 h-4 text-orange-500 rounded" onchange="toggleProdutoParceiro()">
-                    <label for="prd-parceiro" class="text-sm font-bold text-slate-700">Produto de Parceiro</label>
+                <!-- Switch de parceiro -->
+                <div class="flex items-center justify-between gap-3 bg-slate-50 border rounded-xl p-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold text-slate-700">Produto de Parceiro</p>
+                        <p class="text-[11px] text-slate-400 font-medium leading-tight">Fornecedor externo</p>
+                    </div>
+                    <label class="rv-switch shrink-0" title="Produto de parceiro">
+                        <input type="checkbox" id="prd-parceiro" onchange="toggleProdutoParceiro()">
+                        <span class="rv-track"><span class="rv-knob"></span></span>
+                    </label>
                 </div>
                 <!-- Fornecedor parceiro (visível só se marcado) -->
                 <div id="prd-fornecedor-container" class="hidden">
@@ -6141,6 +6149,37 @@ function showFilteredExpenses() {
             localStorage.removeItem('rv_user');
             window.location.replace('index.html');
         }
+
+        // ===== Trava o scroll da tela de baixo enquanto houver modal/view de tela cheia aberto =====
+        (function initScrollLock() {
+            const OVERLAY_SELECTOR = '[class*="fixed"][class*="inset-0"]';
+            let locked = false;
+            function anyOverlayVisible() {
+                const overlays = document.querySelectorAll(OVERLAY_SELECTOR);
+                for (let i = 0; i < overlays.length; i++) {
+                    if (!overlays[i].classList.contains('hidden')) return true;
+                }
+                return false;
+            }
+            function refresh() {
+                const shouldLock = anyOverlayVisible();
+                if (shouldLock === locked) return;
+                locked = shouldLock;
+                document.documentElement.style.overflow = shouldLock ? 'hidden' : '';
+                document.body.style.overflow = shouldLock ? 'hidden' : '';
+            }
+            window.__refreshScrollLock = refresh;
+            const mo = new MutationObserver(refresh);
+            const start = () => {
+                mo.observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
+                refresh();
+            };
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', start);
+            } else {
+                start();
+            }
+        })();
     </script>
   </body>
 </html>
