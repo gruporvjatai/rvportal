@@ -494,6 +494,15 @@
 
           <!-- Painel Pagar -->
           <div id="fin-panel-pagar" class="hidden">
+              <div id="pay-lote-bar" class="hidden mb-3 p-2.5 rounded-2xl bg-red-600 text-white items-center justify-between gap-2 shadow-lg">
+                  <div class="text-[11px] font-bold leading-tight">
+                      <span id="pay-lote-count">0</span> titulo(s)<br><span id="pay-lote-total" class="text-red-100">R$ 0,00</span>
+                  </div>
+                  <div class="flex gap-2 shrink-0">
+                      <button onclick="cancelarSelecaoPay()" class="px-2.5 py-2 bg-white/20 active:bg-white/30 rounded-lg text-[11px] font-bold">Cancelar</button>
+                      <button onclick="abrirPagamentoLote()" class="px-3 py-2 bg-white text-red-700 active:bg-red-50 rounded-lg text-[11px] font-bold flex items-center gap-1"><i data-lucide="layers" class="w-3.5 h-3.5"></i> Pagar</button>
+                  </div>
+              </div>
               <div class="flex gap-1.5 mb-3">
                   <input type="text" id="fin-pay-search" placeholder="Buscar fornecedor/item..." class="flex-1 min-w-0 p-2.5 border rounded-xl text-sm outline-none focus:border-red-500 bg-white" onkeyup="renderFinanceDebounced()">
                   <select id="fin-pay-cat" class="w-24 shrink-0 p-2.5 border rounded-xl text-[11px] font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
@@ -897,6 +906,77 @@
                 <button id="estorno-lote-btn-all" onclick="confirmarEstornoLote(true)" class="w-full p-4 bg-red-600 rounded-xl font-bold text-white active:bg-red-700 shadow-lg">Estornar o lote inteiro</button>
                 <button id="estorno-lote-btn-one" onclick="confirmarEstornoLote(false)" class="w-full p-4 bg-slate-100 rounded-xl font-bold text-slate-600 active:bg-slate-200">Estornar apenas este titulo</button>
                 <button onclick="closeEstornoLote()" class="w-full p-2 font-bold text-slate-400">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-pagamento-lote" class="hidden fixed inset-0 bg-slate-900/70 z-[82] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[92vh]">
+            <div class="p-5 border-b flex justify-between items-center bg-gradient-to-r from-red-50 to-orange-50 rounded-t-3xl sm:rounded-t-2xl">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="layers" class="text-red-600"></i> Pagar em Lote</h3>
+                    <p class="text-xs text-slate-500 mt-0.5"><span id="lote-pay-qtd-lbl">0</span> titulo(s) - forma unica.</p>
+                </div>
+                <button onclick="closePagamentoLote()" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-5 space-y-4 overflow-y-auto flex-1">
+                <div class="flex justify-between items-center bg-red-50 border border-red-100 p-3 rounded-xl">
+                    <span class="text-xs font-bold text-slate-600">Total: <span id="lote-pay-total-lbl" class="text-red-700"></span></span>
+                    <span class="text-xs font-bold text-slate-500">Em caixa: <span id="lote-pay-restante-lbl" class="text-orange-600"></span></span>
+                </div>
+                <div class="max-h-40 overflow-y-auto border border-slate-100 rounded-xl divide-y" id="lote-pay-titulos-list"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Forma de pagamento</label>
+                        <select id="lote-pay-forma" class="w-full p-3 border rounded-xl text-sm bg-slate-50 outline-none" onchange="atualizarResumoLotePagar()"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Data</label>
+                        <input type="date" id="lote-pay-data" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Juros do lote (R$)</label>
+                        <input type="number" id="lote-pay-jur" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50" oninput="atualizarResumoLotePagar()">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Desconto do lote (R$)</label>
+                        <input type="number" id="lote-pay-disc" value="0" min="0" step="0.01" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50" oninput="atualizarResumoLotePagar()">
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-400 -mt-1">Juros e desconto sao rateados proporcionalmente ao saldo de cada titulo.</p>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Observacao (opcional)</label>
+                    <input type="text" id="lote-pay-obs" placeholder="Ex: pagamento semana 12" class="w-full p-3 border rounded-xl text-sm outline-none bg-slate-50">
+                </div>
+                <div id="lote-pay-resumo" class="bg-red-50 border border-red-100 rounded-xl p-3 text-xs font-bold text-slate-600 space-y-0.5"></div>
+            </div>
+            <div class="p-5 border-t bg-white pb-8 sm:pb-5 flex gap-3">
+                <button onclick="closePagamentoLote()" class="flex-1 p-4 bg-slate-100 rounded-xl font-bold text-slate-600 active:bg-slate-200">Cancelar</button>
+                <button onclick="confirmarPagamentoLote()" class="flex-1 p-4 bg-red-600 rounded-xl font-bold text-white active:bg-red-700 shadow-lg">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-estorno-lote-pagar" class="hidden fixed inset-0 bg-slate-900/70 z-[83] flex items-end sm:items-center justify-center backdrop-blur-sm p-0 sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-5 border-b flex justify-between items-center bg-gradient-to-r from-red-50 to-orange-50 rounded-t-3xl sm:rounded-t-2xl">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i data-lucide="rotate-ccw" class="text-red-600"></i> Estorno de lote</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Este pagamento faz parte de um lote.</p>
+                </div>
+                <button onclick="closeEstornoLotePagar()" class="bg-slate-200 text-slate-600 p-1.5 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-5 space-y-3 overflow-y-auto flex-1">
+                <p class="text-sm text-slate-600">Os titulos abaixo foram pagos juntos. O que deseja estornar?</p>
+                <div class="max-h-56 overflow-y-auto border border-slate-100 rounded-xl divide-y" id="estorno-lote-pagar-list"></div>
+                <div class="text-xs font-bold text-slate-500 text-right">Total do lote: <span id="estorno-lote-pagar-total" class="text-slate-700"></span></div>
+            </div>
+            <div class="p-5 border-t bg-white pb-8 sm:pb-5 flex flex-col gap-2">
+                <button id="estorno-lote-pagar-btn-all" onclick="confirmarEstornoLotePagar(true)" class="w-full p-4 bg-red-600 rounded-xl font-bold text-white active:bg-red-700 shadow-lg">Estornar o lote inteiro</button>
+                <button id="estorno-lote-pagar-btn-one" onclick="confirmarEstornoLotePagar(false)" class="w-full p-4 bg-slate-100 rounded-xl font-bold text-slate-600 active:bg-slate-200">Estornar apenas este titulo</button>
+                <button onclick="closeEstornoLotePagar()" class="w-full p-2 font-bold text-slate-400">Cancelar</button>
             </div>
         </div>
     </div>
@@ -2339,6 +2419,16 @@
             const body = document.getElementById('fin-payables-list');
             if (!body) return;
             const { arr, hojeLocalStr } = getPagaveisFiltrados();
+            const selMode = !!window._paySelMode;
+            const bar = document.getElementById('pay-lote-bar');
+            if (bar) {
+                if (selMode) { bar.classList.remove('hidden'); bar.classList.add('flex'); }
+                else { bar.classList.add('hidden'); bar.classList.remove('flex'); }
+            }
+            const barCount = document.getElementById('pay-lote-count');
+            if (barCount) barCount.innerText = (window._paySelected || new Set()).size;
+            const barTotal = document.getElementById('pay-lote-total');
+            if (barTotal) barTotal.innerText = formatMoney(_payTitulosSelecionados().reduce((a, t) => a + t.saldo, 0));
             if (!arr.length) { body.innerHTML = _finEmpty('Não há contas a pagar.'); return; }
             body.innerHTML = arr.map(e => {
                 const saldo = finSaldoExp(e);
@@ -2346,15 +2436,18 @@
                 const pago = e.status === 'PAGO' || saldo <= 0.005;
                 const atrasado = !pago && v && v < hojeLocalStr;
                 const parcial = !pago && (Number(e.valorPago) || 0) > 0;
+                const sel = window._paySelected ? window._paySelected.has(String(e.id)) : false;
+                const elegivel = !pago && saldo > 0.005;
                 return `
-                <div onclick="openFinActions('pay','${e.id}')" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${pago ? 'border-l-slate-300' : (atrasado ? 'border-l-red-500' : 'border-l-red-400')} active:bg-slate-50">
+                <div data-payid="${e.id}" ontouchstart="_payTStart(event,'${e.id}')" ontouchend="_payTEnd(event)" ontouchmove="_payTMove(event)" onclick="_payCardClick(event,'${e.id}')" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${sel ? 'ring-2 ring-red-500 border-l-red-600' : (pago ? 'border-l-slate-300' : (atrasado ? 'border-l-red-500' : 'border-l-red-400'))} active:bg-slate-50">
+                    ${selMode ? `<div class="shrink-0 w-6 h-6 rounded-full border-2 mr-2 flex items-center justify-center text-white text-xs font-black ${sel ? 'bg-red-600 border-red-600' : (elegivel ? 'border-slate-300 bg-white' : 'border-slate-100 bg-slate-50')}">${sel ? '&#10003;' : ''}</div>` : ''}
                     <div class="flex-1 pr-2 min-w-0">
                         <span class="text-[10px] font-bold text-slate-400 uppercase">${formatDate(e.date)}${atrasado ? ' <span class="text-red-500 ml-1">ATRASADO</span>' : (pago ? ' <span class="text-slate-400 ml-1">PAGO</span>' : '')}</span>
                         <h4 class="font-bold text-slate-700 text-sm leading-tight truncate">${e.provider || e.categoriaNome || e.item || 'Despesa'}</h4>
                         <p class="text-[10px] text-slate-500 truncate">${e.provider ? (e.categoriaNome || e.item || '-') : (e.note || '-')}</p>
                         <p class="text-[10px] ${pago ? 'text-slate-400' : (parcial ? 'text-orange-500' : 'text-red-600')} font-bold mt-0.5">${pago ? 'Pago' : (parcial ? 'Pago ' + formatMoney(e.valorPago) + ' | Resta ' + formatMoney(saldo) : 'Pagar: ' + formatMoney(saldo))}</p>
                     </div>
-                    ${pago ? '' : `<button onclick="event.stopPropagation(); payExpense('${e.id}')" class="shrink-0 bg-red-100 text-red-700 active:bg-red-200 text-[11px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Pagar</button>`}
+                    ${(pago || selMode) ? '' : `<button onclick="event.stopPropagation(); payExpense('${e.id}')" class="shrink-0 bg-red-100 text-red-700 active:bg-red-200 text-[11px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Pagar</button>`}
                 </div>`;
             }).join('');
         }
@@ -2960,6 +3053,288 @@
         }
         // ===================== /Recebimento em Lote (MOBILE) =====================
 
+        // ===================== Pagamento em Lote (MOBILE) =====================
+        let _payLP = { timer: null, id: null, x: 0, y: 0, fired: false };
+
+        function _payElegivel(id) {
+            const e = STATE.expenses.find(x => String(x.id) === String(id));
+            return !!(e && e.status !== 'PAGO' && finSaldoExp(e) > 0.005);
+        }
+        function _payTStart(e, id) {
+            if (window._paySelMode) return;
+            if (!_payElegivel(id)) return;
+            const t = e.touches && e.touches[0]; if (!t) return;
+            _payLP = { id, x: t.clientX, y: t.clientY, fired: false,
+                timer: setTimeout(() => { _payLP.fired = true; _payEntrarSelMode(id); }, 450) };
+        }
+        function _payTMove(e) {
+            if (!_payLP.timer) return;
+            const t = e.touches && e.touches[0]; if (!t) return;
+            if (Math.abs(t.clientX - _payLP.x) > 10 || Math.abs(t.clientY - _payLP.y) > 10) {
+                clearTimeout(_payLP.timer); _payLP.timer = null;
+            }
+        }
+        function _payTEnd() { if (_payLP.timer) { clearTimeout(_payLP.timer); _payLP.timer = null; } }
+        function _payCardClick(e, id) {
+            if (_payLP.fired) { _payLP.fired = false; if (e) { e.preventDefault(); e.stopPropagation(); } return; }
+            if (window._paySelMode) { if (e) { e.preventDefault(); e.stopPropagation(); } _payToggle(id); return; }
+            openFinActions('pay', id);
+        }
+        function _payEntrarSelMode(id) {
+            window._paySelMode = true;
+            if (!window._paySelected) window._paySelected = new Set();
+            if (_payElegivel(id)) window._paySelected.add(String(id));
+            try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) {}
+            renderFinance();
+        }
+        function _payToggle(id) {
+            if (!window._paySelected) window._paySelected = new Set();
+            if (!_payElegivel(id)) return;
+            if (window._paySelected.has(String(id))) window._paySelected.delete(String(id));
+            else window._paySelected.add(String(id));
+            renderFinance();
+        }
+        function cancelarSelecaoPay() {
+            window._paySelMode = false;
+            if (window._paySelected) window._paySelected.clear();
+            renderFinance();
+        }
+        function _payTitulosSelecionados() {
+            const sel = window._paySelected || new Set();
+            const out = [];
+            for (const id of sel) {
+                const e = STATE.expenses.find(x => String(x.id) === String(id));
+                if (!e) continue;
+                const saldo = finSaldoExp(e);
+                if (saldo <= 0.005) continue;
+                out.push({ id: String(id), saldo, fornecedor: (e.provider || '').trim(), categoriaNome: e.categoriaNome || e.item || '', item: e.item || '' });
+            }
+            return out;
+        }
+
+        function abrirPagamentoLote() {
+            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            const tits = _payTitulosSelecionados();
+            if (tits.length < 2) return showToast("Selecione ao menos 2 titulos.", true);
+            window._lotePayTitulos = tits;
+            const sel = document.getElementById('lote-pay-forma');
+            if (sel && sel.children.length === 0) sel.innerHTML = METODOS_PGTO.map(m => `<option>${m}</option>`).join('');
+            if (sel) sel.value = METODOS_PGTO[0];
+            document.getElementById('lote-pay-data').value = getHojeLocalStr();
+            document.getElementById('lote-pay-jur').value = 0;
+            document.getElementById('lote-pay-disc').value = 0;
+            document.getElementById('lote-pay-obs').value = '';
+            document.getElementById('lote-pay-qtd-lbl').innerText = tits.length;
+            document.getElementById('lote-pay-total-lbl').innerText = formatMoney(tits.reduce((a, t) => a + t.saldo, 0));
+            document.getElementById('lote-pay-titulos-list').innerHTML = tits.map(t => `
+                <div class="p-2 flex justify-between items-center text-xs">
+                    <div class="min-w-0">
+                        <div class="font-bold text-slate-700 truncate">${t.fornecedor || t.categoriaNome || 'Sem fornecedor'}</div>
+                        <div class="text-[10px] text-slate-400">Despesa #${t.id}${(t.fornecedor && t.categoriaNome) ? ' - ' + t.categoriaNome : ''}</div>
+                    </div>
+                    <div class="font-bold text-slate-700 whitespace-nowrap">${formatMoney(t.saldo)}</div>
+                </div>`).join('');
+            atualizarResumoLotePagar();
+            document.getElementById('modal-pagamento-lote').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function closePagamentoLote() {
+            document.getElementById('modal-pagamento-lote').classList.add('hidden');
+            window._lotePayTitulos = null;
+        }
+
+        function _computarLotePagar() {
+            const tits = window._lotePayTitulos || [];
+            const jur = numId('lote-pay-jur');
+            const disc = numId('lote-pay-disc');
+            const pesos = tits.map(t => t.saldo);
+            const jurPart = _ratearPorPeso(jur, pesos);
+            const discPart = _ratearPorPeso(disc, pesos);
+            const parcelas = tits.map((t, i) => ({
+                id: t.id, saldo: t.saldo, juros: jurPart[i], desconto: discPart[i],
+                valorPago: Math.max(0, Math.round((t.saldo + jurPart[i] - discPart[i]) * 100) / 100)
+            }));
+            return { tits, jur, disc, parcelas,
+                totalCaixa: parcelas.reduce((a, p) => a + p.valorPago, 0),
+                forma: document.getElementById('lote-pay-forma').value };
+        }
+
+        function atualizarResumoLotePagar() {
+            const el = document.getElementById('lote-pay-resumo'); if (!el || !window._lotePayTitulos) return;
+            const c = _computarLotePagar();
+            document.getElementById('lote-pay-restante-lbl').innerText = formatMoney(c.totalCaixa);
+            el.innerHTML = `
+                <div>Pagar em caixa: <span class="text-red-700">${formatMoney(c.totalCaixa)}</span> em 1 forma (${c.forma || '-'})</div>
+                ${c.jur > 0 ? `<div>+ Juros/Multa: <span class="text-red-600">${formatMoney(c.jur)}</span></div>` : ''}
+                ${c.disc > 0 ? `<div>- Desconto: <span class="text-green-600">${formatMoney(c.disc)}</span></div>` : ''}
+                <div class="pt-1 text-sm font-black text-green-700">Todos ficam QUITADOS</div>`;
+        }
+
+        async function confirmarPagamentoLote() {
+            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            const c = _computarLotePagar();
+            if (!c.tits.length) return;
+            if (c.totalCaixa <= 0 && c.jur <= 0 && c.disc <= 0) return showToast("Nada a pagar.", true);
+            const loteId = gerarUid();
+            const dataStr = document.getElementById('lote-pay-data').value || getHojeLocalStr();
+            const obs = (document.getElementById('lote-pay-obs').value || '').trim();
+            const forma = c.forma;
+            const chaves = Array.from(new Set(c.tits.map(t => (t.fornecedor || '').trim().toLowerCase()).filter(s => s)));
+            const fornecedor = (chaves.length === 1) ? c.tits[0].fornecedor : 'Multiplos fornecedores';
+
+            showLoading(true);
+            try {
+                const { error: errLote } = await sb.from('pagamento_lotes').insert([{
+                    id: loteId, data: dataStr, fornecedor: fornecedor, fornecedor_id: null,
+                    total: c.totalCaixa, qtd_titulos: c.tits.length,
+                    usuario: (dadosUsuario && (dadosUsuario.nome || dadosUsuario.usuario)) || '',
+                    observacao: obs || null
+                }]);
+                if (errLote) throw errLote;
+
+                const inseridos = []; const alterados = [];
+                try {
+                    for (const p of c.parcelas) {
+                        const e = STATE.expenses.find(x => String(x.id) === String(p.id));
+                        if (!e) continue;
+                        const newMoney = (Number(e.valorPago) || 0) + p.valorPago;
+                        const newDisc = (Number(e.descontoTotal) || 0) + p.desconto;
+                        const newJur = (Number(e.acrescimoTotal) || 0) + p.juros;
+                        const newSaldo = (Number(e.cost) || 0) + newJur - newDisc - newMoney;
+                        const novoStatus = newSaldo <= 0.005 ? 'PAGO' : 'PARCIAL';
+                        const uidBatch = gerarUid();
+                        if (p.valorPago > 0) {
+                            await inserirLogBaixa({
+                                id: await getNextId('logs'), uid: uidBatch, tipo: 'despesa',
+                                produto_nome: e.categoriaNome || e.item, quantidade: e.quantity || 1, data: dataStr,
+                                observacao: 'Ref Despesa #' + p.id, valor_total: p.valorPago,
+                                desconto: p.desconto, acrescimo: p.juros,
+                                forma_pagamento: forma, status: 'ATIVO', status_financeiro: 'PAGO',
+                                valor_pago: p.valorPago, lote_id: loteId
+                            });
+                            inseridos.push(uidBatch);
+                        }
+                        alterados.push({ id: e.id, prev: { valor_pago: e.valorPago, desconto_total: e.descontoTotal, acrescimo_total: e.acrescimoTotal, status: e.status } });
+                        const { error: errUpd } = await sb.from('despesas').update({
+                            valor_pago: newMoney, desconto_total: newDisc, acrescimo_total: newJur, status: novoStatus
+                        }).eq('id', p.id);
+                        if (errUpd) throw errUpd;
+                    }
+                } catch (inner) {
+                    for (const u of inseridos) { try { await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', u); } catch (e) {} }
+                    for (const a of alterados) { try { await sb.from('despesas').update(a.prev).eq('id', a.id); } catch (e) {} }
+                    try { await sb.from('pagamento_lotes').delete().eq('id', loteId); } catch (e) {}
+                    throw inner;
+                }
+
+                window._paySelMode = false;
+                if (window._paySelected) window._paySelected.clear();
+                document.getElementById('modal-pagamento-lote').classList.add('hidden');
+                window._lotePayTitulos = null;
+                showToast(`Lote pago: ${c.tits.length} titulo(s)!`);
+                await loadData();
+                setTimeout(() => {
+                    showToastQuestion("Gerar comprovante em PDF deste lote?", () => _finCompartilharLotePagPDF({ loteId, data: dataStr, forma, obs, tits: c.tits, parcelas: c.parcelas, totalCaixa: c.totalCaixa, fornecedor }), null);
+                }, 400);
+            } catch (err) {
+                showLoading(false);
+                showToast("Erro: " + err.message, true);
+                console.error(err);
+            }
+        }
+
+        async function _finCompartilharLotePagPDF(d) {
+            showLoading(true);
+            try {
+                const logo = await _finLogoBase64();
+                const linhas = d.parcelas.map(p => {
+                    const t = d.tits.find(x => String(x.id) === String(p.id)) || {};
+                    return [ '#' + p.id, t.fornecedor || t.categoriaNome || '-', formatMoney(p.saldo), p.juros > 0 ? '+' + formatMoney(p.juros) : '-', p.desconto > 0 ? '-' + formatMoney(p.desconto) : '-', formatMoney(p.valorPago) ];
+                });
+                const colunas = [
+                    { label: 'Titulo', width: 'auto' },
+                    { label: 'Fornecedor', width: '*' },
+                    { label: 'Saldo', width: 'auto', align: 'right' },
+                    { label: 'Juros', width: 'auto', align: 'right' },
+                    { label: 'Desc.', width: 'auto', align: 'right' },
+                    { label: 'Pago', width: 'auto', align: 'right' }
+                ];
+                const subheader = `Lote ${String(d.loteId).slice(0,8)} | Data: ${formatDate(d.data)} | Forma: ${d.forma}${d.obs ? ' | Obs: ' + d.obs : ''}`;
+                const dd = _finRelatorioDocDefinition(logo, 'COMPROVANTE DE PAGAMENTO', subheader, colunas, linhas, 'TOTAL PAGO:', formatMoney(d.totalCaixa), '#fef2f2');
+                const fname = `RV PORTAL - Comprovante Lote Pagamento ${getHojeLocalStr()}.pdf`;
+                await _finCompartilharPDF(dd, fname, 'Comprovante de Pagamento', 'Comprovante de pagamento em lote - RV Portal');
+            } catch (e) {
+                console.error(e);
+                showToast("Falha ao gerar o PDF", true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Estorno de lote (pagar) (MOBILE)
+        function abrirEstornoLotePagar(loteId, parentId) {
+            const baixas = STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO' && String(l.loteId) === String(loteId));
+            const parentIds = Array.from(new Set(baixas.map(b => String((b.note.match(/#(\d+)/) || [])[1]))));
+            const tits = parentIds.map(pid => {
+                const e = STATE.expenses.find(x => String(x.id) === pid) || {};
+                const valor = baixas.filter(b => String((b.note.match(/#(\d+)/) || [])[1]) === pid).reduce((a, b) => a + Number(b.totalValue || 0), 0);
+                return { id: pid, fornecedor: e.provider || e.categoriaNome || e.item || 'Sem fornecedor', valor, isAlvo: String(pid) === String(parentId) };
+            });
+            window._estornoLotePagar = { loteId, parentId: String(parentId), tits };
+            document.getElementById('estorno-lote-pagar-list').innerHTML = tits.map(t => `
+                <div class="p-2 flex justify-between items-center text-xs ${t.isAlvo ? 'bg-red-50' : ''}">
+                    <div class="min-w-0">
+                        <div class="font-bold text-slate-700 truncate">${t.fornecedor}</div>
+                        <div class="text-[10px] text-slate-400">Despesa #${t.id}${t.isAlvo ? ' (selecionado)' : ''}</div>
+                    </div>
+                    <div class="font-bold text-slate-700 whitespace-nowrap">${formatMoney(t.valor)}</div>
+                </div>`).join('');
+            document.getElementById('estorno-lote-pagar-total').innerText = formatMoney(tits.reduce((a, t) => a + t.valor, 0));
+            document.getElementById('estorno-lote-pagar-btn-one').classList.toggle('hidden', !tits.some(t => t.isAlvo));
+            document.getElementById('modal-estorno-lote-pagar').classList.remove('hidden');
+            lucide.createIcons();
+        }
+        function closeEstornoLotePagar() {
+            document.getElementById('modal-estorno-lote-pagar').classList.add('hidden');
+            window._estornoLotePagar = null;
+        }
+        async function confirmarEstornoLotePagar(todos) {
+            const info = window._estornoLotePagar; if (!info) return;
+            const ids = todos ? info.tits.map(t => t.id) : [info.parentId];
+            document.getElementById('modal-estorno-lote-pagar').classList.add('hidden');
+            showLoading(true);
+            try {
+                for (const tid of ids) { await _estornarTituloBaixaPagarMobile(tid); }
+                if (todos) { try { await sb.from('pagamento_lotes').update({ estornado: true, estornado_at: new Date().toISOString() }).eq('id', info.loteId); } catch (e) {} }
+                window._estornoLotePagar = null;
+                showToast(todos ? "Lote estornado!" : "Titulo estornado!");
+                await loadData();
+            } catch (e) {
+                showLoading(false);
+                showToast("Erro: " + e.message, true);
+            }
+        }
+        async function _estornarTituloBaixaPagarMobile(parentId) {
+            const baixas = STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === String(parentId));
+            if (!baixas.length) return false;
+            const datas = baixas.map(b => b.date || '').sort();
+            const ultima = datas[datas.length - 1];
+            const alvo = baixas.filter(b => String(b.date || '') === String(ultima));
+            const uids = new Set(alvo.map(b => b.uid));
+            for (const b of alvo) await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', b.uid);
+            STATE.logs.forEach(l => { if (uids.has(l.uid)) l.status = 'CANCELADO'; });
+            const restantes = baixas.filter(b => !uids.has(b.uid));
+            const money = restantes.reduce((a, l) => a + Number(l.totalValue || 0), 0);
+            const disc = restantes.reduce((a, l) => a + Number(l.discount || 0), 0);
+            const jur = restantes.reduce((a, l) => a + Number(l.acrescimo || 0), 0);
+            const e = STATE.expenses.find(x => String(x.id) === String(parentId));
+            const saldo = (Number(e && e.cost) || 0) + jur - disc - money;
+            const novoStatus = restantes.length ? (saldo <= 0.005 ? 'PAGO' : 'PARCIAL') : 'PENDENTE';
+            await sb.from('despesas').update({ valor_pago: money, desconto_total: disc, acrescimo_total: jur, status: novoStatus }).eq('id', parentId);
+            return true;
+        }
+        // ===================== /Pagamento em Lote (MOBILE) =====================
+
         // Parcelamento RECEBER (somente Financeiro): divide a venda A RECEBER em N títulos receita
         function openParcelarReceber(id) {
             const master = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda' && l.status !== 'CANCELADO');
@@ -3532,6 +3907,16 @@
         }
 
         async function estornarDespesaLog(id) {
+            // Se o pagamento desta despesa veio de um lote, abre o modal de estorno de lote.
+            const _byUidD = STATE.logs.find(l => l.type === 'despesa' && String(l.uid) === String(id));
+            const _parentPagar = _byUidD
+                ? String(((_byUidD.note || '').match(/#(\d+)/) || [])[1] || '')
+                : String(id);
+            if (_parentPagar) {
+                const _baixasParent = STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === _parentPagar);
+                const _loteId = (_baixasParent.find(b => b.loteId) || {}).loteId;
+                if (_loteId) return abrirEstornoLotePagar(_loteId, _parentPagar);
+            }
             showLoading(true);
             try {
                 const baixas = STATE.logs.filter(l => l.type === 'despesa' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === String(id));
@@ -6161,6 +6546,8 @@ function downloadPDF(blob, filename) {
           'modal-haver-report': closeHaverReport,
           'modal-recebimento-lote': closeRecebimentoLote,
           'modal-estorno-lote': closeEstornoLote,
+          'modal-pagamento-lote': closePagamentoLote,
+          'modal-estorno-lote-pagar': closeEstornoLotePagar,
           'modal-ajuste-historico': closeAjusteHistorico,
           'modal-period-report': closePeriodReportModal,
           'modal-partner-report': closePartnerModal,
