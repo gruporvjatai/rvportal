@@ -4441,7 +4441,7 @@
         }
 
         async function deleteQuote(id) {
-            if(!confirm("Excluir este orçamento definitivamente?")) return;
+            if(!(await showConfirmToast("Excluir este orçamento definitivamente?"))) return;
             showLoading(true);
             const { error } = await sb.from('logs').delete().eq('id', id).eq('tipo', 'orcamento');
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
@@ -4887,7 +4887,7 @@ function downloadPDF(blob, filename) {
 }
 
         async function estornarVenda(id) {
-            if(!confirm("Tem certeza que deseja estornar esta VENDA para ORÇAMENTO? Os produtos retornarão ao estoque!")) return;
+            if(!(await showConfirmToast("Tem certeza que deseja estornar esta VENDA para ORÇAMENTO? Os produtos retornarão ao estoque!"))) return;
             showLoading(true);
             
             const saleLogs = STATE.logs.filter(l => String(l.id) === String(id) && l.type === 'venda');
@@ -4965,7 +4965,7 @@ function downloadPDF(blob, filename) {
         }
 
         async function duplicarParaOrcamento(id) {
-            if(!confirm("Duplicar esta venda como um novo ORÇAMENTO em aberto?")) return;
+            if(!(await showConfirmToast("Duplicar esta venda como um novo ORÇAMENTO em aberto?"))) return;
             showLoading(true);
 
             const sale = STATE.sales.find(s => String(s.id) === String(id));

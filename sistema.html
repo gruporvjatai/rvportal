@@ -3324,7 +3324,7 @@
         }
 
         async function deleteClient(id) {
-            if(!confirm("Excluir cliente?")) return;
+            if(!(await showConfirmToast("Excluir cliente?"))) return;
             showLoading(true);
             const { error } = await sb.from('clientes').delete().eq('id', id);
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
@@ -4619,7 +4619,7 @@ function printStockCountSheet() {
         }
 
         async function deleteQuote(id) {
-            if(!confirm("Excluir orçamento?")) return;
+            if(!(await showConfirmToast("Excluir orçamento?"))) return;
             showLoading(true);
             const { error } = await sb.from('logs').delete().eq('id', id).eq('tipo', 'orcamento');
             if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
@@ -4628,7 +4628,7 @@ function printStockCountSheet() {
         }
 
         async function cancelSaleToQuote(saleId) {
-            if(!confirm("Tem certeza que deseja estornar esta venda? Ela voltará a ser um Orçamento e o estoque será devolvido.")) return;
+            if(!(await showConfirmToast("Tem certeza que deseja estornar esta venda? Ela voltará a ser um Orçamento e o estoque será devolvido."))) return;
             showLoading(true);
 
             const saleItems = STATE.logs.filter(l => String(l.id) === String(saleId) && l.type === 'venda');
@@ -5060,7 +5060,7 @@ function printStockCountSheet() {
         }
 
         async function estornarEntregaLog(uid) {
-            if(!confirm("Estornar esta entrega? Os itens devolvidos voltarão como saldo pendente no pedido e o estoque físico será devolvido.")) return;
+            if(!(await showConfirmToast("Estornar esta entrega? Os itens devolvidos voltarão como saldo pendente no pedido e o estoque físico será devolvido."))) return;
             showLoading(true);
             try {
                 const entregaLog = STATE.logs.find(l => l.uid === uid && l.type === 'entrega');
@@ -10016,7 +10016,7 @@ function loadQuoteToCart(id) {
             if(dadosUsuario.nivel !== 'admin') return;
             const u = STATE.users.find(x => String(x.id) === String(id));
             if (!u || !u.email) return showToast("Usuário sem e-mail cadastrado.", true);
-            if (!confirm(`Enviar e-mail de redefinição de senha para ${u.email}?`)) return;
+            if (!(await showConfirmToast(`Enviar e-mail de redefinição de senha para ${u.email}?`))) return;
             showLoading(true);
             try {
                 const redirectTo = new URL('nova-senha.html', window.location.href).href;
@@ -11075,7 +11075,7 @@ body { margin: 0 !important; padding: 16px !important; }
         }
 
         async function duplicateQuote(id) {
-          if(!confirm("Deseja realmente duplicar este orçamento?")) return;
+          if(!(await showConfirmToast("Deseja realmente duplicar este orçamento?"))) return;
           showLoading(true);
       
           const quoteToCopy = STATE.quotes.find(q => String(q.id) === String(id));
@@ -11130,7 +11130,7 @@ body { margin: 0 !important; padding: 16px !important; }
       }
 
        async function duplicateSaleToQuote(saleId) {
-          if(!confirm("Deseja duplicar esta venda para um novo orçamento?")) return;
+          if(!(await showConfirmToast("Deseja duplicar esta venda para um novo orçamento?"))) return;
           showLoading(true);
       
           const saleItems = STATE.logs.filter(l => String(l.id) === String(saleId) && l.type === 'venda');
