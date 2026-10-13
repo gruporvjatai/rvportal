@@ -6048,6 +6048,7 @@ function printStockCountSheet() {
                     <td class="p-3 truncate text-xs font-bold text-slate-700" style="max-width:120px">${r.client}</td>
                     <td class="p-3 text-right text-sm text-green-700 font-bold">${formatMoney(r.valorFinal)}</td>
                     <td class="p-3 text-center flex gap-1 justify-center">
+                        <button onclick="visualizarVendaPDV('${r.id}')" class="text-slate-500 hover:text-emerald-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Visualizar venda"><i data-lucide="eye" width="14"></i></button>
                         <button onclick="reprintSale('${r.id}')" class="text-slate-600 hover:text-emerald-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Imprimir"><i data-lucide="printer" width="14"></i></button>
                         <button onclick="downloadSalePDF('${r.id}')" class="text-slate-600 hover:text-blue-600 bg-white border border-slate-200 p-2 rounded shadow-sm" title="Baixar PDF"><i data-lucide="download" width="14"></i></button>
                         <button onclick="duplicateSaleToQuote('${r.id}')" class="text-amber-500 hover:text-amber-700 bg-white border border-amber-200 p-2 rounded shadow-sm" title="Duplicar para Orçamento"><i data-lucide="copy" width="14"></i></button>
