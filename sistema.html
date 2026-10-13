@@ -785,9 +785,14 @@
   <!-- ===================== PAINEL CATALOGO ===================== -->
   <div id="prod-panel-catalogo">
     <div class="flex gap-2 mb-4 bg-white p-4 rounded-xl shadow-sm border">
-      <input type="text" id="prod-search" placeholder="Buscar produto por nome..." class="w-full p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderProductsDebounced()">
-      <select id="prod-category" class="w-1/3 p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
+      <input type="text" id="prod-search" placeholder="Buscar produto por nome..." class="flex-1 min-w-0 p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderProductsDebounced()">
+      <select id="prod-category" class="w-1/4 p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
         <option value="">Todas as Categorias</option>
+      </select>
+      <select id="prod-status" class="w-1/4 p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
+        <option value="todos">Todos</option>
+        <option value="ativos" selected>Ativos</option>
+        <option value="desativados">Desativados</option>
       </select>
     </div>
 
@@ -1502,6 +1507,14 @@
                           <option value="produto">Produto (controla estoque)</option>
                           <option value="servico">Serviço (não controla estoque)</option>
                       </select>
+                  </div>
+                  <div>
+                      <label class="rv-switch" title="Produtos desativados não aparecem no catálogo nem no PDV">
+                          <input type="checkbox" id="prd-ativo" checked>
+                          <span class="rv-track"><span class="rv-knob"></span></span>
+                          <span class="text-sm font-bold text-slate-700">Produto Ativo</span>
+                      </label>
+                      <p class="text-[10px] text-slate-400 mt-1 ml-[50px]">Desativados ficam guardados, mas fora do catálogo e do PDV.</p>
                   </div>
                   <div>
                       <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Categoria</label>
@@ -2770,9 +2783,10 @@
             cost: Number(p.custo) || 0,
             stock: Number(p.estoque_fisico), committed: Number(p.estoque_comprometido),
             available: Number(p.estoque_fisico) - Number(p.estoque_comprometido),
-            tipo: p.tipo || 'produto',
-            servico: (p.tipo || 'produto') === 'servico',
-            parceiro: Boolean(p.produto_parceiro),
+             tipo: p.tipo || 'produto',
+             servico: (p.tipo || 'produto') === 'servico',
+             ativo: p.ativo !== false,
+             parceiro: Boolean(p.produto_parceiro),
             porMetro: Boolean(p.venda_por_metro),
             fornecedor: p.fornecedor_parceiro || '',
             unidade: p.unidade_medida || 'un',
@@ -3102,6 +3116,7 @@
                 id: newId,
                 nome: document.getElementById('prd-name').value,
                 tipo: document.getElementById('prd-tipo')?.value || 'produto',
+                ativo: document.getElementById('prd-ativo').checked,
                 categoria: document.getElementById('prd-cat').value,
                 preco: parseFloat(document.getElementById('prd-price').value),
                 custo: parseFloat(document.getElementById('prd-cost').value) || 0,
@@ -3509,6 +3524,7 @@ function parseAjusteObs(note) {
 
 // Situacao do produto para o catalogo.
 function produtoStatus(p) {
+  if (p.ativo === false) return { label: 'Desativado', cls: 'bg-red-100 text-red-600' };
   if (p.servico) return { label: 'Serviço', cls: 'bg-indigo-100 text-indigo-700' };
   if (p.parceiro) return { label: 'Parceiro', cls: 'bg-amber-100 text-amber-700' };
   if (Number(p.available) <= 0) return { label: 'Esgotado', cls: 'bg-red-100 text-red-600' };
@@ -5639,7 +5655,7 @@ function printStockCountSheet() {
             const grid = document.getElementById('pos-modal-grid');
             if(!grid) return;
         
-            let filtered = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
+            let filtered = (STATE.products||[]).slice().filter(p => p.ativo !== false).sort((a, b) => Number(a.id) - Number(b.id));
             if (term) filtered = filtered.filter(p => normalizeSearch(p.name).includes(term));
             const sliced = filtered.slice(0, 50);
         
@@ -7263,6 +7279,7 @@ function loadQuoteToCart(id) {
 
         const term = normalizeSearch(document.getElementById('prod-search')?.value);
         const catFilter = document.getElementById('prod-category')?.value || '';
+        const statusFilter = document.getElementById('prod-status')?.value || 'ativos';
 
         const catSelect = document.getElementById('prod-category');
         if (catSelect) {
@@ -7283,6 +7300,8 @@ function loadQuoteToCart(id) {
         let filtered = STATE.products.slice();
         if (term) filtered = filtered.filter(p => normalizeSearch(p.name).includes(term));
         if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
+        if (statusFilter === 'ativos') filtered = filtered.filter(p => p.ativo !== false);
+        else if (statusFilter === 'desativados') filtered = filtered.filter(p => p.ativo === false);
 
         filtered.sort((a, b) => {
           let valA, valB;
@@ -7319,7 +7338,7 @@ function loadQuoteToCart(id) {
           const dispCls = (!noStock && Number(p.available) <= 0) ? 'text-red-600' : 'text-emerald-600';
           const tagTipo = p.servico ? '<span class="text-[10px] text-indigo-600 uppercase font-bold bg-indigo-50 px-1 py-0.5 rounded ml-1">Serviço</span>' : '';
           return `
-            <tr class="hover:bg-slate-50">
+            <tr class="hover:bg-slate-50 ${p.ativo === false ? 'opacity-60' : ''}">
               <td class="p-4 font-bold text-slate-700">
                 <div class="flex items-center gap-3">
                   ${(PRODUTOS_FOTOS_VISIVEIS && p.foto) ? `<img src="${p.foto}" onclick="abrirFotoProdutoPorId('${p.id}')" class="w-12 h-12 rounded object-cover border border-slate-200 cursor-pointer shrink-0" title="Ver foto">` : ''}
@@ -7447,6 +7466,7 @@ function loadQuoteToCart(id) {
               document.getElementById('prd-id').value = p.id; 
               document.getElementById('prd-name').value = p.name; 
               document.getElementById('prd-tipo').value = p.tipo || 'produto';
+              document.getElementById('prd-ativo').checked = p.ativo !== false;
               preencherCategoriasSelect(p.category || '');
               document.getElementById('prd-price').value = p.price; 
               document.getElementById('prd-cost').value = p.cost || ''; 
@@ -7477,6 +7497,7 @@ function loadQuoteToCart(id) {
               document.getElementById('prd-id').value = ''; 
               document.getElementById('prd-name').value = ''; 
               document.getElementById('prd-tipo').value = 'produto';
+              document.getElementById('prd-ativo').checked = true;
               preencherCategoriasSelect('');
               document.getElementById('prd-price').value = ''; 
               document.getElementById('prd-cost').value = ''; 
