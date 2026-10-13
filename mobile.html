@@ -43,6 +43,15 @@
       .nav-active { color: #059669 !important; }
       .nav-active span { font-weight: 900; }
 
+      /* Switch moderno (mesmo padrao do desktop: rv-switch) */
+      .rv-switch { position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+      .rv-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+      .rv-switch .rv-track { position: relative; width: 42px; height: 24px; flex: 0 0 auto; background-color: #cbd5e1; border-radius: 9999px; transition: background-color .2s ease; }
+      .rv-switch .rv-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background-color: #fff; border-radius: 9999px; box-shadow: 0 1px 3px rgba(15, 23, 42, .35); transition: transform .2s ease; }
+      .rv-switch input:checked + .rv-track { background-color: #22c55e; }
+      .rv-switch input:checked + .rv-track .rv-knob { transform: translateX(18px); }
+      .rv-switch input:focus-visible + .rv-track { box-shadow: 0 0 0 3px rgba(34, 197, 94, .35); }
+
       /* Estilos para o PDF oculto na tela */
       .invoice-full { border: 1px solid #000; min-height: 27.5cm; background-color: transparent !important; position: relative; z-index: 1; font-family: 'Helvetica', 'Arial', sans-serif; color: #1e293b; padding: 15px; background: white;}
       .invoice-full::before { content: ""; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 450px; height: 450px; background-image: url('logorvnegocios.png'); background-size: contain; background-position: center; background-repeat: no-repeat; opacity: 0.1; z-index: -1; }
@@ -239,9 +248,16 @@
                       <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
                       <input type="text" id="prod-search" placeholder="Buscar produto..." class="w-full pl-10 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-medium bg-white" onkeyup="renderProductsDebounced()">
                   </div>
-                  <select id="prod-category" class="w-full p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
-                      <option value="">Todas as Categorias</option>
-                  </select>
+                  <div class="flex gap-2">
+                      <select id="prod-category" class="flex-1 min-w-0 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
+                          <option value="">Categorias</option>
+                      </select>
+                      <select id="prod-status" class="flex-1 min-w-0 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
+                          <option value="todos">Todos</option>
+                          <option value="ativos" selected>Ativos</option>
+                          <option value="desativados">Desativados</option>
+                      </select>
+                  </div>
               </div>
 
               <div id="prod-list" class="flex flex-col gap-3"></div>
@@ -983,6 +999,14 @@
                     </select>
                 </div>
                 <div>
+                    <label class="rv-switch" title="Produtos desativados não aparecem no catálogo nem no PDV">
+                        <input type="checkbox" id="prd-ativo" checked>
+                        <span class="rv-track"><span class="rv-knob"></span></span>
+                        <span class="text-sm font-bold text-slate-700">Produto Ativo</span>
+                    </label>
+                    <p class="text-[11px] text-slate-400 font-medium mt-1 ml-[50px]">Desativados ficam guardados, mas fora do catálogo e do PDV.</p>
+                </div>
+                <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
                     <select id="prd-cat" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-orange-500 font-bold text-slate-700">
                         <option value="">Sem categoria</option>
@@ -1567,6 +1591,7 @@
                         available: Number(p.estoque_fisico) - Number(p.estoque_comprometido),
                         tipo: p.tipo || 'produto',
                         servico: (p.tipo || 'produto') === 'servico',
+                        ativo: p.ativo !== false,
                         parceiro: Boolean(p.produto_parceiro),
                         fornecedor: p.fornecedor_parceiro || '',
                         unidade: p.unidade_medida || 'un',
@@ -3261,7 +3286,7 @@
 
     const sortedProducts = (STATE.products||[]).slice().sort((a, b) => Number(a.id) - Number(b.id));
 
-    grid.innerHTML = sortedProducts.filter(p => p.name.toLowerCase().includes(term)).map(p => {
+    grid.innerHTML = sortedProducts.filter(p => p.ativo !== false && p.name.toLowerCase().includes(term)).map(p => {
         const isPartner = p.parceiro;
         const badgeCls = p.servico ? 'bg-indigo-100 text-indigo-700' : (isPartner ? 'bg-amber-100 text-amber-700' : (p.available<=0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-700'));
         const badgeTxt = p.servico ? 'Serviço' : (isPartner ? 'Parceiro' : 'Disp: ' + p.available);
@@ -4656,11 +4681,12 @@ function downloadPDF(blob, filename) {
 
             const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
             const catFilter = document.getElementById('prod-category')?.value || '';
+            const statusFilter = document.getElementById('prod-status')?.value || 'ativos';
             const catSelect = document.getElementById('prod-category');
 
             if (catSelect) {
                 const currentVal = catSelect.value;
-                catSelect.innerHTML = '<option value="">Todas as Categorias</option>';
+                catSelect.innerHTML = '<option value="">Categorias</option>';
                 const categoriasUnicas = (STATE.categories && STATE.categories.length)
                     ? STATE.categories.map(c => c.nome)
                     : [...new Set(STATE.products.map(p => p.category))].filter(c => c && c.trim() !== '').sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'));
@@ -4676,6 +4702,8 @@ function downloadPDF(blob, filename) {
             let filtered = STATE.products.slice();
             if (term) filtered = filtered.filter(p => String(p.name).toLowerCase().includes(term));
             if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
+            if (statusFilter === 'ativos') filtered = filtered.filter(p => p.ativo !== false);
+            else if (statusFilter === 'desativados') filtered = filtered.filter(p => p.ativo === false);
 
             if (filtered.length === 0) {
                 list.innerHTML = '<div class="p-10 text-center text-slate-400 font-bold">Nenhum produto cadastrado.</div>';
@@ -4684,6 +4712,7 @@ function downloadPDF(blob, filename) {
 
             list.innerHTML = filtered.map(p => {
                 const isP = p.parceiro;
+                const inativo = p.ativo === false;
                 const estoqueBloco = p.servico
                     ? '<span class="text-[10px] font-bold text-indigo-600 uppercase bg-indigo-50 px-2 py-1 rounded">Serviço</span>'
                     : (isP
@@ -4697,14 +4726,17 @@ function downloadPDF(blob, filename) {
                     ? `<button type="button" onclick="abrirFotoProdutoPorId('${p.id}')" class="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 active:scale-95 transition" title="Ver foto"><img src="${p.foto}" alt="${p.name}" loading="lazy" decoding="async" class="w-full h-full object-cover"></button>`
                     : `<div class="w-20 h-20 shrink-0 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300" title="Sem foto"><i data-lucide="image" class="w-7 h-7"></i></div>`;
                 return `
-                <div class="bg-white p-3 rounded-2xl border shadow-sm">
+                <div class="bg-white p-3 rounded-2xl border shadow-sm ${inativo ? 'opacity-70 border-dashed' : ''}">
                     <div class="flex gap-3">
                         ${thumb}
                         <div class="flex-1 min-w-0 flex flex-col">
                             <div class="flex items-start justify-between">
                                 <div class="flex flex-col flex-1 mr-2 overflow-hidden">
                                     <h4 class="font-black text-slate-800 text-sm truncate mb-1">${p.name}</h4>
-                                    <span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded w-max uppercase">${p.category || 'Geral'}</span>
+                                    <div class="flex items-center gap-1 flex-wrap">
+                                        <span class="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded w-max uppercase">${p.category || 'Geral'}</span>
+                                        ${inativo ? '<span class="text-[10px] font-black text-red-600 bg-red-50 border border-red-100 px-2 py-1 rounded w-max uppercase">Desativado</span>' : ''}
+                                    </div>
                                 </div>
                                 <button onclick="openProductForm('${p.id}')" class="p-2.5 bg-slate-50 text-slate-500 rounded-xl active:scale-95 transition">
                                     <i data-lucide="edit-3" class="w-5 h-5"></i>
@@ -5106,6 +5138,7 @@ function downloadPDF(blob, filename) {
                 document.getElementById('prd-id').value = p.id; 
                 document.getElementById('prd-name').value = p.name; 
                 document.getElementById('prd-tipo').value = p.tipo || 'produto';
+                document.getElementById('prd-ativo').checked = p.ativo !== false;
                 preencherCategoriasSelect(p.category || '');
                 document.getElementById('prd-price').value = p.price; 
                 document.getElementById('prd-cost').value = p.cost || ''; 
@@ -5126,6 +5159,7 @@ function downloadPDF(blob, filename) {
                 document.getElementById('prd-id').value = ''; 
                 document.getElementById('prd-name').value = ''; 
                 document.getElementById('prd-tipo').value = 'produto';
+                document.getElementById('prd-ativo').checked = true;
                 preencherCategoriasSelect('');
                 document.getElementById('prd-price').value = ''; 
                 document.getElementById('prd-cost').value = ''; 
@@ -5151,6 +5185,7 @@ function downloadPDF(blob, filename) {
                 id: newId,
                 nome: document.getElementById('prd-name').value,
                 tipo: document.getElementById('prd-tipo')?.value || 'produto',
+                ativo: document.getElementById('prd-ativo').checked,
                 categoria: document.getElementById('prd-cat').value,
                 preco: parseFloat(document.getElementById('prd-price').value), 
                 custo: parseFloat(document.getElementById('prd-cost').value) || 0,
@@ -5209,7 +5244,7 @@ function downloadPDF(blob, filename) {
             const novoProduto = {
                 id: newId, name: payload.nome, category: payload.categoria,
                 price: payload.preco, cost: payload.custo,
-                tipo: payload.tipo, servico: isServico,
+                tipo: payload.tipo, servico: isServico, ativo: payload.ativo,
                 stock: Number(payload.estoque_fisico) || 0,
                 committed: Number(payload.estoque_comprometido) || 0,
                 available: (Number(payload.estoque_fisico) || 0) - (Number(payload.estoque_comprometido) || 0),
