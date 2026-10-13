@@ -4897,7 +4897,7 @@ function printStockCountSheet() {
                     const marcadoPago = titulo.some(t => (Number(t.paidValue) || 0) > 0 || t.finStatus === 'PAGO' || t.finStatus === 'PARCIAL');
                     if (titulo.length && marcadoPago) {
                         showLoading(false);
-                        if (!confirm("Não há um registro de baixa (log) para estornar. Deseja apenas reabrir este título, voltando-o para PENDENTE?")) return;
+                        if (!(await showConfirmToast("Não há um registro de baixa (log) para estornar. Deseja apenas reabrir este título, voltando-o para PENDENTE?"))) return;
                         showLoading(true);
                         for (let row of titulo) {
                             await sb.from('logs').update({ valor_pago: 0, status_financeiro: 'PENDENTE' }).eq('uid', row.uid);
@@ -4910,7 +4910,7 @@ function printStockCountSheet() {
                     return showToast("Nenhuma baixa encontrada para estornar", true);
                 }
 
-                if (!confirm("Deseja estornar a última baixa desta conta? Ela voltará a ficar pendente no financeiro.")) {
+                if (!(await showConfirmToast("Deseja estornar a última baixa desta conta? Ela voltará a ficar pendente no financeiro."))) {
                     showLoading(false);
                     return;
                 }
@@ -4964,11 +4964,11 @@ function printStockCountSheet() {
             const isVenda = items.some(i => i.type === 'venda');
 
             if(isVenda) {
-                if(confirm("Esta conta pertence a um Pedido de Venda. Deseja estornar a venda inteira para Orçamento?")) {
+                if(await showConfirmToast("Esta conta pertence a um Pedido de Venda. Deseja estornar a venda inteira para Orçamento?")) {
                     cancelSaleToQuote(id);
                 }
             } else {
-                if(!confirm("Excluir esta Receita pendente permanentemente?")) return;
+                if(!(await showConfirmToast("Excluir esta Receita pendente permanentemente?"))) return;
                 showLoading(true);
                 const {error} = await sb.from('logs').delete().eq('id', id).eq('tipo', 'receita');
                 if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
@@ -5008,7 +5008,7 @@ function printStockCountSheet() {
                     const exp = STATE.expenses.find(e => String(e.id) === String(id));
                     if (exp && (Number(exp.valorPago) || 0) > 0) {
                         showLoading(false);
-                        if (!confirm("Não há um registro de pagamento (log) para estornar. Deseja apenas reabrir esta despesa, voltando-a para PENDENTE?")) return;
+                        if (!(await showConfirmToast("Não há um registro de pagamento (log) para estornar. Deseja apenas reabrir esta despesa, voltando-a para PENDENTE?"))) return;
                         showLoading(true);
                         await sb.from('despesas').update({ valor_pago: 0, desconto_total: 0, acrescimo_total: 0, status: 'PENDENTE' }).eq('id', id);
                         showToast("Despesa reaberta!");
@@ -5019,7 +5019,7 @@ function printStockCountSheet() {
                     return showToast("Nenhum pagamento para estornar", true);
                 }
 
-                if (!confirm("Estornar o último pagamento desta despesa? Ela voltará a ficar pendente.")) {
+                if (!(await showConfirmToast("Estornar o último pagamento desta despesa? Ela voltará a ficar pendente."))) {
                     showLoading(false);
                     return;
                 }
@@ -5048,7 +5048,7 @@ function printStockCountSheet() {
         }
 
         async function excluirDespesa(id) {
-            if (!confirm("Excluir esta despesa permanentemente? Esta ação não pode ser desfeita.")) return;
+            if (!(await showConfirmToast("Excluir esta despesa permanentemente? Esta ação não pode ser desfeita."))) return;
             showLoading(true);
             const { error } = await sb.from('despesas').delete().eq('id', id);
             if (error) {
@@ -5700,7 +5700,7 @@ function printStockCountSheet() {
                 showToast(`Lote recebido: ${c.tits.length} titulo(s)!`);
                 const dadosPdf = { loteId, data: dataStr, forma, obs, parcelas: c.parcelas, tits: c.tits, totalCaixa: c.totalCaixa, credito: c.credito, jur: c.jur, disc: c.disc, clienteNome };
                 await loadData();
-                setTimeout(() => { if (confirm("Deseja gerar o comprovante (PDF) deste lote?")) imprimirComprovanteLote(dadosPdf); }, 350);
+                setTimeout(async () => { if (await showConfirmToast("Deseja gerar o comprovante (PDF) deste lote?")) imprimirComprovanteLote(dadosPdf); }, 350);
             } catch (err) {
                 showLoading(false);
                 showToast("Erro: " + err.message, true);
@@ -6023,7 +6023,7 @@ function printStockCountSheet() {
                 showToast(`Lote pago: ${c.tits.length} titulo(s)!`);
                 const dadosPdf = { loteId, data: dataStr, forma, obs, parcelas: c.parcelas, tits: c.tits, totalCaixa: c.totalCaixa, jur: c.jur, disc: c.disc, fornecedor };
                 await loadData();
-                setTimeout(() => { if (confirm("Deseja gerar o comprovante (PDF) deste lote?")) imprimirComprovanteLotePagar(dadosPdf); }, 350);
+                setTimeout(async () => { if (await showConfirmToast("Deseja gerar o comprovante (PDF) deste lote?")) imprimirComprovanteLotePagar(dadosPdf); }, 350);
             } catch (err) {
                 showLoading(false);
                 showToast("Erro: " + err.message, true);
@@ -6456,7 +6456,7 @@ function printStockCountSheet() {
         async function duplicarDespesa(id) {
             const exp = STATE.expenses.find(e => String(e.id) === String(id));
             if (!exp) return showToast("Despesa não encontrada", true);
-            if (!confirm(`Duplicar esta despesa (vencimento +30 dias)?`)) return;
+            if (!(await showConfirmToast(`Duplicar esta despesa (vencimento +30 dias)?`))) return;
             showLoading(true);
 
             const novaData = new Date();

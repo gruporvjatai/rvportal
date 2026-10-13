@@ -3602,7 +3602,7 @@
                         const marcadoPago = titulo.some(t => (Number(t.paidValue) || 0) > 0 || t.finStatus === 'PAGO' || t.finStatus === 'PARCIAL');
                         if (titulo.length && marcadoPago) {
                             showLoading(false);
-                            if (!confirm("Não há um registro de baixa (log) para estornar. Deseja apenas reabrir este título, voltando-o para PENDENTE?")) return;
+                            if (!(await showConfirmToast("Não há um registro de baixa (log) para estornar. Deseja apenas reabrir este título, voltando-o para PENDENTE?"))) return;
                             showLoading(true);
                             for (let row of titulo) {
                                 await sb.from('logs').update({ valor_pago: 0, status_financeiro: 'PENDENTE' }).eq('uid', row.uid);
@@ -3620,7 +3620,7 @@
                     alvo.push(...refs.filter(b => String(b.date || '') === String(ultima)));
                 }
 
-                if (!confirm("Estornar a última baixa deste recebimento? O valor voltará para 'A Receber'.")) {
+                if (!(await showConfirmToast("Estornar a última baixa deste recebimento? O valor voltará para 'A Receber'."))) {
                     showLoading(false);
                     return;
                 }
@@ -3867,7 +3867,7 @@
         async function duplicarDespesa(id) {
             const exp = STATE.expenses.find(e => String(e.id) === String(id));
             if(!exp) return showToast("Despesa não encontrada", true);
-            if(!confirm("Duplicar esta despesa (vencimento +30 dias)?")) return;
+            if(!(await showConfirmToast("Duplicar esta despesa (vencimento +30 dias)?"))) return;
             showLoading(true);
             try {
                 const novaData = new Date();
@@ -3893,7 +3893,7 @@
         }
 
         async function excluirDespesa(id) {
-            if (!confirm("Excluir esta despesa permanentemente? Esta ação não pode ser desfeita.")) return;
+            if (!(await showConfirmToast("Excluir esta despesa permanentemente? Esta ação não pode ser desfeita."))) return;
             showLoading(true);
             try {
                 const { error } = await sb.from('despesas').delete().eq('id', id);
@@ -3935,7 +3935,7 @@
                     const exp = STATE.expenses.find(e => String(e.id) === String(id));
                     if (exp && (Number(exp.valorPago) || 0) > 0) {
                         showLoading(false);
-                        if (!confirm("Não há um registro de pagamento (log) para estornar. Deseja apenas reabrir esta despesa, voltando-a para PENDENTE?")) return;
+                        if (!(await showConfirmToast("Não há um registro de pagamento (log) para estornar. Deseja apenas reabrir esta despesa, voltando-a para PENDENTE?"))) return;
                         showLoading(true);
                         await sb.from('despesas').update({ valor_pago: 0, desconto_total: 0, acrescimo_total: 0, status: 'PENDENTE' }).eq('id', id);
                         showToast("Despesa reaberta!");
@@ -3946,7 +3946,7 @@
                     return showToast("Nenhum pagamento para estornar", true);
                 }
 
-                if (!confirm("Estornar o último pagamento desta despesa? Ela voltará a ficar pendente.")) {
+                if (!(await showConfirmToast("Estornar o último pagamento desta despesa? Ela voltará a ficar pendente."))) {
                     showLoading(false);
                     return;
                 }
