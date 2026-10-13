@@ -465,6 +465,9 @@
               <button id="fin-tab-extrato" onclick="switchFinTab('extrato')" class="flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all text-slate-500">Extrato</button>
           </div>
 
+          <!-- Total filtrado da sub-aba (some no extrato) -->
+          <div id="fin-subtotal" class="text-right text-[11px] font-bold text-slate-400 -mt-2 mb-3 px-1"></div>
+
           <!-- Painel Receber -->
           <div id="fin-panel-receber">
               <div class="flex gap-2 mb-3">
@@ -2163,6 +2166,7 @@
             renderFinReceber();
             renderFinPagar();
             renderFinExtrato(extratoPeriodo);
+            updateFinSubtotal();
 
             lucide.createIcons();
         }
@@ -2259,6 +2263,33 @@
                     ${pago ? '' : `<button onclick="event.stopPropagation(); payExpense('${e.id}')" class="shrink-0 bg-red-100 text-red-700 active:bg-red-200 text-[11px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Pagar</button>`}
                 </div>`;
             }).join('');
+        }
+
+        // Total (filtrado) da sub-aba ativa: mostra o valor relevante em cada
+        // linha — saldo em aberto para pendentes, valor pago para quitados.
+        function _finValorRelevanteRec(r) {
+            if (r.status === 'PAGO') return (Number(r.paid) || 0) || (Number(r.val) || 0);
+            return finSaldoRec(r);
+        }
+        function _finValorRelevanteExp(e) {
+            const saldo = finSaldoExp(e);
+            if (e.status === 'PAGO' || saldo <= 0.005) return (Number(e.valorPago) || 0) || (Number(e.cost) || 0);
+            return saldo;
+        }
+        function updateFinSubtotal() {
+            const el = document.getElementById('fin-subtotal');
+            if (!el) return;
+            if (finTab === 'extrato') { el.classList.add('hidden'); return; }
+            el.classList.remove('hidden');
+            if (finTab === 'pagar') {
+                const { arr } = getPagaveisFiltrados();
+                const total = arr.reduce((a, e) => a + _finValorRelevanteExp(e), 0);
+                el.innerHTML = `Total a pagar: <span class="text-red-600 font-black">${formatMoney(total)}</span>`;
+            } else {
+                const { arr } = getRecebiveisFiltrados();
+                const total = arr.reduce((a, r) => a + _finValorRelevanteRec(r), 0);
+                el.innerHTML = `Total a receber: <span class="text-emerald-600 font-black">${formatMoney(total)}</span>`;
+            }
         }
 
         function renderFinExtrato(extratoPeriodo) {
