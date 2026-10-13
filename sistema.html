@@ -12274,7 +12274,15 @@ function startInactivityMonitoring() {
     resetInactivityTimer();
 }
 
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxIRN7mUo3miLWgXxBILB8Dq4i04QL27UMSDVRhTtj8NSOIE8CKSe-OCntcswnbO6Oo/exec';
+// Lista de Web Apps do GAS que processam Pix. Cada conta de e-mail do Nubank
+// tem o seu proprio GAS (Gmail so pode ser lido pelo dono do script), e o
+// botao "Gerar" dispara todos de uma vez.
+const GAS_WEB_APP_URLS = [
+    // rvportalmadeiras@gmail.com (conta principal)
+    'https://script.google.com/macros/s/AKfycbxIRN7mUo3miLWgXxBILB8Dq4i04QL27UMSDVRhTtj8NSOIE8CKSe-OCntcswnbO6Oo/exec',
+    // rvvidroseacabamentos@gmail.com (Nubank da RV Vidros) - cole aqui a URL /exec
+    ''
+].map(u => (u || '').trim()).filter(Boolean);
 let pixGasEmAndamento = false;
 
 async function executarPixGAS() {
@@ -12292,14 +12300,18 @@ async function executarPixGAS() {
     showToast('Processando Pix... Aguarde.', false);
 
     try {
-        await fetch(GAS_WEB_APP_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({})
-        });
+        await Promise.all(GAS_WEB_APP_URLS.map(url =>
+            fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            }).catch(err => {
+                console.error('Falha ao chamar o GAS ' + url, err);
+            })
+        ));
 
         showToast('Processamento iniciado. Atualizando lista...', false);
 
