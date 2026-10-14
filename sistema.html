@@ -8910,8 +8910,8 @@ function loadQuoteToCart(id) {
                             ${(r.credito || 0) > 0 ? `<div class="text-[10px] text-emerald-600 font-bold">- Crédito ${formatMoney(r.credito)}</div>` : ''}
                          </td>
                         <td class="p-3 text-right flex items-center justify-end gap-1 h-full">
-                            <!-- BOTÃO PARCELAR (ícone) - SÓ EM A RECEBER, ANTES DO WHATSAPP -->
-                            ${(r.status !== 'PAGO' && String(r.desc).indexOf('Venda #') === 0 && !(r.paid || 0) && r.status === 'A RECEBER') ?
+                            <!-- BOTÃO PARCELAR (ícone) - TÍTULO ABERTO SEM BAIXA, ANTES DO WHATSAPP -->
+                            ${(r.status !== 'PAGO' && String(r.desc).indexOf('Venda #') === 0 && !(r.paid || 0)) ?
                                 `<button onclick="openParcelarReceber('${r.id}')" class="bg-white border border-amber-300 text-amber-600 hover:bg-amber-50 p-1.5 rounded shadow" title="Parcelar em N títulos"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>` : ''}
                             <!-- BOTÃO WHATSAPP - SÓ APARECE SE NÃO ESTIVER PAGO -->
                             ${zapButtonHtml}
