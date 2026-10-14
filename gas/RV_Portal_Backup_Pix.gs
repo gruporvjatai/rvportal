@@ -321,7 +321,11 @@ function processarPixNubank() {
 }
 
 function extrairDadosTransferencia(corpo, msgId) {
-  const texto = corpo.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  // Normaliza TODOS os espacos, inclusive quebras de linha. O e-mail do Nubank
+  // quebra o nome do destinatario no meio ("RV PORTAL\nMADEIRAS"); sem isso o
+  // regex principal falhava e o fallback capturava o titulo generico
+  // "outra conta do Nubank" como se fosse o nome.
+  const texto = corpo.replace(/\s+/g, ' ').trim();
 
   let tipo = 'desconhecido';
   if (texto.indexOf('Valor enviado') !== -1) tipo = 'enviado';
@@ -330,17 +334,19 @@ function extrairDadosTransferencia(corpo, msgId) {
   else if (/transfer[eê]ncia de/i.test(texto)) tipo = 'recebido';
 
   let nome = '';
-  const regexNome = /(?:transferência para|transferência entre contas do Nubank para)\s+([^\n]+?)\s+foi realizada/i;
-  const matchNome = texto.match(regexNome);
-  if (matchNome) {
-    nome = matchNome[1].trim();
-  } else {
-    const fallback = texto.match(/para\s+([^\n]+?)(?:\s+foi|\n)/i);
-    if (fallback) nome = fallback[1].trim();
-  }
+  // Nubank -> Nubank: "A transferência entre contas do Nubank para <NOME> foi realizada"
+  let matchNome = texto.match(/transfer[eê]ncia\s+entre\s+contas\s+do\s+Nubank\s+para\s+(.+?)\s+foi\s+realizada/i);
+  // Outros bancos/contatos: "A transferência para <NOME> foi realizada"
+  if (!matchNome) matchNome = texto.match(/transfer[eê]ncia\s+para\s+(.+?)\s+foi\s+realizada/i);
+  // Pix recebido: "A transferência de <NOME> foi realizada"
+  if (!matchNome) matchNome = texto.match(/transfer[eê]ncia\s+de\s+(.+?)\s+foi\s+realizada/i);
+  if (matchNome) nome = matchNome[1].trim();
+
   nome = nome.replace(/\*/g, '').trim();
+  // Nunca usar o titulo generico do Nubank como nome do destinatario.
+  if (/^outra conta do nubank$/i.test(nome)) nome = '';
   if (!nome) {
-    const altMatch = texto.match(/Nome\s*\n\s*([^\n]+)/i);
+    const altMatch = corpo.match(/\bNome\s*\n\s*([^\n]+)/i);
     if (altMatch) nome = altMatch[1].trim().replace(/\*/g, '');
   }
 
