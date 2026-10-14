@@ -12292,14 +12292,19 @@ async function executarPixGAS() {
         showToast('Processamento já em andamento. Aguarde.', true);
         return;
     }
+    if (!GAS_WEB_APP_URLS.length) {
+        showToast('Nenhum GAS configurado.', true);
+        return;
+    }
     pixGasEmAndamento = true;
     const btn = document.getElementById('btn-gerar-pix');
     if (btn) {
         btn.disabled = true;
         btn.classList.add('opacity-50', 'pointer-events-none');
     }
-    showLoading(true);
-    showToast('Processando Pix... Aguarde.', false);
+
+    // Roda em segundo plano: nao bloqueia a tela. Avisa no inicio e no fim.
+    showToast('Processando Pix em segundo plano... Você será avisado ao terminar.', false);
 
     try {
         await Promise.all(GAS_WEB_APP_URLS.map(url =>
@@ -12315,19 +12320,18 @@ async function executarPixGAS() {
             })
         ));
 
-        showToast('Processamento iniciado. Atualizando lista...', false);
+        // O GAS responde de forma opaca (no-cors), entao aguardamos um tempo
+        // para os lancamentos chegarem ao banco antes de recarregar a lista.
+        await new Promise(resolve => setTimeout(resolve, 15000));
 
-        await new Promise(resolve => setTimeout(resolve, 8000));
         await loadData();
         if (document.getElementById('view-fin')?.classList.contains('active-section')) {
             renderFinance();
         }
-        showLoading(false);
-        showToast('Lista atualizada!', false);
+        showToast('Processamento Pix concluído! Lista atualizada.', false);
     } catch (error) {
-        showToast('Erro ao conectar com o GAS: ' + error.message, true);
+        showToast('Erro ao processar Pix: ' + error.message, true);
         console.error(error);
-        showLoading(false);
     } finally {
         pixGasEmAndamento = false;
         if (btn) {
