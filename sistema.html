@@ -4841,7 +4841,7 @@ function printStockCountSheet() {
                         status_entrega: 'ENTREGUE',
                         qtd_entregue: 1,
                         desconto: 0,
-                        status_financeiro: 'PENDENTE',
+                        status_financeiro: 'A RECEBER',
                         vencimento: venc.toISOString(),
                         valor_pago: 0,
                         endereco_entrega: client.deliveryAddress || ''
@@ -4897,10 +4897,10 @@ function printStockCountSheet() {
                     const marcadoPago = titulo.some(t => (Number(t.paidValue) || 0) > 0 || t.finStatus === 'PAGO' || t.finStatus === 'PARCIAL');
                     if (titulo.length && marcadoPago) {
                         showLoading(false);
-                        if (!(await showConfirmToast("Não há um registro de baixa (log) para estornar. Deseja apenas reabrir este título, voltando-o para PENDENTE?"))) return;
+                        if (!(await showConfirmToast("Não há um registro de baixa (log) para estornar. Deseja apenas reabrir este título, voltando-o para A RECEBER?"))) return;
                         showLoading(true);
                         for (let row of titulo) {
-                            await sb.from('logs').update({ valor_pago: 0, status_financeiro: 'PENDENTE' }).eq('uid', row.uid);
+                            await sb.from('logs').update({ valor_pago: 0, status_financeiro: 'A RECEBER' }).eq('uid', row.uid);
                         }
                         showToast("Título reaberto!");
                         await loadData();
@@ -4910,7 +4910,7 @@ function printStockCountSheet() {
                     return showToast("Nenhuma baixa encontrada para estornar", true);
                 }
 
-                if (!(await showConfirmToast("Deseja estornar a última baixa desta conta? Ela voltará a ficar pendente no financeiro."))) {
+                if (!(await showConfirmToast("Deseja estornar a última baixa desta conta? Ela voltará a ficar A RECEBER no financeiro."))) {
                     showLoading(false);
                     return;
                 }
@@ -5256,7 +5256,7 @@ function printStockCountSheet() {
             const disc = baixas.reduce((a, l) => a + Number(l.discount || 0), 0);
             const jur  = baixas.reduce((a, l) => a + Number(l.acrescimo || 0), 0);
             const saldo = total + jur - disc - money - credito;
-            const status = saldo <= 0.005 ? 'PAGO' : ((money + credito) > 0 ? 'PARCIAL' : 'PENDENTE');
+            const status = saldo <= 0.005 ? 'PAGO' : ((money + credito) > 0 ? 'PARCIAL' : 'A RECEBER');
             return { rows, baixas, baixasDinheiro, baixasCredito, total, money, credito, disc, jur, saldo, status };
         }
 
@@ -5371,7 +5371,7 @@ function printStockCountSheet() {
                 const newDisc = st.disc + desconto;
                 const newJur = st.jur + juros;
                 const newSaldo = st.total + newJur - newDisc - newMoney - newCredito;
-                const finStatus = newSaldo <= 0.005 ? 'PAGO' : ((newMoney + newCredito) > 0 ? 'PARCIAL' : 'PENDENTE');
+                const finStatus = newSaldo <= 0.005 ? 'PAGO' : ((newMoney + newCredito) > 0 ? 'PARCIAL' : 'A RECEBER');
                 const metodoPrincipal = formas.length ? formas[0].metodo : (st.rows[0].paymentMethod || 'Dinheiro');
                 const clienteNome = st.rows[0].clientName;
                 const clienteId = (ctx.clientId != null) ? ctx.clientId
@@ -5643,7 +5643,7 @@ function printStockCountSheet() {
                         const newDisc = st.disc + p.desconto;
                         const newJur = st.jur + p.juros;
                         const newSaldo = st.total + newJur - newDisc - newMoney - newCredito;
-                        const finStatus = newSaldo <= 0.005 ? 'PAGO' : ((newMoney + newCredito) > 0 ? 'PARCIAL' : 'PENDENTE');
+                        const finStatus = newSaldo <= 0.005 ? 'PAGO' : ((newMoney + newCredito) > 0 ? 'PARCIAL' : 'A RECEBER');
                         const clienteNomeT = st.rows[0].clientName;
                         const clienteIdT = (st.rows[0].clientId != null) ? st.rows[0].clientId : null;
                         const uidBatch = gerarUidLocal();
@@ -6173,7 +6173,7 @@ function printStockCountSheet() {
                 data: dataLocal, observacao: 'Lançamento Financeiro Manual', valor_total: val,
                 cliente_nome: client, forma_pagamento: method, status: 'ATIVO',
                 status_entrega: 'ENTREGUE', qtd_entregue: 1, desconto: 0,
-                status_financeiro: 'PENDENTE', vencimento: due, valor_pago: 0, endereco_entrega: ''
+                status_financeiro: 'A RECEBER', vencimento: due, valor_pago: 0, endereco_entrega: ''
             };
             
             const { error } = await sb.from('logs').insert([payload]);
