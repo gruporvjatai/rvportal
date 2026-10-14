@@ -8898,7 +8898,7 @@ function loadQuoteToCart(id) {
                         <td class="p-3 border-r border-slate-100">
                             <div class="font-bold text-slate-800 text-xs">${r.clientName}</div>
                             <div class="flex items-center gap-1">
-                                <div class="text-[10px] text-slate-500 truncate w-32" title="${r.desc}">${r.desc}</div>
+                                <div class="text-[10px] text-slate-500 truncate max-w-[10rem]" title="${r.desc}">${r.desc}</div>
                                 ${String(r.desc).indexOf('Venda #') === 0 ? `<button onclick="visualizarVendaPDV('${r.id}')" class="text-slate-400 hover:text-emerald-600 shrink-0" title="Visualizar venda"><i data-lucide="eye" style="width:11px;height:11px"></i></button>` : ''}
                             </div>
                          </td>
