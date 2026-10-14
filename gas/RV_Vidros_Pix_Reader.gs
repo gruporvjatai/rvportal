@@ -24,7 +24,8 @@ var PIX_TAG = 'PIX_ID:';
 var EXCECOES_PIX = [
   'RV VIDROS E ACABAMENTOS',
   'RV NEGOCIOS E COMPANHIA LTDA',
-  'RV BLOCOS E ESTRUTURAS'
+  'RV BLOCOS E ESTRUTURAS',
+  'RV PORTAL MADEIRAS'
 ];
 
 // ==========================================
@@ -457,6 +458,140 @@ function enviarResumoPix(logs) {
   } else {
     Logger.log("Log de e-mail desativado");
   }
+}
+
+// ==========================================
+// CORRECAO AVULSA (RODAR 1 VEZ NO EDITOR)
+// ==========================================
+// Corrige o campo `fornecedor` das despesas gravadas com o titulo generico
+// "OUTRA CONTA DO NUBANK" (bug antigo do regex de nome). Varre os e-mails do
+// Nubank da PROPRIA conta deste script, recalcula o nome correto e:
+//   - renomeia o fornecedor dos lancamentos normais;
+//   - REMOVE os lancamentos que na verdade sao transferencias internas
+//     (RV Vidros / RV Negocios / RV Portal / RV Blocos), pois nao devem entrar.
+// Rode UMA vez em cada conta (principal e RV Vidros):
+//   menu Executar > corrigirFornecedoresOutraConta. Nao insere nada novo.
+var REMOVER_INTERNAS_NA_CORRECAO = true;
+
+function corrigirFornecedoresOutraConta() {
+  const assunto = 'Transferência realizada com sucesso';
+  const busca = 'from:nubank.com.br subject:"' + assunto + '"';
+  const threads = GmailApp.search(busca, 0, 200);
+
+  const porPixId = {};
+  const porDataValor = {};
+  let emailsLidos = 0;
+
+  for (let t = 0; t < threads.length; t++) {
+    const msgs = threads[t].getMessages();
+    for (let m = 0; m < msgs.length; m++) {
+      const msg = msgs[m];
+      const msgId = msg.getId();
+      const dados = extrairDadosTransferencia(msg.getPlainBody(), msgId);
+      if (!dados || !dados.valor) continue;
+      emailsLidos++;
+
+      // pixId que foi gravado ANTES da correcao (quando o nome saiu errado).
+      const pixIdAntigo = gerarPixId(dados.data, dados.valor, 'outra conta do Nubank', msgId);
+      porPixId[pixIdAntigo] = dados;
+
+      const chave = dados.data + '|' + Number(dados.valor).toFixed(2);
+      if (!porDataValor[chave]) porDataValor[chave] = [];
+      porDataValor[chave].push(dados);
+    }
+  }
+  Logger.log('E-mails do Nubank lidos: ' + emailsLidos);
+
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY
+  };
+
+  const resp = UrlFetchApp.fetch(
+    SUPABASE_URL + '/rest/v1/despesas?select=id,data,custo,observacao,fornecedor',
+    { method: 'get', headers: headers, muteHttpExceptions: true }
+  );
+  if (resp.getResponseCode() !== 200) {
+    Logger.log('Falha ao buscar despesas: ' + resp.getContentText());
+    return;
+  }
+  const todas = JSON.parse(resp.getContentText()) || [];
+  const genericas = todas.filter(function (d) {
+    return String(d.fornecedor || '').toUpperCase().indexOf('OUTRA CONTA DO NUBANK') !== -1;
+  });
+  Logger.log('Despesas com fornecedor generico: ' + genericas.length);
+
+  let renomeadas = 0, removidas = 0, semMatch = 0, ambiguas = 0;
+
+  genericas.forEach(function (d) {
+    let novoNome = '';
+
+    // 1) Pelo PIX_ID gravado na observacao (match exato).
+    const obs = String(d.observacao || '');
+    const td = obs.toUpperCase().indexOf(PIX_TAG);
+    if (td !== -1) {
+      const pixIdGravado = obs.slice(td + PIX_TAG.length).trim().split(/[\s|.]/)[0].toLowerCase();
+      const achou = porPixId[pixIdGravado];
+      if (achou) novoNome = (achou.destinatario || achou.remetente || '').trim();
+    }
+
+    // 2) Por data + valor (lancamentos antigos, sem PIX_ID).
+    if (!novoNome) {
+      const chave = d.data + '|' + Number(d.custo).toFixed(2);
+      const cands = porDataValor[chave] || [];
+      const nomes = {};
+      cands.forEach(function (c) {
+        const n = (c.destinatario || c.remetente || '').trim();
+        if (n) nomes[n.toUpperCase()] = n;
+      });
+      const lista = Object.keys(nomes);
+      if (lista.length === 1) novoNome = nomes[lista[0]];
+      else if (lista.length > 1) { ambiguas++; Logger.log('Despesa ' + d.id + ': ambigua entre ' + lista.join(', ')); return; }
+    }
+
+    if (!novoNome) { semMatch++; Logger.log('Despesa ' + d.id + ': nenhum e-mail correspondente.'); return; }
+
+    const nomeUp = novoNome.toUpperCase();
+    const isInterna = EXCECOES_PIX.some(function (exc) { return nomeUp.indexOf(exc.toUpperCase()) !== -1; });
+
+    if (isInterna) {
+      if (!REMOVER_INTERNAS_NA_CORRECAO) {
+        Logger.log('Despesa ' + d.id + ': INTERNA (' + novoNome + ') - mantida.');
+        return;
+      }
+      const rd = UrlFetchApp.fetch(
+        SUPABASE_URL + '/rest/v1/despesas?id=eq.' + d.id,
+        { method: 'delete', headers: headers, muteHttpExceptions: true }
+      );
+      if (rd.getResponseCode() === 204 || rd.getResponseCode() === 200) {
+        removidas++;
+        Logger.log('Despesa ' + d.id + ': INTERNA (' + novoNome + ') - REMOVIDA.');
+      } else {
+        Logger.log('Erro ao remover ' + d.id + ': ' + rd.getContentText());
+      }
+      return;
+    }
+
+    const rp = UrlFetchApp.fetch(
+      SUPABASE_URL + '/rest/v1/despesas?id=eq.' + d.id,
+      {
+        method: 'patch',
+        contentType: 'application/json',
+        headers: headers,
+        payload: JSON.stringify({ fornecedor: novoNome }),
+        muteHttpExceptions: true
+      }
+    );
+    if (rp.getResponseCode() === 204 || rp.getResponseCode() === 200) {
+      renomeadas++;
+      Logger.log('Despesa ' + d.id + ' -> ' + novoNome);
+    } else {
+      Logger.log('Erro ao renomear ' + d.id + ': ' + rp.getContentText());
+    }
+  });
+
+  Logger.log('FIM. Renomeadas: ' + renomeadas + ' | Removidas (internas): ' + removidas
+    + ' | Sem match: ' + semMatch + ' | Ambiguas: ' + ambiguas);
 }
 
 // Use esta funcao no editor do Apps Script para testar manualmente.
