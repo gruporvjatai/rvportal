@@ -480,8 +480,8 @@
                   </div>
               </div>
               <div class="flex gap-2 mb-3">
-                  <input type="text" id="fin-rec-search" placeholder="Buscar cliente..." class="flex-1 p-2.5 border rounded-xl text-sm outline-none focus:border-emerald-500 bg-white" onkeyup="renderFinanceDebounced()">
-                  <select id="fin-rec-status" class="w-28 p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
+                  <input type="text" id="fin-rec-search" placeholder="Buscar cliente..." class="flex-1 min-w-0 p-2.5 border rounded-xl text-sm outline-none focus:border-emerald-500 bg-white" onkeyup="renderFinanceDebounced()">
+                  <select id="fin-rec-status" class="w-28 shrink-0 p-2.5 border rounded-xl text-xs font-bold text-slate-600 outline-none bg-white" onchange="renderFinance()">
                       <option value="ABERTOS">Em aberto</option>
                       <option value="VENCIDOS">Vencidos</option>
                       <option value="PAGOS">Pagos</option>
