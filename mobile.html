@@ -1531,11 +1531,8 @@
                 <button onclick="exportarLogsCSV()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1 active:scale-95"><i data-lucide="download" width="13"></i> CSV</button>
                 <span id="logs-total" class="text-[11px] text-slate-500 ml-auto"></span>
             </div>
-            <div class="flex-1 overflow-auto">
-                <table class="w-full text-[11px] text-left">
-                    <thead class="bg-slate-100 text-slate-600 sticky top-0"><tr><th class="p-2 whitespace-nowrap">Data/Hora</th><th class="p-2">Usuário</th><th class="p-2">Módulo</th><th class="p-2">Ação</th><th class="p-2">Descrição</th><th class="p-2">Disp.</th></tr></thead>
-                    <tbody id="logs-list"></tbody>
-                </table>
+            <div class="flex-1 overflow-y-auto">
+                <div id="logs-list" class="divide-y divide-slate-100"></div>
             </div>
             <div class="p-3 border-t flex items-center justify-between bg-slate-50">
                 <button onclick="paginaLogs(-1)" id="logs-prev" class="px-3 py-1.5 rounded-xl bg-slate-200 font-bold text-[11px] disabled:opacity-40 active:scale-95">Anterior</button>
@@ -1799,7 +1796,7 @@
 
         async function carregarLogs() {
             const list = document.getElementById('logs-list');
-            list.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">Carregando...</td></tr>';
+            list.innerHTML = '<div class="p-6 text-center text-slate-400">Carregando...</div>';
             const from = LOGS_PAGE * LOGS_PAGE_SIZE;
             const to = from + LOGS_PAGE_SIZE - 1;
             try {
@@ -1810,17 +1807,24 @@
                 if (error) throw error;
                 LOGS_TOTAL = count || 0;
                 if (!data || data.length === 0) {
-                    list.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>';
+                    list.innerHTML = '<div class="p-6 text-center text-slate-400">Nenhum registro encontrado.</div>';
                 } else {
-                    list.innerHTML = data.map((l) => `
-                        <tr class="align-top border-b">
-                            <td class="p-2 whitespace-nowrap text-slate-500">${l.criado_em ? new Date(l.criado_em).toLocaleString('pt-BR') : ''}</td>
-                            <td class="p-2 font-medium text-slate-700">${logsEscape(l.usuario_nome || '-')}<div class="text-[10px] text-slate-400 uppercase">${logsEscape(l.usuario_nivel || '')}</div></td>
-                            <td class="p-2 text-slate-600">${logsEscape(l.modulo || '-')}</td>
-                            <td class="p-2"><span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-700">${logsEscape(l.acao || '-')}</span></td>
-                            <td class="p-2 text-slate-700">${logsEscape(l.descricao || '')}</td>
-                            <td class="p-2 text-slate-400">${logsEscape(l.dispositivo || '')}</td>
-                        </tr>`).join('');
+                    list.innerHTML = data.map((l) => {
+                        const dataHora = l.criado_em ? new Date(l.criado_em).toLocaleString('pt-BR') : '';
+                        return `
+                        <div class="p-3">
+                            <div class="flex items-center justify-between gap-2 mb-1">
+                                <span class="text-[10px] text-slate-400">${dataHora}</span>
+                                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-700 whitespace-nowrap">${logsEscape(l.acao || '-')}</span>
+                            </div>
+                            <div class="text-xs font-bold text-slate-700 break-words">${logsEscape(l.usuario_nome || '-')} <span class="text-[10px] font-normal text-slate-400 uppercase">${logsEscape(l.usuario_nivel || '')}</span></div>
+                            <div class="text-[11px] text-slate-700 break-words mt-0.5">${logsEscape(l.descricao || '')}</div>
+                            <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[10px] text-slate-500">
+                                <span><span class="text-slate-400">Módulo:</span> ${logsEscape(l.modulo || '-')}</span>
+                                <span><span class="text-slate-400">Disp.:</span> ${logsEscape(l.dispositivo || '-')}</span>
+                            </div>
+                        </div>`;
+                    }).join('');
                 }
                 const totalPag = Math.max(1, Math.ceil(LOGS_TOTAL / LOGS_PAGE_SIZE));
                 document.getElementById('logs-total').textContent = `${LOGS_TOTAL} registro(s)`;
@@ -1828,7 +1832,7 @@
                 document.getElementById('logs-prev').disabled = LOGS_PAGE <= 0;
                 document.getElementById('logs-next').disabled = (LOGS_PAGE + 1) * LOGS_PAGE_SIZE >= LOGS_TOTAL;
             } catch (e) {
-                list.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-red-500">Erro ao carregar: ${logsEscape(e.message)}</td></tr>`;
+                list.innerHTML = `<div class="p-6 text-center text-red-500">Erro ao carregar: ${logsEscape(e.message)}</div>`;
             }
         }
 
