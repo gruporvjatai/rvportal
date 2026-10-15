@@ -1634,10 +1634,51 @@
             } catch (e) { /* auditoria nunca deve quebrar o fluxo */ }
         }
 
+        // Interceptor global: registra automaticamente toda mutação (insert/update/delete/upsert)
+        // feita via sb.from(...). Rótulos semânticos podem ser passados em window._logCtx.
+        //
+        // IMPORTANTE: nesta versão do supabase-js o `.then()` do builder dispara a
+        // requisição a cada chamada (não há cache de promise). Por isso NÃO devemos
+        // encadear um `.then()` extra na mutação (isso a executaria 2x). O log é feito
+        // dentro do único `.then()` chamado pelo `await` do chamador.
         (function instalarInterceptorAuditoria() {
             try {
                 if (!sb || sb.__auditWrapped) return;
                 const origFrom = sb.from.bind(sb);
+
+                // Envolve o builder resultado da mutação: mantém o encadeamento
+                // (.eq/.select/.single...) e registra o log uma única vez, no then real.
+                function envolverMutacao(builder, desc) {
+                    let registrado = false;
+                    const registrarUmaVez = (valor) => {
+                        if (registrado) return;
+                        if (valor && valor.error) return;
+                        registrado = true;
+                        registrarLog(desc);
+                    };
+                    const proxy = new Proxy(builder, {
+                        get(target, prop) {
+                            const valor = target[prop];
+                            if (prop === 'then') {
+                                return function (onFulfilled, onRejected) {
+                                    const onF = (typeof onFulfilled === 'function')
+                                        ? (valor_res) => { try { registrarUmaVez(valor_res); } catch (e) {} return onFulfilled(valor_res); }
+                                        : onFulfilled;
+                                    return valor.call(target, onF, onRejected);
+                                };
+                            }
+                            if (typeof valor === 'function') {
+                                return function (...args) {
+                                    const r = valor.apply(target, args);
+                                    return (r === target) ? proxy : r;
+                                };
+                            }
+                            return valor;
+                        }
+                    });
+                    return proxy;
+                }
+
                 sb.from = function (tabela) {
                     const builder = origFrom(tabela);
                     return new Proxy(builder, {
@@ -1655,11 +1696,7 @@
                                     const entidadeId = (ctx && ctx.entidade_id) || logEntidadeId(args[0]);
                                     const descricao = (ctx && ctx.descricao) ||
                                         `${LOG_INFO_ACAO[prop]} ${info.singular}${entidade ? ' "' + entidade + '"' : ''}`;
-                                    Promise.resolve(resultado).then((r) => {
-                                        if (r && r.error) return;
-                                        registrarLog({ modulo, acao, entidade_id: entidadeId, descricao, detalhes: { tabela, operacao: prop, payload: args[0] } });
-                                    }).catch(() => {});
-                                    return resultado;
+                                    return envolverMutacao(resultado, { modulo, acao, entidade_id: entidadeId, descricao, detalhes: { tabela, operacao: prop, payload: args[0] } });
                                 };
                             }
                             if (typeof valor === 'function') return valor.bind(target);
