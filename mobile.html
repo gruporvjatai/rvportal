@@ -6930,6 +6930,58 @@ function downloadPDF(blob, filename) {
           });
       });
 
+      // ===== BOTAO/GESTO "VOLTAR" FECHA O MODAL =====
+      // No Android (gesto de borda) e no iOS o "voltar" sairia da tela para o
+      // index/login. Aqui, enquanto houver modal aberto, empilhamos uma entrada
+      // no historico: o "voltar" consome essa entrada e fecha o modal em vez de
+      // sair. So quando nao ha modal aberto o "voltar" segue o fluxo normal.
+      (function instalarVoltarFechaModal() {
+          const RV_MODAL_SEL = '[id^="modal-"], [id$="-modal"], #client-form-container, #prod-form-container';
+          let guardaAtiva = false;   // existe uma entrada de historico nossa no topo
+          let popInterno = false;    // estamos removendo a entrada por conta propria
+
+          function modaisAbertos() {
+              return Array.from(document.querySelectorAll(RV_MODAL_SEL))
+                  .filter(el => el.id && !el.classList.contains('hidden'));
+          }
+
+          function fecharModal(el) {
+              const fn = (typeof ESC_MODAL_CLOSE_MAP !== 'undefined') && ESC_MODAL_CLOSE_MAP[el.id];
+              if (typeof fn === 'function') { try { fn(); return; } catch (e) { /* usa fallback */ } }
+              el.classList.add('hidden');
+          }
+
+          function empilharGuarda() {
+              if (guardaAtiva) return;
+              try { history.pushState({ rvModalGuard: true }, ''); guardaAtiva = true; } catch (e) { /* ignore */ }
+          }
+
+          function removerGuarda() {
+              if (!guardaAtiva) return;
+              guardaAtiva = false;
+              popInterno = true;
+              try { history.back(); } catch (e) { popInterno = false; }
+              // seguranca: se o popstate nao vier, nao deixar a flag travada
+              setTimeout(() => { popInterno = false; }, 600);
+          }
+
+          window.addEventListener('popstate', function () {
+              if (popInterno) { popInterno = false; return; }
+              const abertos = modaisAbertos();
+              if (abertos.length === 0) { guardaAtiva = false; return; } // sem modal: volta normal
+              guardaAtiva = false; // a entrada de guarda foi consumida
+              fecharModal(abertos[abertos.length - 1]);
+              // se ainda houver modal aberto, o MutationObserver re-arma a guarda
+          });
+
+          const mo = new MutationObserver(function () {
+              const temAberto = modaisAbertos().length > 0;
+              if (temAberto && !guardaAtiva) empilharGuarda();
+              else if (!temAberto && guardaAtiva) removerGuarda();
+          });
+          mo.observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
+      })();
+
         function renderClients() {
             const list = document.getElementById('clients-list');
             if(!list) return;
