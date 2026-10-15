@@ -5,6 +5,11 @@
 // instantaneamente e funcionem mesmo com sinal fraco/offline no campo.
 // ============================================================================
 
+// Build id injetado no deploy (GitHub Actions substitui "__SW_BUILD__").
+// Muda a cada publicacao, fazendo o navegador detectar/instalar este novo
+// service worker e, na ativacao, avisar os clientes para checar atualizacao.
+const SW_BUILD = "__SW_BUILD__";
+
 const DEFAULT_ICON = "logo.png";
 const DEFAULT_URL = "index.html";
 
@@ -27,7 +32,20 @@ self.addEventListener("activate", (event) => {
       );
     } catch (_) { /* ignore */ }
     await self.clients.claim();
+    // Avisa os clientes abertos para re-verificar se ha nova versao do app.
+    // O proprio app decide mostrar o aviso (nao recarrega sozinho).
+    try {
+      const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const c of list) {
+        try { c.postMessage({ type: "RV_CHECK_UPDATE", build: SW_BUILD }); } catch (_) { /* ignore */ }
+      }
+    } catch (_) { /* ignore */ }
   })());
+});
+
+self.addEventListener("message", (event) => {
+  const data = event.data || {};
+  if (data.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 // Fotos de produto: cache-first (offline-friendly). Fallback para cache se a

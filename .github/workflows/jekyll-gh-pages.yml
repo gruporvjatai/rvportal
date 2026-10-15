@@ -99,6 +99,20 @@ jobs:
             exit 1
           fi
 
+      - name: Generate version.json and inject sw.js build id (build-time)
+        run: |
+          set -e
+          node -e 'require("fs").writeFileSync("version.json", JSON.stringify({ v: process.env.GITHUB_SHA || String(Date.now()) })); console.log("version.json gerado:", process.env.GITHUB_SHA ? "sha" : "timestamp");'
+          node -e '
+            const fs = require("fs");
+            if (fs.existsSync("sw.js")) {
+              let s = fs.readFileSync("sw.js", "utf8");
+              s = s.replace(/__SW_BUILD__/g, process.env.GITHUB_SHA || "dev");
+              fs.writeFileSync("sw.js", s);
+              console.log("Build id injetado no sw.js.");
+            }
+          '
+
       - name: Determine upload path
         id: set-path
         run: |
