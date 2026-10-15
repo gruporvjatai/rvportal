@@ -1834,7 +1834,7 @@
         function paginaLogs(dir) {
             const proxima = LOGS_PAGE + dir;
             if (proxima < 0) return;
-            if (dir > 0 && (proxima + 1) * LOGS_PAGE_SIZE >= LOGS_TOTAL) return;
+            if (dir > 0 && proxima * LOGS_PAGE_SIZE >= LOGS_TOTAL) return;
             LOGS_PAGE = proxima;
             carregarLogs();
         }
