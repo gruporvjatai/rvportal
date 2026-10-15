@@ -2744,6 +2744,16 @@
             return (reg.id === undefined || reg.id === null) ? null : String(reg.id);
         }
 
+        // Resolve o nº da venda/orçamento a partir do uid do registro (usado quando
+        // a mutação é feita por uid, ex.: baixas/entregas no financeiro).
+        function logNumeroPorUid(uid) {
+            try {
+                if (uid == null || typeof STATE === 'undefined' || !STATE || !Array.isArray(STATE.logs)) return null;
+                const row = STATE.logs.find((l) => String(l.uid) === String(uid));
+                return (row && row.id != null) ? row.id : null;
+            } catch (e) { return null; }
+        }
+
         // Refina o rótulo de acordo com o tipo do registro (a tabela logs guarda
         // venda, orçamento, receita e recebimento/baixa).
         function logInfoTabela(tabela, payload) {
@@ -2776,6 +2786,52 @@
             } catch (e) { /* auditoria nunca deve quebrar o fluxo */ }
         }
 
+        // Monta a descrição de auditoria considerando o payload E os filtros da
+        // query (ex.: .eq('id', X) / .eq('tipo','orcamento')). Com isso, operações
+        // de update/delete passam a referenciar o nº do orçamento/venda movimentado.
+        function montarDescricaoAuditoria(tabela, prop, payload, info, ctx, filtros) {
+            if (ctx && ctx.descricao) {
+                return {
+                    modulo: ctx.modulo || info.modulo,
+                    acao: ctx.acao || LOG_INFO_ACAO[prop],
+                    entidade_id: ctx.entidade_id != null ? String(ctx.entidade_id) : null,
+                    descricao: ctx.descricao,
+                    detalhes: { tabela, operacao: prop, payload }
+                };
+            }
+            const verbo = LOG_INFO_ACAO[prop];
+            const reg = Array.isArray(payload) ? payload[0] : payload;
+            const tipo = (reg && reg.tipo) || (filtros && filtros.tipo) || null;
+            const infoFinal = (tabela === 'logs' && tipo) ? logInfoTabela('logs', { tipo }) : info;
+            let numero = (filtros && filtros.id != null) ? filtros.id : logEntidadeId(payload);
+            if ((numero == null || String(numero).trim() === '') && filtros && filtros.uid != null) {
+                numero = logNumeroPorUid(filtros.uid);
+            }
+            const entidade = logDescreverEntidade(payload);
+            const temNumero = numero != null && String(numero).trim() !== '';
+
+            let referencia = '';
+            if (tabela === 'logs' && temNumero) referencia = ` #${numero}`;
+            else if (entidade) referencia = ` "${entidade}"`;
+
+            // Na tabela logs, acrescenta o produto quando houver nº + rótulo (ex.: no insert).
+            let complemento = '';
+            if (tabela === 'logs' && temNumero && entidade && prop === 'insert') complemento = ` (${entidade})`;
+
+            return {
+                modulo: infoFinal.modulo,
+                acao: verbo,
+                entidade_id: temNumero ? String(numero) : logEntidadeId(payload),
+                descricao: `${verbo} ${infoFinal.singular}${referencia}${complemento}`,
+                detalhes: { tabela, operacao: prop, payload, filtros: filtros || null }
+            };
+        }
+
+        // Registra a geração/consulta de um relatório (fire-and-forget).
+        function registrarRelatorio(nome) {
+            try { registrarLog({ modulo: 'Relatórios', acao: 'gerou', descricao: `gerou relatório: ${nome}` }); } catch (e) {}
+        }
+
         // Interceptor global: registra automaticamente toda mutação (insert/update/delete/upsert)
         // feita via sb.from(...). Rótulos semânticos podem ser passados em window._logCtx.
         //
@@ -2790,13 +2846,15 @@
 
                 // Envolve o builder resultado da mutação: mantém o encadeamento
                 // (.eq/.select/.single...) e registra o log uma única vez, no then real.
-                function envolverMutacao(builder, desc) {
+                function envolverMutacao(builder, dados) {
                     let registrado = false;
+                    const filtros = {};
                     const registrarUmaVez = (valor) => {
                         if (registrado) return;
+                        if (window._logMute) return;
                         if (valor && valor.error) return;
                         registrado = true;
-                        registrarLog(desc);
+                        try { registrarLog(montarDescricaoAuditoria(dados.tabela, dados.prop, dados.payload, dados.info, dados.ctx, filtros)); } catch (e) {}
                     };
                     const proxy = new Proxy(builder, {
                         get(target, prop) {
@@ -2807,6 +2865,15 @@
                                         ? (valor_res) => { try { registrarUmaVez(valor_res); } catch (e) {} return onFulfilled(valor_res); }
                                         : onFulfilled;
                                     return valor.call(target, onF, onRejected);
+                                };
+                            }
+                            if (prop === 'eq' || prop === 'like' || prop === 'is' || prop === 'in') {
+                                return function (...args) {
+                                    if (args[0] === 'id') filtros.id = args[1];
+                                    else if (args[0] === 'uid') filtros.uid = args[1];
+                                    else if (args[0] === 'tipo') filtros.tipo = args[1];
+                                    const r = valor.apply(target, args);
+                                    return (r === target) ? proxy : r;
                                 };
                             }
                             if (typeof valor === 'function') {
@@ -2832,13 +2899,7 @@
                                     const info = logInfoTabela(tabela, args[0]);
                                     const ctx = window._logCtx || null;
                                     if (ctx) window._logCtx = null;
-                                    const entidade = logDescreverEntidade(args[0]);
-                                    const modulo = (ctx && ctx.modulo) || info.modulo;
-                                    const acao = (ctx && ctx.acao) || LOG_INFO_ACAO[prop];
-                                    const entidadeId = (ctx && ctx.entidade_id) || logEntidadeId(args[0]);
-                                    const descricao = (ctx && ctx.descricao) ||
-                                        `${LOG_INFO_ACAO[prop]} ${info.singular}${entidade ? ' "' + entidade + '"' : ''}`;
-                                    return envolverMutacao(resultado, { modulo, acao, entidade_id: entidadeId, descricao, detalhes: { tabela, operacao: prop, payload: args[0] } });
+                                    return envolverMutacao(resultado, { tabela, prop, payload: args[0], info, ctx });
                                 };
                             }
                             if (typeof valor === 'function') return valor.bind(target);
@@ -2863,6 +2924,8 @@
             const mods = new Set(Object.values(LOG_INFO_TABELAS).map((i) => i.modulo));
             mods.add('Autenticação');
             mods.add('Orçamentos');
+            mods.add('Expedição');
+            mods.add('Relatórios');
             mods.add('Registros');
             return Array.from(mods).sort();
         }
@@ -4994,6 +5057,7 @@ function printStockCountSheet() {
             const saleItems = STATE.logs.filter(l => String(l.id) === String(saleId) && l.type === 'venda');
             if(!saleItems.length) { showLoading(false); return showToast("Venda não encontrada", true); }
 
+            window._logMute = true;
             try {
                 for(let item of saleItems) {
                     const prod = item.productId != null
@@ -5073,9 +5137,12 @@ function printStockCountSheet() {
                     if (errSem) throw errSem;
                 }
 
+                window._logMute = false;
+                try { await registrarLog({ modulo: 'Vendas', acao: 'estornou', entidade_id: saleId, descricao: `estornou a venda #${saleId} para orçamento` }); } catch (e) {}
                 showToast("Venda estornada para Orçamento!");
                 await loadData();
             } catch(err) {
+                window._logMute = false;
                 showLoading(false);
                 showToast("Erro ao estornar: " + err.message, true);
             }
@@ -5424,6 +5491,7 @@ function printStockCountSheet() {
         async function estornarEntregaLog(uid) {
             if(!(await showConfirmToast("Estornar esta entrega? Os itens devolvidos voltarão como saldo pendente no pedido e o estoque físico será devolvido."))) return;
             showLoading(true);
+            window._logMute = true;
             try {
                 const entregaLog = STATE.logs.find(l => l.uid === uid && l.type === 'entrega');
                 if(!entregaLog) throw new Error("Log de entrega não encontrado");
@@ -5461,9 +5529,12 @@ function printStockCountSheet() {
 
                 await sb.from('logs').delete().eq('uid', uid);
 
+                window._logMute = false;
+                try { await registrarLog({ modulo: 'Expedição', acao: 'estornou', entidade_id: orderId, descricao: `estornou a entrega da venda #${orderId}` }); } catch (e) {}
                 showToast("Entrega estornada!");
                 await loadData();
             } catch(e) {
+                window._logMute = false;
                 showLoading(false);
                 showToast("Erro ao estornar entrega: " + e.message, true);
             }
@@ -5520,6 +5591,7 @@ function printStockCountSheet() {
 
             if (updates.length === 0) return showToast("Nenhuma quantidade informada para entrega.", true);
             showLoading(true);
+            window._logMute = true;
 
             try {
                 for (let u of updates) {
@@ -5550,7 +5622,10 @@ function printStockCountSheet() {
                 const { error: errInsert } = await sb.from('logs').insert(newLogs);
                 if(errInsert) throw errInsert;
 
+                window._logMute = false;
+                try { await registrarLog({ modulo: 'Expedição', acao: 'expediu', entidade_id: orderId, descricao: `expediu ${newLogs.length} item(ns) da venda #${orderId}` }); } catch (e) {}
             } catch (err) {
+                window._logMute = false;
                 showLoading(false);
                 return showToast("Erro: " + err.message, true);
             }
@@ -7667,6 +7742,7 @@ function loadQuoteToCart(id) {
         function printRelatorioAbertos() {
             const itens = getItensAbertosExpedicao();
             if (!itens.length) return showToast("Nenhum item em aberto para imprimir", true);
+            registrarRelatorio('Itens em Aberto na Expedição');
             const totalFalta = itens.reduce((a, i) => a + i.falta, 0);
             const company = {
                 name: "RV NEGOCIOS E COMPANHIA LTDA",
@@ -8278,6 +8354,7 @@ function loadQuoteToCart(id) {
       function printValorEstoque() {
         const itens = getValorEstoque();
         if (!itens.length) return showToast("Nenhum produto com estoque para imprimir", true);
+        registrarRelatorio('Valor em Estoque Disponível');
         const total = itens.reduce((a, i) => a + i.valor, 0);
         const company = {
           name: "RV NEGOCIOS E COMPANHIA LTDA",
@@ -8391,6 +8468,7 @@ function loadQuoteToCart(id) {
       function printHaverReport() {
         const clientes = getClientesComHaver();
         if (!clientes.length) return showToast("Nenhum cliente com crédito em haver", true);
+        registrarRelatorio('Crédito em Haver');
         const total = clientes.reduce((a, c) => a + c.valor, 0);
         const company = {
           name: "RV NEGOCIOS E COMPANHIA LTDA",
@@ -10628,6 +10706,7 @@ function loadQuoteToCart(id) {
 
        function printDailyRevenue() {
     showLoading(true);
+    registrarRelatorio('Faturamento do Dia');
 
     const hojeLocalStr = getHojeLocalStr();
 
@@ -10807,6 +10886,7 @@ function loadQuoteToCart(id) {
 
        function printPeriodReport() {
     showLoading(true);
+    registrarRelatorio('Vendas por Período');
 
          
 
@@ -11900,6 +11980,7 @@ function openPartnerModal() {
 }
 function closePartnerModal() { document.getElementById('modal-partner-report').classList.add('hidden'); }
 function printPartnerReport() {
+    registrarRelatorio('Vendas de Parceiro');
     const start = document.getElementById('rep-part-start').value;
     const end = document.getElementById('rep-part-end').value;
     const tipo = document.getElementById('rep-part-type').value;

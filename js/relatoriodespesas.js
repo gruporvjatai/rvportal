@@ -312,6 +312,8 @@ function printFilteredExpenses() {
         return;
     }
 
+    if (typeof registrarRelatorio === 'function') registrarRelatorio('Despesas');
+
     // Ordena por data (mais recente primeiro)
     filtered.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
