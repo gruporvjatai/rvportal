@@ -1206,14 +1206,18 @@
             <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="scroll-text" class="text-amber-600"></i> Registros de Atividades</h3>
             <button onclick="fecharLogs()" class="text-slate-500 hover:text-slate-800"><i data-lucide="x"></i></button>
         </div>
-        <div class="p-4 border-b bg-white grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+        <div class="p-4 border-b bg-white grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
             <div>
                 <label class="block font-bold text-slate-500 uppercase mb-1">Busca</label>
                 <input id="logs-f-busca" type="text" placeholder="Descrição..." class="w-full p-2 border rounded outline-none focus:border-amber-500">
             </div>
             <div>
-                <label class="block font-bold text-slate-500 uppercase mb-1">Usuário</label>
+                <label class="block font-bold text-slate-500 uppercase mb-1">Nome do usuário</label>
                 <input id="logs-f-usuario" type="text" placeholder="Nome..." class="w-full p-2 border rounded outline-none focus:border-amber-500">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-500 uppercase mb-1">Tipo de usuário</label>
+                <select id="logs-f-nivel" class="w-full p-2 border rounded outline-none focus:border-amber-500"></select>
             </div>
             <div>
                 <label class="block font-bold text-slate-500 uppercase mb-1">Módulo</label>
@@ -2863,12 +2867,24 @@
             return Array.from(mods).sort();
         }
 
+        // Tipos de usuário (mesmos valores de usuarios.nivel_acesso).
+        const LOG_NIVEIS = [
+            { v: 'superadmin', label: 'Superadmin' },
+            { v: 'admin', label: 'Administrador' },
+            { v: 'vendedor', label: 'Vendedor' }
+        ];
+
         function abrirLogs() {
             if (!(dadosUsuario && dadosUsuario.nivel === 'superadmin')) return showToast("Acesso negado!", true);
-            const sel = document.getElementById('logs-f-modulo');
-            if (sel && sel.options.length === 0) {
-                sel.innerHTML = '<option value="">Todos</option>' +
+            const selMod = document.getElementById('logs-f-modulo');
+            if (selMod) {
+                selMod.innerHTML = '<option value="">Todos</option>' +
                     logsFiltroModulos().map((m) => `<option value="${logsEscape(m)}">${logsEscape(m)}</option>`).join('');
+            }
+            const selNiv = document.getElementById('logs-f-nivel');
+            if (selNiv) {
+                selNiv.innerHTML = '<option value="">Todos</option>' +
+                    LOG_NIVEIS.map((n) => `<option value="${logsEscape(n.v)}">${logsEscape(n.label)}</option>`).join('');
             }
             LOGS_PAGE = 0;
             document.getElementById('modal-logs').classList.remove('hidden');
@@ -2883,6 +2899,7 @@
         function limparFiltrosLogs() {
             ['logs-f-busca', 'logs-f-usuario', 'logs-f-de', 'logs-f-ate'].forEach((id) => { document.getElementById(id).value = ''; });
             document.getElementById('logs-f-modulo').value = '';
+            document.getElementById('logs-f-nivel').value = '';
             LOGS_PAGE = 0;
             carregarLogs();
         }
@@ -2903,6 +2920,7 @@
         function construirQueryLogs() {
             const busca = (document.getElementById('logs-f-busca').value || '').trim();
             const usuario = (document.getElementById('logs-f-usuario').value || '').trim();
+            const nivel = document.getElementById('logs-f-nivel').value || '';
             const modulo = document.getElementById('logs-f-modulo').value || '';
             const de = document.getElementById('logs-f-de').value;
             const ate = document.getElementById('logs-f-ate').value;
@@ -2910,6 +2928,7 @@
             let q = sb.from('logs_atividades').select('*', { count: 'exact' });
             if (busca) q = q.ilike('descricao', `%${busca}%`);
             if (usuario) q = q.ilike('usuario_nome', `%${usuario}%`);
+            if (nivel) q = q.eq('usuario_nivel', nivel);
             if (modulo) q = q.eq('modulo', modulo);
             if (de) q = q.gte('criado_em', new Date(de + 'T00:00:00').toISOString());
             if (ate) q = q.lte('criado_em', new Date(ate + 'T23:59:59.999').toISOString());
@@ -2924,6 +2943,7 @@
             try {
                 const { data, error, count } = await construirQueryLogs()
                     .order('criado_em', { ascending: false })
+                    .order('id', { ascending: false })
                     .range(from, to);
                 if (error) throw error;
                 LOGS_TOTAL = count || 0;
@@ -3073,7 +3093,8 @@
             'modal-receipt': closeReceiptModal,
             'modal-payexpense': () => document.getElementById('modal-payexpense').classList.add('hidden'),
             'modal-expense-report': () => document.getElementById('modal-expense-report').classList.add('hidden'),
-            'modal-editar-obs-expedicao': fecharModalEditarObsExpedicao
+            'modal-editar-obs-expedicao': fecharModalEditarObsExpedicao,
+            'modal-logs': fecharLogs
         };
         
         function closeAllModals() {

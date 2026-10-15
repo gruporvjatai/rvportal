@@ -202,6 +202,11 @@
 
     el.querySelector('[data-push-close]').addEventListener('click', () => el.classList.add('hidden'));
     el.addEventListener('click', (e) => { if (e.target === el) el.classList.add('hidden'); });
+    // Fecha o modal de Notificacoes com a tecla Esc.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' && e.key !== 'Esc') return;
+      if (!el.classList.contains('hidden')) el.classList.add('hidden');
+    });
     el.querySelector('#push-toggle-btn').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       btn.disabled = true;
