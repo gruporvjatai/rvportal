@@ -89,6 +89,7 @@
             <h1 class="text-lg font-black tracking-wider text-emerald-400">RV PORTAL</h1>
         </div>
         <div class="flex items-center gap-1">
+            <button onclick="abrirLogs()" id="nav-logs" class="hidden text-amber-400 hover:text-amber-300 p-2" title="Registros de atividades"><i data-lucide="scroll-text"></i></button>
             <button onclick="openPushSettings()" class="text-emerald-400 hover:text-emerald-300 p-2" title="Notificações"><i data-lucide="settings"></i></button>
             <button onclick="fazerLogout()" class="text-red-400 hover:text-red-300 p-2"><i data-lucide="log-out"></i></button>
         </div>
@@ -1492,6 +1493,54 @@
         </div>
     </div>
 
+    <div id="modal-logs" class="hidden fixed inset-0 bg-slate-900/70 z-[100] flex items-center justify-center p-2">
+        <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-base text-slate-800 flex items-center gap-2"><i data-lucide="scroll-text" class="text-amber-600"></i> Registros de Atividades</h3>
+                <button onclick="fecharLogs()" class="text-slate-500 hover:text-slate-800 p-1"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-3 border-b bg-white grid grid-cols-2 gap-2 text-[11px]">
+                <div class="col-span-2">
+                    <label class="block font-bold text-slate-500 uppercase mb-1">Busca</label>
+                    <input id="logs-f-busca" type="text" placeholder="Descrição..." class="w-full p-2 border rounded outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-500 uppercase mb-1">Usuário</label>
+                    <input id="logs-f-usuario" type="text" placeholder="Nome..." class="w-full p-2 border rounded outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-500 uppercase mb-1">Módulo</label>
+                    <select id="logs-f-modulo" class="w-full p-2 border rounded outline-none focus:border-amber-500"></select>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-500 uppercase mb-1">De</label>
+                    <input id="logs-f-de" type="date" class="w-full p-2 border rounded outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-500 uppercase mb-1">Até</label>
+                    <input id="logs-f-ate" type="date" class="w-full p-2 border rounded outline-none focus:border-amber-500">
+                </div>
+            </div>
+            <div class="px-3 py-2 flex flex-wrap items-center gap-2 border-b bg-slate-50">
+                <button onclick="aplicarFiltrosLogs()" class="bg-amber-600 text-white px-3 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1 active:scale-95"><i data-lucide="search" width="13"></i> Filtrar</button>
+                <button onclick="limparFiltrosLogs()" class="bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-bold text-[11px] active:scale-95">Limpar</button>
+                <button onclick="exportarLogsCSV()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1 active:scale-95"><i data-lucide="download" width="13"></i> CSV</button>
+                <span id="logs-total" class="text-[11px] text-slate-500 ml-auto"></span>
+            </div>
+            <div class="flex-1 overflow-auto">
+                <table class="w-full text-[11px] text-left">
+                    <thead class="bg-slate-100 text-slate-600 sticky top-0"><tr><th class="p-2 whitespace-nowrap">Data/Hora</th><th class="p-2">Usuário</th><th class="p-2">Módulo</th><th class="p-2">Ação</th><th class="p-2">Descrição</th><th class="p-2">Disp.</th></tr></thead>
+                    <tbody id="logs-list"></tbody>
+                </table>
+            </div>
+            <div class="p-3 border-t flex items-center justify-between bg-slate-50">
+                <button onclick="paginaLogs(-1)" id="logs-prev" class="px-3 py-1.5 rounded-xl bg-slate-200 font-bold text-[11px] disabled:opacity-40 active:scale-95">Anterior</button>
+                <span id="logs-pagina" class="text-[11px] text-slate-500"></span>
+                <button onclick="paginaLogs(1)" id="logs-next" class="px-3 py-1.5 rounded-xl bg-slate-200 font-bold text-[11px] disabled:opacity-40 active:scale-95">Próxima</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         function toLocalYYYYMMDD(dateObj) {
             const y = dateObj.getFullYear();
@@ -1514,6 +1563,255 @@
         const supabaseUrl = window.SUPABASE_URL;
         const supabaseKey = window.SUPABASE_ANON_KEY;
         const sb = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // ====== AUDITORIA: REGISTRO DE ATIVIDADES ======
+        const LOG_INFO_TABELAS = {
+            logs:                { modulo: 'Vendas',        singular: 'venda' },
+            despesas:            { modulo: 'Despesas',      singular: 'despesa' },
+            categorias_despesas: { modulo: 'Despesas',      singular: 'categoria de despesa' },
+            categorias:          { modulo: 'Categorias',    singular: 'categoria' },
+            clientes:            { modulo: 'Clientes',      singular: 'cliente' },
+            produtos:            { modulo: 'Produtos',      singular: 'produto' },
+            usuarios:            { modulo: 'Usuários',      singular: 'usuário' },
+            configuracoes:       { modulo: 'Configurações', singular: 'configuração' },
+            recebimento_lotes:   { modulo: 'Financeiro',    singular: 'lote de recebimento' },
+            pagamento_lotes:     { modulo: 'Financeiro',    singular: 'lote de pagamento' },
+            movimentacoes:       { modulo: 'Estoque',       singular: 'movimentação de estoque' }
+        };
+        const LOG_INFO_ACAO = { insert: 'criou', upsert: 'salvou', update: 'editou', delete: 'excluiu' };
+
+        function logDispositivoAtual() {
+            return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ? 'mobile' : 'desktop';
+        }
+
+        function logDescreverEntidade(payload) {
+            if (!payload) return '';
+            const reg = Array.isArray(payload) ? payload[0] : payload;
+            if (!reg || typeof reg !== 'object') return '';
+            const chaves = ['produto_nome', 'titulo', 'item', 'nome', 'cliente_nome', 'fornecedor', 'descricao', 'observacao', 'login', 'email'];
+            for (const k of chaves) {
+                const v = reg[k];
+                if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+            }
+            return '';
+        }
+
+        function logEntidadeId(payload) {
+            if (!payload || typeof payload !== 'object') return null;
+            const reg = Array.isArray(payload) ? payload[0] : payload;
+            if (!reg || typeof reg !== 'object') return null;
+            return (reg.id === undefined || reg.id === null) ? null : String(reg.id);
+        }
+
+        // Refina o rótulo de acordo com o tipo do registro (a tabela logs guarda
+        // venda, orçamento, receita e recebimento/baixa).
+        function logInfoTabela(tabela, payload) {
+            if (tabela === 'logs') {
+                const reg = Array.isArray(payload) ? payload[0] : payload;
+                const tp = reg && reg.tipo;
+                if (tp === 'recebimento') return { modulo: 'Financeiro', singular: 'baixa (recebimento)' };
+                if (tp === 'receita')     return { modulo: 'Financeiro', singular: 'receita' };
+                if (tp === 'orcamento')   return { modulo: 'Orçamentos', singular: 'orçamento' };
+                if (tp === 'venda')       return { modulo: 'Vendas', singular: 'venda' };
+            }
+            return LOG_INFO_TABELAS[tabela] || { modulo: tabela, singular: tabela };
+        }
+
+        async function registrarLog(opts = {}) {
+            try {
+                if (!dadosUsuario) return;
+                await sb.from('logs_atividades').insert({
+                    usuario_id: dadosUsuario.id != null ? String(dadosUsuario.id) : null,
+                    usuario_nome: dadosUsuario.nome || dadosUsuario.usuario || null,
+                    usuario_nivel: dadosUsuario.nivel || null,
+                    modulo: opts.modulo || null,
+                    acao: opts.acao || null,
+                    entidade_id: opts.entidade_id != null ? String(opts.entidade_id) : null,
+                    descricao: opts.descricao || null,
+                    detalhes: opts.detalhes || null,
+                    dispositivo: opts.dispositivo || logDispositivoAtual()
+                });
+            } catch (e) { /* auditoria nunca deve quebrar o fluxo */ }
+        }
+
+        (function instalarInterceptorAuditoria() {
+            try {
+                if (!sb || sb.__auditWrapped) return;
+                const origFrom = sb.from.bind(sb);
+                sb.from = function (tabela) {
+                    const builder = origFrom(tabela);
+                    return new Proxy(builder, {
+                        get(target, prop) {
+                            const valor = target[prop];
+                            if (typeof valor === 'function' && LOG_INFO_ACAO[prop] && tabela !== 'logs_atividades') {
+                                return function (...args) {
+                                    const resultado = valor.apply(target, args);
+                                    const info = logInfoTabela(tabela, args[0]);
+                                    const ctx = window._logCtx || null;
+                                    if (ctx) window._logCtx = null;
+                                    const entidade = logDescreverEntidade(args[0]);
+                                    const modulo = (ctx && ctx.modulo) || info.modulo;
+                                    const acao = (ctx && ctx.acao) || LOG_INFO_ACAO[prop];
+                                    const entidadeId = (ctx && ctx.entidade_id) || logEntidadeId(args[0]);
+                                    const descricao = (ctx && ctx.descricao) ||
+                                        `${LOG_INFO_ACAO[prop]} ${info.singular}${entidade ? ' "' + entidade + '"' : ''}`;
+                                    Promise.resolve(resultado).then((r) => {
+                                        if (r && r.error) return;
+                                        registrarLog({ modulo, acao, entidade_id: entidadeId, descricao, detalhes: { tabela, operacao: prop, payload: args[0] } });
+                                    }).catch(() => {});
+                                    return resultado;
+                                };
+                            }
+                            if (typeof valor === 'function') return valor.bind(target);
+                            return valor;
+                        }
+                    });
+                };
+                sb.__auditWrapped = true;
+            } catch (e) { console.warn('Auditoria indisponível:', e); }
+        })();
+
+        // ====== VISUALIZADOR DE REGISTROS (somente superadmin) ======
+        const LOGS_PAGE_SIZE = 50;
+        let LOGS_PAGE = 0;
+        let LOGS_TOTAL = 0;
+
+        function logsEscape(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function logsFiltroModulos() {
+            const mods = new Set(Object.values(LOG_INFO_TABELAS).map((i) => i.modulo));
+            mods.add('Autenticação');
+            mods.add('Orçamentos');
+            mods.add('Registros');
+            return Array.from(mods).sort();
+        }
+
+        function abrirLogs() {
+            if (!(dadosUsuario && dadosUsuario.nivel === 'superadmin')) return showToast("Acesso negado!", true);
+            const sel = document.getElementById('logs-f-modulo');
+            if (sel && sel.options.length === 0) {
+                sel.innerHTML = '<option value="">Todos</option>' +
+                    logsFiltroModulos().map((m) => `<option value="${logsEscape(m)}">${logsEscape(m)}</option>`).join('');
+            }
+            LOGS_PAGE = 0;
+            document.getElementById('modal-logs').classList.remove('hidden');
+            carregarLogs();
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function fecharLogs() {
+            document.getElementById('modal-logs').classList.add('hidden');
+        }
+
+        function limparFiltrosLogs() {
+            ['logs-f-busca', 'logs-f-usuario', 'logs-f-de', 'logs-f-ate'].forEach((id) => { document.getElementById(id).value = ''; });
+            document.getElementById('logs-f-modulo').value = '';
+            LOGS_PAGE = 0;
+            carregarLogs();
+        }
+
+        function aplicarFiltrosLogs() {
+            LOGS_PAGE = 0;
+            carregarLogs();
+        }
+
+        function paginaLogs(dir) {
+            const proxima = LOGS_PAGE + dir;
+            if (proxima < 0) return;
+            if (dir > 0 && (proxima + 1) * LOGS_PAGE_SIZE >= LOGS_TOTAL) return;
+            LOGS_PAGE = proxima;
+            carregarLogs();
+        }
+
+        function construirQueryLogs() {
+            const busca = (document.getElementById('logs-f-busca').value || '').trim();
+            const usuario = (document.getElementById('logs-f-usuario').value || '').trim();
+            const modulo = document.getElementById('logs-f-modulo').value || '';
+            const de = document.getElementById('logs-f-de').value;
+            const ate = document.getElementById('logs-f-ate').value;
+
+            let q = sb.from('logs_atividades').select('*', { count: 'exact' });
+            if (busca) q = q.ilike('descricao', `%${busca}%`);
+            if (usuario) q = q.ilike('usuario_nome', `%${usuario}%`);
+            if (modulo) q = q.eq('modulo', modulo);
+            if (de) q = q.gte('criado_em', new Date(de + 'T00:00:00').toISOString());
+            if (ate) q = q.lte('criado_em', new Date(ate + 'T23:59:59.999').toISOString());
+            return q;
+        }
+
+        async function carregarLogs() {
+            const list = document.getElementById('logs-list');
+            list.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">Carregando...</td></tr>';
+            const from = LOGS_PAGE * LOGS_PAGE_SIZE;
+            const to = from + LOGS_PAGE_SIZE - 1;
+            try {
+                const { data, error, count } = await construirQueryLogs()
+                    .order('criado_em', { ascending: false })
+                    .range(from, to);
+                if (error) throw error;
+                LOGS_TOTAL = count || 0;
+                if (!data || data.length === 0) {
+                    list.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>';
+                } else {
+                    list.innerHTML = data.map((l) => `
+                        <tr class="align-top border-b">
+                            <td class="p-2 whitespace-nowrap text-slate-500">${l.criado_em ? new Date(l.criado_em).toLocaleString('pt-BR') : ''}</td>
+                            <td class="p-2 font-medium text-slate-700">${logsEscape(l.usuario_nome || '-')}<div class="text-[10px] text-slate-400 uppercase">${logsEscape(l.usuario_nivel || '')}</div></td>
+                            <td class="p-2 text-slate-600">${logsEscape(l.modulo || '-')}</td>
+                            <td class="p-2"><span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-700">${logsEscape(l.acao || '-')}</span></td>
+                            <td class="p-2 text-slate-700">${logsEscape(l.descricao || '')}</td>
+                            <td class="p-2 text-slate-400">${logsEscape(l.dispositivo || '')}</td>
+                        </tr>`).join('');
+                }
+                const totalPag = Math.max(1, Math.ceil(LOGS_TOTAL / LOGS_PAGE_SIZE));
+                document.getElementById('logs-total').textContent = `${LOGS_TOTAL} registro(s)`;
+                document.getElementById('logs-pagina').textContent = `Página ${LOGS_PAGE + 1} de ${totalPag}`;
+                document.getElementById('logs-prev').disabled = LOGS_PAGE <= 0;
+                document.getElementById('logs-next').disabled = (LOGS_PAGE + 1) * LOGS_PAGE_SIZE >= LOGS_TOTAL;
+            } catch (e) {
+                list.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-red-500">Erro ao carregar: ${logsEscape(e.message)}</td></tr>`;
+            }
+        }
+
+        async function exportarLogsCSV() {
+            if (!(dadosUsuario && dadosUsuario.nivel === 'superadmin')) return;
+            try {
+                showLoading(true);
+                const { data, error } = await construirQueryLogs().order('criado_em', { ascending: false }).limit(5000);
+                if (error) throw error;
+                const cabecalho = ['Data/Hora', 'Usuario', 'Nivel', 'Modulo', 'Acao', 'Entidade ID', 'Descricao', 'Dispositivo'];
+                const linhas = (data || []).map((l) => [
+                    l.criado_em ? new Date(l.criado_em).toLocaleString('pt-BR') : '',
+                    l.usuario_nome || '', l.usuario_nivel || '', l.modulo || '',
+                    l.acao || '', l.entidade_id || '', l.descricao || '', l.dispositivo || ''
+                ]);
+                const csv = [cabecalho, ...linhas]
+                    .map((cols) => cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';'))
+                    .join('\r\n');
+                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `registros_atividades_${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                registrarLog({ modulo: 'Registros', acao: 'exportou', descricao: `exportou ${linhas.length} registro(s) de atividades` });
+            } catch (e) {
+                showToast("Erro ao exportar: " + e.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Exibe o botão de registros apenas para superadmin.
+        if (dadosUsuario && dadosUsuario.nivel === 'superadmin') {
+            const elLogs = document.getElementById('nav-logs');
+            if (elLogs) elLogs.classList.remove('hidden');
+        }
 
         let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], sales: [], categories: [], categoriesDespesas: [] };
 
@@ -3436,6 +3734,7 @@
                     const venc = new Date(baseDue);
                     venc.setDate(venc.getDate() + (i - 1) * intervalo);
                     const parcValor = (i <= restCents ? (baseCents + 1) : baseCents) / 100;
+                    window._logCtx = { modulo: 'Financeiro', acao: 'parcelou', entidade_id: id, descricao: `parcelou a venda #${id} em ${N}x` };
                     const { error } = await sb.from('logs').insert([{
                         id: parcId,
                         tipo: 'receita',
@@ -3625,6 +3924,7 @@
                     return;
                 }
 
+                window._logCtx = { modulo: 'Financeiro', acao: 'estornou baixa', entidade_id: parentId, descricao: `estornou a baixa do título #${parentId}` };
                 for (let b of alvo) {
                     await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', b.uid);
                 }
@@ -7102,6 +7402,7 @@ function showFilteredExpenses() {
       
 
         async function fazerLogout() {
+            try { await registrarLog({ modulo: 'Autenticação', acao: 'logout', descricao: `saiu do sistema (${(dadosUsuario && dadosUsuario.nome) || ''})` }); } catch(e) {}
             try { await sb.auth.signOut(); } catch(e) {}
             localStorage.removeItem('rv_user');
             window.location.replace('index.html');

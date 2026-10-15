@@ -341,6 +341,7 @@
         <button onclick="navigate('users')" id="nav-users" class="nav-btn w-full hidden flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"><i data-lucide="shield"></i> <span class="font-medium text-sm">Usuários (Admin)</span></button>
        </nav>
       <div class="p-3 border-t border-slate-800 flex gap-2">
+        <button onclick="abrirLogs()" id="nav-logs" class="hidden flex-1 flex items-center justify-center space-x-2 px-3 py-3 rounded-lg text-amber-300 hover:bg-slate-800 transition-all" title="Registros de atividades"><i data-lucide="scroll-text"></i> <span class="font-medium text-sm">Registros</span></button>
         <button onclick="openPushSettings()" class="flex-1 flex items-center justify-center space-x-2 px-3 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all" title="Configurações"><i data-lucide="settings"></i> <span class="font-medium text-sm">Config</span></button>
         <button onclick="fazerLogout()" class="flex-1 flex items-center justify-center space-x-2 px-3 py-3 rounded-lg text-red-400 hover:bg-red-900/30 transition-all"><i data-lucide="log-out"></i> <span class="font-medium text-sm">Sair</span></button>
       </div>
@@ -1198,6 +1199,54 @@
             </div>
         </form>
     </div>
+
+<div id="modal-logs" class="hidden fixed inset-0 bg-black/60 z-[100] flex justify-center items-center p-2 sm:p-6">
+    <div class="bg-white rounded-2xl w-full max-w-6xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+        <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2"><i data-lucide="scroll-text" class="text-amber-600"></i> Registros de Atividades</h3>
+            <button onclick="fecharLogs()" class="text-slate-500 hover:text-slate-800"><i data-lucide="x"></i></button>
+        </div>
+        <div class="p-4 border-b bg-white grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+            <div>
+                <label class="block font-bold text-slate-500 uppercase mb-1">Busca</label>
+                <input id="logs-f-busca" type="text" placeholder="Descrição..." class="w-full p-2 border rounded outline-none focus:border-amber-500">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-500 uppercase mb-1">Usuário</label>
+                <input id="logs-f-usuario" type="text" placeholder="Nome..." class="w-full p-2 border rounded outline-none focus:border-amber-500">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-500 uppercase mb-1">Módulo</label>
+                <select id="logs-f-modulo" class="w-full p-2 border rounded outline-none focus:border-amber-500"></select>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-500 uppercase mb-1">De</label>
+                <input id="logs-f-de" type="date" class="w-full p-2 border rounded outline-none focus:border-amber-500">
+            </div>
+            <div>
+                <label class="block font-bold text-slate-500 uppercase mb-1">Até</label>
+                <input id="logs-f-ate" type="date" class="w-full p-2 border rounded outline-none focus:border-amber-500">
+            </div>
+        </div>
+        <div class="px-4 py-2 flex flex-wrap items-center gap-2 border-b bg-slate-50">
+            <button onclick="aplicarFiltrosLogs()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded font-bold text-xs flex items-center gap-1"><i data-lucide="search" width="14"></i> Filtrar</button>
+            <button onclick="limparFiltrosLogs()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded font-bold text-xs">Limpar</button>
+            <button onclick="exportarLogsCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded font-bold text-xs flex items-center gap-1"><i data-lucide="download" width="14"></i> Exportar CSV</button>
+            <span id="logs-total" class="text-xs text-slate-500 ml-auto"></span>
+        </div>
+        <div class="flex-1 overflow-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="bg-slate-100 text-slate-600 sticky top-0"><tr><th class="p-3 whitespace-nowrap">Data/Hora</th><th class="p-3">Usuário</th><th class="p-3">Módulo</th><th class="p-3">Ação</th><th class="p-3">Descrição</th><th class="p-3">Dispositivo</th></tr></thead>
+                <tbody id="logs-list" class="divide-y"></tbody>
+            </table>
+        </div>
+        <div class="p-3 border-t flex items-center justify-between bg-slate-50">
+            <button onclick="paginaLogs(-1)" id="logs-prev" class="px-3 py-1.5 rounded bg-slate-200 hover:bg-slate-300 font-bold text-xs disabled:opacity-40">Anterior</button>
+            <span id="logs-pagina" class="text-xs text-slate-500"></span>
+            <button onclick="paginaLogs(1)" id="logs-next" class="px-3 py-1.5 rounded bg-slate-200 hover:bg-slate-300 font-bold text-xs disabled:opacity-40">Próxima</button>
+        </div>
+    </div>
+</div>
 
 <div id="modal-period-report" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-4">
         <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
@@ -2650,6 +2699,256 @@
         const LOGO_URL = new URL('logo.png', window.location.href).href;
         const LOGO_NEGOCIOS_URL = new URL('logorvnegocios.png', window.location.href).href;
 
+        // ====== 2.1 AUDITORIA: REGISTRO DE ATIVIDADES ======
+        // Mapeia cada tabela para um rótulo legível usado nas descrições.
+        const LOG_INFO_TABELAS = {
+            logs:                { modulo: 'Vendas',        singular: 'venda' },
+            despesas:            { modulo: 'Despesas',      singular: 'despesa' },
+            categorias_despesas: { modulo: 'Despesas',      singular: 'categoria de despesa' },
+            categorias:          { modulo: 'Categorias',    singular: 'categoria' },
+            clientes:            { modulo: 'Clientes',      singular: 'cliente' },
+            produtos:            { modulo: 'Produtos',      singular: 'produto' },
+            usuarios:            { modulo: 'Usuários',      singular: 'usuário' },
+            configuracoes:       { modulo: 'Configurações', singular: 'configuração' },
+            recebimento_lotes:   { modulo: 'Financeiro',    singular: 'lote de recebimento' },
+            pagamento_lotes:     { modulo: 'Financeiro',    singular: 'lote de pagamento' },
+            movimentacoes:       { modulo: 'Estoque',       singular: 'movimentação de estoque' }
+        };
+        const LOG_INFO_ACAO = { insert: 'criou', upsert: 'salvou', update: 'editou', delete: 'excluiu' };
+
+        function logDispositivoAtual() {
+            return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ? 'mobile' : 'desktop';
+        }
+
+        // Extrai um rótulo legível (nome do produto/cliente/título...) do payload.
+        function logDescreverEntidade(payload) {
+            if (!payload) return '';
+            const reg = Array.isArray(payload) ? payload[0] : payload;
+            if (!reg || typeof reg !== 'object') return '';
+            const chaves = ['produto_nome', 'titulo', 'item', 'nome', 'cliente_nome', 'fornecedor', 'descricao', 'observacao', 'login', 'email'];
+            for (const k of chaves) {
+                const v = reg[k];
+                if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+            }
+            return '';
+        }
+
+        function logEntidadeId(payload) {
+            if (!payload || typeof payload !== 'object') return null;
+            const reg = Array.isArray(payload) ? payload[0] : payload;
+            if (!reg || typeof reg !== 'object') return null;
+            return (reg.id === undefined || reg.id === null) ? null : String(reg.id);
+        }
+
+        // Refina o rótulo de acordo com o tipo do registro (a tabela logs guarda
+        // venda, orçamento, receita e recebimento/baixa).
+        function logInfoTabela(tabela, payload) {
+            if (tabela === 'logs') {
+                const reg = Array.isArray(payload) ? payload[0] : payload;
+                const tp = reg && reg.tipo;
+                if (tp === 'recebimento') return { modulo: 'Financeiro', singular: 'baixa (recebimento)' };
+                if (tp === 'receita')     return { modulo: 'Financeiro', singular: 'receita' };
+                if (tp === 'orcamento')   return { modulo: 'Orçamentos', singular: 'orçamento' };
+                if (tp === 'venda')       return { modulo: 'Vendas', singular: 'venda' };
+            }
+            return LOG_INFO_TABELAS[tabela] || { modulo: tabela, singular: tabela };
+        }
+
+        // Grava um registro de atividade. Fire-and-forget: nunca quebra a ação principal.
+        async function registrarLog(opts = {}) {
+            try {
+                if (!dadosUsuario) return;
+                await sb.from('logs_atividades').insert({
+                    usuario_id: dadosUsuario.id != null ? String(dadosUsuario.id) : null,
+                    usuario_nome: dadosUsuario.nome || dadosUsuario.usuario || null,
+                    usuario_nivel: dadosUsuario.nivel || null,
+                    modulo: opts.modulo || null,
+                    acao: opts.acao || null,
+                    entidade_id: opts.entidade_id != null ? String(opts.entidade_id) : null,
+                    descricao: opts.descricao || null,
+                    detalhes: opts.detalhes || null,
+                    dispositivo: opts.dispositivo || logDispositivoAtual()
+                });
+            } catch (e) { /* auditoria nunca deve quebrar o fluxo */ }
+        }
+
+        // Interceptor global: registra automaticamente toda mutação (insert/update/delete/upsert)
+        // feita via sb.from(...). Rótulos semânticos podem ser passados em window._logCtx.
+        (function instalarInterceptorAuditoria() {
+            try {
+                if (!sb || sb.__auditWrapped) return;
+                const origFrom = sb.from.bind(sb);
+                sb.from = function (tabela) {
+                    const builder = origFrom(tabela);
+                    return new Proxy(builder, {
+                        get(target, prop) {
+                            const valor = target[prop];
+                            if (typeof valor === 'function' && LOG_INFO_ACAO[prop] && tabela !== 'logs_atividades') {
+                                return function (...args) {
+                                    const resultado = valor.apply(target, args);
+                                    const info = logInfoTabela(tabela, args[0]);
+                                    const ctx = window._logCtx || null;
+                                    if (ctx) window._logCtx = null;
+                                    const entidade = logDescreverEntidade(args[0]);
+                                    const modulo = (ctx && ctx.modulo) || info.modulo;
+                                    const acao = (ctx && ctx.acao) || LOG_INFO_ACAO[prop];
+                                    const entidadeId = (ctx && ctx.entidade_id) || logEntidadeId(args[0]);
+                                    const descricao = (ctx && ctx.descricao) ||
+                                        `${LOG_INFO_ACAO[prop]} ${info.singular}${entidade ? ' "' + entidade + '"' : ''}`;
+                                    Promise.resolve(resultado).then((r) => {
+                                        if (r && r.error) return;
+                                        registrarLog({ modulo, acao, entidade_id: entidadeId, descricao, detalhes: { tabela, operacao: prop, payload: args[0] } });
+                                    }).catch(() => {});
+                                    return resultado;
+                                };
+                            }
+                            if (typeof valor === 'function') return valor.bind(target);
+                            return valor;
+                        }
+                    });
+                };
+                sb.__auditWrapped = true;
+            } catch (e) { console.warn('Auditoria indisponível:', e); }
+        })();
+
+        // ====== 2.2 VISUALIZADOR DE REGISTROS (somente superadmin) ======
+        const LOGS_PAGE_SIZE = 50;
+        let LOGS_PAGE = 0;
+        let LOGS_TOTAL = 0;
+
+        function logsEscape(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function logsFiltroModulos() {
+            const mods = new Set(Object.values(LOG_INFO_TABELAS).map((i) => i.modulo));
+            mods.add('Autenticação');
+            mods.add('Orçamentos');
+            mods.add('Registros');
+            return Array.from(mods).sort();
+        }
+
+        function abrirLogs() {
+            if (!(dadosUsuario && dadosUsuario.nivel === 'superadmin')) return showToast("Acesso negado!", true);
+            const sel = document.getElementById('logs-f-modulo');
+            if (sel && sel.options.length === 0) {
+                sel.innerHTML = '<option value="">Todos</option>' +
+                    logsFiltroModulos().map((m) => `<option value="${logsEscape(m)}">${logsEscape(m)}</option>`).join('');
+            }
+            LOGS_PAGE = 0;
+            document.getElementById('modal-logs').classList.remove('hidden');
+            carregarLogs();
+            lucide.createIcons();
+        }
+
+        function fecharLogs() {
+            document.getElementById('modal-logs').classList.add('hidden');
+        }
+
+        function limparFiltrosLogs() {
+            ['logs-f-busca', 'logs-f-usuario', 'logs-f-de', 'logs-f-ate'].forEach((id) => { document.getElementById(id).value = ''; });
+            document.getElementById('logs-f-modulo').value = '';
+            LOGS_PAGE = 0;
+            carregarLogs();
+        }
+
+        function aplicarFiltrosLogs() {
+            LOGS_PAGE = 0;
+            carregarLogs();
+        }
+
+        function paginaLogs(dir) {
+            const proxima = LOGS_PAGE + dir;
+            if (proxima < 0) return;
+            if (dir > 0 && (proxima + 1) * LOGS_PAGE_SIZE >= LOGS_TOTAL) return;
+            LOGS_PAGE = proxima;
+            carregarLogs();
+        }
+
+        function construirQueryLogs() {
+            const busca = (document.getElementById('logs-f-busca').value || '').trim();
+            const usuario = (document.getElementById('logs-f-usuario').value || '').trim();
+            const modulo = document.getElementById('logs-f-modulo').value || '';
+            const de = document.getElementById('logs-f-de').value;
+            const ate = document.getElementById('logs-f-ate').value;
+
+            let q = sb.from('logs_atividades').select('*', { count: 'exact' });
+            if (busca) q = q.ilike('descricao', `%${busca}%`);
+            if (usuario) q = q.ilike('usuario_nome', `%${usuario}%`);
+            if (modulo) q = q.eq('modulo', modulo);
+            if (de) q = q.gte('criado_em', new Date(de + 'T00:00:00').toISOString());
+            if (ate) q = q.lte('criado_em', new Date(ate + 'T23:59:59.999').toISOString());
+            return q;
+        }
+
+        async function carregarLogs() {
+            const list = document.getElementById('logs-list');
+            list.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">Carregando...</td></tr>';
+            const from = LOGS_PAGE * LOGS_PAGE_SIZE;
+            const to = from + LOGS_PAGE_SIZE - 1;
+            try {
+                const { data, error, count } = await construirQueryLogs()
+                    .order('criado_em', { ascending: false })
+                    .range(from, to);
+                if (error) throw error;
+                LOGS_TOTAL = count || 0;
+                if (!data || data.length === 0) {
+                    list.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>';
+                } else {
+                    list.innerHTML = data.map((l) => `
+                        <tr class="hover:bg-slate-50 align-top">
+                            <td class="p-3 whitespace-nowrap text-slate-500">${l.criado_em ? new Date(l.criado_em).toLocaleString('pt-BR') : ''}</td>
+                            <td class="p-3 font-medium text-slate-700">${logsEscape(l.usuario_nome || '-')}<div class="text-[10px] text-slate-400 uppercase">${logsEscape(l.usuario_nivel || '')}</div></td>
+                            <td class="p-3 text-slate-600">${logsEscape(l.modulo || '-')}</td>
+                            <td class="p-3"><span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-700">${logsEscape(l.acao || '-')}</span></td>
+                            <td class="p-3 text-slate-700">${logsEscape(l.descricao || '')}</td>
+                            <td class="p-3 text-slate-400">${logsEscape(l.dispositivo || '')}</td>
+                        </tr>`).join('');
+                }
+                const totalPag = Math.max(1, Math.ceil(LOGS_TOTAL / LOGS_PAGE_SIZE));
+                document.getElementById('logs-total').textContent = `${LOGS_TOTAL} registro(s)`;
+                document.getElementById('logs-pagina').textContent = `Página ${LOGS_PAGE + 1} de ${totalPag}`;
+                document.getElementById('logs-prev').disabled = LOGS_PAGE <= 0;
+                document.getElementById('logs-next').disabled = (LOGS_PAGE + 1) * LOGS_PAGE_SIZE >= LOGS_TOTAL;
+            } catch (e) {
+                list.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-red-500">Erro ao carregar: ${logsEscape(e.message)}</td></tr>`;
+            }
+        }
+
+        async function exportarLogsCSV() {
+            if (!(dadosUsuario && dadosUsuario.nivel === 'superadmin')) return;
+            try {
+                showLoading(true);
+                const { data, error } = await construirQueryLogs()
+                    .order('criado_em', { ascending: false })
+                    .limit(5000);
+                if (error) throw error;
+                const cabecalho = ['Data/Hora', 'Usuario', 'Nivel', 'Modulo', 'Acao', 'Entidade ID', 'Descricao', 'Dispositivo'];
+                const linhas = (data || []).map((l) => [
+                    l.criado_em ? new Date(l.criado_em).toLocaleString('pt-BR') : '',
+                    l.usuario_nome || '', l.usuario_nivel || '', l.modulo || '',
+                    l.acao || '', l.entidade_id || '', l.descricao || '', l.dispositivo || ''
+                ]);
+                const csv = [cabecalho, ...linhas]
+                    .map((cols) => cols.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';'))
+                    .join('\r\n');
+                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `registros_atividades_${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                registrarLog({ modulo: 'Registros', acao: 'exportou', descricao: `exportou ${linhas.length} registro(s) de atividades` });
+            } catch (e) {
+                showToast("Erro ao exportar: " + e.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
         // ====== 3. VARIÁVEIS GERAIS DO SISTEMA ======
         let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], categories: [], categoriesDespesas: [] /*custoMaterialB10: 0 */};
         // Resolve o produto de uma log sempre por ID (produto_id) quando houver,
@@ -3134,13 +3433,18 @@
 
         /*STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;*/
 
-        if (dadosUsuario.nivel === 'admin') {
+        const ehAdmin = dadosUsuario.nivel === 'admin' || dadosUsuario.nivel === 'superadmin';
+        if (ehAdmin) {
             const navUsersBtn = document.getElementById('nav-users');
             if (navUsersBtn) navUsersBtn.classList.remove('hidden');
             const btnCatDesp = document.getElementById('btn-categorias-despesa');
             if (btnCatDesp) btnCatDesp.classList.remove('hidden');
             const resUsers = await fetchAllRecords('usuarios');
             STATE.users = resUsers.data || [];
+        }
+        if (dadosUsuario.nivel === 'superadmin') {
+            const navLogsBtn = document.getElementById('nav-logs');
+            if (navLogsBtn) navLogsBtn.classList.remove('hidden');
         }
 
         preencherCategoriasDespesaSelects();
@@ -4825,6 +5129,7 @@ function printStockCountSheet() {
                     const venc = new Date(baseDue);
                     venc.setDate(venc.getDate() + (i - 1) * intervalo);
                     const parcValor = (i <= restCents ? (baseCents + 1) : baseCents) / 100;
+                    window._logCtx = { modulo: 'Financeiro', acao: 'parcelou', entidade_id: id, descricao: `parcelou a venda #${id} em ${N}x (saldo ${saldo.toFixed(2)})` };
                     const { error } = await sb.from('logs').insert([{
                         id: parcId,
                         tipo: 'receita',
@@ -4916,6 +5221,7 @@ function printStockCountSheet() {
                 }
 
                 const parentId = String((alvo[0].note.match(/#(\d+)/) || [])[1]);
+                window._logCtx = { modulo: 'Financeiro', acao: 'estornou baixa', entidade_id: parentId, descricao: `estornou a baixa do título #${parentId}` };
                 for (let b of alvo) {
                     await sb.from('logs').update({ status: 'CANCELADO' }).eq('uid', b.uid);
                 }
@@ -9901,6 +10207,7 @@ function loadQuoteToCart(id) {
             setTimeout(() => window.print(), 500);
           }
         async function fazerLogout() {
+            try { await registrarLog({ modulo: 'Autenticação', acao: 'logout', descricao: `saiu do sistema (${(dadosUsuario && dadosUsuario.nome) || ''})` }); } catch(e) {}
             try { await sb.auth.signOut(); } catch(e) {}
             localStorage.removeItem('rv_user');
             window.location.href = "index.html?t=" + Date.now();
@@ -9909,27 +10216,45 @@ function loadQuoteToCart(id) {
         function renderUsers() {
             const list = document.getElementById('users-list');
             if(!list) return;
-            list.innerHTML = (STATE.users||[]).map(u => `
+            list.innerHTML = (STATE.users||[]).map(u => {
+                const protegido = u.nivel_acesso === 'superadmin' && dadosUsuario.nivel !== 'superadmin';
+                const badge = u.nivel_acesso === 'superadmin'
+                    ? 'bg-amber-100 text-amber-700'
+                    : (u.nivel_acesso === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600');
+                const acoes = protegido
+                    ? `<span class="text-slate-300" title="Somente um superadmin pode alterar este usuário"><i data-lucide="lock" width="16"></i></span>`
+                    : `<button onclick="openUserForm('${u.id}')" class="text-indigo-700 hover:text-indigo-900" title="Editar"><i data-lucide="edit-3" width="16"></i></button>
+                        ${u.email ? `<button onclick="resetarSenhaUsuario('${u.id}')" class="text-blue-700 hover:text-blue-900" title="Enviar e-mail de redefinição de senha"><i data-lucide="mail" width="16"></i></button>` : ''}
+                        <button onclick="toggleUserStatus('${u.id}', ${u.ativo})" class="${u.ativo ? 'text-orange-500' : 'text-green-600'}" title="Bloquear/Desbloquear"><i data-lucide="${u.ativo ? 'ban' : 'check-circle'}" width="16"></i></button>`;
+                return `
                 <tr class="hover:bg-slate-50 ${!u.ativo ? 'opacity-50' : ''}">
                     <td class="p-4 font-bold text-slate-700">${u.nome}</td>
                     <td class="p-4">
                         <div class="text-emerald-600 font-bold">${u.login}</div>
                         ${u.email ? `<div class="text-xs text-slate-400">${u.email}</div>` : `<div class="text-xs text-red-400 font-medium">sem e-mail</div>`}
                     </td>
-                    <td class="p-4"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${u.nivel_acesso === 'admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}">${u.nivel_acesso}</span></td>
+                    <td class="p-4"><span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${badge}">${u.nivel_acesso}</span></td>
                     <td class="p-4 text-center"><span class="text-xs font-bold ${u.ativo ? 'text-green-600' : 'text-red-500'}">${u.ativo ? 'Ativo' : 'Bloqueado'}</span></td>
-                    <td class="p-4 text-center flex justify-center gap-3">
-                        <button onclick="openUserForm('${u.id}')" class="text-indigo-700 hover:text-indigo-900" title="Editar"><i data-lucide="edit-3" width="16"></i></button>
-                        ${u.email ? `<button onclick="resetarSenhaUsuario('${u.id}')" class="text-blue-700 hover:text-blue-900" title="Enviar e-mail de redefinição de senha"><i data-lucide="mail" width="16"></i></button>` : ''}
-                        <button onclick="toggleUserStatus('${u.id}', ${u.ativo})" class="${u.ativo ? 'text-orange-500' : 'text-green-600'}" title="Bloquear/Desbloquear"><i data-lucide="${u.ativo ? 'ban' : 'check-circle'}" width="16"></i></button>
-                    </td>
-                </tr>`).join('');
+                    <td class="p-4 text-center flex justify-center gap-3">${acoes}</td>
+                </tr>`;
+            }).join('');
             lucide.createIcons();
         }
 
         function openUserForm(id) { 
             document.getElementById('user-form-container').classList.remove('hidden'); 
             const isNew = !id;
+            // Opção "superadmin" no select: visível apenas para um superadmin.
+            const selRole = document.getElementById('usr-role');
+            const temOptSuper = Array.from(selRole.options).some(o => o.value === 'superadmin');
+            if (dadosUsuario.nivel === 'superadmin' && !temOptSuper) {
+                const opt = document.createElement('option');
+                opt.value = 'superadmin';
+                opt.textContent = 'Superadmin (Acesso Máximo)';
+                selRole.appendChild(opt);
+            } else if (dadosUsuario.nivel !== 'superadmin' && temOptSuper) {
+                Array.from(selRole.options).forEach(o => { if (o.value === 'superadmin') o.remove(); });
+            }
             document.getElementById('user-form-title').innerHTML = `<i data-lucide="${isNew ? 'user-plus' : 'user-cog'}" class="text-emerald-600"></i> ${isNew ? 'Novo Usuário' : 'Editar Usuário'}`;
             document.getElementById('usr-pass-row').classList.toggle('hidden', !isNew);
             document.getElementById('usr-edit-hint').classList.toggle('hidden', isNew);
@@ -9958,7 +10283,7 @@ function loadQuoteToCart(id) {
 
         async function saveUser(e) {
             e.preventDefault();
-            if(dadosUsuario.nivel !== 'admin') return showToast("Acesso negado!", true);
+            if(dadosUsuario.nivel !== 'admin' && dadosUsuario.nivel !== 'superadmin') return showToast("Acesso negado!", true);
             showLoading(true);
             
             const isNew = !document.getElementById('usr-id').value;
@@ -9968,7 +10293,17 @@ function loadQuoteToCart(id) {
             const senha = document.getElementById('usr-pass').value;
             const nivel = document.getElementById('usr-role').value;
 
+            const original = isNew ? null : (STATE.users || []).find(x => String(x.id) === String(document.getElementById('usr-id').value));
+
             try {
+                if (nivel === 'superadmin' && dadosUsuario.nivel !== 'superadmin') {
+                    showLoading(false);
+                    return showToast("Somente um superadmin pode atribuir a categoria superadmin.", true);
+                }
+                if (original && original.nivel_acesso === 'superadmin' && dadosUsuario.nivel !== 'superadmin') {
+                    showLoading(false);
+                    return showToast("Somente um superadmin pode alterar um superadmin.", true);
+                }
                 if (isNew) {
                     if (!email || !senha) {
                         showLoading(false);
@@ -10019,9 +10354,10 @@ function loadQuoteToCart(id) {
         }
 
         async function resetarSenhaUsuario(id) {
-            if(dadosUsuario.nivel !== 'admin') return;
+            if(dadosUsuario.nivel !== 'admin' && dadosUsuario.nivel !== 'superadmin') return;
             const u = STATE.users.find(x => String(x.id) === String(id));
             if (!u || !u.email) return showToast("Usuário sem e-mail cadastrado.", true);
+            if (u.nivel_acesso === 'superadmin' && dadosUsuario.nivel !== 'superadmin') return showToast("Somente um superadmin pode alterar um superadmin.", true);
             if (!(await showConfirmToast(`Enviar e-mail de redefinição de senha para ${u.email}?`))) return;
             showLoading(true);
             try {
@@ -10037,8 +10373,10 @@ function loadQuoteToCart(id) {
         }
 
         async function toggleUserStatus(id, currentStatus) {
-            if(dadosUsuario.nivel !== 'admin') return;
+            if(dadosUsuario.nivel !== 'admin' && dadosUsuario.nivel !== 'superadmin') return;
             if(String(id) === String(dadosUsuario.id)) return showToast("Você não pode bloquear a si mesmo!", true);
+            const alvo = (STATE.users || []).find(x => String(x.id) === String(id));
+            if (alvo && alvo.nivel_acesso === 'superadmin' && dadosUsuario.nivel !== 'superadmin') return showToast("Somente um superadmin pode alterar um superadmin.", true);
             showLoading(true);
             
             const { error } = await sb.from('usuarios').update({ ativo: !currentStatus }).eq('id', id);

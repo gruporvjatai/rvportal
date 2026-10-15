@@ -167,6 +167,19 @@
                     nivel: perfil.nivel_acesso
                 }));
 
+                // Registra a atividade de login (não bloqueia o acesso em caso de falha)
+                try {
+                    await sb.from('logs_atividades').insert({
+                        usuario_id: perfil.id != null ? String(perfil.id) : null,
+                        usuario_nome: perfil.nome || null,
+                        usuario_nivel: perfil.nivel_acesso || null,
+                        modulo: 'Autenticação',
+                        acao: 'login',
+                        descricao: `entrou no sistema (${perfil.nome || perfil.nivel_acesso || ''})`,
+                        dispositivo: /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ? 'mobile' : 'desktop'
+                    });
+                } catch (e) { /* auditoria nunca deve bloquear o login */ }
+
                 // Redireciona
                 window.location.href = "sistema.html?t=" + Date.now();
 
