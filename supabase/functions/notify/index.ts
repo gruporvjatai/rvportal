@@ -110,6 +110,8 @@ Deno.serve(async (req) => {
     if (!setting.enabled) return json({ ok: true, skipped: "desativado" });
 
     const roles: string[] = setting.roles ?? ["admin"];
+    // Superadmin herda todos os eventos destinados a admin.
+    if (roles.includes("admin") && !roles.includes("superadmin")) roles.push("superadmin");
     const { data: users, error: uErr } = await supabase
       .from("usuarios")
       .select("email")

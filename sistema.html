@@ -2695,6 +2695,10 @@
             dadosUsuario = JSON.parse(userSessao);
         }
 
+        function ehAdminOuSuper() {
+            return !!(dadosUsuario && (dadosUsuario.nivel === 'admin' || dadosUsuario.nivel === 'superadmin'));
+        }
+
         // ====== 2. CONEXÃO COM O SUPABASE ======
         // Valores vindos de config.js (injetados no deploy via GitHub Actions)
         const supabaseUrl = window.SUPABASE_URL;
@@ -3987,7 +3991,7 @@
                 if (isEdit) {
                     if (stockNew) stockNew.classList.add('hidden');
                     if (stockRO) stockRO.classList.remove('hidden');
-                    if (roLink) roLink.classList.toggle('hidden', !(dadosUsuario && dadosUsuario.nivel === 'admin'));
+                    if (roLink) roLink.classList.toggle('hidden', !ehAdminOuSuper());
                 } else {
                     if (stockRO) stockRO.classList.add('hidden');
                     if (stockNew) stockNew.classList.remove('hidden');
@@ -4271,7 +4275,7 @@ function atualizarResumoAjuste() {
 
 // Aplica em lote os ajustes preenchidos na tabela de contagem.
 async function submeterAjusteEstoque() {
-  if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+  if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
   if (!STATE.products || !STATE.products.length) return showToast("Nenhum produto cadastrado.", true);
 
   const motivo = document.getElementById('adj-motivo')?.value || '';
@@ -4354,7 +4358,7 @@ async function submeterAjusteEstoque() {
 
 // Abre/fecha o modal do historico de ajustes.
 function openAjusteHistorico() {
-  if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+  if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
   loadAjusteHistorico();
   document.getElementById('modal-ajuste-historico').classList.remove('hidden');
   if (window.lucide) lucide.createIcons();
@@ -4370,7 +4374,7 @@ let _movResumo = [];
 let _movView = 'A';
 
 function openMovProdutoModal() {
-  if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+  if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
   const sel = document.getElementById('mov-produto');
   if (sel) {
     const atual = sel.value;
@@ -5953,7 +5957,7 @@ function printStockCountSheet() {
         }
 
         async function abrirRecebimentoLote() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             const tits = coletarTitulosSelecionados();
             if (tits.length < 2) return showToast("Selecione ao menos 2 titulos para receber em lote.", true);
             window._loteTitulos = tits;
@@ -6043,7 +6047,7 @@ function printStockCountSheet() {
         }
 
         async function confirmarRecebimentoLote() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             const c = computarLote();
             if (!c.tits.length) return;
             if (c.totalCaixa <= 0 && c.credito <= 0 && c.jur <= 0 && c.disc <= 0) return showToast("Nada a receber.", true);
@@ -6330,7 +6334,7 @@ function printStockCountSheet() {
         }
 
         async function abrirPagamentoLote() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             const tits = coletarDespesasSelecionadas();
             if (tits.length < 2) return showToast("Selecione ao menos 2 titulos para pagar em lote.", true);
             window._lotePayTitulos = tits;
@@ -6393,7 +6397,7 @@ function printStockCountSheet() {
         }
 
         async function confirmarPagamentoLote() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             const c = computarLotePagar();
             if (!c.tits.length) return;
             if (c.totalCaixa <= 0 && c.jur <= 0 && c.disc <= 0) return showToast("Nada a pagar.", true);
@@ -8043,7 +8047,7 @@ function loadQuoteToCart(id) {
 
       // Garante que a sub-aba de ajuste e o botao de categorias so existam para admin.
       function applyProdAdminGate() {
-        const isAdmin = !!(dadosUsuario && dadosUsuario.nivel === 'admin');
+        const isAdmin = ehAdminOuSuper();
         const btn = document.getElementById('prodtab-ajuste');
         if (btn) btn.classList.toggle('hidden', !isAdmin);
         const btnCat = document.getElementById('btn-categorias-produto');
@@ -8055,7 +8059,7 @@ function loadQuoteToCart(id) {
 
       function switchProdTab(tab) {
         if (tab !== 'catalogo' && tab !== 'ajuste') tab = 'catalogo';
-        if (tab === 'ajuste' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
+        if (tab === 'ajuste' && !ehAdminOuSuper()) tab = 'catalogo';
         PROD_TAB = tab;
 
         const panelCat = document.getElementById('prod-panel-catalogo');
@@ -8109,7 +8113,7 @@ function loadQuoteToCart(id) {
       function renderCategoriasProdutoModal() {
         const list = document.getElementById('catprod-list');
         if (!list) return;
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
+        if (!ehAdminOuSuper()) return;
         const cats = STATE.categories || [];
         if (!cats.length) {
           list.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-slate-400">Nenhuma categoria cadastrada.</td></tr>';
@@ -8140,7 +8144,7 @@ function loadQuoteToCart(id) {
       }
 
       function openCategoriasProdutoModal() {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         renderCategoriasProdutoModal();
         const inp = document.getElementById('catprod-new-name');
         if (inp) inp.value = '';
@@ -8153,7 +8157,7 @@ function loadQuoteToCart(id) {
       }
 
       function openEditCategoriaProduto(id) {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
         if (!cat) return;
         _catProdEditId = String(id);
@@ -8169,7 +8173,7 @@ function loadQuoteToCart(id) {
       }
 
       async function saveEditCategoriaProduto() {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         const id = _catProdEditId;
         if (!id) return closeEditCategoriaProduto();
         const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
@@ -8199,7 +8203,7 @@ function loadQuoteToCart(id) {
       }
 
       async function addCategoriaProduto() {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         const input = document.getElementById('catprod-new-name');
         const nome = (input?.value || '').trim().toUpperCase();
         if (!nome) return showToast("Informe o nome da categoria.", true);
@@ -8214,7 +8218,7 @@ function loadQuoteToCart(id) {
       }
 
       async function deleteCategoriaProduto(id) {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
         if (!cat) return;
         const emUso = (STATE.products || []).filter(p => (p.category || '') === cat.nome).length;
@@ -8580,7 +8584,7 @@ function loadQuoteToCart(id) {
       function renderCategoriasDespesaModal() {
         const list = document.getElementById('catdesp-list');
         if (!list) return;
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
+        if (!ehAdminOuSuper()) return;
         const cats = STATE.categoriesDespesas || [];
         if (!cats.length) {
           list.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-slate-400">Nenhuma categoria cadastrada.</td></tr>';
@@ -8610,7 +8614,7 @@ function loadQuoteToCart(id) {
       }
 
       function openCategoriasDespesaModal() {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         renderCategoriasDespesaModal();
         document.getElementById('modal-categorias-despesa').classList.remove('hidden');
         if (window.lucide) lucide.createIcons();
@@ -8621,7 +8625,7 @@ function loadQuoteToCart(id) {
       }
 
       async function addCategoriaDespesa() {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         const input = document.getElementById('catdesp-new-name');
         const nome = (input?.value || '').trim().toUpperCase();
         if (!nome) return showToast("Informe o nome da categoria.", true);
@@ -8636,7 +8640,7 @@ function loadQuoteToCart(id) {
       }
 
       function openEditCategoriaDespesa(id) {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         const cat = (STATE.categoriesDespesas || []).find(c => String(c.id) === String(id));
         if (!cat) return;
         _catDespEditId = String(id);
@@ -8652,7 +8656,7 @@ function loadQuoteToCart(id) {
       }
 
       async function saveEditCategoriaDespesa() {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         const id = _catDespEditId;
         if (!id) return closeEditCategoriaDespesa();
         const cat = (STATE.categoriesDespesas || []).find(c => String(c.id) === String(id));
@@ -8707,7 +8711,7 @@ function loadQuoteToCart(id) {
       let _catDespDeleteId = null;
 
       async function deleteCategoriaDespesa(id) {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         const cat = (STATE.categoriesDespesas || []).find(c => String(c.id) === String(id));
         if (!cat) return;
         const emUso = (STATE.expenses || []).filter(e => String(e.categoriaId) === String(id)).length;
@@ -8767,7 +8771,7 @@ function loadQuoteToCart(id) {
 
       // Leva o admin da edicao do produto direto para o ajuste daquele item.
       function irParaAjusteProduto(id) {
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+        if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
         document.getElementById('prod-form-container').classList.add('hidden');
         PROD_TAB = 'ajuste';
         const p = STATE.products.find(x => String(x.id) === String(id));
@@ -8888,7 +8892,7 @@ function loadQuoteToCart(id) {
       function renderStockAdjust() {
         const list = document.getElementById('adj-list');
         if (!list) return;
-        if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
+        if (!ehAdminOuSuper()) return;
 
         const term = normalizeSearch(document.getElementById('adj-search')?.value);
         const catFilter = document.getElementById('adj-category')?.value || '';
@@ -8997,7 +9001,7 @@ function loadQuoteToCart(id) {
               document.getElementById('prd-ro-comprometido').innerText = p.committed;
               document.getElementById('prd-ro-disponivel').innerText = p.available;
               const roLink = document.getElementById('prd-ro-link');
-              if (roLink) roLink.classList.toggle('hidden', !(dadosUsuario && dadosUsuario.nivel === 'admin'));
+              if (roLink) roLink.classList.toggle('hidden', !ehAdminOuSuper());
               toggleProdutoTipo();
 
               // Foto do produto

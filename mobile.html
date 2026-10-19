@@ -1560,6 +1560,10 @@
         if (!userSessao) { window.location.replace('index.html'); } 
         else { dadosUsuario = JSON.parse(userSessao); }
 
+        function ehAdminOuSuper() {
+            return !!(dadosUsuario && (dadosUsuario.nivel === 'admin' || dadosUsuario.nivel === 'superadmin'));
+        }
+
         // Valores vindos de config.js (injetados no deploy via GitHub Actions)
         const supabaseUrl = window.SUPABASE_URL;
         const supabaseKey = window.SUPABASE_ANON_KEY;
@@ -3256,7 +3260,7 @@
         }
 
         function abrirRecebimentoLote() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             const tits = _recTitulosSelecionados();
             if (tits.length < 2) return showToast("Selecione ao menos 2 titulos.", true);
             window._loteTitulos = tits;
@@ -3314,7 +3318,7 @@
         }
 
         async function confirmarRecebimentoLote() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             const c = _computarLote();
             if (!c.tits.length) return;
             if (c.totalCaixa <= 0 && c.jur <= 0 && c.disc <= 0) return showToast("Nada a receber.", true);
@@ -3535,7 +3539,7 @@
         }
 
         function abrirPagamentoLote() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             const tits = _payTitulosSelecionados();
             if (tits.length < 2) return showToast("Selecione ao menos 2 titulos.", true);
             window._lotePayTitulos = tits;
@@ -3593,7 +3597,7 @@
         }
 
         async function confirmarPagamentoLote() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             const c = _computarLotePagar();
             if (!c.tits.length) return;
             if (c.totalCaixa <= 0 && c.jur <= 0 && c.disc <= 0) return showToast("Nada a pagar.", true);
@@ -5924,7 +5928,7 @@ function downloadPDF(blob, filename) {
         }
 
         function applyProdAdminGate() {
-            const isAdmin = !!(dadosUsuario && dadosUsuario.nivel === 'admin');
+            const isAdmin = ehAdminOuSuper();
             const btn = document.getElementById('prodtab-ajuste');
             if (btn) btn.classList.toggle('hidden', !isAdmin);
             const btnCat = document.getElementById('btn-categorias-produto');
@@ -5934,7 +5938,7 @@ function downloadPDF(blob, filename) {
 
         function switchProdTab(tab) {
             if (tab !== 'catalogo' && tab !== 'ajuste') tab = 'catalogo';
-            if (tab === 'ajuste' && !(dadosUsuario && dadosUsuario.nivel === 'admin')) tab = 'catalogo';
+            if (tab === 'ajuste' && !ehAdminOuSuper()) tab = 'catalogo';
             PROD_TAB = tab;
 
             const panelCat = document.getElementById('prod-panel-catalogo');
@@ -5964,7 +5968,7 @@ function downloadPDF(blob, filename) {
         }
 
         function irParaAjusteProduto(id) {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             document.getElementById('prod-form-container').classList.add('hidden');
             PROD_TAB = 'ajuste';
             const p = STATE.products.find(x => String(x.id) === String(id));
@@ -6269,7 +6273,7 @@ function downloadPDF(blob, filename) {
         }
 
         async function submeterAjusteEstoque() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             if (!STATE.products || !STATE.products.length) return showToast("Nenhum produto cadastrado.", true);
 
             const motivo = document.getElementById('adj-motivo')?.value || '';
@@ -6323,7 +6327,7 @@ function downloadPDF(blob, filename) {
         }
 
         function openAjusteHistorico() {
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+            if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
             loadAjusteHistorico();
             document.getElementById('modal-ajuste-historico').classList.remove('hidden');
             if (window.lucide) lucide.createIcons();
@@ -6368,7 +6372,7 @@ function downloadPDF(blob, filename) {
         function renderStockAdjust() {
             const list = document.getElementById('adj-list');
             if (!list) return;
-            if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
+            if (!ehAdminOuSuper()) return;
 
             const term = document.getElementById('adj-search')?.value.toLowerCase() || '';
             const catFilter = document.getElementById('adj-category')?.value || '';
@@ -6461,7 +6465,7 @@ function downloadPDF(blob, filename) {
                 document.getElementById('prd-ro-comprometido').innerText = p.committed;
                 document.getElementById('prd-ro-disponivel').innerText = p.available;
                 const roLink = document.getElementById('prd-ro-link');
-                if (roLink) roLink.classList.toggle('hidden', !(dadosUsuario && dadosUsuario.nivel === 'admin'));
+                if (roLink) roLink.classList.toggle('hidden', !ehAdminOuSuper());
             } else { 
                 document.getElementById('prd-id').value = ''; 
                 document.getElementById('prd-name').value = ''; 
@@ -6637,7 +6641,7 @@ function downloadPDF(blob, filename) {
               if (isEdit) {
                   if (stockNew) stockNew.classList.add('hidden');
                   if (stockRO) stockRO.classList.remove('hidden');
-                  if (roLink) roLink.classList.toggle('hidden', !(dadosUsuario && dadosUsuario.nivel === 'admin'));
+                  if (roLink) roLink.classList.toggle('hidden', !ehAdminOuSuper());
               } else {
                   if (stockRO) stockRO.classList.add('hidden');
                   if (stockNew) stockNew.classList.remove('hidden');
@@ -6669,7 +6673,7 @@ function downloadPDF(blob, filename) {
       function renderCategoriasProdutoModal() {
           const list = document.getElementById('catprod-list');
           if (!list) return;
-          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return;
+          if (!ehAdminOuSuper()) return;
           const cats = STATE.categories || [];
           if (!cats.length) {
               list.innerHTML = '<p class="p-6 text-center text-slate-400 text-sm">Nenhuma categoria cadastrada.</p>';
@@ -6694,7 +6698,7 @@ function downloadPDF(blob, filename) {
       }
 
       function openCategoriasProdutoModal() {
-          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
           renderCategoriasProdutoModal();
           const inp = document.getElementById('catprod-new-name');
           if (inp) inp.value = '';
@@ -6707,7 +6711,7 @@ function downloadPDF(blob, filename) {
       }
 
       function openEditCategoriaProduto(id) {
-          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
           const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
           if (!cat) return;
           _catProdEditId = String(id);
@@ -6723,7 +6727,7 @@ function downloadPDF(blob, filename) {
       }
 
       async function saveEditCategoriaProduto() {
-          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
           const id = _catProdEditId;
           if (!id) return closeEditCategoriaProduto();
           const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
@@ -6753,7 +6757,7 @@ function downloadPDF(blob, filename) {
       }
 
       async function addCategoriaProduto() {
-          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
           const input = document.getElementById('catprod-new-name');
           const nome = (input?.value || '').trim().toUpperCase();
           if (!nome) return showToast("Informe o nome da categoria.", true);
@@ -6768,7 +6772,7 @@ function downloadPDF(blob, filename) {
       }
 
       async function deleteCategoriaProduto(id) {
-          if (!(dadosUsuario && dadosUsuario.nivel === 'admin')) return showToast("Acesso negado!", true);
+          if (!ehAdminOuSuper()) return showToast("Acesso negado!", true);
           const cat = (STATE.categories || []).find(c => String(c.id) === String(id));
           if (!cat) return;
           const emUso = (STATE.products || []).filter(p => (p.category || '') === cat.nome).length;

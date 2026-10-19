@@ -99,14 +99,14 @@ create policy notification_settings_admin_write on public.notification_settings
         exists (
             select 1 from public.usuarios u
             where lower(u.email) = lower(auth.jwt() ->> 'email')
-              and u.nivel_acesso = 'admin'
+              and u.nivel_acesso in ('admin', 'superadmin')
         )
     )
     with check (
         exists (
             select 1 from public.usuarios u
             where lower(u.email) = lower(auth.jwt() ->> 'email')
-              and u.nivel_acesso = 'admin'
+              and u.nivel_acesso in ('admin', 'superadmin')
         )
     );
 

@@ -274,7 +274,7 @@
     await refreshDeviceStatus();
 
     const adminSection = document.getElementById('push-admin-section');
-    const isAdmin = (typeof dadosUsuario !== 'undefined' && dadosUsuario && dadosUsuario.nivel === 'admin');
+    const isAdmin = (typeof dadosUsuario !== 'undefined' && dadosUsuario && (dadosUsuario.nivel === 'admin' || dadosUsuario.nivel === 'superadmin'));
     if (isAdmin) {
       adminSection.classList.remove('hidden');
       try {
