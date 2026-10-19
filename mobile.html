@@ -1564,6 +1564,65 @@
             return !!(dadosUsuario && (dadosUsuario.nivel === 'admin' || dadosUsuario.nivel === 'superadmin'));
         }
 
+        function aplicarPermissoesUI() {
+            const superadmin = !!(dadosUsuario && dadosUsuario.nivel === 'superadmin');
+            const navLogs = document.getElementById('nav-logs');
+            if (navLogs) navLogs.classList.toggle('hidden', !superadmin);
+            try { if (typeof applyProdAdminGate === 'function') applyProdAdminGate(); } catch (e) {}
+        }
+
+        // Revalida nome/nivel/ativo contra o banco. Corrige sessoes antigas sem
+        // exigir novo login (ex.: usuario promovido a superadmin em outra sessao).
+        async function sincronizarPerfilUsuario() {
+            if (!dadosUsuario || dadosUsuario.id == null) return false;
+            try {
+                const { data, error } = await sb
+                    .from('usuarios')
+                    .select('id, nome, nivel_acesso, ativo')
+                    .eq('id', dadosUsuario.id)
+                    .maybeSingle();
+                if (error) return false;
+                if (!data) {
+                    try { await sb.auth.signOut(); } catch (e) {}
+                    localStorage.removeItem('rv_user');
+                    window.location.replace('index.html?motivo=sessao');
+                    return false;
+                }
+                if (!data.ativo) {
+                    try { await sb.auth.signOut(); } catch (e) {}
+                    localStorage.removeItem('rv_user');
+                    window.location.replace('index.html?motivo=sessao');
+                    return false;
+                }
+                const atualizado = { id: data.id, nome: data.nome, nivel: data.nivel_acesso };
+                const mudou = String(dadosUsuario.nome || '') !== String(atualizado.nome || '') ||
+                              String(dadosUsuario.nivel || '') !== String(atualizado.nivel || '');
+                if (mudou) {
+                    dadosUsuario = atualizado;
+                    localStorage.setItem('rv_user', JSON.stringify(atualizado));
+                }
+                return mudou;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        let _syncPerfilEmAndamento = false;
+        async function sincronizarPerfilSeVisivel() {
+            if (_syncPerfilEmAndamento || document.visibilityState === 'hidden') return;
+            _syncPerfilEmAndamento = true;
+            try {
+                const mudou = await sincronizarPerfilUsuario();
+                if (mudou) aplicarPermissoesUI();
+            } finally {
+                _syncPerfilEmAndamento = false;
+            }
+        }
+        window.addEventListener('focus', sincronizarPerfilSeVisivel);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') sincronizarPerfilSeVisivel();
+        });
+
         // Valores vindos de config.js (injetados no deploy via GitHub Actions)
         const supabaseUrl = window.SUPABASE_URL;
         const supabaseKey = window.SUPABASE_ANON_KEY;
@@ -1935,11 +1994,8 @@
             }
         }
 
-        // Exibe o botão de registros apenas para superadmin.
-        if (dadosUsuario && dadosUsuario.nivel === 'superadmin') {
-            const elLogs = document.getElementById('nav-logs');
-            if (elLogs) elLogs.classList.remove('hidden');
-        }
+        // Exibe o botao de registros apenas para superadmin.
+        aplicarPermissoesUI();
 
         let STATE = { products: [], clients: [], logs: [], quotes: [], expenses: [], users: [], sales: [], categories: [], categoriesDespesas: [] };
 
@@ -2220,6 +2276,8 @@
 
        async function loadData() {
                 try {
+                    await sincronizarPerfilUsuario();
+                    aplicarPermissoesUI();
                     const [resProd, resCli, resLog, resDesp, resCat, resCatDesp] = await Promise.all([
                         fetchAllRecords('produtos'), fetchAllRecords('clientes'),
                         fetchAllRecords('logs'), fetchAllRecords('despesas'),
