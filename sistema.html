@@ -8543,17 +8543,16 @@ function loadQuoteToCart(id) {
       }
 
       // Converte um texto (ex.: vindo do OCR) para o id de uma categoria existente.
-      // Sem correspondencia, cai em OUTROS.
+      // Sem correspondencia, retorna vazio para o usuario escolher.
       function resolverCategoriaDespesaPorTexto(texto) {
         const cats = STATE.categoriesDespesas || [];
         const t = String(texto || '').trim().toUpperCase();
-        const outros = cats.find(c => (c.nome || '').toUpperCase() === 'OUTROS');
-        if (!t) return outros ? String(outros.id) : '';
+        if (!t) return '';
         const exato = cats.find(c => (c.nome || '').toUpperCase() === t);
         if (exato) return String(exato.id);
         const contem = cats.find(c => t.includes((c.nome || '').toUpperCase()) || (c.nome || '').toUpperCase().includes(t));
         if (contem) return String(contem.id);
-        return outros ? String(outros.id) : '';
+        return '';
       }
 
       function preencherCategoriasDespesaSelects() {
@@ -12261,7 +12260,7 @@ function extractDataFromText(text) {
     }
 
     // ===== 4. CATEGORIA =====
-    let categoria = 'OUTROS';
+    let categoria = '';
     const lower = clean.toLowerCase();
     // Valores alinhados aos nomes canônicos de public.categorias_despesas
     // para que resolverCategoriaDespesaPorTexto faça a correspondência exata.
