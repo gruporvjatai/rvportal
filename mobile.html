@@ -287,11 +287,6 @@
                       <select id="adj-category" class="flex-1 p-3 border rounded-xl text-sm font-bold text-slate-600 bg-white" onchange="renderStockAdjust()">
                           <option value="">Todas</option>
                       </select>
-                      <select id="adj-type" class="p-3 border rounded-xl text-sm font-bold text-slate-600 bg-white" onchange="renderStockAdjust()">
-                          <option value="">Tipo: Todos</option>
-                          <option value="proprio">Próprio</option>
-                          <option value="parceiro">Parceiro</option>
-                      </select>
                   </div>
                   <label class="flex items-center gap-2 text-xs font-bold text-slate-600 px-1">
                       <input type="checkbox" id="adj-only-divergent" class="w-4 h-4" onchange="renderStockAdjust()"> Só inconsistências
@@ -6455,7 +6450,6 @@ function downloadPDF(blob, filename) {
 
             const term = document.getElementById('adj-search')?.value.toLowerCase() || '';
             const catFilter = document.getElementById('adj-category')?.value || '';
-            const typeFilter = document.getElementById('adj-type')?.value || '';
             const onlyDiv = document.getElementById('adj-only-divergent')?.checked;
             const mode = document.getElementById('adj-mode')?.value || 'contagem';
 
@@ -6476,11 +6470,9 @@ function downloadPDF(blob, filename) {
             }
 
             let filtered = STATE.products.slice();
-            filtered = filtered.filter(p => !p.servico); // servico nao controla estoque
+            filtered = filtered.filter(p => !p.servico && !p.parceiro);
             if (term) filtered = filtered.filter(p => String(p.name).toLowerCase().includes(term));
             if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
-            if (typeFilter === 'proprio') filtered = filtered.filter(p => !p.parceiro);
-            else if (typeFilter === 'parceiro') filtered = filtered.filter(p => p.parceiro);
             if (onlyDiv) filtered = filtered.filter(p => Number(p.stock) < Number(p.committed));
 
             filtered.sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));

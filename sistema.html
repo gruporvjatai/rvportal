@@ -864,14 +864,6 @@
           <option value="">Todas</option>
         </select>
       </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-500 mb-1">Tipo</label>
-        <select id="adj-type" class="p-2 border rounded text-slate-600 font-medium" onchange="renderStockAdjust()">
-          <option value="">Todos</option>
-          <option value="proprio">Próprio</option>
-          <option value="parceiro">Parceiro</option>
-        </select>
-      </div>
       <label class="flex items-center gap-2 p-2 text-sm font-bold text-slate-600 cursor-pointer" title="Mostra apenas produtos com físico abaixo do comprometido">
         <input type="checkbox" id="adj-only-divergent" class="w-4 h-4" onchange="renderStockAdjust()"> Só inconsistências
       </label>
@@ -8961,7 +8953,6 @@ function loadQuoteToCart(id) {
 
         const term = normalizeSearch(document.getElementById('adj-search')?.value);
         const catFilter = document.getElementById('adj-category')?.value || '';
-        const typeFilter = document.getElementById('adj-type')?.value || '';
         const onlyDiv = document.getElementById('adj-only-divergent')?.checked;
         const mode = document.getElementById('adj-mode')?.value || 'contagem';
         const isCompra = (document.getElementById('adj-motivo')?.value || '') === 'Entrada/Reposição';
@@ -8990,11 +8981,9 @@ function loadQuoteToCart(id) {
         if (label) label.innerText = mode === 'contagem' ? 'Contado' : 'Movimento';
 
         let filtered = STATE.products.slice();
-        filtered = filtered.filter(p => !p.servico); // servico nao controla estoque
+        filtered = filtered.filter(p => !p.servico && !p.parceiro);
         if (term) filtered = filtered.filter(p => normalizeSearch(p.name).includes(term));
         if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
-        if (typeFilter === 'proprio') filtered = filtered.filter(p => !p.parceiro);
-        else if (typeFilter === 'parceiro') filtered = filtered.filter(p => p.parceiro);
         if (onlyDiv) filtered = filtered.filter(p => Number(p.stock) < Number(p.committed));
 
         filtered.sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
