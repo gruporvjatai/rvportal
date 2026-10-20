@@ -1715,8 +1715,8 @@ class OrcamentosMDF {
 
     const imagens = {};
     if (logoBase64) imagens.logo = logoBase64;
-    const qrDataUrl = (typeof window.qrParaCanvasDataURL === 'function' && typeof window.linkWhatsAppOrcamento === 'function')
-      ? window.qrParaCanvasDataURL(window.linkWhatsAppOrcamento(orcId, formatarMoedaPDF(total)), 420)
+    const qrDataUrl = typeof window.gerarQrOrcamentoDataURL === 'function'
+      ? await window.gerarQrOrcamentoDataURL(orcId, formatarMoedaPDF(total), 520)
       : null;
     if (qrDataUrl) imagens.qrFooter = qrDataUrl;
 
@@ -1790,25 +1790,13 @@ class OrcamentosMDF {
         margin: [0, 8, 0, 0]
       },
       { text: [{ text: 'Total Geral: ', bold: true }, formatarMoedaPDF(total)], fontSize: 15, bold: true, alignment: 'right', margin: [0, 14, 0, 0] },
-      {
-        columns: [
-          qrDataUrl ? {
-            width: 72,
-            stack: [
-              { image: 'qrFooter', width: 68, alignment: 'center' },
-              { text: 'Aponte a câmera e fale com a RV\n(64) 3636-4861', fontSize: 6, alignment: 'center', color: '#64748b', margin: [0, 3, 0, 0] }
-            ]
-          } : { width: 1, text: '' },
-          { width: '*', text: 'RV Portal Madeiras - Obrigado pela preferência!', fontSize: 10, color: '#64748b', alignment: 'center', margin: qrDataUrl ? [0, 18, 0, 0] : [0, 0, 0, 0] }
-        ],
-        margin: [0, 24, 0, 0]
-      }
+      { text: 'RV Portal Madeiras - Obrigado pela preferência!', fontSize: 10, color: '#64748b', alignment: 'center', margin: [0, 30, 0, 0] }
     );
 
     const docDefinition = {
       info: { title: filename, author: 'RV Portal Madeiras' },
       pageSize: 'A4',
-      pageMargins: [40, 40, 40, 60],
+      pageMargins: [40, 40, 40, 105],
       defaultStyle: { fontSize: 10, font: 'Roboto' },
       content,
       images: imagens,
@@ -1816,11 +1804,18 @@ class OrcamentosMDF {
         tableHeader: { bold: true, color: 'white', fontSize: 10 }
       },
       footer: (currentPage, pageCount) => ({
-        text: `Página ${currentPage} de ${pageCount}`,
-        alignment: 'center',
-        fontSize: 8,
-        color: '#94a3b8',
-        margin: [0, 10, 0, 0]
+        columns: [
+          qrDataUrl ? {
+            width: 72,
+            stack: [
+              { image: 'qrFooter', width: 68 },
+              { text: 'FALE COM A RV', fontSize: 5.5, bold: true, alignment: 'center', color: '#047857', margin: [0, 2, 0, 0] },
+              { text: '(64) 3636-4861', fontSize: 6, alignment: 'center', color: '#64748b', margin: [0, 1, 0, 0] }
+            ]
+          } : { width: 1, text: '' },
+          { width: '*', text: `Página ${currentPage} de ${pageCount}`, alignment: 'center', fontSize: 8, color: '#94a3b8', margin: [0, 26, 0, 0] }
+        ],
+        margin: [30, 6, 0, 0]
       })
     };
 

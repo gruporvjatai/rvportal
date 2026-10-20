@@ -12,6 +12,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+    <script src="js/qr-orcamento.js"></script>
 
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="shortcut icon" type="image/png" href="logo.png">
@@ -5180,6 +5182,7 @@
 
     // Carregar logo em base64
     const logoBase64 = await getLogoBase64RV(new URL('logorvnegocios.png', window.location.href).href);
+    const qrDataUrl = !isVenda ? await gerarQrOrcamentoDataURL(q.id, formatMoney(finalTotal)) : null;
 
     // ---------- Construção do docDefinition (pdfmake) ----------
     const bodyTabela = [
@@ -5219,8 +5222,26 @@
 
     const docDefinition = {
         pageSize: 'A4',
-        pageMargins: [40, 40, 40, 40],
+        pageMargins: [40, 40, 40, qrDataUrl ? 114 : 40],
         defaultStyle: { font: 'Roboto' },
+        images: qrDataUrl ? { qrFooter: qrDataUrl } : {},
+        footer: qrDataUrl ? function () {
+            return {
+                columns: [
+                    { width: 78, image: 'qrFooter', fit: [76, 76] },
+                    {
+                        width: '*',
+                        stack: [
+                            { text: 'FALE COM A RV', fontSize: 7, bold: true, color: '#047857' },
+                            { text: 'Aponte a câmera do celular', fontSize: 6.5, color: '#475569', margin: [0, 2, 0, 0] },
+                            { text: '(64) 3636-4861', fontSize: 6.5, color: '#475569' }
+                        ],
+                        margin: [8, 26, 0, 0]
+                    }
+                ],
+                margin: [30, 6, 0, 0]
+            };
+        } : undefined,
         background: function () {
             return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
         },
