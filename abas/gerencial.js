@@ -126,7 +126,7 @@
                     <th class="p-3">Produto</th>
                     <th class="p-3 text-center">Qtd</th>
                     <th class="p-3 text-right">Receita Bruta</th>
-                    <th class="p-3 text-right">Custo Compra</th>
+                    <th class="p-3 text-right">CMV (custo das vendas)</th>
                     <th class="p-3 text-right">Impostos</th>
                     <th class="p-3 text-right">Frete</th>
                     <th class="p-3 text-right">Lucro Bruto</th>
@@ -141,6 +141,11 @@
               Nenhum produto vendido no período selecionado.
             </div>
           </div>
+          <p class="text-xs text-slate-400 italic mt-3 px-1">
+            CMV apurado pelo custo vigente na data de cada venda (histórico de preços).
+            <span class="text-amber-600 font-bold">*</span> sem histórico de custo (usou o custo atual).
+            <span class="text-red-500 font-bold">†</span> sem custo cadastrado (tratado como zero).
+          </p>
         </div>
       </div>
     `;
@@ -199,6 +204,11 @@
               </div>
             </div>
           </div>
+
+          <p class="text-xs text-slate-500 italic bg-white p-3 rounded-xl border">
+            Visão de caixa do período: entradas de vendas menos despesas lançadas.
+            Não utiliza CMV; para margem por produto, consulte o Centro de Custos.
+          </p>
 
           <!-- Produtos vendidos -->
           <div class="bg-white rounded-xl border shadow-sm overflow-hidden mt-6">
@@ -286,6 +296,115 @@
     lucide.createIcons();
   }
 
+  // ---------- Histórico de custo (timeline) ----------
+  let _timelineCusto = null;
+
+  function numeroOuNull(valor) {
+    if (valor === null || valor === undefined || valor === '') return null;
+    const n = Number(valor);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  // Monta, por produto, a lista de alterações de CUSTO registradas em logs.
+  function construirTimelineCusto() {
+    const mapa = new Map();
+    (STATE.logs || []).forEach(l => {
+      if (l.type !== 'alteracao_preco' || l.campoAlterado !== 'custo') return;
+      if (l.productId == null) return;
+      const antigo = numeroOuNull(l.valorAntigo);
+      const novo = numeroOuNull(l.valorNovo);
+      if (antigo === null && novo === null) return;
+      const pid = String(l.productId);
+      if (!mapa.has(pid)) mapa.set(pid, []);
+      mapa.get(pid).push({ id: Number(l.id) || 0, date: String(l.date || ''), antigo, novo });
+    });
+    mapa.forEach(lista => lista.sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return a.id - b.id;
+    }));
+    return mapa;
+  }
+
+  // Custo vigente na data da venda. Fallbacks: valor anterior à 1ª alteração;
+  // sem nenhum histórico, custo atual (marcado como estimado).
+  function custoNaData(produtoId, dataVenda, produtoAtual) {
+    const timeline = produtoId != null && _timelineCusto
+      ? (_timelineCusto.get(String(produtoId)) || [])
+      : [];
+    const data = String(dataVenda || '');
+
+    if (timeline.length) {
+      let vigente = null;
+      for (const ev of timeline) {
+        if (ev.date && ev.date <= data) {
+          if (ev.novo !== null) vigente = ev.novo;
+        } else {
+          break;
+        }
+      }
+      if (vigente !== null) return { valor: vigente, origem: 'historico' };
+
+      const primeiro = timeline.find(ev => ev.antigo !== null);
+      if (primeiro) return { valor: primeiro.antigo, origem: 'historico' };
+    }
+
+    const atual = produtoAtual ? numeroOuNull(produtoAtual.cost) : null;
+    return { valor: atual, origem: atual === null ? 'sem-custo' : 'atual' };
+  }
+
+  // Agrega receita e CMV por produto, aplicando o custo da data de cada venda.
+  function calcularCustoPorProduto(vendas) {
+    _timelineCusto = construirTimelineCusto();
+    const mapa = {};
+    vendas.forEach(v => {
+      const nome = v.productName;
+      const qtd = Number(v.quantity) || 0;
+      const receita = Number(v.totalValue) || 0;
+      // Agrupa por produto_id quando existir (produtos com MESMO nome não se misturam)
+      const chave = v.productId != null ? `id:${v.productId}` : `nome:${nome}`;
+      if (!mapa[chave]) {
+        const prod = v.productId != null
+          ? STATE.products.find(p => String(p.id) === String(v.productId))
+          : STATE.products.find(p => p.name === nome);
+        mapa[chave] = {
+          nome,
+          qtd: 0,
+          receita: 0,
+          custoTotal: 0,
+          produtoAtual: prod || null,
+          parceiro: prod ? Boolean(prod.parceiro) : false,
+          semHistorico: false,
+          semCusto: false
+        };
+      }
+      const item = mapa[chave];
+      // Vendas antigas podem não ter produto_id: usa o id do produto achado pelo nome.
+      const idHistorico = v.productId != null
+        ? v.productId
+        : (item.produtoAtual ? item.produtoAtual.id : null);
+      const custo = custoNaData(idHistorico, v.date, item.produtoAtual);
+      item.qtd += qtd;
+      item.receita += receita;
+      if (custo.valor === null) {
+        item.semCusto = true;
+      } else {
+        item.custoTotal += custo.valor * qtd;
+      }
+      if (custo.origem !== 'historico') item.semHistorico = true;
+    });
+
+    return Object.values(mapa).map(p => ({
+      nome: p.nome,
+      qtd: p.qtd,
+      receita: p.receita,
+      custoTotal: p.custoTotal,
+      custoUnit: p.qtd > 0 ? p.custoTotal / p.qtd : 0,
+      parceiro: p.parceiro,
+      semHistorico: p.semHistorico,
+      semCusto: p.semCusto
+    }));
+  }
+
  function atualizarCentroCustos(vendas, impPerc, fretePerc, salario, outrosOp) {
     const tbody = document.getElementById('ger-tabela-produtos');
     const rodape = document.getElementById('ger-total-rodape');
@@ -301,41 +420,13 @@
     }
     if (semDados) semDados.classList.add('hidden');
 
-    const mapa = {};
-    vendas.forEach(v => {
-        const nome = v.productName;
-        const qtd = Number(v.quantity) || 0;   // garante número
-        const receita = Number(v.totalValue) || 0;
-        // Agrupa por produto_id quando existir (produtos com MESMO nome não se misturam)
-        const chave = v.productId != null ? `id:${v.productId}` : `nome:${nome}`;
-        if (!mapa[chave]) {
-            const prod = v.productId != null
-                ? STATE.products.find(p => String(p.id) === String(v.productId))
-                : STATE.products.find(p => p.name === nome);
-            mapa[chave] = {
-                nome,
-                qtd: 0,
-                receita: 0,
-                custoUnit: prod ? (Number(prod.cost) || 0) : 0,
-                parceiro: prod ? Boolean(prod.parceiro) : false
-            };
-        }
-        mapa[chave].qtd += qtd;
-        mapa[chave].receita += receita;
-    });
-
-    let produtos = Object.values(mapa).map(p => ({
-        nome: p.nome,
-        qtd: p.qtd,
-        receita: p.receita,
-        custoUnit: p.custoUnit,
-        parceiro: p.parceiro,
-        custoTotal: p.custoUnit * p.qtd
-    }));
+    let produtos = calcularCustoPorProduto(vendas);
     produtos.sort((a, b) => a.nome.localeCompare(b.nome));
 
     const receitaTotal = produtos.reduce((s, p) => s + p.receita, 0);
     const custoTotal = produtos.reduce((s, p) => s + p.custoTotal, 0);
+    const itensSemHistorico = produtos.filter(p => p.semHistorico && !p.semCusto).length;
+    const itensSemCusto = produtos.filter(p => p.semCusto).length;
 
     let impostoTotal = 0;
     let freteTotal = 0;
@@ -354,18 +445,27 @@
     });
 
     if (tbody) {
-        tbody.innerHTML = produtos.map(p => `
+        tbody.innerHTML = produtos.map(p => {
+            const marca = p.semCusto
+                ? ' <span class="text-red-500 font-bold" title="Sem custo cadastrado/histórico">†</span>'
+                : (p.semHistorico
+                    ? ' <span class="text-amber-600 font-bold" title="Sem histórico de custo: usado o custo atual">*</span>'
+                    : '');
+            const titulo = p.qtd > 0
+                ? `Custo médio ponderado: ${formatMoney(p.custoUnit)}`
+                : 'Sem quantidade';
+            return `
             <tr class="hover:bg-slate-50 border-b">
                 <td class="p-3 font-bold text-slate-700">${p.nome}</td>
                 <td class="p-3 text-center">${p.qtd}</td>
                 <td class="p-3 text-right text-green-700">${formatMoney(p.receita)}</td>
-                <td class="p-3 text-right text-slate-600">${formatMoney(p.custoTotal)}</td>
+                <td class="p-3 text-right text-slate-600" title="${titulo}">${formatMoney(p.custoTotal)}${marca}</td>
                 <td class="p-3 text-right text-orange-600">${formatMoney(p.imposto)}</td>
                 <td class="p-3 text-right text-blue-600">${formatMoney(p.frete)}</td>
                 <td class="p-3 text-right font-bold ${p.lucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(p.lucroBruto)}</td>
                 <td class="p-3 text-right font-medium ${p.margemBruta >= 0 ? 'text-emerald-600' : 'text-red-500'}">${p.margemBruta.toFixed(2)}%</td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     }
 
     const totalLucroBruto = receitaTotal - custoTotal - impostoTotal - freteTotal;
@@ -392,9 +492,11 @@
     if (resumo) {
         resumo.innerHTML = `
             <div class="flex justify-between"><span>Receita Bruta:</span><span class="font-bold">${formatMoney(receitaTotal)}</span></div>
-            <div class="flex justify-between"><span>Custo de Compra:</span><span>${formatMoney(custoTotal)}</span></div>
+            <div class="flex justify-between"><span>CMV (custo das vendas):</span><span>${formatMoney(custoTotal)}</span></div>
             <div class="flex justify-between"><span>Impostos:</span><span>${formatMoney(impostoTotal)}</span></div>
             <div class="flex justify-between"><span>Frete:</span><span>${formatMoney(freteTotal)}</span></div>
+            ${itensSemHistorico ? `<div class="flex justify-between text-[11px] text-amber-600"><span>Itens sem histórico de custo:</span><span>${itensSemHistorico}</span></div>` : ''}
+            ${itensSemCusto ? `<div class="flex justify-between text-[11px] text-red-500"><span>Itens sem custo cadastrado:</span><span>${itensSemCusto}</span></div>` : ''}
             <div class="flex justify-between border-t pt-1 mt-1"><span class="font-semibold">Lucro Bruto:</span><span class="font-bold ${lucroBruto >= 0 ? 'text-emerald-700' : 'text-red-600'}">${formatMoney(lucroBruto)}</span></div>
             <div class="flex justify-between text-xs"><span>Margem Bruta:</span><span class="font-bold">${(receitaTotal > 0 ? (lucroBruto / receitaTotal) * 100 : 0).toFixed(2)}%</span></div>
             <div class="flex justify-between mt-3 pt-2 border-t border-dashed"><span>Salário Total:</span><span class="text-red-600">- ${formatMoney(salario)}</span></div>
@@ -480,57 +582,92 @@
   }
 
   // ============ FUNÇÃO DE IMPRESSÃO ============
+  // Usa um iframe dedicado: não destrói o DOM da aplicação e funciona
+  // mesmo quando window.print() é assíncrono em alguns navegadores.
   window.imprimirAba = function(aba) {
     let printElement;
+    let titulo;
     if (aba === 'centro-custos') {
       printElement = document.getElementById('ger-print-area-centro');
+      titulo = 'Centro de Custos';
     } else if (aba === 'resultado-simplificado') {
       printElement = document.getElementById('ger-print-area-resultado');
+      titulo = 'Resultado Simplificado';
     }
     if (!printElement) return;
 
-    const originalContents = document.body.innerHTML;
-    const printContents = printElement.innerHTML;
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none;';
+    document.body.appendChild(iframe);
 
-    // Cria uma folha de estilo temporária para impressão
-    const style = document.createElement('style');
-    style.textContent = `
-      body { 
-        background: white; 
-        font-family: 'Segoe UI', sans-serif; 
-        color: #1e293b; 
-        padding: 20px;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+    const doc = iframe.contentWindow.document;
+    const estilos = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(el => el.outerHTML)
+      .join('\n');
+    const orientacao = aba === 'centro-custos' ? 'landscape' : 'portrait';
+
+    doc.open();
+    doc.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+      <title>${titulo}</title>
+      ${estilos}
+      <style>
+        @page { size: A4 ${orientacao}; margin: 10mm; }
+        body {
+          background: #fff !important;
+          color: #1e293b;
+          font-family: 'Segoe UI', Arial, sans-serif;
+          padding: 0;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .no-print { display: none !important; }
+        .shadow, .shadow-sm, .shadow-lg { box-shadow: none !important; }
+        .overflow-x-auto { overflow: visible !important; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #1e293b !important; color: #fff !important; padding: 8px; text-align: left; }
+        td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+        tr, td, th { page-break-inside: avoid; }
+      </style></head><body>
+      <h1 style="font-size:18px;font-weight:800;margin:0 0 12px;">${titulo}</h1>
+      ${printElement.innerHTML}
+      </body></html>`);
+    doc.close();
+
+    const win = iframe.contentWindow;
+    let removido = false;
+    const limpar = () => {
+      if (removido) return;
+      removido = true;
+      setTimeout(() => iframe.remove(), 300);
+    };
+    win.addEventListener('afterprint', limpar);
+    setTimeout(limpar, 60000);
+
+    const disparar = () => {
+      try {
+        win.focus();
+        win.print();
+      } catch (err) {
+        console.error('Falha ao imprimir a aba Gerencial:', err);
+        limpar();
       }
-      .bg-white { background-color: #fff !important; }
-      .bg-slate-800 { background-color: #1e293b !important; }
-      .bg-slate-50 { background-color: #f8fafc !important; }
-      .bg-green-50 { background-color: #f0fdf4 !important; }
-      .bg-red-50 { background-color: #fef2f2 !important; }
-      .bg-indigo-50 { background-color: #eef2ff !important; }
-      table { width: 100%; border-collapse: collapse; }
-      th { background-color: #1e293b; color: white; padding: 8px; text-align: left; }
-      td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
-      .text-right { text-align: right; }
-      .text-center { text-align: center; }
-      .font-bold { font-weight: bold; }
-    `;
+    };
 
-    document.body.innerHTML = '';
-    document.body.appendChild(style);
-    document.body.innerHTML += printContents;
-
-    window.print();
-
-    // Restaura a página original
-    document.body.innerHTML = originalContents;
-    //window.location.reload(); // Necessário para reativar os scripts da página
-    renderGerencial()
+    if (win.document.readyState === 'complete') {
+      setTimeout(disparar, 250);
+    } else {
+      win.addEventListener('load', () => setTimeout(disparar, 250));
+    }
   };
 
   // Expor funções globais
   window.carregarCentroCustos = carregarCentroCustos;
   window.carregarResultadoSimplificado = carregarResultadoSimplificado;
   window.alternarSubAba = alternarSubAba;
+
+  // Hook de teste (inativo em produção).
+  if (window.__GERENCIAL_DEBUG__) {
+    window.__gerencialDebug = { construirTimelineCusto, custoNaData, calcularCustoPorProduto, atualizarCentroCustos };
+  }
 })();

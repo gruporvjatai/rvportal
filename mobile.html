@@ -303,7 +303,7 @@
                   </div>
                   <div class="flex items-center gap-2">
                       <span class="text-xs font-black uppercase text-slate-500 w-14">Motivo</span>
-                      <select id="adj-motivo" class="flex-1 p-2 border rounded-lg text-sm font-bold text-slate-700 bg-white">
+                      <select id="adj-motivo" class="flex-1 p-2 border rounded-lg text-sm font-bold text-slate-700 bg-white" onchange="onAdjMotivoChange()">
                           <option value="Inventário/Contagem">Inventário/Contagem</option>
                           <option value="Entrada/Reposição">Entrada/Reposição</option>
                           <option value="Saída">Saída</option>
@@ -311,6 +311,9 @@
                           <option value="Devolução">Devolução</option>
                           <option value="Correção">Correção</option>
                       </select>
+                  </div>
+                  <div id="adj-fornecedor-wrap" class="hidden">
+                      <input type="text" id="adj-fornecedor" placeholder="Fornecedor da compra (opcional)" class="w-full p-2 border rounded-lg text-sm outline-none focus:border-orange-500 font-medium">
                   </div>
                   <input type="text" id="adj-obs" placeholder="Observação (opcional)" class="w-full p-2 border rounded-lg text-sm outline-none focus:border-orange-500 font-medium">
                   <span id="adj-summary" class="text-xs font-bold text-slate-500"></span>
@@ -2393,7 +2396,12 @@
                             finStatus: l.status_financeiro, dueDate: l.vencimento, paidValue: Number(l.valor_pago),
                             discount: Number(l.desconto), acrescimo: Number(l.acrescimo || 0),
                             pgtoAnotacao: l.pgto_anotacao || '', deliveryAddress: l.endereco_entrega,
-                            loteId: l.lote_id != null ? l.lote_id : null
+                            loteId: l.lote_id != null ? l.lote_id : null,
+                            valorAntigo: l.valor_antigo != null ? Number(l.valor_antigo) : null,
+                            valorNovo: l.valor_novo != null ? Number(l.valor_novo) : null,
+                            campoAlterado: l.campo_alterado || null,
+                            valorUnitario: l.valor_unitario != null ? Number(l.valor_unitario) : null,
+                            fornecedor: l.fornecedor || null
                         });
                     });
                     
@@ -6252,6 +6260,8 @@ function downloadPDF(blob, filename) {
                 data: new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString(),
                 observacao: `[${o.motivo}] ${fmtQtd(de)} -> ${fmtQtd(para)}` + (o.obs ? ` | ${o.obs}` : ''),
                 valor_total: 0,
+                valor_unitario: o.valorUnitario != null ? o.valorUnitario : null,
+                fornecedor: o.fornecedor || null,
                 cliente_nome: 'Sistema',
                 forma_pagamento: '',
                 status: 'ATIVO',
@@ -6353,6 +6363,8 @@ function downloadPDF(blob, filename) {
             const motivo = document.getElementById('adj-motivo')?.value || '';
             const obs = (document.getElementById('adj-obs')?.value || '').trim();
             if (!motivo) return showToast("Selecione um motivo para o ajuste.", true);
+            const isCompra = motivo === 'Entrada/Reposição';
+            const fornecedor = isCompra ? (document.getElementById('adj-fornecedor')?.value || '').trim() : '';
 
             const validas = [];
             const invalidas = [];
@@ -6382,14 +6394,38 @@ function downloadPDF(blob, filename) {
             showLoading(true);
             try {
                 let nextLogId = await getNextId('logs');
+                const agora = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
                 for (const v of validas) {
-                    const { error: upErr } = await sb.from('produtos').update({ estoque_fisico: v.para }).eq('id', v.p.id);
+                    let custoUnit = null;
+                    if (isCompra) {
+                        const cEl = document.getElementById('adjcost-' + v.p.id);
+                        const c = cEl ? parseFloat(cEl.value) : NaN;
+                        if (!isNaN(c) && c > 0) custoUnit = Math.round(c * 100) / 100;
+                    }
+
+                    const updatePayload = { estoque_fisico: v.para };
+                    if (custoUnit != null) updatePayload.custo = custoUnit;
+                    const { error: upErr } = await sb.from('produtos').update(updatePayload).eq('id', v.p.id);
                     if (upErr) throw upErr;
+
                     const { error: logErr } = await sb.from('logs').insert([buildAjusteLogPayload({
                         id: nextLogId++, prodId: v.p.id, prodName: v.p.name,
-                        de: v.de, para: v.para, motivo, obs
+                        de: v.de, para: v.para, motivo, obs,
+                        valorUnitario: custoUnit, fornecedor
                     })]);
                     if (logErr) throw logErr;
+
+                    if (custoUnit != null && custoUnit !== (Number(v.p.cost) || 0)) {
+                        try {
+                            await sb.from('logs').insert([{
+                                id: nextLogId++, tipo: 'alteracao_preco',
+                                produto_id: v.p.id, produto_nome: v.p.name, quantidade: 0, data: agora,
+                                observacao: `Custo: ${formatMoney(Number(v.p.cost) || 0)} -> ${formatMoney(custoUnit)}`,
+                                valor_total: 0, valor_antigo: Number(v.p.cost) || 0, valor_novo: custoUnit,
+                                campo_alterado: 'custo', cliente_nome: 'Sistema', forma_pagamento: '', status: 'ATIVO'
+                            }]);
+                        } catch (err) { console.error('Falha ao registrar alteracao de custo:', err); }
+                    }
                 }
                 showToast(`${validas.length} ajuste(s) aplicado(s).` + (abaixo.length ? ` ${abaixo.length} abaixo do comprometido.` : ''));
                 await loadData();
@@ -6443,6 +6479,10 @@ function downloadPDF(blob, filename) {
             }).join('');
         }
 
+        function onAdjMotivoChange() {
+            renderStockAdjust();
+        }
+
         function renderStockAdjust() {
             const list = document.getElementById('adj-list');
             if (!list) return;
@@ -6452,6 +6492,9 @@ function downloadPDF(blob, filename) {
             const catFilter = document.getElementById('adj-category')?.value || '';
             const onlyDiv = document.getElementById('adj-only-divergent')?.checked;
             const mode = document.getElementById('adj-mode')?.value || 'contagem';
+            const isCompra = (document.getElementById('adj-motivo')?.value || '') === 'Entrada/Reposição';
+            const fWrap = document.getElementById('adj-fornecedor-wrap');
+            if (fWrap) fWrap.classList.toggle('hidden', !isCompra);
 
             const catSelect = document.getElementById('adj-category');
             if (catSelect) {
@@ -6504,6 +6547,10 @@ function downloadPDF(blob, filename) {
                         <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Disp.</span><span class="font-black ${Number(p.available) <= 0 ? 'text-red-500' : 'text-emerald-600'}">${p.available}</span></div>
                     </div>
                     ${controle}
+                    ${isCompra ? `<div class="mt-2 flex items-center gap-2">
+                        <label class="text-[10px] uppercase font-bold text-slate-500 whitespace-nowrap">Custo unit. (R$)</label>
+                        <input type="number" step="0.01" min="0" id="adjcost-${p.id}" class="flex-1 p-2 border rounded-lg text-center text-sm font-bold outline-none focus:border-orange-500" placeholder="R$">
+                    </div>` : ''}
                 </div>`;
             }).join('');
             if (window.lucide) lucide.createIcons();
