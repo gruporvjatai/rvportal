@@ -32,7 +32,7 @@ UPDATE public.despesas
    '8512c1b1-16d5-4dee-ba39-c89e6ec45268', -- #1 EPI RV BLOCOS
    '299c36be-6aef-4546-bed0-22e215cf868b'  -- #2 COMBUSTIVEL UNO
  )
-   AND data < DATE '2025-01-01';
+   AND data IN ('1900-01-12', '2000-05-08');
 
 -- ------------------------------------------------------------
 -- PARTE 2 - Despesas faltantes dos pagamentos orfaos
@@ -42,7 +42,7 @@ INSERT INTO public.despesas
   (uid, id, item, quantidade, unidade, custo, data, observacao, status,
    tipo_despesa, fornecedor, valor_pago, desconto_total, acrescimo_total, categoria_id)
 SELECT '26fa3217-59b8-494d-a9e7-12efc6ebc8c4', 307,
-       'PARAFUSO MARCENARIA REF ABRIL 26', 1, 'UN', 65, DATE '2026-04-14',
+       'PARAFUSO MARCENARIA REF ABRIL 26', 1, 'UN', 65, '2026-04-14',
        'Ref log #403', 'PAGO', 'SERVICO', 'RV PORTAL MADEIRAS LTDA',
        65, 0, 0, 15
 WHERE NOT EXISTS (
@@ -53,7 +53,7 @@ INSERT INTO public.despesas
   (uid, id, item, quantidade, unidade, custo, data, observacao, status,
    tipo_despesa, fornecedor, valor_pago, desconto_total, acrescimo_total, categoria_id)
 SELECT '6aa538dd-b8b8-41ea-8d00-33c64887e2b0', 419,
-       'PARAFUSO REF JUN 26', 1, 'UN', 124, DATE '2026-06-10',
+       'PARAFUSO REF JUN 26', 1, 'UN', 124, '2026-06-10',
        'Ref log #912', 'PAGO', 'SERVICO', 'RV PORTAL MADEIRAS LTDA',
        124, 0, 0, 15
 WHERE NOT EXISTS (
@@ -64,7 +64,7 @@ INSERT INTO public.despesas
   (uid, id, item, quantidade, unidade, custo, data, observacao, status,
    tipo_despesa, fornecedor, valor_pago, desconto_total, acrescimo_total, categoria_id)
 SELECT '7ef0b7cc-4695-4981-a36f-961596465493', 828,
-       'PRÓ-LABORE', 1, 'UN', 100, DATE '2026-10-14',
+       'PRÓ-LABORE', 1, 'UN', 100, '2026-10-14',
        'Ref log #2191', 'PAGO', 'SERVICO', NULL,
        100, 0, 0, 3
 WHERE NOT EXISTS (
