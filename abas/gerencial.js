@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  let subAbaAtiva = 'centro-custos'; // 'centro-custos' | 'resultado-simplificado'
+  let subAbaAtiva = 'centro-custos'; // 'centro-custos' | 'resultado-simplificado' | 'painel-executivo'
 
   window.addEventListener('load', function () {
     const originalNavigate = window.navigate;
@@ -15,6 +15,10 @@
   function renderGerencial() {
     const container = document.getElementById('view-gerencial');
     if (!container) return;
+    if (typeof window.ehAdminOuSuper === 'function' && !window.ehAdminOuSuper()) {
+      container.innerHTML = '<div class="p-8 text-center text-slate-500 font-semibold">Acesso restrito a administradores.</div>';
+      return;
+    }
 
     container.innerHTML = `
       <div class="space-y-4 p-4">
@@ -30,6 +34,11 @@
             ${subAbaAtiva === 'resultado-simplificado' ? 'bg-emerald-600 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-100'}">
             <i data-lucide="trending-up" class="inline w-4 h-4 mr-1"></i> Resultado Simplificado
           </button>
+          <button id="ger-tab-painel" onclick="alternarSubAba('painel-executivo')"
+            class="px-5 py-2.5 rounded-lg text-sm font-bold transition-all
+            ${subAbaAtiva === 'painel-executivo' ? 'bg-emerald-600 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-100'}">
+            <i data-lucide="layout-dashboard" class="inline w-4 h-4 mr-1"></i> Painel Executivo
+          </button>
         </div>
 
         <!-- Container das sub-abas -->
@@ -39,13 +48,18 @@
         <div id="ger-aba-resultado-simplificado" class="${subAbaAtiva === 'resultado-simplificado' ? '' : 'hidden'}">
           ${getResultadoSimplificadoHTML()}
         </div>
+        <div id="ger-aba-painel-executivo" class="${subAbaAtiva === 'painel-executivo' ? '' : 'hidden'}">
+          ${(window.GerencialPainel && window.GerencialPainel.getHTML) ? window.GerencialPainel.getHTML() : '<div class="p-6 text-red-600">Painel Executivo indisponivel.</div>'}
+        </div>
       </div>
     `;
 
     if (subAbaAtiva === 'centro-custos') {
       inicializarCentroCustos();
-    } else {
+    } else if (subAbaAtiva === 'resultado-simplificado') {
       inicializarResultadoSimplificado();
+    } else if (window.GerencialPainel && window.GerencialPainel.inicializar) {
+      window.GerencialPainel.inicializar();
     }
     lucide.createIcons();
     window.alternarSubAba = alternarSubAba;
@@ -593,6 +607,9 @@
     } else if (aba === 'resultado-simplificado') {
       printElement = document.getElementById('ger-print-area-resultado');
       titulo = 'Resultado Simplificado';
+    } else if (aba === 'painel-executivo') {
+      printElement = document.getElementById('ger-print-area-painel');
+      titulo = 'Painel Executivo';
     }
     if (!printElement) return;
 
@@ -605,7 +622,7 @@
     const estilos = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
       .map(el => el.outerHTML)
       .join('\n');
-    const orientacao = aba === 'centro-custos' ? 'landscape' : 'portrait';
+    const orientacao = (aba === 'centro-custos' || aba === 'painel-executivo') ? 'landscape' : 'portrait';
 
     doc.open();
     doc.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
@@ -662,6 +679,7 @@
   };
 
   // Expor funções globais
+  window.GerencialCmv = { calcularCustoPorProduto: calcularCustoPorProduto, construirTimelineCusto: construirTimelineCusto, custoNaData: custoNaData };
   window.carregarCentroCustos = carregarCentroCustos;
   window.carregarResultadoSimplificado = carregarResultadoSimplificado;
   window.alternarSubAba = alternarSubAba;
