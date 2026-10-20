@@ -261,16 +261,24 @@
                       <i data-lucide="search" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
                       <input type="text" id="prod-search" placeholder="Buscar produto..." class="w-full pl-10 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-medium bg-white" onkeyup="renderProductsDebounced()">
                   </div>
-                  <div class="flex gap-2">
-                      <select id="prod-category" class="flex-1 min-w-0 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
+                  <div class="flex flex-wrap gap-2">
+                      <select id="prod-category" class="flex-1 min-w-[110px] p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
                           <option value="">Categorias</option>
                       </select>
-                      <select id="prod-status" class="flex-1 min-w-0 p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
+                      <select id="prod-tipo-estoque" class="flex-1 min-w-[110px] p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
+                          <option value="">Todos</option>
+                          <option value="proprio">Próprio</option>
+                          <option value="parceiro">Parceiro</option>
+                      </select>
+                      <select id="prod-status" class="flex-1 min-w-[110px] p-3 border rounded-xl text-sm outline-none focus:border-orange-500 font-bold text-slate-600 bg-white" onchange="renderProducts()">
                           <option value="todos">Todos</option>
                           <option value="ativos" selected>Ativos</option>
                           <option value="desativados">Desativados</option>
                       </select>
                   </div>
+                  <button onclick="printProductCatalogStock()" class="w-full p-3 bg-slate-800 text-white rounded-xl font-bold shadow flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                      <i data-lucide="printer" class="w-5 h-5"></i> Imprimir estoque
+                  </button>
               </div>
 
               <div id="prod-list" class="flex flex-col gap-3"></div>
@@ -6068,13 +6076,27 @@ function downloadPDF(blob, filename) {
         }
 
         // ================== CATALOGO ==================
+        // Aplica os filtros da sub-aba Catalogo (usado na tela e na impressao).
+        function filtrarProdutosCatalogo() {
+            const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
+            const catFilter = document.getElementById('prod-category')?.value || '';
+            const statusFilter = document.getElementById('prod-status')?.value || 'ativos';
+            const tipoEstoque = document.getElementById('prod-tipo-estoque')?.value || '';
+
+            let filtered = STATE.products.slice();
+            if (term) filtered = filtered.filter(p => String(p.name).toLowerCase().includes(term));
+            if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
+            if (tipoEstoque === 'proprio') filtered = filtered.filter(p => !p.parceiro && !p.servico);
+            else if (tipoEstoque === 'parceiro') filtered = filtered.filter(p => p.parceiro);
+            if (statusFilter === 'ativos') filtered = filtered.filter(p => p.ativo !== false);
+            else if (statusFilter === 'desativados') filtered = filtered.filter(p => p.ativo === false);
+            return filtered;
+        }
+
         function renderProductCatalog() {
             const list = document.getElementById('prod-list');
             if (!list) return;
 
-            const term = document.getElementById('prod-search')?.value.toLowerCase() || '';
-            const catFilter = document.getElementById('prod-category')?.value || '';
-            const statusFilter = document.getElementById('prod-status')?.value || 'ativos';
             const catSelect = document.getElementById('prod-category');
 
             if (catSelect) {
@@ -6092,11 +6114,7 @@ function downloadPDF(blob, filename) {
                 catSelect.value = currentVal;
             }
 
-            let filtered = STATE.products.slice();
-            if (term) filtered = filtered.filter(p => String(p.name).toLowerCase().includes(term));
-            if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
-            if (statusFilter === 'ativos') filtered = filtered.filter(p => p.ativo !== false);
-            else if (statusFilter === 'desativados') filtered = filtered.filter(p => p.ativo === false);
+            let filtered = filtrarProdutosCatalogo();
 
             if (filtered.length === 0) {
                 list.innerHTML = '<div class="p-10 text-center text-slate-400 font-bold">Nenhum produto cadastrado.</div>';
@@ -6144,6 +6162,100 @@ function downloadPDF(blob, filename) {
                 </div>`;
             }).join('');
             lucide.createIcons();
+        }
+
+        // Imprime a lista filtrada: apenas quantidades, sem precos/fotos de produto.
+        function printProductCatalogStock() {
+            const produtos = filtrarProdutosCatalogo()
+                .filter(p => !p.servico)
+                .sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
+
+            if (!produtos.length) return showToast("Nenhum produto encontrado com os filtros selecionados.", true);
+
+            const categoria = document.getElementById('prod-category')?.value || '';
+            const tipo = document.getElementById('prod-tipo-estoque')?.value || '';
+            const status = document.getElementById('prod-status')?.value || 'ativos';
+            const termo = (document.getElementById('prod-search')?.value || '').trim();
+
+            const filtros = [];
+            if (categoria) filtros.push(`Categoria: ${categoria}`);
+            if (tipo === 'proprio') filtros.push('Estoque próprio');
+            else if (tipo === 'parceiro') filtros.push('Parceiros');
+            if (status === 'ativos') filtros.push('Ativos');
+            else if (status === 'desativados') filtros.push('Desativados');
+            else filtros.push('Todos os status');
+            if (termo) filtros.push(`Busca: ${termo}`);
+            filtros.push('Serviços não incluídos');
+
+            const logoUrl = new URL('logo.png', window.location.href).href;
+            const now = new Date().toLocaleString('pt-BR');
+            const rows = produtos.map(p => {
+                const semEstoque = p.parceiro;
+                return `
+                    <tr>
+                        <td style="padding:8px;border-bottom:1px solid #e2e8f0;">
+                            ${p.name}
+                            <div style="font-size:9px;color:#64748b;text-transform:uppercase;font-weight:700;">${p.category || 'Geral'}${p.parceiro ? ' · Parceiro' : ''}</div>
+                        </td>
+                        <td style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0;font-weight:700;">${semEstoque ? '—' : p.stock}</td>
+                        <td style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0;font-weight:700;color:#b45309;">${semEstoque ? '—' : p.committed}</td>
+                        <td style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0;font-weight:700;">${semEstoque ? '—' : p.available}</td>
+                    </tr>`;
+            }).join('');
+
+            const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+                <title>Estoque de Produtos - RV PORTAL</title>
+                <style>
+                    @page { size: A4 portrait; margin: 10mm; }
+                    body { margin:0; padding:0; background:#fff; color:#1e293b; font-family:'Helvetica',Arial,sans-serif; }
+                    .page { padding:20px; max-width:1000px; margin:auto; }
+                    table { width:100%; border-collapse:collapse; }
+                    th { background:#f1f5f9; border-bottom:2px solid #0f172a; padding:10px; text-align:left; font-size:11px; text-transform:uppercase; }
+                    td { font-size:11px; }
+                    @media print { .no-print { display:none !important; } }
+                </style></head><body>
+                <div class="page">
+                    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:15px;gap:20px;">
+                        <div style="display:flex;gap:15px;align-items:center;">
+                            <img src="${logoUrl}" style="max-height:60px;" alt="Logo">
+                            <div>
+                                <h2 style="margin:0;color:#059669;">RV PORTAL MADEIRAS</h2>
+                                <p style="margin:2px 0;font-size:11px;">CNPJ: 30.942.123/0001-02</p>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <h3 style="margin:0;">ESTOQUE DE PRODUTOS</h3>
+                            <p style="margin:2px 0;font-size:11px;">Gerado em: ${now}</p>
+                            <p style="margin:2px 0;font-size:10px;color:#555;">Filtros: ${filtros.join(' | ')}</p>
+                        </div>
+                    </div>
+                    <table>
+                        <thead><tr>
+                            <th>Produto</th>
+                            <th style="text-align:center;">Físico</th>
+                            <th style="text-align:center;">Comprometido</th>
+                            <th style="text-align:center;">Disponível</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <p style="margin-top:16px;font-size:10px;color:#64748b;">Total de produtos: ${produtos.length}</p>
+                </div></body></html>`;
+
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none;';
+            document.body.appendChild(iframe);
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(html);
+            doc.close();
+            const win = iframe.contentWindow;
+            let removido = false;
+            const limpar = () => { if (!removido) { removido = true; setTimeout(() => iframe.remove(), 300); } };
+            win.addEventListener('afterprint', limpar);
+            setTimeout(limpar, 60000);
+            setTimeout(() => {
+                try { win.focus(); win.print(); } catch (err) { console.error('Falha ao imprimir estoque:', err); limpar(); }
+            }, 300);
         }
 
         // ================== FOTO DE PRODUTO (mobile, somente leitura) ==================
@@ -6543,7 +6655,7 @@ function downloadPDF(blob, filename) {
                     </div>
                     <div class="grid grid-cols-3 gap-2 text-center mb-3">
                         <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Físico</span><span class="font-black text-slate-700">${p.stock}</span></div>
-                        <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Comprom.</span><span class="font-black text-amber-600">${p.committed}</span></div>
+                        <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Comprom.</span>${Number(p.committed) > 0 ? `<button onclick="verComprometido('${p.id}')" class="font-black text-amber-600 inline-flex items-center gap-0.5 active:scale-95" title="Ver quem está comprometendo este estoque">${p.committed}<i data-lucide="eye" class="w-3.5 h-3.5"></i></button>` : `<span class="font-black text-amber-600">${p.committed}</span>`}</div>
                         <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Disp.</span><span class="font-black ${Number(p.available) <= 0 ? 'text-red-500' : 'text-emerald-600'}">${p.available}</span></div>
                     </div>
                     ${controle}

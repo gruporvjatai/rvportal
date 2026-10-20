@@ -811,16 +811,24 @@
 
   <!-- ===================== PAINEL CATALOGO ===================== -->
   <div id="prod-panel-catalogo">
-    <div class="flex gap-2 mb-4 bg-white p-4 rounded-xl shadow-sm border">
-      <input type="text" id="prod-search" placeholder="Buscar produto por nome..." class="flex-1 min-w-0 p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderProductsDebounced()">
-      <select id="prod-category" class="w-1/4 p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
+    <div class="flex flex-wrap gap-2 mb-4 bg-white p-4 rounded-xl shadow-sm border">
+      <input type="text" id="prod-search" placeholder="Buscar produto por nome..." class="flex-1 min-w-[200px] p-2 border rounded outline-none focus:border-indigo-600 font-medium" onkeyup="renderProductsDebounced()">
+      <select id="prod-category" class="w-1/5 min-w-[150px] p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
         <option value="">Todas as Categorias</option>
       </select>
-      <select id="prod-status" class="w-1/4 p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
+      <select id="prod-tipo-estoque" class="w-1/5 min-w-[150px] p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
+        <option value="">Todos os estoques</option>
+        <option value="proprio">Estoque próprio</option>
+        <option value="parceiro">Parceiros</option>
+      </select>
+      <select id="prod-status" class="w-1/5 min-w-[150px] p-2 border rounded outline-none focus:border-indigo-600 font-medium text-slate-600" onchange="renderProducts()">
         <option value="todos">Todos</option>
         <option value="ativos" selected>Ativos</option>
         <option value="desativados">Desativados</option>
       </select>
+      <button onclick="printProductCatalogStock()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2" title="Imprimir lista de estoque dos produtos filtrados">
+        <i data-lucide="printer"></i> Imprimir estoque
+      </button>
     </div>
 
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -8846,13 +8854,26 @@ function loadQuoteToCart(id) {
       }
 
       // ================== CATALOGO ==================
-      function renderProductCatalog() {
-        const list = document.getElementById('prod-list');
-        if (!list) return;
-
+      // Aplica os filtros da sub-aba Catalogo (usado na tela e na impressao).
+      function filtrarProdutosCatalogo() {
         const term = normalizeSearch(document.getElementById('prod-search')?.value);
         const catFilter = document.getElementById('prod-category')?.value || '';
         const statusFilter = document.getElementById('prod-status')?.value || 'ativos';
+        const tipoEstoque = document.getElementById('prod-tipo-estoque')?.value || '';
+
+        let filtered = STATE.products.slice();
+        if (term) filtered = filtered.filter(p => normalizeSearch(p.name).includes(term));
+        if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
+        if (tipoEstoque === 'proprio') filtered = filtered.filter(p => !p.parceiro && !p.servico);
+        else if (tipoEstoque === 'parceiro') filtered = filtered.filter(p => p.parceiro);
+        if (statusFilter === 'ativos') filtered = filtered.filter(p => p.ativo !== false);
+        else if (statusFilter === 'desativados') filtered = filtered.filter(p => p.ativo === false);
+        return filtered;
+      }
+
+      function renderProductCatalog() {
+        const list = document.getElementById('prod-list');
+        if (!list) return;
 
         const catSelect = document.getElementById('prod-category');
         if (catSelect) {
@@ -8870,11 +8891,7 @@ function loadQuoteToCart(id) {
           catSelect.value = currentVal;
         }
 
-        let filtered = STATE.products.slice();
-        if (term) filtered = filtered.filter(p => normalizeSearch(p.name).includes(term));
-        if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
-        if (statusFilter === 'ativos') filtered = filtered.filter(p => p.ativo !== false);
-        else if (statusFilter === 'desativados') filtered = filtered.filter(p => p.ativo === false);
+        let filtered = filtrarProdutosCatalogo();
 
         filtered.sort((a, b) => {
           let valA, valB;
@@ -8941,6 +8958,105 @@ function loadQuoteToCart(id) {
         lucide.createIcons();
       }
 
+      // Imprime a lista filtrada do catalogo: somente quantidades de estoque.
+      function printProductCatalogStock() {
+        const produtos = filtrarProdutosCatalogo()
+          .filter(p => !p.servico)
+          .sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
+
+        if (!produtos.length) {
+          showToast("Nenhum produto encontrado com os filtros selecionados.", true);
+          return;
+        }
+
+        const categoria = document.getElementById('prod-category')?.value || '';
+        const tipo = document.getElementById('prod-tipo-estoque')?.value || '';
+        const status = document.getElementById('prod-status')?.value || 'ativos';
+        const termo = (document.getElementById('prod-search')?.value || '').trim();
+
+        const filtros = [];
+        if (categoria) filtros.push(`Categoria: ${categoria}`);
+        if (tipo === 'proprio') filtros.push('Estoque próprio');
+        else if (tipo === 'parceiro') filtros.push('Parceiros');
+        if (status === 'ativos') filtros.push('Ativos');
+        else if (status === 'desativados') filtros.push('Desativados');
+        else filtros.push('Todos os status');
+        if (termo) filtros.push(`Busca: ${termo}`);
+        filtros.push('Serviços não incluídos');
+
+        const now = new Date().toLocaleString('pt-BR');
+        const rows = produtos.map(p => {
+          const semEstoque = p.parceiro;
+          return `
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #e2e8f0;">
+                ${p.name}
+                <div style="font-size:9px;color:#64748b;text-transform:uppercase;font-weight:700;">${p.category || 'Geral'}${p.parceiro ? ' · Parceiro' : ''}</div>
+              </td>
+              <td style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0;font-weight:700;">${semEstoque ? '—' : p.stock}</td>
+              <td style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0;font-weight:700;color:#b45309;">${semEstoque ? '—' : p.committed}</td>
+              <td style="padding:8px;text-align:center;border-bottom:1px solid #e2e8f0;font-weight:700;">${semEstoque ? '—' : p.available}</td>
+            </tr>`;
+        }).join('');
+
+        const html = `
+          <!DOCTYPE html>
+          <html lang="pt-BR">
+          <head>
+            <meta charset="utf-8">
+            <title>Estoque de Produtos - RV PORTAL</title>
+            <style>
+              @page { size: A4 portrait; margin: 10mm; }
+              body { margin:0; padding:0; background:#fff; color:#1e293b; font-family:'Helvetica',Arial,sans-serif; }
+              .page { padding:20px; max-width:1000px; margin:auto; }
+              table { width:100%; border-collapse:collapse; }
+              th { background:#f1f5f9; border-bottom:2px solid #0f172a; padding:10px; text-align:left; font-size:11px; text-transform:uppercase; }
+              td { font-size:11px; }
+              @media print { .no-print { display:none !important; } }
+            </style>
+          </head>
+          <body>
+            <div class="page">
+              <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:15px;gap:20px;">
+                <div style="display:flex;gap:15px;align-items:center;">
+                  <img src="${LOGO_URL}" style="max-height:60px;" alt="Logo">
+                  <div>
+                    <h2 style="margin:0;color:#059669;">RV PORTAL MADEIRAS</h2>
+                    <p style="margin:2px 0;font-size:11px;">CNPJ: 30.942.123/0001-02</p>
+                  </div>
+                </div>
+                <div style="text-align:right;">
+                  <h3 style="margin:0;">ESTOQUE DE PRODUTOS</h3>
+                  <p style="margin:2px 0;font-size:11px;">Gerado em: ${now}</p>
+                  <p style="margin:2px 0;font-size:10px;color:#555;">Filtros: ${filtros.join(' | ')}</p>
+                </div>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th style="text-align:center;">Físico</th>
+                    <th style="text-align:center;">Comprometido</th>
+                    <th style="text-align:center;">Disponível</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+              <p style="margin-top:16px;font-size:10px;color:#64748b;">Total de produtos: ${produtos.length}</p>
+            </div>
+          </body>
+          </html>`;
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return showToast("Não foi possível abrir a janela de impressão.", true);
+        printWindow.document.write(html);
+        printWindow.document.close();
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+        }, 300);
+      }
+
       // ================== AJUSTE DE ESTOQUE (TABELA EM LOTE) ==================
       function onAdjMotivoChange() {
         renderStockAdjust();
@@ -9004,7 +9120,7 @@ function loadQuoteToCart(id) {
                 <span class="text-[10px] text-slate-400 uppercase font-bold">${p.category || 'Geral'}${isP ? ' · Parceiro' : ''}</span>
               </td>
               <td class="p-3 text-center font-bold">${p.stock}</td>
-              <td class="p-3 text-center font-bold text-amber-600">${p.committed}</td>
+              <td class="p-3 text-center font-bold text-amber-600">${Number(p.committed) > 0 ? `<button onclick="verComprometido('${p.id}')" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-amber-50" title="Ver quem está comprometendo este estoque">${p.committed} <i data-lucide="eye" width="14"></i></button>` : '0'}</td>
               <td class="p-3 text-center font-bold ${dispCls}">${p.available}</td>
               <td class="p-3 text-center">
                 ${isP
