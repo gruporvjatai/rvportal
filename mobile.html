@@ -14,6 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="js/qr-orcamento.js"></script>
+    <script src="js/financeiro-datas.js"></script>
 
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="shortcut icon" type="image/png" href="logo.png">
@@ -2868,6 +2869,7 @@
             if (barCount) barCount.innerText = (window._recSelected || new Set()).size;
             const barTotal = document.getElementById('rec-lote-total');
             if (barTotal) barTotal.innerText = formatMoney(_recTitulosSelecionados().reduce((a, t) => a + t.saldo, 0));
+            const baixasReceber = FinanceiroDatas.indexar(STATE.logs, 'recebimento', 'Ref Lanc');
             body.innerHTML = arr.map(r => {
                 const pago = r.status === 'PAGO';
                 const falta = pago ? 0 : finSaldoRec(r);
@@ -2875,6 +2877,7 @@
                 const atrasado = !pago && v && v < hojeLocalStr;
                 const sel = window._recSelected ? window._recSelected.has(String(r.id)) : false;
                 const elegivel = !pago && falta > 0.005;
+                const pg = FinanceiroDatas.resumo(baixasReceber, r.id);
                 return `
                 <div data-recid="${r.id}" ontouchstart="_recTStart(event,'${r.id}')" ontouchend="_recTEnd(event)" ontouchmove="_recTMove(event)" onclick="_recCardClick(event,'${r.id}')" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${sel ? 'ring-2 ring-emerald-500 border-l-emerald-600' : (pago ? 'border-l-slate-300' : (atrasado ? 'border-l-red-500' : 'border-l-emerald-500'))} active:bg-slate-50">
                     ${selMode ? `<div class="shrink-0 w-6 h-6 rounded-full border-2 mr-2 flex items-center justify-center text-white text-xs font-black ${sel ? 'bg-emerald-600 border-emerald-600' : (elegivel ? 'border-slate-300 bg-white' : 'border-slate-100 bg-slate-50')}">${sel ? '&#10003;' : ''}</div>` : ''}
@@ -2882,6 +2885,7 @@
                         <span class="text-[10px] font-bold text-slate-400 uppercase">${r.desc}${atrasado ? ' <span class="text-red-500 ml-1">ATRASADO</span>' : (pago ? ' <span class="text-slate-400 ml-1">PAGO</span>' : '')}</span>
                         <h4 class="font-bold text-slate-700 text-sm leading-tight truncate">${r.clientName || '-'}</h4>
                         <p class="text-[10px] text-slate-500 mt-0.5">Venc: ${formatDate(r.dueDate)} | ${r.payment || '-'}</p>
+                        ${(pago || (Number(r.paid) || 0) > 0 || pg.data) ? `<p class="text-[10px] text-slate-400 mt-0.5">Pago em: ${pg.data ? formatDate(pg.data) : '—'}${pg.count > 1 ? ` (${pg.count} baixas)` : ''}</p>` : ''}
                         <p class="text-[10px] ${pago ? 'text-slate-400' : 'text-red-600'} font-bold mt-0.5">${pago ? 'Quitado' : 'Falta: ' + formatMoney(falta)}</p>
                     </div>
                     ${(pago || selMode) ? '' : `<button onclick="event.stopPropagation(); openBaixaReceita('${r.id}', ${r.val}, ${r.paid})" class="shrink-0 bg-emerald-100 text-emerald-700 active:bg-emerald-200 text-[11px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Receber</button>`}
@@ -2927,6 +2931,7 @@
             const barTotal = document.getElementById('pay-lote-total');
             if (barTotal) barTotal.innerText = formatMoney(_payTitulosSelecionados().reduce((a, t) => a + t.saldo, 0));
             if (!arr.length) { body.innerHTML = _finEmpty('Não há contas a pagar.'); return; }
+            const baixasPagar = FinanceiroDatas.indexar(STATE.logs, 'despesa', 'Ref Despesa');
             body.innerHTML = arr.map(e => {
                 const saldo = finSaldoExp(e);
                 const v = (e.date || '').split('T')[0];
@@ -2935,13 +2940,15 @@
                 const parcial = !pago && (Number(e.valorPago) || 0) > 0;
                 const sel = window._paySelected ? window._paySelected.has(String(e.id)) : false;
                 const elegivel = !pago && saldo > 0.005;
+                const pg = FinanceiroDatas.resumo(baixasPagar, e.id);
                 return `
                 <div data-payid="${e.id}" ontouchstart="_payTStart(event,'${e.id}')" ontouchend="_payTEnd(event)" ontouchmove="_payTMove(event)" onclick="_payCardClick(event,'${e.id}')" class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center border-l-4 ${sel ? 'ring-2 ring-red-500 border-l-red-600' : (pago ? 'border-l-slate-300' : (atrasado ? 'border-l-red-500' : 'border-l-red-400'))} active:bg-slate-50">
                     ${selMode ? `<div class="shrink-0 w-6 h-6 rounded-full border-2 mr-2 flex items-center justify-center text-white text-xs font-black ${sel ? 'bg-red-600 border-red-600' : (elegivel ? 'border-slate-300 bg-white' : 'border-slate-100 bg-slate-50')}">${sel ? '&#10003;' : ''}</div>` : ''}
                     <div class="flex-1 pr-2 min-w-0">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase">${formatDate(e.date)}${atrasado ? ' <span class="text-red-500 ml-1">ATRASADO</span>' : (pago ? ' <span class="text-slate-400 ml-1">PAGO</span>' : '')}</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Venc: ${formatDate(e.date)}${atrasado ? ' <span class="text-red-500 ml-1">ATRASADO</span>' : (pago ? ' <span class="text-slate-400 ml-1">PAGO</span>' : '')}</span>
                         <h4 class="font-bold text-slate-700 text-sm leading-tight truncate">${e.provider || e.categoriaNome || e.item || 'Despesa'}</h4>
                         <p class="text-[10px] text-slate-500 truncate">${e.provider ? (e.categoriaNome || e.item || '-') : (e.note || '-')}</p>
+                        ${(pago || (Number(e.valorPago) || 0) > 0 || pg.data) ? `<p class="text-[10px] text-slate-400">Pago em: ${pg.data ? formatDate(pg.data) : '—'}${pg.count > 1 ? ` (${pg.count} baixas)` : ''}</p>` : ''}
                         <p class="text-[10px] ${pago ? 'text-slate-400' : (parcial ? 'text-orange-500' : 'text-red-600')} font-bold mt-0.5">${pago ? 'Pago' : (parcial ? 'Pago ' + formatMoney(e.valorPago) + ' | Resta ' + formatMoney(saldo) : 'Pagar: ' + formatMoney(saldo))}</p>
                     </div>
                     ${(pago || selMode) ? '' : `<button onclick="event.stopPropagation(); payExpense('${e.id}')" class="shrink-0 bg-red-100 text-red-700 active:bg-red-200 text-[11px] font-bold py-2 px-3 rounded-xl flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Pagar</button>`}

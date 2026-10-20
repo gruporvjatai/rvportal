@@ -20,6 +20,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="js/qr-orcamento.js"></script>
+    <script src="js/financeiro-datas.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>    
 
@@ -683,12 +684,13 @@
       </div>
     </div>
 
-    <div class="overflow-y-auto flex-1 p-0">
+    <div class="overflow-y-auto overflow-x-auto flex-1 p-0">
       <table class="w-full text-sm text-left">
         <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b z-10">
           <tr>
             <th class="p-3 w-8"><input type="checkbox" id="rec-select-all" onchange="toggleRecSelectAll(this.checked)" class="w-4 h-4 accent-emerald-600 cursor-pointer" title="Selecionar todos os pendentes"></th>
-            <th class="p-3 font-semibold">Venc/Pagto</th>
+            <th class="p-3 font-semibold">Vencimento</th>
+            <th class="p-3 font-semibold">Pagamento</th>
             <th class="p-3 font-semibold">Cliente/Ref</th>
             <th class="p-3 font-semibold">Valor</th>
             <th class="p-3 font-semibold text-right w-24">Ação</th>
@@ -740,12 +742,13 @@
       </div>
     </div>
 
-    <div class="overflow-y-auto flex-1 p-0">
+    <div class="overflow-y-auto overflow-x-auto flex-1 p-0">
       <table class="w-full text-sm text-left">
         <thead class="text-slate-500 bg-slate-50 sticky top-0 border-b z-10">
             <tr>
               <th class="p-3 w-8"><input type="checkbox" id="pay-select-all" onchange="togglePaySelectAll(this.checked)" class="w-4 h-4 accent-red-600 cursor-pointer" title="Selecionar todos os pendentes"></th>
-              <th class="p-3 font-semibold">Data</th>
+              <th class="p-3 font-semibold">Vencimento</th>
+              <th class="p-3 font-semibold">Pagamento</th>
               <th class="p-3 font-semibold text-center w-12">ID</th>
               <th class="p-3 font-semibold">Fornecedor</th>
               <th class="p-3 font-semibold">Valor</th>
@@ -9422,6 +9425,9 @@ function loadQuoteToCart(id) {
                 if (!clientesPorNome.has(k)) clientesPorNome.set(k, c);
             }
             // ========== CONTAS A RECEBER ==========
+            // Índices de baixas ativas para exibir a data efetiva de pagamento.
+            const baixasReceber = FinanceiroDatas.indexar(STATE.logs, 'recebimento', 'Ref Lanc');
+            const baixasPagar = FinanceiroDatas.indexar(STATE.logs, 'despesa', 'Ref Despesa');
             const salesMap = {};
             STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO' && l.finStatus !== 'PARCELADO').forEach(l => {
                 if (!salesMap[l.id]) {
@@ -9443,6 +9449,9 @@ function loadQuoteToCart(id) {
                 s.credito = st.credito;
                 s.valLista = st.total + st.jur - st.disc;
                 s.saldo = st.saldo;
+                const pg = FinanceiroDatas.resumo(baixasReceber, s.id);
+                s.pgtoData = pg.data;
+                s.pgtoCount = pg.count;
             });
         
             const income = salesArr.reduce((a, s) => {
@@ -9497,7 +9506,7 @@ function loadQuoteToCart(id) {
         
             const recBody = document.getElementById('fin-receivables-list');
             if (filteredRec.length === 0) {
-                recBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
+                recBody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
             } else {
                 const totalValRec = filteredRec.reduce((acc, r) => acc + (r.valLista != null ? r.valLista : r.val), 0);
                 const totalPaidRec = filteredRec.reduce((acc, r) => acc + r.paid, 0);
@@ -9555,7 +9564,12 @@ function loadQuoteToCart(id) {
                         </td>
                         <td class="p-3 text-xs border-r border-slate-100">
                             <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(r.dueDate)} ${avisoVenc}</div>
-                            <div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${r.payment || '-'}</div>
+                         </td>
+                        <td class="p-3 text-xs border-r border-slate-100">
+                            ${r.pgtoData
+                                ? `<div class="font-bold text-slate-700">${formatDate(r.pgtoData)}</div>${r.pgtoCount > 1 ? `<div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${r.pgtoCount} baixas</div>` : ''}`
+                                : `<span class="text-slate-400" title="Sem baixa registrada">—</span>`}
+                            ${r.payment ? `<div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${r.payment}</div>` : ''}
                          </td>
                         <td class="p-3 border-r border-slate-100">
                             <div class="font-bold text-slate-800 text-xs">${r.clientName}</div>
@@ -9594,7 +9608,7 @@ function loadQuoteToCart(id) {
         
                 const totalRowHtml = `<tr class="bg-indigo-50 border-t-2 border-indigo-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                     <td class="p-3 bg-indigo-50"></td>
-                    <td colspan="2" class="p-3 text-right font-bold text-indigo-900 text-xs uppercase">Totais da Pesquisa:</td>
+                    <td colspan="3" class="p-3 text-right font-bold text-indigo-900 text-xs uppercase">Totais da Pesquisa:</td>
                     <td class="p-3 font-black text-indigo-700 text-sm border-r border-indigo-200">${formatMoney(totalValRec)}</td>
                     <td class="p-3 bg-indigo-50"></td>
                  </tr>`;
@@ -9727,10 +9741,11 @@ function loadQuoteToCart(id) {
         if (!window._payEligibleIds.includes(sid)) window._paySelected.delete(sid);
     }
     if (filteredExp.length === 0) {
-        expBody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
+        expBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Nenhum registro encontrado.</td></tr>`;
     } else {
         const totalValExp = filteredExp.reduce((acc, e) => acc + e.cost + (e.acrescimoTotal || 0) - (e.descontoTotal || 0), 0);
         const rowsHtmlExp = filteredExp.map(e => {
+    const pg = FinanceiroDatas.resumo(baixasPagar, e.id);
     // Extrai o fornecedor da observação
     // Fornecedor vem direto da coluna própria (e.provider); observação fica só com a nota do usuário
     const providerVal = (e.provider || '').trim();
@@ -9760,6 +9775,11 @@ function loadQuoteToCart(id) {
         </td>
         <td class="p-3 text-xs border-r border-slate-100">
             <div class="font-bold ${isVencido ? 'text-red-600' : 'text-slate-700'}">${formatDate(e.date)} ${avisoVenc}</div>
+        </td>
+        <td class="p-3 text-xs border-r border-slate-100">
+            ${pg.data
+                ? `<div class="font-bold text-slate-700">${formatDate(pg.data)}</div>${pg.count > 1 ? `<div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${pg.count} baixas</div>` : ''}`
+                : `<span class="text-slate-400" title="Sem baixa registrada">—</span>`}
         </td>
         <td class="p-3 text-xs border-r border-slate-100 text-center font-mono font-bold text-slate-600">#${e.id}</td>
         <td class="p-3 border-r border-slate-100">
@@ -9792,7 +9812,7 @@ function loadQuoteToCart(id) {
         const totalRowExpHtml = `<tr class="bg-red-50 border-t-2 border-red-200 sticky bottom-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
             <td class="p-3 bg-red-50"></td>
             <td class="p-3 bg-red-50"></td>
-            <td colspan="2" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
+            <td colspan="3" class="p-3 text-right font-bold text-red-900 text-xs uppercase">Totais da Pesquisa:</td>
             <td class="p-3 font-black text-red-700 text-sm border-r border-red-200">${formatMoney(totalValExp)}</td>
             <td class="p-3 bg-red-50"></td>
         </tr>`;
