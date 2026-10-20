@@ -492,7 +492,16 @@
     // pelo backfill (que lê "AAAA-MM" na observação).
     const descricao = `SALÁRIO REF. (${folha.mes_referencia})`;
     const forn = `${folha.equipe.nome}`;
-    const novoIdDespesa = getNextId(STATE.expenses); // ID único para despesas
+
+    // ID único: combina o maior ID em memória com o maior ID no banco.
+    // Evita colisão quando o STATE está desatualizado (outra aba/usuário)
+    // ou quando o loadData() ainda não terminou.
+    const { data: maxDesp } = await sb.from('despesas')
+        .select('id').order('id', { ascending: false }).limit(1);
+    const novoIdDespesa = Math.max(
+        getNextId(STATE.expenses),
+        Number(maxDesp && maxDesp[0] ? maxDesp[0].id : 0) + 1
+    );
 
     // Categoria da despesa: resolve o id de SALÁRIO em categorias_despesas para
     // manter o vínculo por categoria_id (o `item` textual é mantido por compat.).
@@ -502,9 +511,10 @@
     );
     const categoriaSalarioId = categoriaSalario ? categoriaSalario.id : null;
 
-    // 1. Inserir a despesa (já paga)
-    const { error: errDesp } = await sb.from('despesas').insert([{
-        id: novoIdDespesa,          // 🔥 ESSENCIAL: sem isso o banco reclama
+    // 1. Inserir a despesa (já paga — a folha só é baixada quando há pagamento)
+    const dataPagamento = new Date().toISOString();
+    const despesaRow = {
+        id: novoIdDespesa,
         item: 'SALÁRIO',
         categoria_id: categoriaSalarioId,
         equipe_id: folha.equipe_id != null ? folha.equipe_id : null,
@@ -512,10 +522,14 @@
         quantidade: 1,
         unidade: 'Un',
         custo: folha.valor_pago,
-        data: new Date().toISOString(),
+        data: dataPagamento,
         observacao: descricao,
-        status: 'PENDENTE'
-    }]);
+        status: 'PAGO',
+        valor_pago: folha.valor_pago,
+        desconto_total: 0,
+        acrescimo_total: 0
+    };
+    const { error: errDesp } = await sb.from('despesas').insert([despesaRow]);
 
     if (errDesp) {
         console.error('Erro ao inserir despesa:', errDesp);
@@ -531,34 +545,44 @@
     // 3. Inserir log financeiro (para aparecer no caixa)
     // Observacao segue o padrao do app 'Ref Despesa #id' para o
     // estorno ser preciso (por id, sem depender do nome digitado).
-    const novoIdLog = getNextId(STATE.logs);
-    const { error: errLog } = await sb.from('logs').insert([{
+    const { data: maxLog } = await sb.from('logs')
+        .select('id').order('id', { ascending: false }).limit(1);
+    const novoIdLog = Math.max(
+        getNextId(STATE.logs),
+        Number(maxLog && maxLog[0] ? maxLog[0].id : 0) + 1
+    );
+    const logRow = {
         id: novoIdLog,
         tipo: 'despesa',
         produto_nome: 'SALÁRIO',
         quantidade: 1,
-        data: new Date().toISOString(),
+        data: dataPagamento,
         observacao: descricao + ' | Ref Despesa #' + novoIdDespesa,
         valor_total: folha.valor_pago,
         status: 'ATIVO',
         status_financeiro: 'PAGO',
         valor_pago: folha.valor_pago
-    }]);
+    };
+    const { error: errLog } = await sb.from('logs').insert([logRow]);
 
     if (errLog) {
         console.error('Erro ao gerar log financeiro:', errLog);
         // Não desfaz a despesa, apenas avisa
         alert('Despesa registrada, mas houve erro ao gerar o log financeiro. Atualize a página.');
     } else {
+        // Mantém o STATE coerente imediatamente (evita colisão de IDs em
+        // pagamentos consecutivos antes do loadData terminar).
+        STATE.expenses.push(despesaRow);
+        STATE.logs.push(logRow);
         alert('Pagamento registrado com sucesso!');
     }
 
     // Recarregar a lista de folhas
     carregarLancamentos();
 
-    // Atualizar STATE global para refletir a nova despesa (opcional, mas recomendado)
+    // Atualizar STATE global para refletir a nova despesa
     if (typeof loadData === 'function') {
-      loadData();       
+      await loadData();
     }
 };
 
