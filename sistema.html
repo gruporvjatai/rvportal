@@ -18,6 +18,7 @@
     <script src="push.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>    
 
@@ -142,6 +143,9 @@
         .notes-text { font-size: 10px; color: #334155; }
         
         .totals-area { width: 250px; }
+        .qr-footer { width: 100px; flex: 0 0 100px; text-align: center; align-self: flex-start; }
+        .qr-footer img { width: 90px; height: 90px; display: block; margin: 0 auto 4px; }
+        .qr-footer-label { font-size: 7px; line-height: 1.3; color: #475569; }
         .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; border-bottom: 1px solid #e2e8f0; }
         .total-row.final { border-bottom: none; border-top: 2px solid #0f172a; font-size: 14px; font-weight: 900; margin-top: 5px; padding-top: 10px; background-color: #f1f5f9; padding: 10px; }
         
@@ -9726,6 +9730,53 @@ function loadQuoteToCart(id) {
             if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
         }
 
+        const WHATSAPP_ORCAMENTO = '556436364861';
+
+        function mensagemWhatsAppOrcamento(id, valor) {
+            const referencia = id ? `o orçamento nº ${id}` : 'um orçamento';
+            return `Olá! Estou vendo ${referencia}, no valor de ${valor}. Gostaria de mais informações.`;
+        }
+
+        function linkWhatsAppOrcamento(id, valor) {
+            return `https://wa.me/${WHATSAPP_ORCAMENTO}?text=${encodeURIComponent(mensagemWhatsAppOrcamento(id, valor))}`;
+        }
+
+        function qrParaCanvasDataURL(texto, tamanhoPx = 480) {
+            if (typeof qrcode === 'undefined') return null;
+            try {
+                const qr = qrcode(0, 'M');
+                qr.addData(texto);
+                qr.make();
+                const modulos = qr.getModuleCount();
+                const margem = 4;
+                const total = modulos + margem * 2;
+                const escala = Math.max(1, Math.floor(tamanhoPx / total));
+                const canvas = document.createElement('canvas');
+                canvas.width = canvas.height = total * escala;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#000000';
+                for (let linha = 0; linha < modulos; linha++) {
+                    for (let coluna = 0; coluna < modulos; coluna++) {
+                        if (qr.isDark(linha, coluna)) {
+                            ctx.fillRect((coluna + margem) * escala, (linha + margem) * escala, escala, escala);
+                        }
+                    }
+                }
+                return canvas.toDataURL('image/png');
+            } catch (e) {
+                console.warn('Falha ao gerar QR Code do orçamento:', e);
+                return null;
+            }
+        }
+
+        function qrOrcamentoHtml(id, valor) {
+            const dataUrl = qrParaCanvasDataURL(linkWhatsAppOrcamento(id, valor));
+            if (!dataUrl) return '';
+            return `<div class="qr-footer"><img src="${dataUrl}" alt="QR Code WhatsApp" /><div class="qr-footer-label">Aponte a câmera e fale com a RV<br>(64) 3636-4861</div></div>`;
+        }
+
         function renderInvoice(sale, isQuote) {
             const el = document.getElementById('print-area');
             const title = isQuote ? "ORÇAMENTO" : "PEDIDO DE VENDA";
@@ -9785,7 +9836,8 @@ function loadQuoteToCart(id) {
                     <tbody>${itemsHtml}</tbody>
                 </table>
                 <div class="footer-section">
-                    <div class="notes-area"><div class="notes-title">Observações:</div><div class="notes-text" style="white-space: pre-wrap;">${obsText}</div>
+                    ${isQuote ? qrOrcamentoHtml(sale.id, formatMoney(finalTotal)) : ''}
+                    <div class="notes-area"><div class="notes-title">Observações:</div><div class="notes-text" style="white-space: pre-wrap;">${obsText}</div></div>
                     <div class="totals-area">
                         <div class="total-row"><span>Subtotal:</span><span>${formatMoney(subtotal)}</span></div>
                         ${discount > 0 ? `<div class="total-row" style="color:red"><span>Desconto:</span><span>- ${formatMoney(discount)}</span></div>` : ''}
@@ -10633,6 +10685,7 @@ function loadQuoteToCart(id) {
 
     const discount = Number(q.discount) || 0;
     const finalTotal = subtotal - discount;
+    const qrDataUrl = qrParaCanvasDataURL(linkWhatsAppOrcamento(q.id, formatMoney(finalTotal)), 420);
     const addressToShow = q.deliveryAddress ? `ENTREGA: ${q.deliveryAddress}` : (cli.address || 'Não informado');
 
     let obsText = '';
@@ -10665,6 +10718,7 @@ function loadQuoteToCart(id) {
         pageSize: 'A4',
         pageMargins: [40, 40, 40, 40],
         defaultStyle: { font: 'Roboto' },
+        images: qrDataUrl ? { qrFooter: qrDataUrl } : {},
 
         background: function () {
             return { canvas: [ { type: 'rect', x: 25, y: 25, w: 545.28, h: 791.89, lineWidth: 1, lineColor: '#000000' } ] };
@@ -10736,8 +10790,18 @@ function loadQuoteToCart(id) {
             },
             {
                 columns: [
+                    ...(qrDataUrl ? [
+                        {
+                            width: 72,
+                            stack: [
+                                { image: 'qrFooter', width: 68, alignment: 'center' },
+                                { text: 'Aponte a câmera e fale com a RV\n(64) 3636-4861', fontSize: 6, alignment: 'center', color: '#475569', margin: [0, 3, 0, 0] }
+                            ]
+                        },
+                        { width: 8, text: '' }
+                    ] : []),
                     {
-                        width: '58%',
+                        width: '*',
                         table: {
                             widths: ['*'],
                             body: [[{ text: [ { text: 'Observações:\n', fontSize: 9, bold: true }, { text: obsText, fontSize: 9 } ], margin: [6, 6, 6, 25] }]]

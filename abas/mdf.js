@@ -1715,6 +1715,10 @@ class OrcamentosMDF {
 
     const imagens = {};
     if (logoBase64) imagens.logo = logoBase64;
+    const qrDataUrl = (typeof window.qrParaCanvasDataURL === 'function' && typeof window.linkWhatsAppOrcamento === 'function')
+      ? window.qrParaCanvasDataURL(window.linkWhatsAppOrcamento(orcId, formatarMoedaPDF(total)), 420)
+      : null;
+    if (qrDataUrl) imagens.qrFooter = qrDataUrl;
 
     const linhasTabela = itensNormalizados.map((item, idx) => {
       const fotoBase64 = fotosBase64[idx] || null;
@@ -1786,7 +1790,19 @@ class OrcamentosMDF {
         margin: [0, 8, 0, 0]
       },
       { text: [{ text: 'Total Geral: ', bold: true }, formatarMoedaPDF(total)], fontSize: 15, bold: true, alignment: 'right', margin: [0, 14, 0, 0] },
-      { text: 'RV Portal Madeiras - Obrigado pela preferência!', fontSize: 10, color: '#64748b', alignment: 'center', margin: [0, 30, 0, 0] }
+      {
+        columns: [
+          qrDataUrl ? {
+            width: 72,
+            stack: [
+              { image: 'qrFooter', width: 68, alignment: 'center' },
+              { text: 'Aponte a câmera e fale com a RV\n(64) 3636-4861', fontSize: 6, alignment: 'center', color: '#64748b', margin: [0, 3, 0, 0] }
+            ]
+          } : { width: 1, text: '' },
+          { width: '*', text: 'RV Portal Madeiras - Obrigado pela preferência!', fontSize: 10, color: '#64748b', alignment: 'center', margin: qrDataUrl ? [0, 18, 0, 0] : [0, 0, 0, 0] }
+        ],
+        margin: [0, 24, 0, 0]
+      }
     );
 
     const docDefinition = {
