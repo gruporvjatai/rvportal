@@ -662,10 +662,11 @@
           <input type="text" id="rec-search" placeholder="Buscar cliente..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-indigo-600 outline-none" onkeyup="renderFinanceDebounced()">
         </div>
         <select id="rec-status" class="w-32 p-1.5 border rounded text-xs focus:ring-1 focus:ring-indigo-600 outline-none" onchange="renderFinance()">
-          <option value="">Todos</option>
+          <option value="NAO_PAGOS" selected>Em Aberto + Vencidos</option>
           <option value="ABERTOS">Em Aberto</option>
           <option value="VENCIDOS">Vencidos</option>
           <option value="PAGOS">Pagos</option>
+          <option value="">Todos</option>
         </select>
       </div>
       <div class="flex gap-2 items-center">
@@ -721,9 +722,9 @@
           <input type="text" id="exp-search" placeholder="Buscar fornecedor/item..." class="w-full pl-8 p-1.5 border rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" onkeyup="renderFinanceDebounced()">
         </div>
         <select id="exp-status" class="w-32 p-1.5 border rounded text-xs focus:ring-1 focus:ring-red-500 outline-none" onchange="renderFinance()">
-          <option value="">Todos</option>
-          <option value="PENDENTE">Pendentes</option>
+          <option value="PENDENTE" selected>Pendentes</option>
           <option value="PAGO">Pagos</option>
+          <option value="">Todos</option>
         </select>
       </div>
       <div class="flex gap-2 items-center">
@@ -3352,7 +3353,7 @@
     if(viewId === 'pos') renderRecentHistory(); 
     if(viewId === 'quotes') renderQuotesList();
     if(viewId === 'expedition') renderExpedition();
-    if(viewId === 'fin') renderFinance();
+    if(viewId === 'fin' && !_finRendered[_finActiveTab]) renderFinance();
     if(viewId === 'equipe') { if (typeof renderEquipe === 'function') renderEquipe(); }
     if(viewId === 'clients') renderClients();
     if(viewId === 'prod') renderProducts();
@@ -3443,28 +3444,72 @@
         }
 
         // ====== 5. CARREGAMENTO DO BANCO ======
-        async function fetchAllRecords(table) {
-            let allRecords = [];
-            let from = 0;
-            const step = 1000;
-            let keepFetching = true;
-
-            while (keepFetching) {
-                const { data, error } = await sb.from(table).select('*').range(from, from + step - 1);
-                if (error) {
-                    console.error("Erro ao buscar " + table, error);
-                    throw error;
+        async function mapLimit(items, limit, fn) {
+            const out = new Array(items.length);
+            let next = 0;
+            const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+                while (next < items.length) {
+                    const i = next++;
+                    out[i] = await fn(items[i], i);
                 }
-                
-                if (data && data.length > 0) {
-                    allRecords.push(...data);
-                    if (data.length < step) {
-                        keepFetching = false;
-                    } else {
-                        from += step;
+            });
+            await Promise.all(workers);
+            return out;
+        }
+
+        async function fetchAllRecords(table) {
+            const step = 1000;
+            // A primeira pagina ja traz a contagem exata: as demais podem ser
+            // buscadas em paralelo, sem uma requisicao extra so para contar.
+            const first = await sb.from(table).select('*', { count: 'exact' }).range(0, step - 1);
+            if (first.error) {
+                console.error("Erro ao buscar " + table, first.error);
+                throw first.error;
+            }
+            const allRecords = first.data || [];
+            if (allRecords.length < step) return { data: allRecords };
+
+            const total = Number(first.count);
+            if (!Number.isFinite(total) || total <= step) {
+                // Sem contagem confiavel: mantem o modo serial antigo.
+                let from = step;
+                while (true) {
+                    const { data, error } = await sb.from(table).select('*').range(from, from + step - 1);
+                    if (error) {
+                        console.error("Erro ao buscar " + table, error);
+                        throw error;
                     }
-                } else {
-                    keepFetching = false;
+                    if (!data || !data.length) break;
+                    allRecords.push(...data);
+                    if (data.length < step) break;
+                    from += step;
+                }
+                return { data: allRecords };
+            }
+
+            const pages = Math.max(0, Math.ceil(total / step) - 1);
+            const indexes = Array.from({ length: pages }, (_, i) => i + 1);
+            try {
+                const rest = await mapLimit(indexes, 4, async (page) => {
+                    const from = page * step;
+                    const { data, error } = await sb.from(table).select('*').range(from, from + step - 1);
+                    if (error) throw error;
+                    return data || [];
+                });
+                for (const rows of rest) allRecords.push(...rows);
+            } catch (err) {
+                console.warn("Busca paralela falhou em " + table + "; voltando ao modo serial.", err);
+                let from = step;
+                while (true) {
+                    const { data, error } = await sb.from(table).select('*').range(from, from + step - 1);
+                    if (error) {
+                        console.error("Erro ao buscar " + table, error);
+                        throw error;
+                    }
+                    if (!data || !data.length) break;
+                    allRecords.push(...data);
+                    if (data.length < step) break;
+                    from += step;
                 }
             }
             return { data: allRecords };
@@ -3502,18 +3547,129 @@
             });
         }
 
+        function aplicarClientes(rawClients) {
+            STATE.clients = (rawClients || []).map(c => ({
+                id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
+                logradouro: c.logradouro || '', numero: c.numero || '', complemento: c.complemento || '',
+                bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || '',
+                tipo: c.tipo || 'cliente',
+                creditoHaver: Number(c.credito_haver) || 0,
+                creditoHaverObs: c.credito_haver_obs || ''
+            }));
+        }
+
+        function aplicarLogs(rawLogs) {
+            // Mapa id -> produto: usado para resolver o NOME ATUAL do produto
+            // sempre que a log tem produto_id (renomeio reflete em cadeia).
+            const produtoPorId = {};
+            STATE.products.forEach(pr => { produtoPorId[pr.id] = pr; });
+            const resolverNomeProduto = (produtoId, nomeGravado) => {
+                if (produtoId != null && produtoPorId[produtoId]) return produtoPorId[produtoId].name;
+                return nomeGravado;
+            };
+
+            // Mapa id -> cliente: resolve o NOME ATUAL do cliente pelo cliente_id
+            // (renomear cliente reflete em cadeia no historico/relatorios).
+            const clientePorId = {};
+            STATE.clients.forEach(cl => { clientePorId[cl.id] = cl; });
+            const resolverNomeCliente = (clienteId, nomeGravado) => {
+                if (clienteId != null && clientePorId[clienteId]) return clientePorId[clienteId].name;
+                return nomeGravado;
+            };
+
+            STATE.logs = [];
+            const quotesMap = {};
+
+            (rawLogs || []).forEach(l => {
+                if (l.tipo === 'orcamento') {
+                    const qId = String(l.id);
+                    if(!quotesMap[qId]) {
+                        quotesMap[qId] = {
+                            id: qId, date: l.data,
+                            clientName: resolverNomeCliente(l.cliente_id, l.cliente_nome),
+                            clientId: l.cliente_id != null ? l.cliente_id : null,
+                            items: [], total: 0,
+                            status: l.status || 'ABERTO', discount: Number(l.desconto), discountType: l.status_financeiro || '$',
+                            paymentMethod: l.forma_pagamento, deliveryAddress: l.endereco_entrega, observacao: l.observacao
+                        };
+                    }
+                    const unitPrice = Number(l.quantidade) > 0 ? Number(l.valor_total) / Number(l.quantidade) : 0;
+                    quotesMap[qId].items.push({
+                        name: resolverNomeProduto(l.produto_id, l.produto_nome),
+                        productId: l.produto_id != null ? l.produto_id : null,
+                        qty: Number(l.quantidade),
+                        price: unitPrice,
+                        total: Number(l.valor_total),
+                        uid: l.uid,
+                        obs: l.observacao
+                    });
+                    quotesMap[qId].total += Number(l.valor_total);
+                } else {
+                    STATE.logs.push({
+                        uid: l.uid, id: l.id, type: l.tipo,
+                        productId: l.produto_id != null ? l.produto_id : null,
+                        productName: resolverNomeProduto(l.produto_id, l.produto_nome), quantity: Number(l.quantidade),
+                        date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
+                        clientId: l.cliente_id != null ? l.cliente_id : null,
+                        clientName: resolverNomeCliente(l.cliente_id, l.cliente_nome), paymentMethod: l.forma_pagamento, status: l.status,
+                        deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
+                        discount: Number(l.desconto), acrescimo: Number(l.acrescimo || 0),
+                        pgtoAnotacao: l.pgto_anotacao || '',
+                        finStatus: l.status_financeiro, dueDate: l.vencimento,
+                        paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega,
+                        loteId: l.lote_id != null ? l.lote_id : null,
+                        valorAntigo: l.valor_antigo != null ? Number(l.valor_antigo) : null,
+                        valorNovo: l.valor_novo != null ? Number(l.valor_novo) : null,
+                        campoAlterado: l.campo_alterado || null,
+                        valorUnitario: l.valor_unitario != null ? Number(l.valor_unitario) : null,
+                        fornecedor: l.fornecedor || null
+                    });
+                }
+            });
+
+            STATE.quotes = Object.values(quotesMap).map(q => {
+                q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', ');
+                return q;
+            });
+
+            recomputarEstoqueComprometido();
+        }
+
+        function aplicarDespesas(rawDespesas) {
+            const catDespPorId = {};
+            STATE.categoriesDespesas.forEach(c => { catDespPorId[String(c.id)] = c.nome; });
+            const equipePorId = STATE.equipeNomes || {};
+            const resolverNomeEquipe = (equipeId, nomeGravado) => {
+                if (equipeId != null && equipePorId[equipeId]) return equipePorId[equipeId];
+                return nomeGravado;
+            };
+            STATE.expenses = (rawDespesas || []).map(e => ({
+                id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
+                cost: Number(e.custo), date: e.data, note: e.observacao,
+                categoriaId: e.categoria_id != null ? e.categoria_id : null,
+                categoriaNome: e.categoria_id != null ? (catDespPorId[String(e.categoria_id)] || '') : '',
+                provider: resolverNomeEquipe(e.equipe_id, e.fornecedor || ''),
+                status: e.status || 'PENDENTE',
+                valorPago: Number(e.valor_pago || 0),
+                descontoTotal: Number(e.desconto_total || 0),
+                acrescimoTotal: Number(e.acrescimo_total || 0)
+            }));
+        }
+
         async function loadData() {
     try {
-        await sincronizarPerfilUsuario();
-        const [resProd, resCli, resLog, resDesp, resEquipe, resCat, resCatDesp] = await Promise.all([
-            fetchAllRecords('produtos'),
-            fetchAllRecords('clientes'),
-            fetchAllRecords('logs'),
-            fetchAllRecords('despesas'),
-            fetchAllRecords('equipe'),
-            fetchAllRecords('categorias'),
-            fetchAllRecords('categorias_despesas')
-           //sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
+        const [ , [resProd, resCli, resLog, resDesp, resEquipe, resCat, resCatDesp] ] = await Promise.all([
+            sincronizarPerfilUsuario(),
+            Promise.all([
+                fetchAllRecords('produtos'),
+                fetchAllRecords('clientes'),
+                fetchAllRecords('logs'),
+                fetchAllRecords('despesas'),
+                fetchAllRecords('equipe'),
+                fetchAllRecords('categorias'),
+                fetchAllRecords('categorias_despesas')
+               //sb.from('configuracoes').select('*').eq('chave', 'custo_material_b10').maybeSingle()
+            ])
         ]);
 
         STATE.products = (resProd.data || []).map(p => ({
@@ -3538,118 +3694,17 @@
         STATE.categoriesDespesas = (resCatDesp.data || [])
             .map(c => ({ id: c.id, nome: c.nome, grupoDre: c.grupo_dre || 'OPERACIONAL' }))
             .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
-        const catDespPorId = {};
-        STATE.categoriesDespesas.forEach(c => { catDespPorId[String(c.id)] = c.nome; });
 
-        STATE.clients = (resCli.data || []).map(c => ({
-            id: c.id, name: c.nome, phone: c.telefone, doc: c.documento, address: c.endereco,
-            logradouro: c.logradouro || '', numero: c.numero || '', complemento: c.complemento || '',
-            bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || '',
-            tipo: c.tipo || 'cliente',
-            creditoHaver: Number(c.credito_haver) || 0,
-            creditoHaverObs: c.credito_haver_obs || ''
-        }));
-
-        // Mapa id -> produto: usado para resolver o NOME ATUAL do produto
-        // sempre que a log tem produto_id (renomeio reflete em cadeia).
-        const produtoPorId = {};
-        STATE.products.forEach(pr => { produtoPorId[pr.id] = pr; });
-        const resolverNomeProduto = (produtoId, nomeGravado) => {
-            if (produtoId != null && produtoPorId[produtoId]) return produtoPorId[produtoId].name;
-            return nomeGravado;
-        };
-
-        // Mapa id -> cliente: resolve o NOME ATUAL do cliente pelo cliente_id
-        // (renomear cliente reflete em cadeia no histórico/relatórios).
-        const clientePorId = {};
-        STATE.clients.forEach(cl => { clientePorId[cl.id] = cl; });
-        const resolverNomeCliente = (clienteId, nomeGravado) => {
-            if (clienteId != null && clientePorId[clienteId]) return clientePorId[clienteId].name;
-            return nomeGravado;
-        };
+        aplicarClientes(resCli.data);
 
         // Mapa id -> funcionário: resolve o NOME ATUAL nas despesas de
         // salário (pagamento de folha) pelo equipe_id.
         const equipePorId = {};
         (resEquipe.data || []).forEach(m => { equipePorId[m.id] = m.nome; });
-        const resolverNomeEquipe = (equipeId, nomeGravado) => {
-            if (equipeId != null && equipePorId[equipeId]) return equipePorId[equipeId];
-            return nomeGravado;
-        };
+        STATE.equipeNomes = equipePorId;
 
-        STATE.logs = [];
-        const quotesMap = {};
-        
-        (resLog.data || []).forEach(l => {
-            if (l.tipo === 'orcamento') {
-                const qId = String(l.id);
-                if(!quotesMap[qId]) {
-                    quotesMap[qId] = { 
-                        id: qId, date: l.data,
-                        clientName: resolverNomeCliente(l.cliente_id, l.cliente_nome),
-                        clientId: l.cliente_id != null ? l.cliente_id : null,
-                        items: [], total: 0, 
-                        status: l.status || 'ABERTO', discount: Number(l.desconto), discountType: l.status_financeiro || '$', 
-                        paymentMethod: l.forma_pagamento, deliveryAddress: l.endereco_entrega, observacao: l.observacao
-                    };
-                }
-                const unitPrice = Number(l.quantidade) > 0 ? Number(l.valor_total) / Number(l.quantidade) : 0;
-                quotesMap[qId].items.push({ 
-                    name: resolverNomeProduto(l.produto_id, l.produto_nome),
-                    productId: l.produto_id != null ? l.produto_id : null,
-                    qty: Number(l.quantidade), 
-                    price: unitPrice, 
-                    total: Number(l.valor_total), 
-                    uid: l.uid,
-                    obs: l.observacao
-                });
-                // 🔧 Correção: acumular o total do orçamento
-                quotesMap[qId].total += Number(l.valor_total);
-            } else {
-                STATE.logs.push({
-                    uid: l.uid, id: l.id, type: l.tipo,
-                    productId: l.produto_id != null ? l.produto_id : null,
-                    productName: resolverNomeProduto(l.produto_id, l.produto_nome), quantity: Number(l.quantidade),
-                    date: l.data, note: l.observacao, totalValue: Number(l.valor_total),
-                    clientId: l.cliente_id != null ? l.cliente_id : null,
-                    clientName: resolverNomeCliente(l.cliente_id, l.cliente_nome), paymentMethod: l.forma_pagamento, status: l.status,
-                    deliveryStatus: l.status_entrega, deliveredQty: Number(l.qtd_entregue),
-                    discount: Number(l.desconto), acrescimo: Number(l.acrescimo || 0),
-                    pgtoAnotacao: l.pgto_anotacao || '',
-                    finStatus: l.status_financeiro, dueDate: l.vencimento,
-                    paidValue: Number(l.valor_pago), deliveryAddress: l.endereco_entrega,
-                    loteId: l.lote_id != null ? l.lote_id : null,
-                    valorAntigo: l.valor_antigo != null ? Number(l.valor_antigo) : null,
-                    valorNovo: l.valor_novo != null ? Number(l.valor_novo) : null,
-                    campoAlterado: l.campo_alterado || null,
-                    valorUnitario: l.valor_unitario != null ? Number(l.valor_unitario) : null,
-                    fornecedor: l.fornecedor || null
-                });
-            }
-        });
-        
-        STATE.quotes = Object.values(quotesMap).map(q => { 
-            q.itemsText = q.items.map(i => `${i.name} (x${i.qty})`).join(', '); 
-            return q; 
-        });
-
-        recomputarEstoqueComprometido();
-
-        STATE.expenses = (resDesp.data || []).map(e => ({
-            id: e.id, item: e.item, quantity: Number(e.quantidade), unit: e.unidade,
-            cost: Number(e.custo), date: e.data, note: e.observacao,
-            // Categoria da despesa: referencia por ID (texto padronizado resolvido
-            // dinamicamente, refletindo renomeios sem reescrever historico).
-            categoriaId: e.categoria_id != null ? e.categoria_id : null,
-            categoriaNome: e.categoria_id != null ? (catDespPorId[String(e.categoria_id)] || '') : '',
-            // Despesa de salário: nome ATUAL do funcionário pelo equipe_id;
-            // demais despesas (compras/fornecedores) usam o texto salvo.
-            provider: resolverNomeEquipe(e.equipe_id, e.fornecedor || ''),
-            status: e.status || 'PENDENTE',
-            valorPago: Number(e.valor_pago || 0),
-            descontoTotal: Number(e.desconto_total || 0),
-            acrescimoTotal: Number(e.acrescimo_total || 0)
-        }));
+        aplicarLogs(resLog.data);
+        aplicarDespesas(resDesp.data);
 
         /*STATE.custoMaterialB10 = resConf.data ? Number(resConf.data.valor) : 0;*/
 
@@ -3658,6 +3713,7 @@
             const resUsers = await fetchAllRecords('usuarios');
             STATE.users = resUsers.data || [];
         }
+        marcarFinanceiroSujo();
         aplicarPermissoesUI();
 
         preencherCategoriasDespesaSelects();
@@ -3668,6 +3724,34 @@
         console.error(err);
     }
 }
+
+        function onFinanceiroDataChanged() {
+            invalidarIndiceTitulos();
+            marcarFinanceiroSujo();
+            if (financeiroVisivel()) renderFinance();
+        }
+
+        // Recarrega somente as tabelas afetadas por uma baixa/despesa. Evita
+        // buscar as 7 tabelas do loadData completo a cada salvamento.
+        async function recarregarFinanceiro(opts = {}) {
+            try {
+                const [resLogs, resDesp, resCli] = await Promise.all([
+                    opts.logs ? fetchAllRecords('logs') : Promise.resolve(null),
+                    opts.despesas ? fetchAllRecords('despesas') : Promise.resolve(null),
+                    opts.clientes ? fetchAllRecords('clientes') : Promise.resolve(null)
+                ]);
+                if (resCli) aplicarClientes(resCli.data);
+                if (resLogs) aplicarLogs(resLogs.data);
+                if (resDesp) aplicarDespesas(resDesp.data);
+                onFinanceiroDataChanged();
+                showLoading(false);
+                return true;
+            } catch (err) {
+                console.error('Falha na recarga direcionada do financeiro; usando loadData completo.', err);
+                await loadData();
+                return false;
+            }
+        }
 
   function refresh() {
     showLoading(true)
@@ -5378,7 +5462,7 @@ function printStockCountSheet() {
 
                 closeParcelarModal();
                 showToast(`Venda #${id} parcelada em ${N}x!`);
-                await loadData();
+                await recarregarFinanceiro({ logs: true });
             } catch (err) {
                 showLoading(false);
                 showToast("Erro ao parcelar: " + err.message, true);
@@ -5425,7 +5509,7 @@ function printStockCountSheet() {
                             await sb.from('logs').update({ valor_pago: 0, status_financeiro: 'A RECEBER' }).eq('uid', row.uid);
                         }
                         showToast("Título reaberto!");
-                        await loadData();
+                        await recarregarFinanceiro({ logs: true });
                         return;
                     }
                     showLoading(false);
@@ -5460,6 +5544,7 @@ function printStockCountSheet() {
                         const saldoNovo = Math.max(0, (Number(cli.creditoHaver) || 0) + creditoEstornado);
                         const { error: errCli } = await sb.from('clientes').update({ credito_haver: saldoNovo }).eq('id', cli.id);
                         if (errCli) throw errCli;
+                        cli.creditoHaver = saldoNovo;
                     }
                 }
 
@@ -5473,7 +5558,7 @@ function printStockCountSheet() {
                 }
 
                 showToast("Baixa estornada!");
-                await loadData();
+                await recarregarFinanceiro({ logs: true, clientes: creditoEstornado > 0 });
             } catch(e) {
                 showLoading(false);
                 showToast("Erro: " + e.message, true);
@@ -5496,7 +5581,7 @@ function printStockCountSheet() {
                 const {error} = await sb.from('logs').delete().eq('id', id).eq('tipo', 'receita');
                 if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
                 showToast("Receita excluída!");
-                loadData();
+                recarregarFinanceiro({ logs: true });
             }
         }
 
@@ -5563,7 +5648,7 @@ function printStockCountSheet() {
                 if (err1) throw err1;
 
                 showToast("Pagamento estornado!");
-                await loadData();
+                await recarregarFinanceiro({ logs: true, despesas: true });
             } catch (e) {
                 showLoading(false);
                 showToast("Erro ao estornar: " + e.message, true);
@@ -5579,7 +5664,7 @@ function printStockCountSheet() {
                 return showToast("Erro ao excluir: " + error.message, true);
             }
             showToast("Despesa excluída!");
-            await loadData();
+            await recarregarFinanceiro({ logs: true, despesas: true });
         }
 
         async function estornarEntregaLog(uid) {
@@ -5775,9 +5860,13 @@ function printStockCountSheet() {
         function numId(id) { return Number(document.getElementById(id)?.value) || 0; }
 
         // Calcula a situação financeira de um título (venda/receita) a partir das baixas (logs 'recebimento')
+        const _titulosCache = FinanceiroDatas.criarIndiceTitulosCache();
+        function invalidarIndiceTitulos() { _titulosCache.invalidate(); }
         function calcTituloFinanceiro(parentId) {
-            const rows = STATE.logs.filter(l => String(l.id) === String(parentId) && (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO');
-            const baixas = STATE.logs.filter(l => l.type === 'recebimento' && l.status !== 'CANCELADO' && /#(\d+)/.test(l.note || '') && String((l.note.match(/#(\d+)/) || [])[1]) === String(parentId));
+            const idx = _titulosCache.get(STATE.logs);
+            const key = String(parentId);
+            const rows = idx.parents.get(key) || [];
+            const baixas = idx.baixas.get(key) || [];
             // Separa o que e caixa de verdade do que foi abatido com credito em haver.
             const baixasCredito = baixas.filter(l => ehFormaCreditoHaver(l.paymentMethod));
             const baixasDinheiro = baixas.filter(l => !ehFormaCreditoHaver(l.paymentMethod));
@@ -5880,7 +5969,7 @@ function printStockCountSheet() {
                 }
                 document.getElementById('modal-receivable-edit').classList.add('hidden');
                 showToast("Conta atualizada!");
-                loadData();
+                recarregarFinanceiro({ logs: true });
                 return;
             }
 
@@ -5962,6 +6051,8 @@ function printStockCountSheet() {
                         const saldoNovo = Math.max(0, creditAvail - credito);
                         const { error: errCli } = await sb.from('clientes').update({ credito_haver: saldoNovo }).eq('id', ctx.clientId);
                         if (errCli) throw errCli;
+                        const cli = STATE.clients.find(c => String(c.id) === String(ctx.clientId));
+                        if (cli) cli.creditoHaver = saldoNovo;
                     }
                 }
 
@@ -5974,7 +6065,7 @@ function printStockCountSheet() {
 
                 document.getElementById('modal-receivable-edit').classList.add('hidden');
                 showToast((moneyTotal > 0 || credito > 0) ? "Baixa registrada!" : "Ajuste registrado!");
-                loadData();
+                recarregarFinanceiro({ logs: true });
             } catch (err) {
                 showLoading(false);
                 showToast("Erro: " + err.message, true);
@@ -6223,6 +6314,7 @@ function printStockCountSheet() {
                     const saldoNovo = Math.max(0, (Number(cli && cli.creditoHaver) || 0) - c.credito);
                     const { error: errCli } = await sb.from('clientes').update({ credito_haver: saldoNovo }).eq('id', window._loteClientId);
                     if (errCli) throw errCli;
+                    if (cli) cli.creditoHaver = saldoNovo;
                 }
 
                 if (window._recSelected) window._recSelected.clear();
@@ -6230,7 +6322,7 @@ function printStockCountSheet() {
                 window._loteTitulos = null;
                 showToast(`Lote recebido: ${c.tits.length} titulo(s)!`);
                 const dadosPdf = { loteId, data: dataStr, forma, obs, parcelas: c.parcelas, tits: c.tits, totalCaixa: c.totalCaixa, credito: c.credito, jur: c.jur, disc: c.disc, clienteNome };
-                await loadData();
+                await recarregarFinanceiro({ logs: true, clientes: c.credito > 0 });
                 setTimeout(async () => { if (await showConfirmToast("Deseja gerar o comprovante (PDF) deste lote?")) imprimirComprovanteLote(dadosPdf); }, 350);
             } catch (err) {
                 showLoading(false);
@@ -6338,7 +6430,7 @@ function printStockCountSheet() {
                 if (todos) { try { await sb.from('recebimento_lotes').update({ estornado: true, estornado_at: new Date().toISOString() }).eq('id', info.loteId); } catch (e) {} }
                 window._estornoLote = null;
                 showToast(todos ? "Lote estornado!" : "Titulo estornado!");
-                await loadData();
+                await recarregarFinanceiro({ logs: true });
             } catch (e) {
                 showLoading(false);
                 showToast("Erro: " + e.message, true);
@@ -6360,7 +6452,11 @@ function printStockCountSheet() {
                 const rows = STATE.logs.filter(l => String(l.id) === String(parentId) && (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO');
                 const cliId = rows[0]?.clientId;
                 const cli = cliId != null ? STATE.clients.find(c => String(c.id) === String(cliId)) : STATE.clients.find(c => String(c.name).trim() === String(rows[0]?.clientName || '').trim());
-                if (cli) { const saldoNovo = Math.max(0, (Number(cli.creditoHaver) || 0) + creditoEst); await sb.from('clientes').update({ credito_haver: saldoNovo }).eq('id', cli.id); }
+                if (cli) {
+                    const saldoNovo = Math.max(0, (Number(cli.creditoHaver) || 0) + creditoEst);
+                    await sb.from('clientes').update({ credito_haver: saldoNovo }).eq('id', cli.id);
+                    cli.creditoHaver = saldoNovo;
+                }
             }
             const st = calcTituloFinanceiro(parentId);
             for (const row of st.rows) await sb.from('logs').update({ valor_pago: st.money, status_financeiro: st.status }).eq('uid', row.uid);
@@ -6370,13 +6466,9 @@ function printStockCountSheet() {
 
         // ===================== Pagamento em Lote (DESKTOP) =====================
         function _expSaldo(e) {
-            const cost = Number(e.cost) || 0;
-            const jur = Number(e.acrescimoTotal) || 0;
-            const disc = Number(e.descontoTotal) || 0;
-            const pago = Number(e.valorPago) || 0;
-            return Math.max(0, cost + jur - disc - pago);
+            return FinanceiroDatas.saldoDespesa(e);
         }
-        function _expElegivel(e) { return e && e.status !== 'PAGO' && _expSaldo(e) > 0.005; }
+        function _expElegivel(e) { return FinanceiroDatas.elegivelDespesa(e); }
 
         function togglePaySelect(id, checked) {
             if (!window._paySelected) window._paySelected = new Set();
@@ -6553,7 +6645,7 @@ function printStockCountSheet() {
                 window._lotePayTitulos = null;
                 showToast(`Lote pago: ${c.tits.length} titulo(s)!`);
                 const dadosPdf = { loteId, data: dataStr, forma, obs, parcelas: c.parcelas, tits: c.tits, totalCaixa: c.totalCaixa, jur: c.jur, disc: c.disc, fornecedor };
-                await loadData();
+                await recarregarFinanceiro({ logs: true, despesas: true });
                 setTimeout(async () => { if (await showConfirmToast("Deseja gerar o comprovante (PDF) deste lote?")) imprimirComprovanteLotePagar(dadosPdf); }, 350);
             } catch (err) {
                 showLoading(false);
@@ -6657,7 +6749,7 @@ function printStockCountSheet() {
                 if (todos) { try { await sb.from('pagamento_lotes').update({ estornado: true, estornado_at: new Date().toISOString() }).eq('id', info.loteId); } catch (e) {} }
                 window._estornoLotePagar = null;
                 showToast(todos ? "Lote estornado!" : "Titulo estornado!");
-                await loadData();
+                await recarregarFinanceiro({ logs: true, despesas: true });
             } catch (e) {
                 showLoading(false);
                 showToast("Erro: " + e.message, true);
@@ -6714,7 +6806,7 @@ function printStockCountSheet() {
             document.getElementById('rev-desc').value = '';
             document.getElementById('rev-val').value = '';
             showToast("Receita Lançada (Pendente)!");
-            loadData();
+            recarregarFinanceiro({ logs: true });
         }
 
         function openRevenueModal() { document.getElementById('modal-revenue').classList.remove('hidden'); }
@@ -6857,7 +6949,7 @@ function printStockCountSheet() {
           document.getElementById('modal-expense').classList.add('hidden');
       
           showToast(isNew ? (parcelas > 1 ? `Despesa parcelada em ${parcelas}x!` : "Despesa lançada com sucesso!") : "Despesa atualizada!");
-          await loadData();
+          await recarregarFinanceiro({ despesas: true });
           closeExpenseModal();
       }
 
@@ -6976,7 +7068,7 @@ function printStockCountSheet() {
 
                 document.getElementById('modal-payexpense').classList.add('hidden');
                 showToast(novoStatus === 'PAGO' ? "Despesa baixada com sucesso!" : "Pagamento parcial registrado!");
-                await loadData();
+                await recarregarFinanceiro({ logs: true, despesas: true });
             } catch (err) {
                 showLoading(false);
                 showToast("Erro ao baixar despesa: " + err.message, true);
@@ -7015,7 +7107,7 @@ function printStockCountSheet() {
                 return showToast("Erro ao duplicar: " + error.message, true);
             }
             showToast("Despesa duplicada (venc. +30 dias)!");
-            await loadData();
+            await recarregarFinanceiro({ despesas: true });
         }
 
        /*function openEditExpense(id) {
@@ -7399,6 +7491,7 @@ function printStockCountSheet() {
 
 
         function switchFinanceTab(tab) {
+          _finActiveTab = tab === 'pagar' ? 'pagar' : 'receber';
           const receberDiv = document.getElementById('finance-receber');
           const pagarDiv = document.getElementById('finance-pagar');
           const btnReceber = document.getElementById('tab-receber-btn');
@@ -7419,8 +7512,7 @@ function printStockCountSheet() {
             btnReceber.classList.remove('bg-indigo-600', 'text-white');
             btnReceber.classList.add('bg-slate-200', 'text-slate-700');
           }
-          // Garante que os ícones sejam recarregados (opcional)
-          if (typeof lucide !== 'undefined') lucide.createIcons();
+          if (!_finRendered[_finActiveTab]) renderFinance();
         }
 
         
@@ -9415,7 +9507,23 @@ function loadQuoteToCart(id) {
         // ==========================================
         // RENDER FINANCEIRO - COMPARAÇÕES REVISADAS
         // ==========================================
-        function renderFinance() {                    
+        let _finActiveTab = 'receber';
+        const _finRendered = { receber: false, pagar: false };
+        function marcarFinanceiroSujo() {
+            _finRendered.receber = false;
+            _finRendered.pagar = false;
+        }
+        function financeiroVisivel() {
+            const view = document.getElementById('view-fin');
+            return Boolean(view) && !view.classList.contains('hidden-section');
+        }
+        function renderFinance() {
+            if (!financeiroVisivel()) {
+                marcarFinanceiroSujo();
+                return;
+            }
+            const activeTab = _finActiveTab === 'pagar' ? 'pagar' : 'receber';
+            const hojeLocalStr = getHojeLocalStr();
             // Índice nome->cliente montado uma única vez por render (antes: busca linear
             // em STATE.clients para cada título). O primeiro cadastro com o nome vence,
             // mantendo o mesmo resultado do antigo .find().
@@ -9478,18 +9586,15 @@ function loadQuoteToCart(id) {
             lastBalance = income - expenses;
             updateCardValues();
         
+            if (activeTab === 'receber') {
             const termRec = normalizeSearch(document.getElementById('rec-search')?.value);
             const statusRec = document.getElementById('rec-status')?.value || '';
             const startRec = document.getElementById('rec-start')?.value;
             const endRec = document.getElementById('rec-end')?.value;
-        
-            const hojeLocalStr = getHojeLocalStr();
-        
+
             let filteredRec = salesArr;
             if (termRec) filteredRec = filteredRec.filter(r => (r.clientName && normalizeSearch(r.clientName).includes(termRec)) || (r.desc && normalizeSearch(r.desc).includes(termRec)) || String(r.id).includes(termRec));
-            if (statusRec === 'PAGOS') filteredRec = filteredRec.filter(r => r.status === 'PAGO');
-            if (statusRec === 'ABERTOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate || '').split('T')[0] >= hojeLocalStr);
-            if (statusRec === 'VENCIDOS') filteredRec = filteredRec.filter(r => r.status !== 'PAGO' && (r.dueDate || '').split('T')[0] < hojeLocalStr);
+            if (statusRec) filteredRec = filteredRec.filter(r => FinanceiroDatas.statusReceber(r, statusRec, hojeLocalStr));
             if (startRec) filteredRec = filteredRec.filter(r => (r.dueDate || '').split('T')[0] >= startRec);
             if (endRec) filteredRec = filteredRec.filter(r => (r.dueDate || '').split('T')[0] <= endRec);
             
@@ -9616,9 +9721,9 @@ function loadQuoteToCart(id) {
             }
 
             if (typeof atualizarBarraRecLote === 'function') atualizarBarraRecLote();
-        
+            } // fim da aba receber
 
-    
+
           // ========== CONTAS A RECEBER ==========
           /*const salesMap = {};
           STATE.logs.filter(l => (l.type === 'venda' || l.type === 'receita') && l.status !== 'CANCELADO' && l.finStatus !== 'PARCELADO').forEach(l => {
@@ -9712,6 +9817,7 @@ function loadQuoteToCart(id) {
     
 
         // ========== CONTAS A PAGAR (DESPESAS) - CORRIGIDO ==========
+    if (activeTab === 'pagar') {
     let filteredExp = STATE.expenses.slice();
     const termExp = normalizeSearch(document.getElementById('exp-search')?.value);
     const statusExp = document.getElementById('exp-status')?.value || '';
@@ -9726,7 +9832,7 @@ function loadQuoteToCart(id) {
         normalizeSearch(e.provider).includes(termExp) ||
         String(e.id).includes(termExp)
     );
-    if (statusExp) filteredExp = filteredExp.filter(e => e.status === statusExp);
+    if (statusExp) filteredExp = filteredExp.filter(e => FinanceiroDatas.statusDespesa(e, statusExp));
     if (startExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] >= startExp);
     if (endExp) filteredExp = filteredExp.filter(e => (e.date || '').split('T')[0] <= endExp);
         if (catFilterExp) filteredExp = filteredExp.filter(e => String(e.categoriaId) === String(catFilterExp));
@@ -9818,7 +9924,9 @@ function loadQuoteToCart(id) {
         </tr>`;
         expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
     }
+    } // fim da aba pagar
 
+    _finRendered[activeTab] = true;
     lucide.createIcons();
 }
 
@@ -10254,9 +10362,7 @@ function loadQuoteToCart(id) {
             let filtered = Object.values(salesMap);
 
             if(termRec) filtered = filtered.filter(r => (r.clientName && normalizeSearch(r.clientName).includes(termRec)) || (r.desc && normalizeSearch(r.desc).includes(termRec)) || String(r.id).includes(termRec));
-            if(statusRec === 'PAGOS') filtered = filtered.filter(r => r.status === 'PAGO');
-            if(statusRec === 'ABERTOS') filtered = filtered.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] >= hojeLocalStr);
-            if(statusRec === 'VENCIDOS') filtered = filtered.filter(r => r.status !== 'PAGO' && (r.dueDate||'').split('T')[0] < hojeLocalStr);
+            if(statusRec) filtered = filtered.filter(r => FinanceiroDatas.statusReceber(r, statusRec, hojeLocalStr));
             if(startRec) filtered = filtered.filter(r => (r.dueDate||'').split('T')[0] >= startRec);
             if(endRec) filtered = filtered.filter(r => (r.dueDate||'').split('T')[0] <= endRec);
             
@@ -10286,7 +10392,10 @@ function loadQuoteToCart(id) {
             }).join('');
 
             let filterText = [];
-            if(statusRec) filterText.push(`Status: ${statusRec}`);
+            if(statusRec) {
+                const labels = { NAO_PAGOS: 'Em Aberto + Vencidos', ABERTOS: 'Em Aberto', VENCIDOS: 'Vencidos', PAGOS: 'Pagos' };
+                filterText.push(`Status: ${labels[statusRec] || statusRec}`);
+            }
             if(startRec) filterText.push(`De: ${formatDate(startRec)}`);
             if(endRec) filterText.push(`Até: ${formatDate(endRec)}`);
             if(termRec) filterText.push(`Busca: "${termRec}"`);
@@ -10461,7 +10570,7 @@ function loadQuoteToCart(id) {
         
             // Filtro por status
             if (statusExp) {
-                filteredExp = filteredExp.filter(e => e.status === statusExp);
+                filteredExp = filteredExp.filter(e => FinanceiroDatas.statusDespesa(e, statusExp));
             }
         
             // Filtro por período (data de vencimento)
@@ -10518,7 +10627,10 @@ function loadQuoteToCart(id) {
         
             // Monta os filtros aplicados para exibir no cabeçalho do relatório
             let filterText = [];
-            if (statusExp) filterText.push(`Status: ${statusExp}`);
+            if (statusExp) {
+                const labels = { PENDENTE: 'Pendentes', PAGO: 'Pagos' };
+                filterText.push(`Status: ${labels[statusExp] || statusExp}`);
+            }
             if (startExp) filterText.push(`De: ${formatDate(startExp)}`);
             if (endExp) filterText.push(`Até: ${formatDate(endExp)}`);
             if (termExp) filterText.push(`Busca: "${termExp}"`);
