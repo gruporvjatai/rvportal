@@ -74,12 +74,36 @@
     return { email: data?.user?.email || null, id: data?.user?.id || null };
   }
 
-  async function subscribeDevice() {
+  // Verifica se a inscricao local ainda existe no banco. O Edge Function
+  // remove inscricoes mortas (404/410); sem esta checagem o modal continuaria
+  // mostrando "Ativo" mesmo sem nenhuma linha em push_subscriptions.
+  async function subscriptionPersistida(endpoint) {
+    if (!endpoint) return false;
+    try {
+      const { data, error } = await client()
+        .from('push_subscriptions')
+        .select('id')
+        .eq('endpoint', endpoint)
+        .maybeSingle();
+      if (error) return true; // falha de leitura nao deve marcar como inativo
+      return Boolean(data);
+    } catch (_) {
+      return true;
+    }
+  }
+
+  async function subscribeDevice(forceFresh = false) {
     if (!vapidConfigured()) throw new Error('Chave VAPID nao configurada no deploy.');
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') throw new Error('Permissao de notificacao negada.');
     const reg = await registration();
     await navigator.serviceWorker.ready;
+    if (forceFresh) {
+      // Inscricao orfa/morta: descarta o endpoint antigo para o navegador
+      // gerar um novo, em vez de regravar o mesmo endpoint invalido.
+      const antiga = await reg.pushManager.getSubscription();
+      if (antiga) await antiga.unsubscribe();
+    }
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(window.VAPID_PUBLIC_KEY),
@@ -118,7 +142,7 @@
     });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(out.error || 'Falha ao enviar teste.');
-    if (!out.sent) throw new Error('Nenhum dispositivo inscrito recebeu o teste.');
+    if (!out.sent) throw new Error('Nenhum dispositivo inscrito recebeu o teste. Reative as notificacoes neste dispositivo.');
     return out;
   }
 
@@ -153,14 +177,25 @@
       return;
     }
     const sub = await currentSubscription();
+    let orfa = false;
     if (sub && Notification.permission === 'granted') {
+      orfa = !(await subscriptionPersistida(sub.endpoint));
+    }
+    if (sub && Notification.permission === 'granted' && !orfa) {
       statusEl.innerHTML = '<span class="text-emerald-600 font-bold">Ativo neste dispositivo</span>';
       btn.textContent = 'Desativar neste dispositivo';
       btn.dataset.state = 'on';
+      btn.dataset.stale = '';
+    } else if (sub && Notification.permission === 'granted' && orfa) {
+      statusEl.textContent = 'Inscricao expirada. Reative neste dispositivo.';
+      btn.textContent = 'Reativar neste dispositivo';
+      btn.dataset.state = 'off';
+      btn.dataset.stale = '1';
     } else {
       statusEl.textContent = 'Inativo neste dispositivo.';
       btn.textContent = 'Ativar neste dispositivo';
       btn.dataset.state = 'off';
+      btn.dataset.stale = '';
     }
     btn.disabled = false;
   }
@@ -211,8 +246,13 @@
       const btn = e.currentTarget;
       btn.disabled = true;
       try {
-        if (btn.dataset.state === 'on') { await unsubscribeDevice(); toast('Notificacoes desativadas neste dispositivo.'); }
-        else { await subscribeDevice(); toast('Notificacoes ativadas neste dispositivo.'); }
+        if (btn.dataset.state === 'on') {
+          await unsubscribeDevice();
+          toast('Notificacoes desativadas neste dispositivo.');
+        } else {
+          await subscribeDevice(btn.dataset.stale === '1');
+          toast('Notificacoes ativadas neste dispositivo.');
+        }
       } catch (err) { toast(String(err.message || err), true); }
       btn.disabled = false;
       await refreshDeviceStatus();
