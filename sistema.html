@@ -3767,6 +3767,7 @@
                 navigate(current);
             }
             showLoading(false);
+            if (typeof window.maybePromptPushOnLogin === 'function') window.maybePromptPushOnLogin();
         }
 
         function getNextId(array1, array2 = []) {

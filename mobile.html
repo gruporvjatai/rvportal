@@ -2499,6 +2499,7 @@
                 navigate(current);
             }
             showLoading(false);
+            if (typeof window.maybePromptPushOnLogin === 'function') window.maybePromptPushOnLogin();
         }
 
      // ==================== FUNÇÕES DO FINANCEIRO (CAIXA) ====================

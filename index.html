@@ -180,7 +180,9 @@
                     });
                 } catch (e) { /* auditoria nunca deve bloquear o login */ }
 
-                // Redireciona
+                // Redireciona e marca que esta e uma nova sessao de login:
+                // o push.js checa a inscricao no app e pergunta se necessario.
+                try { sessionStorage.setItem('rv_push_prompt_pendente', '1'); } catch (e) { /* ignore */ }
                 window.location.href = "sistema.html?t=" + Date.now();
 
             } catch (err) {

@@ -4,6 +4,7 @@
 // Usado por sistema.html e mobile.html. Expoe:
 //   - openPushSettings()  : abre o modal de configuracoes
 //   - initPush()          : registra o service worker (chamado automaticamente)
+//   - maybePromptPushOnLogin() : pergunta no login se ainda nao ha inscricao
 //
 // O "o que notificar" e definido pelo ADMIN e vale para todos os usuarios.
 // Cada usuario ativa/desativa o recebimento apenas NESTE dispositivo.
@@ -27,7 +28,20 @@
     { key: 'instalador', label: 'Instalador' },
   ];
 
+  const PROMPT_PENDENTE_KEY = 'rv_push_prompt_pendente';
+
   let modalEl = null;
+
+  function optOutKey(uid) { return 'rv_push_optout:' + String(uid); }
+  function promptCheckKey(uid) { return 'rv_push_checado:' + String(uid); }
+  function marcarOptOut(uid) {
+    if (!uid) return;
+    try { localStorage.setItem(optOutKey(uid), '1'); } catch (_) { /* ignore */ }
+  }
+  function limparOptOut(uid) {
+    if (!uid) return;
+    try { localStorage.removeItem(optOutKey(uid)); } catch (_) { /* ignore */ }
+  }
 
   function vapidConfigured() {
     const k = window.VAPID_PUBLIC_KEY;
@@ -121,14 +135,18 @@
       last_seen_at: new Date().toISOString(),
     }, { onConflict: 'endpoint' });
     if (error) throw new Error(error.message);
+    if (id) limparOptOut(id);
   }
 
   async function unsubscribeDevice() {
+    const { id } = await userInfo();
     const sub = await currentSubscription();
     if (sub) {
       await client().from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
       await sub.unsubscribe();
     }
+    // Desativar e uma escolha explicita: nao voltar a perguntar sozinho.
+    if (id) marcarOptOut(id);
   }
 
   async function sendTest() {
@@ -144,6 +162,112 @@
     if (!res.ok) throw new Error(out.error || 'Falha ao enviar teste.');
     if (!out.sent) throw new Error('Nenhum dispositivo inscrito recebeu o teste. Reative as notificacoes neste dispositivo.');
     return out;
+  }
+
+  function showPushPrompt(uid, stale) {
+    if (document.getElementById('push-prompt-modal')) return;
+    try { sessionStorage.removeItem(PROMPT_PENDENTE_KEY); } catch (_) { /* ignore */ }
+
+    const el = document.createElement('div');
+    el.id = 'push-prompt-modal';
+    el.className = 'fixed inset-0 bg-slate-900/70 z-[130] flex items-end justify-center sm:items-center p-4';
+    el.innerHTML = `
+      <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-5">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <i data-lucide="bell" class="w-5 h-5"></i>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-black text-slate-800 text-base">${stale ? 'Reativar notificacoes?' : 'Ativar notificacoes?'}</h3>
+            <p class="text-sm text-slate-600 mt-1">${stale
+              ? 'A inscricao deste dispositivo expirou. Reative para voltar a receber os avisos.'
+              : 'Receba avisos de vendas, contas e instalacoes neste dispositivo.'}</p>
+          </div>
+        </div>
+        <label class="mt-4 flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+          <input type="checkbox" id="push-prompt-never" class="accent-indigo-600">
+          Nao perguntar novamente neste dispositivo
+        </label>
+        <div class="mt-4 flex gap-2">
+          <button type="button" id="push-prompt-later" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm">Agora nao</button>
+          <button type="button" id="push-prompt-activate" class="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm">${stale ? 'Reativar' : 'Ativar'}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    if (window.lucide) window.lucide.createIcons();
+
+    const fechar = () => el.remove();
+    el.querySelector('#push-prompt-later').addEventListener('click', () => {
+      if (el.querySelector('#push-prompt-never').checked) marcarOptOut(uid);
+      fechar();
+    });
+    el.querySelector('#push-prompt-activate').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      try {
+        await subscribeDevice(stale);
+        toast('Notificacoes ativadas neste dispositivo.');
+        fechar();
+      } catch (err) {
+        toast(String(err.message || err), true);
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // Chamado depois do login/carga dos dados. Se o usuario ja tem inscricao
+  // valida (local + banco), nao pergunta. Se marcou "nao perguntar", respeita.
+  async function maybePromptPushOnLogin() {
+    if (!supported() || !vapidConfigured()) return;
+    if (document.getElementById('push-prompt-modal')) return;
+    const settingsModal = document.getElementById('push-settings-modal');
+    if (settingsModal && !settingsModal.classList.contains('hidden')) return;
+
+    let user = null;
+    try {
+      const { data } = await client().auth.getSession();
+      user = data?.session?.user || null;
+    } catch (_) {
+      return;
+    }
+    if (!user || !user.id) return;
+
+    const uid = String(user.id);
+    let pendente = false;
+    try { pendente = sessionStorage.getItem(PROMPT_PENDENTE_KEY) === '1'; } catch (_) { /* ignore */ }
+
+    if (!pendente) {
+      let checado = false;
+      try { checado = sessionStorage.getItem(promptCheckKey(uid)) === '1'; } catch (_) { /* ignore */ }
+      if (checado) return;
+    }
+
+    let optOut = false;
+    try { optOut = localStorage.getItem(optOutKey(uid)) === '1'; } catch (_) { /* ignore */ }
+    if (optOut) {
+      try { sessionStorage.removeItem(PROMPT_PENDENTE_KEY); } catch (_) { /* ignore */ }
+      return;
+    }
+
+    try { sessionStorage.setItem(promptCheckKey(uid), '1'); } catch (_) { /* ignore */ }
+
+    if (Notification.permission === 'denied') {
+      try { sessionStorage.removeItem(PROMPT_PENDENTE_KEY); } catch (_) { /* ignore */ }
+      return;
+    }
+
+    let sub = null;
+    try { sub = await currentSubscription(); } catch (_) { return; }
+
+    if (Notification.permission === 'granted') {
+      const persistida = sub ? await subscriptionPersistida(sub.endpoint) : false;
+      if (sub && persistida) {
+        try { sessionStorage.removeItem(PROMPT_PENDENTE_KEY); } catch (_) { /* ignore */ }
+        return;
+      }
+    }
+
+    showPushPrompt(uid, Boolean(sub) && Notification.permission === 'granted');
   }
 
   async function loadSettings() {
@@ -309,6 +433,8 @@
   }
 
   async function openPushSettings() {
+    const prompt = document.getElementById('push-prompt-modal');
+    if (prompt) prompt.remove();
     buildModal().classList.remove('hidden');
     if (window.lucide) window.lucide.createIcons();
     await refreshDeviceStatus();
@@ -337,6 +463,7 @@
 
   window.openPushSettings = openPushSettings;
   window.initPush = initPush;
+  window.maybePromptPushOnLogin = maybePromptPushOnLogin;
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     initPush();
