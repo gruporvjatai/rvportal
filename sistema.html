@@ -21,6 +21,7 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="js/qr-orcamento.js"></script>
     <script src="js/financeiro-datas.js"></script>
+    <script src="js/foto-produto.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>    
 
@@ -1578,7 +1579,7 @@
                       <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Foto do Produto</label>
                       <div class="flex items-center gap-3">
                           <div id="prd-foto-preview-wrap" class="w-16 h-16 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
-                              <img id="prd-foto-preview" class="hidden w-full h-full object-cover" alt="">
+                              <img id="prd-foto-preview" class="hidden w-full h-full object-cover" alt="" onerror="this.classList.add('hidden'); document.getElementById('prd-foto-placeholder')?.classList.remove('hidden')">
                               <i id="prd-foto-placeholder" data-lucide="image" class="text-slate-300 w-6 h-6"></i>
                           </div>
                           <div class="flex flex-col gap-1">
@@ -3996,20 +3997,25 @@
                 }
             }
 
-            // Foto do produto (upload via Edge Function 'produto-foto')
+            // Foto do produto (upload via Edge Function 'produto-foto').
+            // A foto antiga so e removida DEPOIS que o banco confirma a
+            // atualizacao; a Edge Function tambem nao apaga URL em uso por
+            // outro produto (varias variacoes podem compartilhar a foto).
+            let fotoNovaUrl = '';
+            let fotoParaRemover = '';
             if (_fotoProdutoArquivo) {
                 try {
                     const blob = await redimensionarImagem(_fotoProdutoArquivo);
                     const urlAntiga = _fotoProdutoUrlAtual;
-                    const novaUrl = await uploadFotoProduto(blob, newId);
-                    if (urlAntiga && urlAntiga !== novaUrl) removerFotoProdutoStorage(urlAntiga);
-                    payload.foto_url = novaUrl;
+                    fotoNovaUrl = await uploadFotoProduto(blob, newId);
+                    payload.foto_url = fotoNovaUrl;
+                    if (urlAntiga && urlAntiga !== fotoNovaUrl) fotoParaRemover = urlAntiga;
                 } catch (err) {
                     showLoading(false);
                     return showToast('Falha ao enviar a foto: ' + err.message, true);
                 }
             } else if (_fotoProdutoRemover) {
-                if (_fotoProdutoUrlAtual) removerFotoProdutoStorage(_fotoProdutoUrlAtual);
+                fotoParaRemover = _fotoProdutoUrlAtual || '';
                 payload.foto_url = null;
             }
 
@@ -4017,7 +4023,16 @@
             const prodAnterior = isNew ? null : STATE.products.find(p => String(p.id) === String(newId));
 
             const { error } = await sb.from('produtos').upsert(payload);
-            if(error) { showLoading(false); return showToast("Erro: " + error.message, true); }
+            if(error) {
+                // Nao deixa arquivo novo orfao se o banco recusou a alteracao.
+                if (fotoNovaUrl) await removerFotoProdutoStorage(fotoNovaUrl);
+                showLoading(false);
+                return showToast("Erro: " + error.message, true);
+            }
+
+            // So remove a foto antiga depois do upsert concluido. Se ela ainda
+            // estiver em uso por outro produto, a Edge Function ignora.
+            if (fotoParaRemover) await removerFotoProdutoStorage(fotoParaRemover);
 
             // Registra alteracoes de preco de venda e de custo (auditoria de precos).
             if (!isNew && prodAnterior) {
@@ -9075,7 +9090,7 @@ function loadQuoteToCart(id) {
             <tr class="hover:bg-slate-50 ${p.ativo === false ? 'opacity-60' : ''}">
               <td class="p-4 font-bold text-slate-700">
                 <div class="flex items-center gap-3">
-                  ${(PRODUTOS_FOTOS_VISIVEIS && p.foto) ? `<img src="${p.foto}" onclick="abrirFotoProdutoPorId('${p.id}')" class="w-12 h-12 rounded object-cover border border-slate-200 cursor-pointer shrink-0" title="Ver foto">` : ''}
+                  ${(PRODUTOS_FOTOS_VISIVEIS && p.foto) ? `<img src="${p.foto}" alt="${p.name}" loading="lazy" decoding="async" onclick="abrirFotoProdutoPorId('${p.id}')" onerror="if (window.rvFotoProdutoErro) rvFotoProdutoErro(this)" class="w-12 h-12 rounded object-cover border border-slate-200 cursor-pointer shrink-0" title="Ver foto">` : ''}
                   <div>${p.name}<br>
                   <span class="text-[10px] text-slate-400 uppercase font-bold bg-slate-100 px-1 py-0.5 rounded">${p.category || 'Geral'}</span>${tagTipo}</div>
                 </div>
@@ -13064,7 +13079,14 @@ function abrirFotoProduto(url, nome) {
     if (!url) return;
     const img = document.getElementById('modal-foto-produto-img');
     const nomeEl = document.getElementById('modal-foto-produto-nome');
-    if (img) img.src = url;
+    if (img) {
+        img.onerror = () => {
+            img.removeAttribute('src');
+            fecharFotoProduto();
+            showToast('Foto indisponivel para este produto.', true);
+        };
+        img.src = url;
+    }
     if (nomeEl) nomeEl.textContent = nome || 'Foto do produto';
     document.getElementById('modal-foto-produto').classList.remove('hidden');
     if (window.lucide) lucide.createIcons();

@@ -15,6 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     <script src="js/qr-orcamento.js"></script>
     <script src="js/financeiro-datas.js"></script>
+    <script src="js/foto-produto.js"></script>
 
     <link rel="icon" type="image/png" href="logo.png">
     <link rel="shortcut icon" type="image/png" href="logo.png">
@@ -4720,7 +4721,7 @@
         const badgeTxt = p.servico ? 'Serviço' : (isPartner ? 'Parceiro' : 'Disp: ' + p.available);
         return `
         <div class="p-3 border rounded-xl bg-white flex gap-2.5">
-            ${p.foto ? `<button type="button" onclick="abrirFotoProdutoPorId('${p.id}')" class="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 active:scale-95 transition" title="Ver foto"><img src="${p.foto}" alt="${p.name}" loading="lazy" decoding="async" class="w-full h-full object-cover"></button>` : ''}
+            ${p.foto ? `<button type="button" onclick="abrirFotoProdutoPorId('${p.id}')" class="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 active:scale-95 transition" title="Ver foto"><img src="${p.foto}" alt="${p.name}" loading="lazy" decoding="async" onerror="if (window.rvFotoProdutoErro) rvFotoProdutoErro(this)" class="w-full h-full object-cover"></button>` : ''}
             <div class="flex-1 min-w-0 flex flex-col gap-2">
             <div class="flex justify-between">
                 <h4 class="font-bold text-sm text-slate-800 leading-tight">${p.name}</h4>
@@ -6189,7 +6190,7 @@ function downloadPDF(blob, filename) {
                               <div><span class="block text-[9px] uppercase text-slate-400 font-bold">Disp.</span><span class="font-black ${Number(p.available) <= 0 ? 'text-red-500' : 'text-emerald-600'}">${p.available}</span></div>
                            </div>`);
                 const thumb = p.foto
-                    ? `<button type="button" onclick="abrirFotoProdutoPorId('${p.id}')" class="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 active:scale-95 transition" title="Ver foto"><img src="${p.foto}" alt="${p.name}" loading="lazy" decoding="async" class="w-full h-full object-cover"></button>`
+                    ? `<button type="button" onclick="abrirFotoProdutoPorId('${p.id}')" class="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 active:scale-95 transition" title="Ver foto"><img src="${p.foto}" alt="${p.name}" loading="lazy" decoding="async" onerror="if (window.rvFotoProdutoErro) rvFotoProdutoErro(this)" class="w-full h-full object-cover"></button>`
                     : `<div class="w-20 h-20 shrink-0 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-300" title="Sem foto"><i data-lucide="image" class="w-7 h-7"></i></div>`;
                 return `
                 <div class="bg-white p-3 rounded-2xl border shadow-sm ${inativo ? 'opacity-70 border-dashed' : ''}">
@@ -6337,7 +6338,14 @@ function downloadPDF(blob, filename) {
             if (!url) return;
             const img = document.getElementById('foto-viewer-img');
             const nomeEl = document.getElementById('modal-foto-produto-nome');
-            if (img) img.src = url;
+            if (img) {
+                img.onerror = () => {
+                    img.removeAttribute('src');
+                    fecharFotoProdutoMobile();
+                    showToast('Foto indisponivel para este produto.', true);
+                };
+                img.src = url;
+            }
             if (nomeEl) nomeEl.textContent = nome || 'Foto do produto';
             _fvReset(false);
             document.getElementById('modal-foto-produto').classList.remove('hidden');

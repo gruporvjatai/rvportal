@@ -199,7 +199,7 @@ class AgendaManager {
             <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
               ${itens?.map(item => `
                 <div class="border rounded p-2 flex gap-2">
-                  ${item.foto_url ? `<img src="${item.foto_url}" class="w-16 h-16 object-cover rounded">` : '<div class="w-16 h-16 bg-slate-200 rounded flex items-center justify-center"><i data-lucide="image" class="w-6 h-6 text-slate-400"></i></div>'}
+                  ${item.foto_url ? `<img src="${item.foto_url}" alt="Foto" onerror="if (window.rvFotoProdutoErro) rvFotoProdutoErro(this)" class="w-16 h-16 object-cover rounded">` : '<div class="w-16 h-16 bg-slate-200 rounded flex items-center justify-center"><i data-lucide="image" class="w-6 h-6 text-slate-400"></i></div>'}
                   <div>
                     <p class="font-bold">${item.nome}</p>
                     <p class="text-xs text-slate-500">${item.descricao || ''}</p>

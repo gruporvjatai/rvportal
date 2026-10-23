@@ -63,8 +63,27 @@ Deno.serve(async (req) => {
     const action = body?.action || "upload";
 
     if (action === "remove") {
-      const path = pathFromPublicUrl(body?.url);
+      const url = String(body?.url || "");
+      const path = pathFromPublicUrl(url);
       if (!path) return json({ ok: true, skipped: true });
+
+      // Variacoes do mesmo produto podem compartilhar a mesma foto. Antes de
+      // apagar, confirma que nenhum outro produto ainda aponta para esta URL.
+      // Em caso de falha na consulta, falha fechado (nao apaga).
+      const canonical = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+      const candidatas = Array.from(new Set([url, url.trim(), canonical].filter(Boolean)));
+      const { count, error: refErr } = await admin
+        .from("produtos")
+        .select("id", { count: "exact", head: true })
+        .in("foto_url", candidatas);
+      if (refErr) {
+        console.error("Falha ao verificar referencias da foto:", refErr);
+        return json({ ok: true, skipped: true, reason: "reference_check_failed" });
+      }
+      if ((count ?? 0) > 0) {
+        return json({ ok: true, skipped: true, reason: "in_use", references: count });
+      }
+
       const { error } = await admin.storage.from(BUCKET).remove([path]);
       if (error) return json({ error: error.message }, 500);
       return json({ ok: true });
