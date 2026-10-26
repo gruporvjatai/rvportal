@@ -1283,6 +1283,13 @@
                     </div>
                 </div>
                 <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                    <select id="dexp-cat" class="w-full p-3 border rounded-xl outline-none bg-slate-50">
+                        <option value="">Selecione...</option>
+                    </select>
+                    <p class="text-[11px] text-slate-400 mt-1">Pode trocar a categoria neste momento, se o lancamento estiver errado.</p>
+                </div>
+                <div>
                     <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Data do Pagamento</label>
                     <input type="date" id="dexp-date" class="w-full p-3 border rounded-xl outline-none bg-slate-50">
                 </div>
@@ -4224,6 +4231,12 @@
                 payCat.innerHTML = '<option value="">Categoria</option>' + opts;
                 payCat.value = cur || '';
             }
+            const selBaixa = document.getElementById('dexp-cat');
+            if (selBaixa) {
+                const cur = selBaixa.value;
+                selBaixa.innerHTML = '<option value="">Selecione...</option>' + opts;
+                if (cur) selBaixa.value = cur;
+            }
         }
 
         function openEditExpense(id) {
@@ -4361,6 +4374,9 @@
             if (rowsEl) rowsEl.innerHTML = '';
             window._dexpCtx = { id: exp.id, saldoBase: saldo };
             addDespPgtoRow(METODOS_PGTO[0], saldo > 0 ? saldo : '');
+            if (typeof preencherCategoriasDespesaSelectMobile === 'function') preencherCategoriasDespesaSelectMobile();
+            const selCat = document.getElementById('dexp-cat');
+            if (selCat) selCat.value = (exp.categoriaId != null) ? String(exp.categoriaId) : '';
             document.getElementById('modal-payexpense').classList.remove('hidden');
         }
 
@@ -4374,8 +4390,11 @@
             const desconto = numId('dexp-disc');
             const juros = numId('dexp-jur');
             const dataPgto = document.getElementById('dexp-date').value || getHojeLocalStr();
+            const categoriaId = document.getElementById('dexp-cat')?.value || '';
+            const categoriaNome = categoriaId ? getCategoriaDespesaNomeMobile(categoriaId) : (exp.categoriaNome || exp.item);
 
             if(money <= 0) return showToast("Informe o valor pago (pelo menos uma forma)", true);
+            if(!categoriaId) return showToast("Selecione a categoria", true);
             showLoading(true);
             try {
                 const newMoney = (exp.valorPago || 0) + money;
@@ -4405,7 +4424,9 @@
                     valor_pago: newMoney,
                     desconto_total: newDisc,
                     acrescimo_total: newJur,
-                    status: novoStatus
+                    status: novoStatus,
+                    categoria_id: Number(categoriaId),
+                    item: categoriaNome || exp.item
                 }).eq('id', id);
                 if(err1) throw err1;
 

@@ -2536,6 +2536,13 @@
                     <span class="text-sm font-bold text-slate-600">Total: <span id="dexp-total-lbl" class="text-red-700"></span></span>
                     <span class="text-sm font-bold text-slate-600">Restante: <span id="dexp-rest-lbl" class="text-red-600"></span></span>
                 </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
+                    <select id="dexp-cat" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-red-400 outline-none bg-white">
+                        <option value="">Selecione...</option>
+                    </select>
+                    <p class="text-[11px] text-slate-400 mt-1">Pode trocar a categoria neste momento, se o lancamento estiver errado.</p>
+                </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-sm font-bold text-slate-700 mb-1">Desconto (R$)</label>
@@ -7028,6 +7035,9 @@ function printStockCountSheet() {
             if (rowsEl) rowsEl.innerHTML = '';
             window._dexpCtx = { id: exp.id, saldoBase: saldo };
             addDespPgtoRow(METODOS_PGTO[0], saldo > 0 ? saldo : '');
+            if (typeof preencherCategoriasDespesaSelects === 'function') preencherCategoriasDespesaSelects();
+            const selCat = document.getElementById('dexp-cat');
+            if (selCat) selCat.value = (exp.categoriaId != null) ? String(exp.categoriaId) : '';
             document.getElementById('modal-payexpense').classList.remove('hidden');
         }
 
@@ -7041,8 +7051,11 @@ function printStockCountSheet() {
             const desconto = numId('dexp-disc');
             const juros = numId('dexp-jur');
             const dataPgto = document.getElementById('dexp-date').value || getHojeLocalStr();
+            const categoriaId = document.getElementById('dexp-cat')?.value || '';
+            const categoriaNome = categoriaId ? getCategoriaDespesaNome(categoriaId) : (exp.categoriaNome || exp.item);
 
             if (money <= 0) return showToast("Informe o valor pago (pelo menos uma forma)", true);
+            if (!categoriaId) return showToast("Selecione a categoria", true);
 
             showLoading(true);
             try {
@@ -7060,7 +7073,7 @@ function printStockCountSheet() {
                         id: await getNextIdFromDB(),
                         uid: uidBatch,
                         tipo: 'despesa',
-                        produto_nome: exp.categoriaNome || exp.item,
+                        produto_nome: categoriaNome || exp.item,
                         quantidade: exp.quantity || 1,
                         data: dataPgto,
                         observacao: 'Ref Despesa #' + exp.id,
@@ -7078,7 +7091,9 @@ function printStockCountSheet() {
                     valor_pago: newMoney,
                     desconto_total: newDisc,
                     acrescimo_total: newJur,
-                    status: novoStatus
+                    status: novoStatus,
+                    categoria_id: Number(categoriaId),
+                    item: categoriaNome || exp.item
                 }).eq('id', id);
                 if (err1) throw err1;
 
@@ -8790,6 +8805,12 @@ function loadQuoteToCart(id) {
           const cur = selReport.value;
           selReport.innerHTML = '<option value="TODAS">Todas as Categorias</option>' + opts;
           selReport.value = cur || 'TODAS';
+        }
+        const selBaixa = document.getElementById('dexp-cat');
+        if (selBaixa) {
+          const cur = selBaixa.value;
+          selBaixa.innerHTML = '<option value="">Selecione...</option>' + opts;
+          if (cur) selBaixa.value = cur;
         }
       }
 
