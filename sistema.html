@@ -9554,6 +9554,22 @@ function loadQuoteToCart(id) {
             const view = document.getElementById('view-fin');
             return Boolean(view) && !view.classList.contains('hidden-section');
         }
+        async function enviarLembreteVencidoRobo(clienteId, nome) {
+            if (!clienteId) { alert('Cliente sem cadastro.'); return; }
+            if (!confirm('Enviar lembrete de TODOS os títulos já vencidos de ' + nome + '?\n\nO robô local decide o número (Enviar números reais, 24h, modelo). Este ERP só dispara o gatilho.')) return;
+            try {
+                const res = await fetch('http://127.0.0.1:3010/api/public/erp-trigger/vencido', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cliente_id: clienteId, confirm: true })
+                });
+                const d = await res.json();
+                if (!res.ok) { alert(d.error || 'Falha no robô'); return; }
+                alert(d.message || 'Enviado');
+            } catch (e) {
+                alert('Robô local não está ligado na porta 3010.');
+            }
+        }
         function renderFinance() {
             if (!financeiroVisivel()) {
                 marcarFinanceiroSujo();
@@ -9659,6 +9675,7 @@ function loadQuoteToCart(id) {
                     const isVencido = dataVencStr < hojeLocalStr && r.status !== 'PAGO';
                     const corFundo = isVencido ? 'bg-red-50/50' : (r.status === 'PAGO' ? 'bg-green-50/50 opacity-80' : '');
                     const avisoVenc = isVencido ? '<span class="text-[9px] bg-red-500 text-white px-1 rounded ml-1">VENCIDO</span>' : '';
+                    const clientRow = clientesPorNome.get(String(r.clientName).trim());
                     const rest = r.saldo != null ? r.saldo : (r.val - r.paid);
                     const elegivel = r.status !== 'PAGO' && rest > 0.005;
                     const marcado = window._recSelected && window._recSelected.has(String(r.id));
@@ -9737,6 +9754,7 @@ function loadQuoteToCart(id) {
                                 `<button onclick="openParcelarReceber('${r.id}')" class="bg-white border border-amber-300 text-amber-600 hover:bg-amber-50 p-1.5 rounded shadow" title="Parcelar em N títulos"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>` : ''}
                             <!-- BOTÃO WHATSAPP - SÓ APARECE SE NÃO ESTIVER PAGO -->
                             ${zapButtonHtml}
+                            ${isVencido && clientRow && clientRow.id ? `<button type="button" onclick='enviarLembreteVencidoRobo(${Number(clientRow.id)}, ${JSON.stringify(String(clientRow.name || ''))})' class="bg-white border border-emerald-400 text-emerald-700 hover:bg-emerald-50 text-[10px] font-bold py-1.5 px-2 rounded shadow" title="Robô local: todos os vencidos deste cliente">Robô</button>` : ''}
                             
                             ${r.status !== 'PAGO' ? 
                                 `<button onclick="openEditReceivable('${r.id}', ${r.val}, ${r.paid}, '${r.dueDate}', '${r.payment}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-3 rounded shadow flex items-center gap-1"><i data-lucide="edit-3" class="w-3 h-3"></i> BAIXAR</button>
