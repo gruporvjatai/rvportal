@@ -9591,29 +9591,55 @@ function loadQuoteToCart(id) {
             if (!clienteId) { alert('Cliente sem cadastro.'); return; }
             const alvo = 'os t\u00edtulos J\u00c1 VENCIDOS de ' + nome + ' (cliente ' + clienteId + ')';
             const ok = confirm('Disparar a cobran\u00e7a de ' + alvo + ' no WhatsApp?\n\n'
-                + 'O rob\u00f4 local decide o n\u00famero: se "Enviar n\u00fameros reais" estiver desligado, '
-                + 'a mensagem vai s\u00f3 para o SEU n\u00famero como pr\u00e9via.');
+                + 'O pedido vai para a nuvem. O rob\u00f4 local (PC da Central, WhatsApp conectado) puxa e envia.\n'
+                + 'Se \"Enviar n\u00fameros reais\" estiver desligado, s\u00f3 seus n\u00fameros de teste/pr\u00e9via recebem.');
             if (!ok) return;
-            // trava de clique duplo: uma cobranca por vez nesta tela
             if (window._cobrancaEmAndamento) { alert('Já existe uma cobrança sendo enviada. Aguarde.'); return; }
             window._cobrancaEmAndamento = true;
             try {
-                const res = await fetch('http://127.0.0.1:3010/api/public/erp-trigger/vencido', {
+                const { data: sess } = await sb.auth.getSession();
+                const token = sess && sess.session ? sess.session.access_token : '';
+                if (!token) { alert('Sessão expirada. Entre de novo.'); return; }
+                const res = await fetch(window.SUPABASE_URL + '/functions/v1/robo-comando', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cliente_id: clienteId, confirm: true })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': window.SUPABASE_ANON_KEY,
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ comando: 'vencido', cliente_id: clienteId, confirm: true })
                 });
-                const d = await res.json();
-                if (!res.ok) { alert(d.error || 'Falha no rob\u00f4'); return; }
-                if (d.sent && d.sent.sent === 1) {
-                    alert(d.preview
-                        ? 'PR\u00c9VIA enviada para o seu n\u00famero (' + (d.toPhone || '') + ').\n\nNenhum cliente recebeu nada.'
-                        : 'Cobran\u00e7a enviada (' + d.qtd + ' t\u00edtulo(s)).');
-                } else {
-                    alert('A fila n\u00e3o enviou agora: ' + JSON.stringify(d.sent || {}));
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) { alert(d.error || 'Falha ao enfileirar'); return; }
+                const id = d.id;
+                if (!id) { alert('Pedido criado, mas sem id.'); return; }
+                const ate = Date.now() + 45000;
+                let ultimo = null;
+                while (Date.now() < ate) {
+                    await new Promise((r) => setTimeout(r, 2000));
+                    const { data: row, error } = await sb.from('robo_comandos').select('status,error,result').eq('id', id).maybeSingle();
+                    if (error) continue;
+                    ultimo = row;
+                    if (!row) continue;
+                    if (row.status === 'sent') {
+                        const r = row.result || {};
+                        if (r.testPhone && !r.preview) {
+                            alert('ENSAIO enviado ao seu n\u00famero de teste (' + (r.toPhone || '') + ').\n\nNenhum cliente recebeu nada.');
+                        } else if (r.preview) {
+                            alert('PR\u00c9VIA enviada para o seu n\u00famero (' + (r.toPhone || '') + ').\n\nNenhum cliente recebeu nada.');
+                        } else {
+                            alert('Cobran\u00e7a enviada (' + (r.qtd || '?') + ' t\u00edtulo(s)).');
+                        }
+                        return;
+                    }
+                    if (row.status === 'failed') {
+                        alert(row.error || 'O rob\u00f4 recusou o pedido.');
+                        return;
+                    }
                 }
+                alert('Pedido na fila (#' + id + '), mas o rob\u00f4 ainda n\u00e3o puxou.\n\nConfira se a Central est\u00e1 ligada no PC e o WhatsApp conectado.\nStatus: ' + ((ultimo && ultimo.status) || 'queued'));
             } catch (e) {
-                alert('Rob\u00f4 local n\u00e3o est\u00e1 ligado na porta 3010.');
+                alert('N\u00e3o consegui falar com a nuvem. Verifique a internet.');
             } finally {
                 window._cobrancaEmAndamento = false;
             }

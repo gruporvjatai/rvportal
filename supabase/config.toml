@@ -11,3 +11,6 @@ verify_jwt = false
 [functions.produto-foto]
 # Upload/remocao de fotos de produto. Exige JWT do usuario autenticado.
 verify_jwt = true
+[functions.robo-comando]
+# Enfileira cobranca. Exige JWT. Nao envia WhatsApp.
+verify_jwt = true
