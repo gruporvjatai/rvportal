@@ -9588,18 +9588,16 @@ function loadQuoteToCart(id) {
         }
 
         async function enviarLembreteVencidoRobo(clienteId, nome) {
-            if (!clienteId) { alert('Cliente sem cadastro.'); return; }
-            const alvo = 'os t\u00edtulos J\u00c1 VENCIDOS de ' + nome + ' (cliente ' + clienteId + ')';
-            const ok = confirm('Disparar a cobran\u00e7a de ' + alvo + ' no WhatsApp?\n\n'
-                + 'O pedido vai para a nuvem. O rob\u00f4 local (PC da Central, WhatsApp conectado) puxa e envia.\n'
-                + 'Se \"Enviar n\u00fameros reais\" estiver desligado, s\u00f3 seus n\u00fameros de teste/pr\u00e9via recebem.');
+            if (!clienteId) { showToast('Cliente sem cadastro.', true); return; }
+            const ok = await showConfirmToast('Enviar cobrança de vencidos de ' + nome + ' no WhatsApp?');
             if (!ok) return;
-            if (window._cobrancaEmAndamento) { alert('Já existe uma cobrança sendo enviada. Aguarde.'); return; }
+            if (window._cobrancaEmAndamento) { showToast('Já existe uma cobrança em andamento.', true); return; }
             window._cobrancaEmAndamento = true;
             try {
                 const { data: sess } = await sb.auth.getSession();
                 const token = sess && sess.session ? sess.session.access_token : '';
-                if (!token) { alert('Sessão expirada. Entre de novo.'); return; }
+                if (!token) { showToast('Sessão expirada. Entre de novo.', true); return; }
+                showToast('Enviando pedido ao robô...');
                 const res = await fetch(window.SUPABASE_URL + '/functions/v1/robo-comando', {
                     method: 'POST',
                     headers: {
@@ -9610,36 +9608,29 @@ function loadQuoteToCart(id) {
                     body: JSON.stringify({ comando: 'vencido', cliente_id: clienteId, confirm: true })
                 });
                 const d = await res.json().catch(() => ({}));
-                if (!res.ok) { alert(d.error || 'Falha ao enfileirar'); return; }
+                if (!res.ok) { showToast(d.error || 'Falha ao enfileirar.', true); return; }
                 const id = d.id;
-                if (!id) { alert('Pedido criado, mas sem id.'); return; }
+                if (!id) { showToast('Pedido criado, mas sem id.', true); return; }
                 const ate = Date.now() + 45000;
-                let ultimo = null;
                 while (Date.now() < ate) {
                     await new Promise((r) => setTimeout(r, 2000));
                     const { data: row, error } = await sb.from('robo_comandos').select('status,error,result').eq('id', id).maybeSingle();
-                    if (error) continue;
-                    ultimo = row;
-                    if (!row) continue;
+                    if (error || !row) continue;
                     if (row.status === 'sent') {
                         const r = row.result || {};
-                        if (r.testPhone && !r.preview) {
-                            alert('ENSAIO enviado ao seu n\u00famero de teste (' + (r.toPhone || '') + ').\n\nNenhum cliente recebeu nada.');
-                        } else if (r.preview) {
-                            alert('PR\u00c9VIA enviada para o seu n\u00famero (' + (r.toPhone || '') + ').\n\nNenhum cliente recebeu nada.');
-                        } else {
-                            alert('Cobran\u00e7a enviada (' + (r.qtd || '?') + ' t\u00edtulo(s)).');
-                        }
+                        if (r.testPhone && !r.preview) showToast('Ensaio enviado ao seu número de teste.');
+                        else if (r.preview) showToast('Prévia enviada ao seu número.');
+                        else showToast('Cobrança enviada (' + (r.qtd || '?') + ' título(s)).');
                         return;
                     }
                     if (row.status === 'failed') {
-                        alert(row.error || 'O rob\u00f4 recusou o pedido.');
+                        showToast(row.error || 'O robô recusou o pedido.', true);
                         return;
                     }
                 }
-                alert('Pedido na fila (#' + id + '), mas o rob\u00f4 ainda n\u00e3o puxou.\n\nConfira se a Central est\u00e1 ligada no PC e o WhatsApp conectado.\nStatus: ' + ((ultimo && ultimo.status) || 'queued'));
+                showToast('Pedido na fila. Ligue a Central e o WhatsApp no PC.', true);
             } catch (e) {
-                alert('N\u00e3o consegui falar com a nuvem. Verifique a internet.');
+                showToast('Sem conexão com a nuvem.', true);
             } finally {
                 window._cobrancaEmAndamento = false;
             }
