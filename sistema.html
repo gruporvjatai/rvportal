@@ -1502,6 +1502,14 @@
                 <input type="text" id="cli-name" required placeholder="Nome do Cliente" class="w-full p-2 border rounded">
                 <input type="text" id="cli-phone" placeholder="(00) 00000-0000" oninput="mascaraTelefoneInput(this)" class="w-full p-2 border rounded">
                 <div>
+                    <label class="rv-switch" title="Só o lote automático do robô (D-2 / no dia). O botão do financeiro não usa isto.">
+                        <input type="checkbox" id="cli-cobranca-auto" checked>
+                        <span class="rv-track"><span class="rv-knob"></span></span>
+                        <span class="text-sm font-bold text-slate-700">Permitir cobrança automática</span>
+                    </label>
+                    <p class="text-[10px] text-slate-400 mt-1 ml-[50px]">Lembrete D-2 e no dia pelo WhatsApp. Envio manual no financeiro continua valendo.</p>
+                </div>
+                <div>
                     <input type="text" id="cli-doc" placeholder="CPF ou CNPJ" inputmode="numeric" oninput="mascaraDocInput(this)" class="w-full p-2 border rounded">
                     <p class="text-[11px] text-slate-400 mt-0.5">Formato aplicado automaticamente (CPF ou CNPJ).</p>
                 </div>
@@ -3562,7 +3570,8 @@
                 bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || '',
                 tipo: c.tipo || 'cliente',
                 creditoHaver: Number(c.credito_haver) || 0,
-                creditoHaverObs: c.credito_haver_obs || ''
+                creditoHaverObs: c.credito_haver_obs || '',
+                cobrancaAutomatica: c.cobranca_automatica !== false
             }));
         }
 
@@ -3811,7 +3820,8 @@
                 documento: doc, endereco: endereco,
                 logradouro: endInfo.logradouro, numero: endInfo.numero, complemento: endInfo.complemento,
                 bairro: endInfo.bairro, cidade: endInfo.cidade, uf: endInfo.uf,
-                cep: endInfo.cep || null
+                cep: endInfo.cep || null,
+                cobranca_automatica: document.getElementById('cli-cobranca-auto').checked
             };
 
             const { error } = await sb.from('clientes').upsert(payload);
@@ -9457,6 +9467,7 @@ function loadQuoteToCart(id) {
                     document.getElementById('cli-bairro').value = c.bairro || '';
                     document.getElementById('cli-cidade').value = c.cidade || '';
                     document.getElementById('cli-uf').value = c.uf || '';
+                    document.getElementById('cli-cobranca-auto').checked = c.cobrancaAutomatica !== false;
                     renderClientCreditInfo(c);
                     const temEstrutura = c.logradouro || c.numero || c.bairro || c.cidade || c.uf || c.cep;
                     if (!temEstrutura && c.address) {
@@ -9478,6 +9489,7 @@ function loadQuoteToCart(id) {
                 document.getElementById('cli-bairro').value = '';
                 document.getElementById('cli-cidade').value = '';
                 document.getElementById('cli-uf').value = '';
+                document.getElementById('cli-cobranca-auto').checked = true;
                 renderClientCreditInfo(null);
                 nota.classList.add('hidden');
             }

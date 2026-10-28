@@ -1135,6 +1135,14 @@
                     <input type="tel" id="cli-phone" oninput="mascaraTelefoneInput(this)" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium" placeholder="(00) 00000-0000">
                 </div>
                 <div>
+                    <label class="rv-switch" title="Só o lote automático do robô. O botão do financeiro não usa isto.">
+                        <input type="checkbox" id="cli-cobranca-auto" checked>
+                        <span class="rv-track"><span class="rv-knob"></span></span>
+                        <span class="text-sm font-bold text-slate-700">Permitir cobrança automática</span>
+                    </label>
+                    <p class="text-[10px] text-slate-400 mt-1 ml-[50px]">Lembrete D-2 e no dia. Envio manual no financeiro continua valendo.</p>
+                </div>
+                <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Documento (CPF/CNPJ)</label>
                     <input type="text" id="cli-doc" inputmode="numeric" oninput="mascaraDocInput(this)" class="w-full p-3 bg-slate-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium">
                 </div>
@@ -2374,7 +2382,8 @@
                         bairro: c.bairro || '', cidade: c.cidade || '', uf: c.uf || '', cep: c.cep || '',
                         tipo: c.tipo || 'cliente',
                         creditoHaver: Number(c.credito_haver) || 0,
-                        creditoHaverObs: c.credito_haver_obs || ''
+                        creditoHaverObs: c.credito_haver_obs || '',
+                        cobrancaAutomatica: c.cobranca_automatica !== false
                     }));
             
                     STATE.logs = [];
@@ -7468,6 +7477,7 @@ function downloadPDF(blob, filename) {
                     document.getElementById('cli-bairro').value = c.bairro || '';
                     document.getElementById('cli-cidade').value = c.cidade || '';
                     document.getElementById('cli-uf').value = c.uf || '';
+                    document.getElementById('cli-cobranca-auto').checked = c.cobrancaAutomatica !== false;
                     const temEstrutura = c.logradouro || c.numero || c.bairro || c.cidade || c.uf || c.cep;
                     if (!temEstrutura && c.address) {
                         nota.textContent = 'Endereço atual registrado: ' + c.address + '. Preencha os campos acima para padronizar.';
@@ -7488,6 +7498,7 @@ function downloadPDF(blob, filename) {
                 document.getElementById('cli-bairro').value = '';
                 document.getElementById('cli-cidade').value = '';
                 document.getElementById('cli-uf').value = '';
+                document.getElementById('cli-cobranca-auto').checked = true;
                 nota.classList.add('hidden');
             }
         }
@@ -7515,7 +7526,8 @@ function downloadPDF(blob, filename) {
                 documento: doc, endereco: endereco,
                 logradouro: endInfo.logradouro, numero: endInfo.numero, complemento: endInfo.complemento,
                 bairro: endInfo.bairro, cidade: endInfo.cidade, uf: endInfo.uf,
-                cep: endInfo.cep || null
+                cep: endInfo.cep || null,
+                cobranca_automatica: document.getElementById('cli-cobranca-auto').checked
             };
 
             const { error } = await sb.from('clientes').upsert(payload);
