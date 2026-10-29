@@ -10186,7 +10186,7 @@ function loadQuoteToCart(id) {
                     <div class="doc-meta">
                         <div class="doc-title">${title}</div>
                         <div class="meta-row"><strong>Nº:</strong> ${sale.id || '--'}</div>
-                        <div class="meta-row"><strong>Data:</strong> ${new Date().toLocaleDateString()}</div>
+                        <div class="meta-row"><strong>Data:</strong> ${formatDate(sale.date)}</div>
                     </div>
                 </div>
                 <div class="info-grid">
@@ -11136,7 +11136,7 @@ function loadQuoteToCart(id) {
                             text: [
                                 { text: 'ORÇAMENTO\n', fontSize: 13, bold: true },
                                 { text: `Nº: ${q.id}\n`, fontSize: 9 },
-                                { text: `Data: ${new Date(q.date).toLocaleDateString('pt-BR')}`, fontSize: 9 }
+                                { text: `Data: ${formatDate(q.date)}`, fontSize: 9 }
                             ],
                             alignment: 'right', margin: [0, 10, 0, 0]
                         }
@@ -12399,7 +12399,7 @@ async function downloadSalePDF(id) {
                             text: [
                                 { text: 'PEDIDO DE VENDA\n', fontSize: 13, bold: true },
                                 { text: `Nº: ${id}\n`, fontSize: 9 },
-                                { text: `Data: ${new Date(items[0].date).toLocaleDateString('pt-BR')}`, fontSize: 9 }
+                                { text: `Data: ${formatDate(items[0].date)}`, fontSize: 9 }
                             ],
                             alignment: 'right', margin: [0, 10, 0, 0]
                         }
