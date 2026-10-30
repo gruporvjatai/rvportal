@@ -1766,11 +1766,16 @@
                     <span class="text-sm font-bold text-slate-600">Total: <span id="rec-edit-total-lbl" class="text-indigo-700"></span></span>
                     <span class="text-sm font-bold text-slate-600">Restante: <span id="rec-edit-pending-lbl" class="text-red-600"></span></span>
                 </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">Data de Vencimento</label>
-                    <input type="date" id="rec-edit-due" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none">
-                </div>
-            </div>
+                 <div>
+                     <label class="block text-sm font-bold text-slate-700 mb-1">Data de Vencimento</label>
+                     <input type="date" id="rec-edit-due" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none">
+                 </div>
+                 <div>
+                     <label class="block text-sm font-bold text-slate-700 mb-1">Forma de Pagamento</label>
+                     <select id="rec-edit-method" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none bg-white"></select>
+                     <p class="text-[11px] text-slate-400 mt-1">Forma prevista. Nao registra recebimento.</p>
+                 </div>
+             </div>
             <div class="p-5 border-t bg-slate-50 flex gap-3">
                 <button onclick="document.getElementById('modal-receivable-data').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button onclick="saveReceivableData()" class="flex-1 py-3 bg-slate-800 rounded-xl font-bold text-white hover:bg-slate-900 shadow-lg">Salvar</button>
@@ -6118,13 +6123,15 @@ function printStockCountSheet() {
         async function saveReceivableData() {
             const id = document.getElementById('rec-edit-id').value;
             const due = document.getElementById('rec-edit-due').value;
+            const method = (document.getElementById('rec-edit-method')?.value || '').trim();
             if (!due) return showToast("Informe a data de vencimento", true);
+            if (!method) return showToast("Informe a forma de pagamento", true);
             const st = calcTituloFinanceiro(id);
             if (!st.rows.length) return showToast("Registro não encontrado", true);
             showLoading(true);
             try {
                 for (let row of st.rows) {
-                    await sb.from('logs').update({ vencimento: due }).eq('uid', row.uid);
+                    await sb.from('logs').update({ vencimento: due, forma_pagamento: method }).eq('uid', row.uid);
                 }
                 document.getElementById('modal-receivable-data').classList.add('hidden');
                 showToast("Titulo atualizado!");
@@ -10107,6 +10114,17 @@ function loadQuoteToCart(id) {
             document.getElementById('rec-edit-total-lbl').innerText = formatMoney(totalEfetivo);
             document.getElementById('rec-edit-pending-lbl').innerText = formatMoney(Math.max(0, saldoBase));
             try { document.getElementById('rec-edit-due').value = (due || '').split('T')[0]; } catch (e) {}
+            const methodSel = document.getElementById('rec-edit-method');
+            if (methodSel) {
+                const current = st.rows[0]?.paymentMethod || METODOS_PGTO[0];
+                methodSel.innerHTML = optionsPgto(current);
+                if (current && !METODOS_PGTO.includes(current)) {
+                    const extra = document.createElement('option');
+                    extra.textContent = current;
+                    extra.selected = true;
+                    methodSel.appendChild(extra);
+                }
+            }
             document.getElementById('modal-receivable-data').classList.remove('hidden');
             if (window.lucide) lucide.createIcons();
         }
