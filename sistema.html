@@ -10110,6 +10110,8 @@ function loadQuoteToCart(id) {
         </tr>`;
         expBody.innerHTML = rowsHtmlExp + totalRowExpHtml;
     }
+
+    if (typeof atualizarBarraPayLote === 'function') atualizarBarraPayLote();
     } // fim da aba pagar
 
     _finRendered[activeTab] = true;
