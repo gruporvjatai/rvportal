@@ -1488,7 +1488,7 @@
                 <input type="hidden" id="del-order-id">
                 <div class="flex gap-2">
                     <button onclick="closeDeliveryModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-lg font-bold transition">Cancelar</button>
-                    <button onclick="confirmOrderDelivery()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold shadow-lg shadow-green-200 transition">Confirmar Entrega</button>
+                    <button id="del-confirm-btn" onclick="confirmOrderDelivery()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold shadow-lg shadow-green-200 transition">Confirmar Entrega</button>
                 </div>
             </div>
         </div>
@@ -5778,6 +5778,12 @@ function printStockCountSheet() {
         }
 
         async function confirmOrderDelivery() {
+            if (window._expedicaoEmAndamento) return showToast("Expedição em andamento.", true);
+            window._expedicaoEmAndamento = true;
+            const btn = document.getElementById('del-confirm-btn');
+            if (btn) { btn.disabled = true; btn.classList.add('opacity-50', 'pointer-events-none'); }
+
+            try {
             const orderId = document.getElementById('del-order-id').value;
             const inputs = document.querySelectorAll('[id^="del-input-"]');
 
@@ -5785,7 +5791,6 @@ function printStockCountSheet() {
             let stockUpdates = [];
             let newLogs = [];
             const timestamp = new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString();
-            let maxId = getNextId(STATE.logs);
 
             for (let input of inputs) {
                 const uid = input.getAttribute('data-uid');
@@ -5812,7 +5817,7 @@ function printStockCountSheet() {
                     if(prodFound && !prodFound.servico) stockUpdates.push({ id: prodFound.id, qty: qty });
 
                     newLogs.push({
-                        id: maxId.toString(), tipo: 'entrega', produto_nome: prodName,
+                        tipo: 'entrega', produto_nome: prodName,
                         produto_id: (origLog.productId != null && STATE.products.some(p => String(p.id) === String(origLog.productId))) ? origLog.productId : null,
                         quantidade: qty,
                         data: timestamp, observacao: 'Ref Venda #' + orderId, valor_total: 0,
@@ -5822,7 +5827,6 @@ function printStockCountSheet() {
                         status_entrega: 'ENTREGUE', qtd_entregue: qty, desconto: 0, status_financeiro: '',
                         vencimento: timestamp, valor_pago: 0, endereco_entrega: ''
                     });
-                    maxId++;
                 }
             }
 
@@ -5831,6 +5835,11 @@ function printStockCountSheet() {
             window._logMute = true;
 
             try {
+                let nextId = await getNextIdFromDB();
+                for (let log of newLogs) {
+                    log.id = nextId++;
+                }
+
                 for (let u of updates) {
                     const { error } = await sb.from('logs').update({ qtd_entregue: u.qtd_entregue, status_entrega: u.status_entrega }).eq('uid', u.uid);
                     if(error) throw error;
@@ -5870,6 +5879,10 @@ function printStockCountSheet() {
             closeDeliveryModal();
             showToast("Entrega Registrada com Sucesso!");
             await loadData();
+            } finally {
+                window._expedicaoEmAndamento = false;
+                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'pointer-events-none'); }
+            }
         }
 
         // ===== Formas multiplas + desconto/juros na baixa (financeiro) =====
@@ -8229,7 +8242,11 @@ function loadQuoteToCart(id) {
             document.getElementById('modal-delivery').classList.remove('hidden');
         }
 
-        function closeDeliveryModal() { document.getElementById('modal-delivery').classList.add('hidden'); }
+        function closeDeliveryModal() {
+            document.getElementById('modal-delivery').classList.add('hidden');
+            const btn = document.getElementById('del-confirm-btn');
+            if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'pointer-events-none'); }
+        }
 
         function openPosClientModal() {
             document.getElementById('pos-client-modal').classList.remove('hidden');
