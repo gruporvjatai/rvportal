@@ -530,12 +530,12 @@
              <div class="flex flex-wrap gap-2 items-center">
                  <div class="relative">
                      <i data-lucide="search" class="absolute left-2 top-2 text-slate-400 w-4 h-4"></i>
-                     <input type="text" id="exp-hist-name" placeholder="Buscar cliente ou produto..." class="pl-8 p-2 border rounded text-xs focus:ring-2 focus:ring-emerald-600 outline-none bg-white shadow-sm w-48 xl:w-64" onkeyup="renderExpedition()">
+                      <input type="text" id="exp-hist-name" placeholder="Buscar cliente, produto ou nº da venda..." class="pl-8 p-2 border rounded text-xs focus:ring-2 focus:ring-emerald-600 outline-none bg-white shadow-sm w-48 xl:w-64" onkeyup="resetExpHistPaging()">
                  </div>
-                 <input type="date" id="exp-hist-start" class="p-2 border rounded text-xs focus:ring-2 focus:ring-emerald-600 outline-none bg-white shadow-sm" onchange="renderExpedition()">
-                 <span class="text-slate-400 self-center text-sm font-medium">Até</span>
-                 <input type="date" id="exp-hist-end" class="p-2 border rounded text-xs focus:ring-2 focus:ring-emerald-600 outline-none bg-white shadow-sm" onchange="renderExpedition()">
-                 <button onclick="document.getElementById('exp-hist-start').value=''; document.getElementById('exp-hist-end').value=''; document.getElementById('exp-hist-name').value=''; renderExpedition()" class="p-2 bg-slate-200 hover:bg-slate-300 rounded text-xs shadow-sm" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
+                  <input type="date" id="exp-hist-start" class="p-2 border rounded text-xs focus:ring-2 focus:ring-emerald-600 outline-none bg-white shadow-sm" onchange="resetExpHistPaging()">
+                  <span class="text-slate-400 self-center text-sm font-medium">Até</span>
+                  <input type="date" id="exp-hist-end" class="p-2 border rounded text-xs focus:ring-2 focus:ring-emerald-600 outline-none bg-white shadow-sm" onchange="resetExpHistPaging()">
+                  <button onclick="document.getElementById('exp-hist-start').value=''; document.getElementById('exp-hist-end').value=''; document.getElementById('exp-hist-name').value=''; resetExpHistPaging()" class="p-2 bg-slate-200 hover:bg-slate-300 rounded text-xs shadow-sm" title="Limpar Filtros"><i data-lucide="x" class="w-4 h-4"></i></button>
                  <button onclick="printExpeditionHistory()" class="p-2 bg-slate-800 text-white hover:bg-slate-700 rounded text-xs shadow-sm flex items-center gap-2 font-bold ml-2"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir</button>
              </div>
          </div>
@@ -552,10 +552,13 @@
                             <th class="p-4 text-center">Qtd Entregue / Ações</th>
                         </tr>
                     </thead>
-                    <tbody id="expedition-history-list" class="divide-y"></tbody>
-                </table>
-            </div>
-         </div>
+                     <tbody id="expedition-history-list" class="divide-y"></tbody>
+                 </table>
+             </div>
+             <div id="exp-hist-more-wrap" class="hidden p-3 border-t bg-slate-50 text-center">
+                 <button type="button" onclick="carregarMaisExpedicaoHist()" class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-bold text-slate-700 shadow-sm">Carregar mais</button>
+             </div>
+          </div>
       </div>
 
      <div id="view-quotes" class="hidden-section">
@@ -8180,22 +8183,38 @@ function loadQuoteToCart(id) {
             const histBody = document.getElementById('expedition-history-list');
             if(histBody) {
                 let histLogs = (STATE.logs || []).filter(l => l.type === 'entrega' && l.status !== 'CANCELADO');
-                const nameFilter = normalizeSearch(document.getElementById('exp-hist-name')?.value);
+                const nameRaw = (document.getElementById('exp-hist-name')?.value || '').trim();
+                const nameFilter = normalizeSearch(nameRaw);
                 const startDate = document.getElementById('exp-hist-start')?.value;
                 const endDate = document.getElementById('exp-hist-end')?.value;
+                const hasFilter = Boolean(nameFilter || startDate || endDate);
 
                 if (nameFilter) {
-                    histLogs = histLogs.filter(l => (l.clientName && normalizeSearch(l.clientName).includes(nameFilter)) || (l.productName && normalizeSearch(l.productName).includes(nameFilter)));
+                    const digits = nameRaw.replace(/\D/g, '');
+                    histLogs = histLogs.filter(l => {
+                        const note = String(l.note || '');
+                        const saleId = ((note.match(/#(\d+)/) || [])[1] || '');
+                        return (l.clientName && normalizeSearch(l.clientName).includes(nameFilter))
+                            || (l.productName && normalizeSearch(l.productName).includes(nameFilter))
+                            || normalizeSearch(note).includes(nameFilter)
+                            || (digits && saleId.includes(digits));
+                    });
                 }
                 if (startDate) histLogs = histLogs.filter(l => (l.date||'').split('T')[0] >= startDate);
                 if (endDate) histLogs = histLogs.filter(l => (l.date||'').split('T')[0] <= endDate);
 
                 histLogs.sort((a,b) => new Date(b.date) - new Date(a.date));
 
+                if (!window._expHistShown) window._expHistShown = 20;
+                const visiveis = hasFilter ? histLogs : histLogs.slice(0, window._expHistShown);
+                const moreWrap = document.getElementById('exp-hist-more-wrap');
+                if (moreWrap) moreWrap.classList.toggle('hidden', hasFilter || visiveis.length >= histLogs.length);
+
                 if (histLogs.length === 0) {
                     histBody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-400">Nenhum registro encontrado.</td></tr>';
+                    if (moreWrap) moreWrap.classList.add('hidden');
                 } else {
-                    histBody.innerHTML = histLogs.map(l => {
+                    histBody.innerHTML = visiveis.map(l => {
                         return `<tr class="hover:bg-slate-50 border-b">
                             <td class="p-4 text-xs text-slate-500">${formatDate(l.date)}</td>
                             <td class="p-4 text-xs font-bold text-slate-700">${l.note || '-'}</td>
@@ -8210,6 +8229,16 @@ function loadQuoteToCart(id) {
                 }
             }
             lucide.createIcons();
+        }
+
+        function resetExpHistPaging() {
+            window._expHistShown = 20;
+            renderExpedition();
+        }
+
+        function carregarMaisExpedicaoHist() {
+            window._expHistShown = (window._expHistShown || 20) + 50;
+            renderExpedition();
         }
 
         function openOrderDeliveryModal(orderId) {
@@ -10479,7 +10508,15 @@ function loadQuoteToCart(id) {
             const endDate = document.getElementById('exp-hist-end')?.value;
 
             if (nameFilter) {
-                histLogs = histLogs.filter(l => (l.clientName && normalizeSearch(l.clientName).includes(nameFilter)) || (l.productName && normalizeSearch(l.productName).includes(nameFilter)));
+                const digits = (document.getElementById('exp-hist-name')?.value || '').replace(/\D/g, '');
+                histLogs = histLogs.filter(l => {
+                    const note = String(l.note || '');
+                    const saleId = ((note.match(/#(\d+)/) || [])[1] || '');
+                    return (l.clientName && normalizeSearch(l.clientName).includes(nameFilter))
+                        || (l.productName && normalizeSearch(l.productName).includes(nameFilter))
+                        || normalizeSearch(note).includes(nameFilter)
+                        || (digits && saleId.includes(digits));
+                });
             }
             if (startDate) histLogs = histLogs.filter(l => (l.date||'').split('T')[0] >= startDate);
             if (endDate) histLogs = histLogs.filter(l => (l.date||'').split('T')[0] <= endDate);
