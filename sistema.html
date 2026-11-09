@@ -1752,7 +1752,7 @@
             </div>
             <div class="p-5 border-t bg-indigo-50 flex gap-3">
                 <button onclick="document.getElementById('modal-receivable-edit').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
-                <button onclick="saveReceivableEdit()" class="flex-1 py-3 bg-indigo-700 rounded-xl font-bold text-white hover:bg-indigo-800 shadow-lg">Confirmar Recebimento</button>
+                <button id="btn-rec-baixar" onclick="saveReceivableEdit()" class="flex-1 py-3 bg-indigo-700 rounded-xl font-bold text-white hover:bg-indigo-800 shadow-lg">Confirmar Recebimento</button>
             </div>
         </div>
     </div>
@@ -1781,7 +1781,7 @@
              </div>
             <div class="p-5 border-t bg-slate-50 flex gap-3">
                 <button onclick="document.getElementById('modal-receivable-data').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
-                <button onclick="saveReceivableData()" class="flex-1 py-3 bg-slate-800 rounded-xl font-bold text-white hover:bg-slate-900 shadow-lg">Salvar</button>
+                <button id="btn-rec-edit-salvar" onclick="saveReceivableData()" class="flex-1 py-3 bg-slate-800 rounded-xl font-bold text-white hover:bg-slate-900 shadow-lg">Salvar</button>
             </div>
         </div>
     </div>
@@ -2127,7 +2127,7 @@
             </div>
             <div class="p-5 border-t bg-slate-50 flex gap-3">
                 <button onclick="closeExpenseModal()" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
-                <button onclick="saveExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Salvar Pendente</button>
+                <button id="btn-exp-salvar" onclick="saveExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Salvar Pendente</button>
             </div>
         </div>
     </div>
@@ -2604,7 +2604,7 @@
             </div>
             <div class="p-5 border-t bg-red-50 flex gap-3">
                 <button onclick="document.getElementById('modal-payexpense').classList.add('hidden')" class="flex-1 py-3 bg-white border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
-                <button onclick="savePayExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Confirmar Pagamento</button>
+                <button id="btn-dexp-pagar" onclick="savePayExpense()" class="flex-1 py-3 bg-red-600 rounded-xl font-bold text-white hover:bg-red-700 shadow-lg">Confirmar Pagamento</button>
             </div>
         </div>
     </div>
@@ -6022,6 +6022,11 @@ function printStockCountSheet() {
         }
 
         async function saveReceivableEdit() {
+            if (window._recBaixaEmAndamento) return;
+            window._recBaixaEmAndamento = true;
+            const btn = document.getElementById('btn-rec-baixar');
+            if (btn) { btn.disabled = true; btn.classList.add('opacity-50', 'pointer-events-none'); }
+            try {
             const id = document.getElementById('rec-id').value;
             const st = calcTituloFinanceiro(id);
             if (!st.rows.length) return showToast("Registro não encontrado", true);
@@ -6134,9 +6139,18 @@ function printStockCountSheet() {
                 showToast("Erro: " + err.message, true);
                 console.error(err);
             }
+            } finally {
+                window._recBaixaEmAndamento = false;
+                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'pointer-events-none'); }
+            }
         }
 
         async function saveReceivableData() {
+            if (window._recEditEmAndamento) return;
+            window._recEditEmAndamento = true;
+            const btn = document.getElementById('btn-rec-edit-salvar');
+            if (btn) { btn.disabled = true; btn.classList.add('opacity-50', 'pointer-events-none'); }
+            try {
             const id = document.getElementById('rec-edit-id').value;
             const due = document.getElementById('rec-edit-due').value;
             const method = (document.getElementById('rec-edit-method')?.value || '').trim();
@@ -6156,6 +6170,10 @@ function printStockCountSheet() {
                 showLoading(false);
                 showToast("Erro: " + err.message, true);
                 console.error(err);
+            }
+            } finally {
+                window._recEditEmAndamento = false;
+                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'pointer-events-none'); }
             }
         }
 
@@ -6958,6 +6976,11 @@ function printStockCountSheet() {
 
 
       async function saveExpense() {
+          if (window._expSalvarEmAndamento) return;
+          window._expSalvarEmAndamento = true;
+          const btn = document.getElementById('btn-exp-salvar');
+          if (btn) { btn.disabled = true; btn.classList.add('opacity-50', 'pointer-events-none'); }
+          try {
           const idVal = document.getElementById('exp-id').value;
           const isNew = !idVal;
           const categoriaId = document.getElementById('exp-item').value;
@@ -7037,6 +7060,10 @@ function printStockCountSheet() {
           showToast(isNew ? (parcelas > 1 ? `Despesa parcelada em ${parcelas}x!` : "Despesa lançada com sucesso!") : "Despesa atualizada!");
           await recarregarFinanceiro({ despesas: true });
           closeExpenseModal();
+          } finally {
+              window._expSalvarEmAndamento = false;
+              if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'pointer-events-none'); }
+          }
       }
 
         // ===== Baixa de despesa (parcial + multiplas formas + desconto/juros) =====
@@ -7105,6 +7132,11 @@ function printStockCountSheet() {
         }
 
         async function savePayExpense() {
+            if (window._dexpPagarEmAndamento) return;
+            window._dexpPagarEmAndamento = true;
+            const btn = document.getElementById('btn-dexp-pagar');
+            if (btn) { btn.disabled = true; btn.classList.add('opacity-50', 'pointer-events-none'); }
+            try {
             const id = document.getElementById('dexp-id').value;
             const exp = STATE.expenses.find(e => String(e.id) === String(id));
             if (!exp) return showToast("Despesa não encontrada", true);
@@ -7167,6 +7199,10 @@ function printStockCountSheet() {
                 showLoading(false);
                 showToast("Erro ao baixar despesa: " + err.message, true);
                 console.error(err);
+            }
+            } finally {
+                window._dexpPagarEmAndamento = false;
+                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'pointer-events-none'); }
             }
         }
 
